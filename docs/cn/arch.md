@@ -1,5 +1,5 @@
 [上一页](design.md)
-[回目录](../../readme.md)
+[回目录](../../README.md)
 [下一页](code.md)
 
 # 架构概览
@@ -63,5 +63,5 @@ QMQ的延时/定时消息使用的是两层HashWheelTimer来实现的。第一�
 * dispatch log 延时/定时消息投递后写入，主要用于在应用重启后能够确定哪些消息已经投递
 
 [上一页](design.md)
-[回目录](../../readme.md)
+[回目录](../../README.md)
 [下一页](code.md)
