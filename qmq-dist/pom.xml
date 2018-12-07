@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <artifactId>qmq</artifactId>
+        <groupId>qunar.tc</groupId>
+        <version>4.0.30</version>
+    </parent>
+
+    <artifactId>qmq-dist</artifactId>
+    <packaging>pom</packaging>
+
+    <dependencies>
+        <dependency>
+            <groupId>qunar.tc</groupId>
+            <artifactId>qmq-metaserver</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>qunar.tc</groupId>
+            <artifactId>qmq-server</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>qunar.tc</groupId>
+            <artifactId>qmq-delay-server</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>qunar.tc</groupId>
+            <artifactId>qmq-tools</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>assemble</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                        <configuration>
+                            <finalName>qmq-dist-${project.version}</finalName>
+                            <descriptors>
+                                <descriptor>assembly/bin.xml</descriptor>
+                            </descriptors>
+                            <tarLongFileMode>gnu</tarLongFileMode>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

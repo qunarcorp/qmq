@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <artifactId>qmq</artifactId>
+        <groupId>qunar.tc</groupId>
+        <version>4.0.30</version>
+    </parent>
+
+    <artifactId>qmq-api</artifactId>
+
+    <properties>
+        <java_source_version>1.7</java_source_version>
+        <java_target_version>1.7</java_target_version>
+    </properties>
+</project>

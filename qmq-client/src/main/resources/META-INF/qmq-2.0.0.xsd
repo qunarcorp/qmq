@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<xsd:schema xmlns="http://www.qunar.com/schema/qmq"
+            xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+            xmlns:tool="http://www.springframework.org/schema/tool"
+            targetNamespace="http://www.qunar.com/schema/qmq"
+            elementFormDefault="qualified"
+            attributeFormDefault="unqualified">
+
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace"/>
+    <xsd:import namespace="http://www.springframework.org/schema/tool"/>
+
+    <xsd:annotation>
+        <xsd:documentation><![CDATA[ Namespace support for the qmq provided by Qunar. ]]></xsd:documentation>
+    </xsd:annotation>
+
+    <xsd:element name="consumer">
+        <xsd:annotation>
+            <xsd:documentation><![CDATA[ qmq consumer注解扫描的配置节点 ]]></xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexType>
+            <xsd:attribute name="appCode" type="xsd:string" use="required" >
+                <xsd:annotation>
+                    <xsd:documentation><![CDATA[ 配置应用的唯一标识 ]]></xsd:documentation>
+                </xsd:annotation>
+            </xsd:attribute>
+            <xsd:attribute name="metaServer" type="xsd:string" use="required" >
+                <xsd:annotation>
+                    <xsd:documentation><![CDATA[ 配置 meta server的地址 ]]></xsd:documentation>
+                </xsd:annotation>
+            </xsd:attribute>
+        </xsd:complexType>
+    </xsd:element>
+</xsd:schema>
