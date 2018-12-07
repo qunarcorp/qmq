@@ -47,7 +47,7 @@
 
 | 指标名称 | 指标描述 |tag|
 |---------|---------|----|
-|brokerRegisterCount|server与meta之间通信次数|groupName(server集群名称), requestType(通信类型)|
+|brokerRegisterCount|server与meta之间通信次数|groupName(server集群名称), requestType(通信类型)|
 |clientRegisterCount|客户端与meta之间通信次数|clientTypeCode(producer or consumer), subject|
 
 [上一页](ha.md)
