@@ -1,4 +1,4 @@
-[回目录](../../readme.md)
+[回目录](../../README.md)
 [下一页](install.md)
 
 # 快速入门
@@ -26,5 +26,5 @@ public void onMessage(Message message){
 }
 ```
 
-[回目录](../../readme.md)
+[回目录](../../README.md)
 [下一页](install.md)
