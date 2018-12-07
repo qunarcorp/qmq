@@ -1,5 +1,5 @@
 [上一页](quickstart.md)
-[回目录](../../readme.md)
+[回目录](../../README.md)
 [下一页](design.md)
 
 # 安装
@@ -155,5 +155,5 @@ messagelog.retention.hours=72
 ```
 
 [上一页](quickstart.md)
-[回目录](../../readme.md)
+[回目录](../../README.md)
 [下一页](design.md)

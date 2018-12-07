@@ -1,5 +1,5 @@
 [上一页](code.md)
-[回目录](../../readme.md)
+[回目录](../../README.md)
 [下一页](monitor.md)
 
 # 高可用(HA)
@@ -17,5 +17,5 @@ QMQ分别从两个角度提供高可用能力：分片和复制
 目前当master离线后，不提供自动切换功能，需要人工启动master。当slave离线后，该group不再提供接收消息服务，只提供消息消费服务。当master出现故障，导致消息丢失时，可以将其切换为slave，原来的slave切换为master，slave将从master同步数据，同步完成后提供服务。
 
 [上一页](code.md)
-[回目录](../../readme.md)
+[回目录](../../README.md)
 [下一页](monitor.md)

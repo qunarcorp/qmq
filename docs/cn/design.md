@@ -1,5 +1,5 @@
 [上一页](install.md)
-[回目录](../../readme.md)
+[回目录](../../README.md)
 [下一页](arch.md)
 
 
@@ -34,5 +34,5 @@
 
 
 [上一页](install.md)
-[回目录](../../readme.md)
+[回目录](../../README.md)
 [下一页](arch.md)

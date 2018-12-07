@@ -1,5 +1,5 @@
 [上一页](arch.md)
-[回目录](../../readme.md)
+[回目录](../../README.md)
 [下一页](ha.md)
 
 # 代码模块介绍
@@ -32,5 +32,5 @@
 提供的prometheus监控接入
 
 [上一页](arch.md)
-[回目录](../../readme.md)
+[回目录](../../README.md)
 [下一页](ha.md)
