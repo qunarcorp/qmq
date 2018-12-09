@@ -18,11 +18,18 @@ QMQ除了提供使用API来消费消息的方式外，还提供了跟Spring结�
     http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
 	http://www.qunar.com/schema/qmq http://www.qunar.com/schema/qmq.xsd">
 
-    <qmq:consumer />
+    <qmq:consumer appCode="your app" metaServer="http://meta server/meta/address" />
 
     <context:annotation-config />
     <context:component-scan base-package="qunar.tc.qmq.demo.consumer.*" />
 </beans>
+```
+
+当然，如果你的应用使用的是Spring annotation的配置方式，没有xml，那么也可以使用@EnableQmq的方式配置
+```java
+@Configuration
+@EnableQmq(appCode="your app", metaServer="http://meta server/meta/address")
+public class Config{}
 ```
 
 使用下面的代码就可以订阅消息了，是不是非常简单。
@@ -88,6 +95,8 @@ Listener的方式与@QmqConsumer提供的功能基本类似
 ```java
 //推荐一个应用里只创建一个实例
 MessageConsumerProvider consumer = new MessageConsumerProvider();
+consumer.setAppCode("your app");
+consumer.setMetaServer("http://meta server/meta/address");
 consumer.init();
 
 consumer.addListener("your subject", "group", (m) -> {
@@ -102,6 +111,8 @@ Pull API是最基础的API，需要考虑更多情况，如无必要，我们推
 ```java
 //推荐一个应用里只创建一个实例
 MessageConsumerProvider consumer = new MessageConsumerProvider();
+consumer.setAppCode("your app");
+consumer.setMetaServer("http://meta server/meta/address");
 consumer.init();
 
 PullConsumer pullConsumer = consumer.getOrCreatePullConsumer("your subject", "group", false);
