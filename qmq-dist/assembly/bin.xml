@@ -13,6 +13,11 @@
     <fileSets>
         <fileSet>
             <includes>
+                <include>sql/**</include>
+            </includes>
+        </fileSet>
+        <fileSet>
+            <includes>
                 <include>conf/**</include>
             </includes>
         </fileSet>
