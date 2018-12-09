@@ -5,7 +5,7 @@
 # 安装
 
 ## 下载
-在github上可以[下载]()我们已经打包好的压缩包
+在github上可以[下载](https://github.com/qunarcorp/qmq/releases)我们已经打包好的压缩包
 
 ## MetaServer
 
