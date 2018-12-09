@@ -6,33 +6,33 @@
 
     <parent>
         <artifactId>qmq</artifactId>
-        <groupId>qunar.tc</groupId>
-        <version>4.0.30</version>
+        <groupId>com.qunar.qmq</groupId>
+        <version>1.0.0</version>
     </parent>
 
     <artifactId>qmq-sync</artifactId>
 
     <dependencies>
         <dependency>
-            <groupId>qunar.tc</groupId>
+            <groupId>${project.groupId}</groupId>
             <artifactId>qmq-remoting</artifactId>
         </dependency>
         <dependency>
-            <groupId>qunar.tc</groupId>
+            <groupId>${project.groupId}</groupId>
             <artifactId>qmq-server-common</artifactId>
         </dependency>
         <dependency>
-            <groupId>qunar.tc</groupId>
+            <groupId>${project.groupId}</groupId>
             <artifactId>qmq-store</artifactId>
+        </dependency>
+         <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>qmq-common</artifactId>
         </dependency>
 
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>qunar.tc</groupId>
-            <artifactId>qmq-common</artifactId>
         </dependency>
     </dependencies>
 </project>

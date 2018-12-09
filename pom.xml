@@ -4,9 +4,9 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>qunar.tc</groupId>
+    <groupId>com.qunar.qmq</groupId>
     <artifactId>qmq</artifactId>
-    <version>4.0.30</version>
+    <version>1.0.0</version>
     <packaging>pom</packaging>
 
     <inceptionYear>2012</inceptionYear>
@@ -95,22 +95,22 @@
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>qunar.tc</groupId>
+                <groupId>${project.groupId}</groupId>
                 <artifactId>qmq-metaserver</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>qunar.tc</groupId>
+                <groupId>${project.groupId}</groupId>
                 <artifactId>qmq-server</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>qunar.tc</groupId>
+                <groupId>${project.groupId}</groupId>
                 <artifactId>qmq-delay-server</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>qunar.tc</groupId>
+                <groupId>${project.groupId}</groupId>
                 <artifactId>qmq-tools</artifactId>
                 <version>${project.version}</version>
             </dependency>

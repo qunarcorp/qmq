@@ -4,6 +4,9 @@
 
 # 安装
 
+## 下载
+在github上可以[下载]()我们已经打包好的压缩包
+
 ## MetaServer
 
 负责集群管理和集群发现
@@ -14,6 +17,9 @@ JDK 1.8
 -Xmx1G -Xms1G
 
 为了可用性请至少部署两台，并配置一个url用于client和server找到meta server
+
+### 初始化数据库
+运行下载的压缩包sql目录里的init.sql，初始化metaserver所需要的数据库
 
 ### 配置文件
 *datasource.properties*

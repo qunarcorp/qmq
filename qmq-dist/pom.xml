@@ -6,8 +6,8 @@
 
     <parent>
         <artifactId>qmq</artifactId>
-        <groupId>qunar.tc</groupId>
-        <version>4.0.30</version>
+        <groupId>com.qunar.qmq</groupId>
+        <version>1.0.0</version>
     </parent>
 
     <artifactId>qmq-dist</artifactId>
@@ -15,19 +15,19 @@
 
     <dependencies>
         <dependency>
-            <groupId>qunar.tc</groupId>
+            <groupId>com.qunar.qmq</groupId>
             <artifactId>qmq-metaserver</artifactId>
         </dependency>
         <dependency>
-            <groupId>qunar.tc</groupId>
+            <groupId>com.qunar.qmq</groupId>
             <artifactId>qmq-server</artifactId>
         </dependency>
         <dependency>
-            <groupId>qunar.tc</groupId>
+            <groupId>com.qunar.qmq</groupId>
             <artifactId>qmq-delay-server</artifactId>
         </dependency>
         <dependency>
-            <groupId>qunar.tc</groupId>
+            <groupId>com.qunar.qmq</groupId>
             <artifactId>qmq-tools</artifactId>
         </dependency>
     </dependencies>
