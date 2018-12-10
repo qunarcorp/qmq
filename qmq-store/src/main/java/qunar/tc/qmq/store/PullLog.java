@@ -37,7 +37,7 @@ public class PullLog {
 
     public PullLog(final StorageConfig config, final String consumerId, final String groupAndSubject) {
         this.config = config;
-        this.logManager = new LogManager(buildPullLogPath(consumerId, groupAndSubject), PULL_LOG_SIZE, config, new PullLogSegmentValidator(), true);
+        this.logManager = new LogManager(buildPullLogPath(consumerId, groupAndSubject), PULL_LOG_SIZE, config, new PullLogSegmentValidator());
     }
 
     private File buildPullLogPath(final String consumerId, final String groupAndSubject) {

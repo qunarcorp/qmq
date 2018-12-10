@@ -49,17 +49,13 @@ public class LogManager {
     private long flushedOffset = 0;
 
     public LogManager(final File dir, final int fileSize, final StorageConfig config, final LogSegmentValidator segmentValidator) {
-        this(dir, fileSize, config, segmentValidator, false);
-    }
-
-    public LogManager(final File dir, final int fileSize, final StorageConfig config, final LogSegmentValidator segmentValidator, boolean freeAfterRecover) {
         this.logDir = dir;
         this.fileSize = fileSize;
         this.config = config;
         this.segmentValidator = segmentValidator;
         createAndValidateLogDir();
         loadLogs();
-        recover(freeAfterRecover);
+        recover();
     }
 
     // ensure dir ok
@@ -105,7 +101,7 @@ public class LogManager {
         }
     }
 
-    private void recover(boolean freeAfterRecover) {
+    private void recover() {
         if (segments.isEmpty()) {
             return;
         }
@@ -118,20 +114,13 @@ public class LogManager {
             if (i < 0) continue;
 
             final LogSegment segment = segments.get(baseOffsets.get(i));
-            try {
-                offset = segment.getBaseOffset();
-
-                final LogSegmentValidator.ValidateResult result = segmentValidator.validate(segment);
-                offset += result.getValidatedSize();
-                if (result.getStatus() == LogSegmentValidator.ValidateStatus.COMPLETE) {
-                    segment.setWrotePosition(segment.getFileSize());
-                } else {
-                    break;
-                }
-            } finally {
-                if (freeAfterRecover) {
-                    segment.free();
-                }
+            offset = segment.getBaseOffset();
+            final LogSegmentValidator.ValidateResult result = segmentValidator.validate(segment);
+            offset += result.getValidatedSize();
+            if (result.getStatus() == LogSegmentValidator.ValidateStatus.COMPLETE) {
+                segment.setWrotePosition(segment.getFileSize());
+            } else {
+                break;
             }
         }
         flushedOffset = offset;
@@ -333,8 +322,8 @@ public class LogManager {
 
     public boolean clean(Long key) {
         LogSegment segment = segments.get(key);
-        if (null == segment){
-            LOG.error("clean message segment log error,segment:{} is null",key);
+        if (null == segment) {
+            LOG.error("clean message segment log error,segment:{} is null", key);
             return false;
         }
 
