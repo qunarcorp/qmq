@@ -16,7 +16,6 @@
 
 package qunar.tc.qmq.consumer.idempotent;
 
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import qunar.tc.qmq.IdempotentChecker;
@@ -31,11 +30,10 @@ import java.util.Date;
  */
 public abstract class AbstractIdempotentChecker implements IdempotentChecker {
 
-    private final Function<Message, String> keyFunc;
+    private final KeyExtractor extractor;
 
-    public AbstractIdempotentChecker(Function<Message, String> keyFunc) {
-        Preconditions.checkNotNull(keyFunc, "用于生成幂等key的函数不能为空");
-        this.keyFunc = keyFunc;
+    public AbstractIdempotentChecker(KeyExtractor extractor) {
+        this.extractor = extractor;
     }
 
     @Override
@@ -115,7 +113,7 @@ public abstract class AbstractIdempotentChecker implements IdempotentChecker {
      * @return
      */
     protected String keyOf(Message message) {
-        String original = keyFunc.apply(message);
+        String original = extractor.extract(message);
         Preconditions.checkArgument(!Strings.isNullOrEmpty(original), "使用所提供的keyFunc无法提取幂等key");
 
         return message.getSubject() + "%" + message.getStringProperty(BaseMessage.keys.qmq_consumerGroupName.name()) + "%" + original;
@@ -132,10 +130,14 @@ public abstract class AbstractIdempotentChecker implements IdempotentChecker {
 
     public abstract void garbageCollect(Date before);
 
-    public static Function<Message, String> DEFAULT_KEYFUNC = new Function<Message, String>() {
+    public interface KeyExtractor {
+        String extract(Message message);
+    }
+
+    public static KeyExtractor DEFAULT_EXTRACTOR = new KeyExtractor() {
         @Override
-        public String apply(Message input) {
-            return input.getMessageId();
+        public String extract(Message message) {
+            return message.getMessageId();
         }
     };
 
