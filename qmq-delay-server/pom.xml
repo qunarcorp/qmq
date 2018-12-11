@@ -6,12 +6,16 @@
 
     <parent>
         <groupId>com.qunar.qmq</groupId>
-        <artifactId>qmq</artifactId>
-        <version>1.0.1</version>
+        <artifactId>qmq-parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>qmq-delay-server</artifactId>
     <packaging>jar</packaging>
+
+    <properties>
+        <maven_deploy_skip>true</maven_deploy_skip>
+    </properties>
 
     <dependencies>
         <dependency>
