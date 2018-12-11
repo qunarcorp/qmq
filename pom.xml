@@ -22,10 +22,9 @@
     </licenses>
 
     <scm>
-        <url>git@github.com:qunarcorp/qmq.git</url>
+        <url>https://github.com/qunarcorp/qmq.git</url>
         <connection>scm:git:https://github.com/qunarcorp/qmq.git</connection>
-        <developerConnection>scm:git:git@github.com:qunarcorp/qmq.git</developerConnection>
-      <tag>qmq-parent-1.0.0</tag>
+        <developerConnection>scm:git:https://github.com/qunarcorp/qmq.git</developerConnection>
   </scm>
 
     <organization>
