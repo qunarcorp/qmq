@@ -7,7 +7,7 @@
 ## 下载
 在github上可以[下载](https://github.com/qunarcorp/qmq/releases)我们已经打包好的压缩包
 
-## MetaServer
+## 运行MetaServer
 
 负责集群管理和集群发现
 
@@ -16,7 +16,7 @@ JDK 1.8
 
 -Xmx1G -Xms1G
 
-为了可用性请至少部署两台，并配置一个url用于client和server找到meta server
+在生产环境为了可用性请至少部署两台，并配置一个url用于client和server找到meta server
 
 ### 初始化数据库
 运行下载的压缩包sql目录里的init.sql，初始化metaserver所需要的数据库
@@ -66,6 +66,9 @@ default=false
 <subject b>=false
 ```
 
+## 启动
+使用bin目录的metaserver.sh(windows平台上请使用metaserver.cmd)启动
+
 ## Server
 
 实时消息Server
@@ -80,7 +83,7 @@ Server需要将消息写入磁盘，磁盘性能和机器空闲内存是影响�
 ### 配置文件
 *broker.properties*
 ```
-# 必填，metaserver地址
+# 必填，metaserver地址，即你第一步安装的meta server的ip地址
 meta.server.endpoint=http://<metaserver address>/meta/address
 # 可选，broker服务端口
 broker.port=20881
@@ -117,6 +120,22 @@ sync.batch.size=100000
 # 可选，动态生效，从机同步数据超时时间
 message.sync.timeout.ms=10
 ```
+##启动
+在启动broker之前，请先将其在metaserver里注册，broker启动时候需要从metaserver获取元数据信息。
+
+运行bin目录的tools.sh(windows平台使用tools.cmd)，执行以下命令:
+
+```
+>tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --borkerGroup=<groupName> --role=0 --hostname=<hostname> --ip=<ip> --servePort=20881 --syncPort-20882
+```
+* metaserver address指的是ip:port,port默认是8080
+* token即metaserver的配置valid-api-tokens.properties里任何一项
+* brokerGroup 这一组的名字，每一组分为主从
+* role 角色 0 - master, 1 - slave, 5 - delay master, 6 - delay slave
+* hostname broker的主机名
+* ip broker的ip地址
+* servePort broker接收消息的端口
+* syncPort 主从同步端口
 
 ## Delay Server
 
@@ -159,6 +178,23 @@ dispatch.log.keep.hour=72
 # 可选，动态生效，messagelog过期时间
 messagelog.retention.hours=72
 ```
+
+##启动
+在启动delay之前，请先将其在metaserver里注册，delay启动时候需要从metaserver获取元数据信息。
+
+运行bin目录的tools.sh(windows平台使用tools.cmd)，执行以下命令:
+
+```
+>tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --borkerGroup=<groupName> --role=0 --hostname=<hostname> --ip=<ip> --servePort=20881 --syncPort-20882
+```
+* metaserver address指的是ip:port,port默认是8080
+* token即metaserver的配置valid-api-tokens.properties里任何一项
+* brokerGroup 这一组的名字，每一组分为主从
+* role 角色 0 - master, 1 - slave, 5 - delay master, 6 - delay slave
+* hostname broker的主机名
+* ip broker的ip地址
+* servePort broker接收消息的端口
+* syncPort 主从同步端口
 
 [上一页](quickstart.md)
 [回目录](../../README.md)
