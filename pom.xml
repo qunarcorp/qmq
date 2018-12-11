@@ -4,7 +4,7 @@
 
     <groupId>com.qunar.qmq</groupId>
     <artifactId>qmq-parent</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <inceptionYear>2012</inceptionYear>
@@ -23,9 +23,8 @@
 
     <scm>
         <url>git@github.com:qunarcorp/qmq.git</url>
-        <connection>scm:git:git@github.com:qunarcorp/qmq.git</connection>
+        <connection>scm:git:https://github.com/qunarcorp/qmq.git</connection>
         <developerConnection>scm:git:git@github.com:qunarcorp/qmq.git</developerConnection>
-        <tag>qmq-parent-1.0.0</tag>
     </scm>
 
     <organization>
