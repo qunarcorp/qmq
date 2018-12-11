@@ -132,7 +132,7 @@ public class PrometheusQmqMetricRegistry implements QmqMetricRegistry {
 
         @Override
         public PrometheusQmqGauge create() {
-            return PrometheusQmqGauge.build().name(name).labelNames(tags).create().register();
+            return PrometheusQmqGauge.build().name(name).help(name).labelNames(tags).create().register();
         }
     }
 
@@ -143,7 +143,7 @@ public class PrometheusQmqMetricRegistry implements QmqMetricRegistry {
 
         @Override
         public Gauge create() {
-            return Gauge.build().name(name).labelNames(tags).create().register();
+            return Gauge.build().name(name).help(name).labelNames(tags).create().register();
         }
     }
 
@@ -155,7 +155,7 @@ public class PrometheusQmqMetricRegistry implements QmqMetricRegistry {
 
         @Override
         public Summary create() {
-            return Summary.build().name(name).labelNames(tags).create().register();
+            return Summary.build().name(name).help(name).labelNames(tags).create().register();
         }
     }
 
@@ -169,6 +169,7 @@ public class PrometheusQmqMetricRegistry implements QmqMetricRegistry {
         public Summary create() {
             return Summary.build()
                     .name(name)
+                    .help(name)
                     .labelNames(tags)
                     .quantile(0.5, 0.05)
                     .quantile(0.75, 0.05)
