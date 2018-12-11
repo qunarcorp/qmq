@@ -1,12 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.qunar.qmq</groupId>
     <artifactId>qmq-parent</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.0</version>
     <packaging>pom</packaging>
 
     <inceptionYear>2012</inceptionYear>
@@ -27,7 +25,7 @@
         <url>git@github.com:qunarcorp/qmq.git</url>
         <connection>scm:git:git@github.com:qunarcorp/qmq.git</connection>
         <developerConnection>scm:git:git@github.com:qunarcorp/qmq.git</developerConnection>
-        <tag>HEAD</tag>
+        <tag>qmq-parent-1.0.0</tag>
     </scm>
 
     <organization>
@@ -41,15 +39,15 @@
         <module>qmq-common</module>
         <module>qmq-remoting</module>
         <module>qmq-deploy</module>
-        <module>qmq-server</module>
-        <module>qmq-server-common</module>
-        <module>qmq-store</module>
-        <module>qmq-sync</module>
-        <module>qmq-metaserver</module>
-        <module>qmq-delay-server</module>
-        <module>qmq-metrics-prometheus</module>
-        <module>qmq-dist</module>
-        <module>qmq-tools</module>
+        <!--<module>qmq-server</module>-->
+        <!--<module>qmq-server-common</module>-->
+        <!--<module>qmq-store</module>-->
+        <!--<module>qmq-sync</module>-->
+        <!--<module>qmq-metaserver</module>-->
+        <!--<module>qmq-delay-server</module>-->
+        <!--<module>qmq-metrics-prometheus</module>-->
+        <!--<module>qmq-dist</module>-->
+        <!--<module>qmq-tools</module>-->
     </modules>
 
     <properties>
