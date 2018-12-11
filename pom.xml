@@ -23,6 +23,13 @@
         </license>
     </licenses>
 
+    <scm>
+        <url>git@github.com:qunarcorp/qmq.git</url>
+        <connection>scm:git:git@github.com:qunarcorp/qmq.git</connection>
+        <developerConnection>scm:git:git@github.com:qunarcorp/qmq.git</developerConnection>
+        <tag>HEAD</tag>
+    </scm>
+
     <organization>
         <name>Qunar Inc.</name>
         <url>http://www.qunar.com</url>
