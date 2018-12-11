@@ -1,11 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.qunar.qmq</groupId>
     <artifactId>qmq-parent</artifactId>
-    <version>1.0.1-SNAPSHOT</version>
+    <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
+
+    <name>qmq</name>
+    <description>Qunar Message Queue</description>
+    <url>https://github.com/qunarcorp/qmq</url>
 
     <inceptionYear>2012</inceptionYear>
 
@@ -21,12 +26,31 @@
         </license>
     </licenses>
 
+    <developers>
+        <developer>
+            <id>yuyijq</id>
+            <name>Zhaohui Yu</name>
+            <email>yuyijq at hotmail.com</email>
+            <organization>Qunar, Inc.</organization>
+        </developer>
+        <developer>
+            <id>Keli</id>
+            <name>Keli Wang</name>
+            <organization>Qunar, Inc.</organization>
+        </developer>
+        <developer>
+            <id>Xufeng</id>
+            <name>Xufeng Deng</name>
+            <organization>Qunar, Inc.</organization>
+        </developer>
+    </developers>
+
     <scm>
         <url>https://github.com/qunarcorp/qmq.git</url>
         <connection>scm:git:https://github.com/qunarcorp/qmq.git</connection>
         <developerConnection>scm:git:https://github.com/qunarcorp/qmq.git</developerConnection>
         <tag>HEAD</tag>
-  </scm>
+    </scm>
 
     <organization>
         <name>Qunar Inc.</name>
