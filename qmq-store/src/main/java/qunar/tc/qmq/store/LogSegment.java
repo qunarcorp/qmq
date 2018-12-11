@@ -223,7 +223,4 @@ public class LogSegment extends ReferenceObject {
                 '}';
     }
 
-    public void free() {
-        MmapUtil.free(rawFile);
-    }
 }

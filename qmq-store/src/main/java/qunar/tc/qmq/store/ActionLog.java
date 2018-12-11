@@ -37,7 +37,7 @@ public class ActionLog {
 
     public ActionLog(final StorageConfig config) {
         this.config = config;
-        this.logManager = new LogManager(new File(config.getActionLogStorePath()), PER_SEGMENT_FILE_SIZE, config, new ActionLogSegmentValidator(), true);
+        this.logManager = new LogManager(new File(config.getActionLogStorePath()), PER_SEGMENT_FILE_SIZE, config, new ActionLogSegmentValidator());
     }
 
     public synchronized PutMessageResult addAction(final Action action) {
