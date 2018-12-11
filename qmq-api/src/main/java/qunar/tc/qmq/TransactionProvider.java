@@ -13,36 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
  */
-
 package qunar.tc.qmq;
 
 /**
  * Created by zhaohui.yu
- * 10/31/16
+ * 10/26/16
  */
-public interface ProduceMessage {
+public interface TransactionProvider {
 
-    String getMessageId();
+    boolean isInTransaction();
 
-    String getSubject();
+    void setTransactionListener(TransactionListener listener);
 
-    void send();
-
-    void error(Exception e);
-
-    void failed();
-
-    void block();
-
-    void finish();
-
-    Message getBase();
-
-    void startSendTrace();
-
-    void setStore(MessageStore messageStore);
-
-    void save();
-
-    long getSequence();
+    MessageStore messageStore();
 }

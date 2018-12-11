@@ -13,36 +13,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
  */
-
 package qunar.tc.qmq;
 
-/**
- * Created by zhaohui.yu
- * 10/31/16
- */
-public interface ProduceMessage {
+public interface MessageStore {
 
-    String getMessageId();
+    /**
+     * 将消息持久化到本地存储
+     *
+     * @param message
+     */
+    long insertNew(ProduceMessage message);
 
-    String getSubject();
+    /**
+     * 发送完成，删除消息
+     *
+     * @param message
+     */
+    void finish(ProduceMessage message);
 
-    void send();
+    /**
+     * 消息被server拦截
+     *
+     * @param message
+     */
+    void block(ProduceMessage message);
 
-    void error(Exception e);
+    /**
+     * 事务开始
+     */
+    void beginTransaction();
 
-    void failed();
-
-    void block();
-
-    void finish();
-
-    Message getBase();
-
-    void startSendTrace();
-
-    void setStore(MessageStore messageStore);
-
-    void save();
-
-    long getSequence();
+    /**
+     * 事务结束
+     */
+    void endTransaction();
 }
+

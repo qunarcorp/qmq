@@ -22,12 +22,14 @@ import io.opentracing.util.GlobalTracer;
 import qunar.tc.qmq.Message;
 import qunar.tc.qmq.MessageProducer;
 import qunar.tc.qmq.MessageSendStateListener;
+import qunar.tc.qmq.TransactionProvider;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.common.ClientIdProvider;
 import qunar.tc.qmq.common.ClientIdProviderFactory;
 import qunar.tc.qmq.producer.idgenerator.IdGenerator;
 import qunar.tc.qmq.producer.idgenerator.TimestampAndHostIdGenerator;
 import qunar.tc.qmq.producer.sender.NettyRouterManager;
+import qunar.tc.qmq.producer.tx.MessageTracker;
 import qunar.tc.qmq.tracing.TraceUtil;
 
 import javax.annotation.PostConstruct;
@@ -54,6 +56,8 @@ public class MessageProducerProvider implements MessageProducer {
 
     private String appCode;
     private String metaServer;
+
+    private MessageTracker messageTracker;
 
     /**
      * 自动路由机房
@@ -100,8 +104,20 @@ public class MessageProducerProvider implements MessageProducer {
                 .withTag("subject", message.getSubject())
                 .withTag("messageId", message.getMessageId())
                 .startActive(true)) {
+            if (messageTracker == null) {
+                message.setDurable(false);
+            }
+
             ProduceMessageImpl pm = initProduceMessage(message, listener);
-            pm.send();
+            if (!message.isDurable()) {
+                pm.send();
+                return;
+            }
+
+            if (!messageTracker.trackInTransaction(pm)) {
+                pm.send();
+            }
+
         }
     }
 
@@ -179,5 +195,9 @@ public class MessageProducerProvider implements MessageProducer {
      */
     public void setMetaServer(String metaServer) {
         this.metaServer = metaServer;
+    }
+
+    public void setTransactionProvider(TransactionProvider transactionProvider) {
+        this.messageTracker = new MessageTracker(transactionProvider);
     }
 }

@@ -170,4 +170,10 @@ public interface Message {
      * @return
      */
     int localRetries();
+
+    void setStoreAtFailed(boolean storeAtFailed);
+
+    void setDurable(boolean durable);
+
+    boolean isDurable();
 }

@@ -44,6 +44,8 @@ public class BaseMessage implements Message, Serializable {
     private final transient Set<String> tags = new CopyOnWriteArraySet<>();
 
     transient boolean isBigMessage = false;
+    private boolean storeAtFailed;
+    private boolean durable;
 
     public enum keys {
         qmq_createTime,
@@ -394,6 +396,25 @@ public class BaseMessage implements Message, Serializable {
     @Override
     public int localRetries() {
         throw new UnsupportedOperationException("本地重试，只有消费端才支持");
+    }
+
+    @Override
+    public void setStoreAtFailed(boolean storeAtFailed) {
+        this.storeAtFailed = storeAtFailed;
+    }
+
+    public boolean isStoreAtFailed() {
+        return this.storeAtFailed;
+    }
+
+    @Override
+    public void setDurable(boolean durable) {
+        this.durable = durable;
+    }
+
+    @Override
+    public boolean isDurable() {
+        return this.durable;
     }
 
 }

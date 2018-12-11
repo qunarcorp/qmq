@@ -22,6 +22,7 @@ import io.opentracing.util.GlobalTracer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.MessageSendStateListener;
+import qunar.tc.qmq.MessageStore;
 import qunar.tc.qmq.ProduceMessage;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
@@ -90,7 +91,10 @@ class ProduceMessageImpl implements ProduceMessage {
 
     private final AtomicInteger state = new AtomicInteger(INIT);
     private final AtomicInteger tries = new AtomicInteger(0);
+
     private boolean syncSend;
+    private MessageStore store;
+    private long sequence;
 
     public ProduceMessageImpl(BaseMessage base, QueueSender sender) {
         this.base = base;
@@ -115,6 +119,10 @@ class ProduceMessageImpl implements ProduceMessage {
 
                 if (sender.offer(this)) {
                     LOGGER.info("进入发送队列 {}:{}", getSubject(), getMessageId());
+                } else if (store != null) {
+                    enterQueueFail.inc();
+                    LOGGER.info("内存发送队列已满! 此消息将暂时丢弃,等待补偿服务处理 {}:{}", getSubject(), getMessageId());
+                    failed();
                 } else {
                     enterQueueFail.inc();
                     LOGGER.info("内存发送队列已满! 此消息在用户进程阻塞,等待队列激活 {}:{}", getSubject(), getMessageId());
@@ -134,7 +142,7 @@ class ProduceMessageImpl implements ProduceMessage {
     }
 
     private boolean sendSync() {
-        if (!syncSend) return false;
+        if (store != null || !syncSend) return false;
         sender.send(this);
         return true;
     }
@@ -142,8 +150,16 @@ class ProduceMessageImpl implements ProduceMessage {
     @Override
     public void finish() {
         state.set(FINISH);
-        onSuccess();
-        closeTrace();
+        try {
+            if (store == null) return;
+            if (base.isStoreAtFailed()) return;
+            store.finish(this);
+        } catch (Exception e) {
+            TraceUtil.recordEvent("Qmq.Store.Failed");
+        } finally {
+            onSuccess();
+            closeTrace();
+        }
     }
 
     private void onSuccess() {
@@ -177,8 +193,14 @@ class ProduceMessageImpl implements ProduceMessage {
     public void block() {
         try {
             state.set(BLOCK);
-            LOGGER.info("消息被拒绝 {}:{}", getSubject(), getMessageId());
-            if (syncSend) {
+            try {
+                if (store == null) return;
+                store.block(this);
+            } catch (Exception e) {
+                TraceUtil.recordEvent("Qmq.Store.Failed");
+            }
+            LOGGER.info("消息被拒绝");
+            if (store == null && syncSend) {
                 throw new RuntimeException("消息被拒绝且没有store可恢复,请检查应用授权配置");
             }
         } finally {
@@ -194,8 +216,16 @@ class ProduceMessageImpl implements ProduceMessage {
             sendErrorCount.inc();
             String message = "发送失败, 已尝试" + tries.get() + "次不再尝试重新发送.";
             LOGGER.info(message);
+            try {
+                if (store == null) return;
+                if (base.isStoreAtFailed()) {
+                    store.insertNew(this);
+                }
+            } catch (Exception e) {
+                TraceUtil.recordEvent("Qmq.Store.Failed");
+            }
 
-            if (syncSend) {
+            if (store == null && syncSend) {
                 throw new RuntimeException(message);
             }
         } finally {
@@ -240,6 +270,21 @@ class ProduceMessageImpl implements ProduceMessage {
         if (traceSpan == null) return;
         traceScope = tracer.scopeManager().activate(traceSpan, false);
         attachTraceData();
+    }
+
+    @Override
+    public void setStore(MessageStore messageStore) {
+        this.store = messageStore;
+    }
+
+    @Override
+    public void save() {
+        this.sequence = store.insertNew(this);
+    }
+
+    @Override
+    public long getSequence() {
+        return this.sequence;
     }
 
     private void attachTraceData() {

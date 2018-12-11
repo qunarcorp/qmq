@@ -14,35 +14,15 @@
  * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
  */
 
-package qunar.tc.qmq;
+package qunar.tc.qmq.producer.tx;
+
 
 /**
- * Created by zhaohui.yu
- * 10/31/16
+ * @author miao.yang susing@gmail.com
+ * @date 2013-1-9
  */
-public interface ProduceMessage {
-
-    String getMessageId();
-
-    String getSubject();
-
-    void send();
-
-    void error(Exception e);
-
-    void failed();
-
-    void block();
-
-    void finish();
-
-    Message getBase();
-
-    void startSendTrace();
-
-    void setStore(MessageStore messageStore);
-
-    void save();
-
-    long getSequence();
+public class SqlConstant {
+    public static final String insertSQL = "INSERT INTO qmq_produce.qmq_msg_queue(content,create_time) VALUES(?,?)";
+    public static final String blockSQL = "UPDATE qmq_produce.qmq_msg_queue SET status=-100,error=error+1,update_time=? WHERE id=?";
+    public static final String finishSQL = "DELETE FROM qmq_produce.qmq_msg_queue WHERE id=?";
 }
