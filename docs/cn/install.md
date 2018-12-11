@@ -126,7 +126,7 @@ message.sync.timeout.ms=10
 运行bin目录的tools.sh(windows平台使用tools.cmd)，执行以下命令:
 
 ```
->tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --borkerGroup=<groupName> --role=0 --hostname=<hostname> --ip=<ip> --servePort=20881 --syncPort-20882
+>tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerGroup=<groupName> --role=0 --hostname=<hostname> --ip=<ip> --servePort=20881 --syncPort=20882
 ```
 * metaserver address指的是ip:port,port默认是8080
 * token即metaserver的配置valid-api-tokens.properties里任何一项
@@ -185,7 +185,7 @@ messagelog.retention.hours=72
 运行bin目录的tools.sh(windows平台使用tools.cmd)，执行以下命令:
 
 ```
->tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --borkerGroup=<groupName> --role=0 --hostname=<hostname> --ip=<ip> --servePort=20881 --syncPort-20882
+>tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerGroup=<groupName> --role=5 --hostname=<hostname> --ip=<ip> --servePort=20881 --syncPort=20882
 ```
 * metaserver address指的是ip:port,port默认是8080
 * token即metaserver的配置valid-api-tokens.properties里任何一项
