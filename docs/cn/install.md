@@ -94,7 +94,7 @@ slave.sync.timeout=3000
 # 必填，数据存放目录
 store.root=/data
 # 可选，动态生效，主是否等待从写入完成再返回写入结果
-wait.slave.wrote=true
+wait.slave.wrote=false
 # 可选，动态生效，重试消息延迟派发时间
 message.retry.delay.seconds=5
 # 可选，动态生效，messagelog过期时间
