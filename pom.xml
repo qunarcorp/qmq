@@ -62,6 +62,15 @@
         <module>qmq-common</module>
         <module>qmq-remoting</module>
         <module>qmq-deploy</module>
+        <module>qmq-server</module>
+        <module>qmq-delay-server</module>
+        <module>qmq-metaserver</module>
+        <module>qmq-store</module>
+        <module>qmq-server-common</module>
+        <module>qmq-sync</module>
+        <module>qmq-metrics-prometheus</module>
+        <module>qmq-tools</module>
+        <module>qmq-dist</module>
     </modules>
 
     <properties>
