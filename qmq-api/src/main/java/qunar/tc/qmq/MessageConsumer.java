@@ -28,7 +28,6 @@ public interface MessageConsumer {
      * @param listener      消息处理程序
      * @param executor      消息处理线程池
      * @return 返回的ListenerHolder, 表示注册关系
-     * @deprecated 标记为过期，请使用不需要传递连接池的方法
      */
     ListenerHolder addListener(String subject, String consumerGroup, MessageListener listener, Executor executor);
 
