@@ -45,7 +45,7 @@ public class BaseMessage implements Message, Serializable {
 
     transient boolean isBigMessage = false;
     private boolean storeAtFailed;
-    private boolean durable;
+    private boolean durable = true;
 
     public enum keys {
         qmq_createTime,
@@ -149,6 +149,7 @@ public class BaseMessage implements Message, Serializable {
     private void setObjectProperty(String name, Object value) {
         if (keyNames.contains(name))
             throw new IllegalArgumentException("property name [" + name + "] is protected. ");
+        if (name == null || name.length() == 0) return;
         attrs.put(name, value);
     }
 
@@ -415,6 +416,39 @@ public class BaseMessage implements Message, Serializable {
     @Override
     public boolean isDurable() {
         return this.durable;
+    }
+
+    public String toContent() {
+        StringBuilder result = new StringBuilder();
+        result.append('{')
+                .append("\"subject\":\"").append(subject).append("\",")
+                .append("\"messageId\":\"").append(messageId).append("\",")
+                .append("\"durable\":\"").append(durable).append("\",");
+        appendAttrs(result);
+        result.append('}');
+        return result.toString();
+    }
+
+    private void appendAttrs(StringBuilder result) {
+        int count = 0;
+        result.append("\"attrs\":{");
+        for (Map.Entry<String, Object> entry : attrs.entrySet()) {
+            result.append("\"").append(entry.getKey()).append("\":");
+            appendValue(result, entry.getValue());
+            if (++count < attrs.size()) {
+                result.append(',');
+            }
+        }
+        result.append('}');
+    }
+
+    private void appendValue(StringBuilder result, Object value) {
+        if(value == null){
+            result.append("null");
+            return;
+        }
+
+
     }
 
 }

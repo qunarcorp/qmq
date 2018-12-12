@@ -16,8 +16,10 @@
 
 package qunar.tc.qmq.producer.tx.spring;
 
+import com.google.gson.Gson;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.PreparedStatementCreatorFactory;
+import org.springframework.jdbc.core.SqlParameter;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import qunar.tc.qmq.MessageStore;
@@ -26,6 +28,9 @@ import qunar.tc.qmq.producer.tx.SqlConstant;
 
 import javax.sql.DataSource;
 import java.sql.Timestamp;
+import java.sql.Types;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * @author miao.yang susing@gmail.com
@@ -34,15 +39,21 @@ import java.sql.Timestamp;
 public class SingleDataSourceMessageStore implements MessageStore {
     private final JdbcTemplate platform;
 
+    private final PreparedStatementCreatorFactory insertStatementFactory;
+
+    private final Gson gson;
+
     SingleDataSourceMessageStore(DataSource datasource) {
         this.platform = new JdbcTemplate(datasource);
+        this.insertStatementFactory = createFactory();
+        this.gson = new Gson();
     }
 
     @Override
     public long insertNew(ProduceMessage message) {
-        PreparedStatementCreatorFactory factory = new PreparedStatementCreatorFactory(SqlConstant.insertSQL);
         KeyHolder holder = new GeneratedKeyHolder();
-        platform.update(factory.newPreparedStatementCreator(new Object[]{null, System.currentTimeMillis()}), holder);
+        String json = this.gson.toJson(message.getBase());
+        platform.update(this.insertStatementFactory.newPreparedStatementCreator(new Object[]{json, new Timestamp(System.currentTimeMillis())}), holder);
         return holder.getKey().longValue();
     }
 
@@ -65,5 +76,14 @@ public class SingleDataSourceMessageStore implements MessageStore {
     @Override
     public void endTransaction() {
 
+    }
+
+    private PreparedStatementCreatorFactory createFactory() {
+        List<SqlParameter> parameters = new ArrayList<>();
+        parameters.add(new SqlParameter("content", Types.LONGVARCHAR));
+        parameters.add(new SqlParameter("create_time", Types.TIMESTAMP));
+        PreparedStatementCreatorFactory factory = new PreparedStatementCreatorFactory(SqlConstant.insertSQL, parameters);
+        factory.setReturnGeneratedKeys(true);
+        return factory;
     }
 }
