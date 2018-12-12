@@ -9,6 +9,8 @@
     </parent>
 
     <artifactId>qmq-api</artifactId>
+    <name>qmq api</name>
+    <description>public api</description>
 
     <properties>
         <java_source_version>1.7</java_source_version>

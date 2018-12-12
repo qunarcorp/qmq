@@ -9,6 +9,8 @@
     </parent>
 
     <artifactId>qmq-common</artifactId>
+    <name>qmq common</name>
+    <description>qmq common logic share by all module</description>
 
     <properties>
         <java_source_version>1.7</java_source_version>

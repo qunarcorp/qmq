@@ -9,6 +9,8 @@
     </parent>
 
     <artifactId>qmq-remoting</artifactId>
+    <name>qmq remoting</name>
+    <description>qmq network module</description>
 
     <properties>
         <java_source_version>1.7</java_source_version>
