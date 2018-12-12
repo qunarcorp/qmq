@@ -17,6 +17,16 @@ QMQ是去哪儿网内部广泛使用的消息中间件，自2012年诞生以来�
 * 消息投递轨迹(即将开源)
 * 历史消息的自动备份(即将开源)
 
+# Maven
+qmq的客户端已经发布到maven中央仓库，可以通过下面的方式获取
+```xml
+<dependency>
+    <groupId>com.qunar.qmq</groupId>
+    <artifactId>qmq</artifactId>
+    <version>1.0.0</version>
+</dependency>
+```
+
 # 快速开始
 你可以通过[设计背景](docs/cn/design.md)了解设计QMQ的初衷和她与其他消息队列的不同。
 阅读[架构概览](docs/cn/arch.md)了解QMQ的存储模型
