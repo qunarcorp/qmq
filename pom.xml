@@ -4,7 +4,7 @@
 
     <groupId>com.qunar.qmq</groupId>
     <artifactId>qmq-parent</artifactId>
-    <version>1.0.1-SNAPSHOT</version>
+    <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>qmq</name>
@@ -62,15 +62,6 @@
         <module>qmq-common</module>
         <module>qmq-remoting</module>
         <module>qmq-deploy</module>
-        <!--<module>qmq-server</module>-->
-        <!--<module>qmq-server-common</module>-->
-        <!--<module>qmq-store</module>-->
-        <!--<module>qmq-sync</module>-->
-        <!--<module>qmq-metaserver</module>-->
-        <!--<module>qmq-delay-server</module>-->
-        <!--<module>qmq-metrics-prometheus</module>-->
-        <!--<module>qmq-dist</module>-->
-        <!--<module>qmq-tools</module>-->
     </modules>
 
     <properties>
@@ -325,28 +316,18 @@
                     </configuration>
                 </plugin>
                 <plugin>
-                    <artifactId>maven-javadoc-plugin</artifactId>
-                    <version>2.8.1</version>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-gpg-plugin</artifactId>
+                    <version>1.6</version>
                     <executions>
                         <execution>
-                            <id>attach-javadoc</id>
+                            <id>sign-artifacts</id>
+                            <phase>verify</phase>
                             <goals>
-                                <goal>jar</goal>
+                                <goal>sign</goal>
                             </goals>
-                            <configuration>
-                                <doclint>none</doclint>
-                            </configuration>
                         </execution>
                     </executions>
-                    <configuration>
-                        <show>public</show>
-                        <charset>UTF-8</charset>
-                        <encoding>UTF-8</encoding>
-                        <docencoding>UTF-8</docencoding>
-                        <links>
-                            <link>http://docs.oracle.com/javase/7/docs/api</link>
-                        </links>
-                    </configuration>
                 </plugin>
             </plugins>
         </pluginManagement>
@@ -373,6 +354,10 @@
                     <releaseProfiles>release</releaseProfiles>
                     <goals>deploy</goals>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-gpg-plugin</artifactId>
             </plugin>
         </plugins>
     </build>
