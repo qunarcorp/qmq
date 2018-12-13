@@ -233,7 +233,7 @@ public class MessageLog implements AutoCloseable {
     }
 
     private class RawMessageAppender implements MessageAppender<RawMessage, MessageSequence> {
-        private static final int MAX_BYTES = 1024 * 1024 * 50; // 50M
+        private static final int MAX_BYTES = 1024;
 
         private static final byte ATTR_EMPTY_RECORD = 1;
         private static final byte ATTR_MESSAGE_RECORD = 0;
@@ -260,7 +260,8 @@ public class MessageLog implements AutoCloseable {
             } else {
                 final long sequence = consumerLogManager.getOffsetOrDefault(subject, 0);
 
-                workingBuffer.limit(recordSize);
+                int headerSize = recordSize - message.getBodySize();
+                workingBuffer.limit(headerSize);
                 workingBuffer.putInt(MagicCode.MESSAGE_LOG_MAGIC_V3);
                 workingBuffer.put(ATTR_MESSAGE_RECORD);
                 workingBuffer.putLong(System.currentTimeMillis());
@@ -269,12 +270,12 @@ public class MessageLog implements AutoCloseable {
                 workingBuffer.put(subjectBytes);
                 workingBuffer.putLong(message.getHeader().getBodyCrc());
                 workingBuffer.putInt(message.getBodySize());
-                workingBuffer.put(message.getBody().nioBuffer());
-                targetBuffer.put(workingBuffer.array(), 0, recordSize);
+                targetBuffer.put(workingBuffer.array(), 0, headerSize);
+                targetBuffer.put(message.getBody().nioBuffer());
 
                 consumerLogManager.incOffset(subject);
 
-                final long payloadOffset = wroteOffset + recordSize - message.getBodySize();
+                final long payloadOffset = wroteOffset + headerSize;
                 return new AppendMessageResult<>(AppendMessageStatus.SUCCESS, wroteOffset, recordSize, new MessageSequence(sequence, payloadOffset));
             }
         }

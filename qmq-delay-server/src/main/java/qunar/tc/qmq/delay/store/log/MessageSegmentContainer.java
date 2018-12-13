@@ -285,7 +285,7 @@ public class MessageSegmentContainer implements SegmentContainer<AppendMessageRe
 
     private class DelayRawMessageAppender implements MessageAppender<RawMessageExtend, Long> {
         private final ReentrantLock lock = new ReentrantLock();
-        private final ByteBuffer workingBuffer = ByteBuffer.allocate(config.getSingleMessageLimitSize());
+        private final ByteBuffer workingBuffer = ByteBuffer.allocate(1024);
 
         @Override
         public AppendMessageResult<Long> doAppend(long baseOffset, ByteBuffer targetBuffer, int freeSpace, RawMessageExtend message) {
@@ -314,7 +314,8 @@ public class MessageSegmentContainer implements SegmentContainer<AppendMessageRe
                     targetBuffer.put(workingBuffer.array(), 0, freeSpace);
                     return new AppendMessageResult<>(AppendMessageStatus.END_OF_FILE, startWroteOffset, freeSpace, null);
                 } else {
-                    workingBuffer.limit(recordSize);
+                    int headerSize = recordSize - message.getBodySize();
+                    workingBuffer.limit(headerSize);
                     workingBuffer.putInt(MESSAGE_LOG_MAGIC_V2);
                     workingBuffer.put(MessageLogAttrEnum.ATTR_MESSAGE_RECORD.getCode());
                     workingBuffer.putLong(System.currentTimeMillis());
@@ -326,10 +327,10 @@ public class MessageSegmentContainer implements SegmentContainer<AppendMessageRe
                     workingBuffer.put(subjectBytes);
                     workingBuffer.putLong(message.getHeader().getBodyCrc());
                     workingBuffer.putInt(message.getBodySize());
-                    workingBuffer.put(message.getBody().nioBuffer());
-                    targetBuffer.put(workingBuffer.array(), 0, recordSize);
+                    targetBuffer.put(workingBuffer.array(), 0, headerSize);
+                    targetBuffer.put(message.getBody().nioBuffer());
 
-                    final long payloadOffset = startWroteOffset + recordSize - message.getBodySize();
+                    final long payloadOffset = startWroteOffset + headerSize;
                     return new AppendMessageResult<>(AppendMessageStatus.SUCCESS, startWroteOffset, recordSize, payloadOffset);
                 }
             } finally {
