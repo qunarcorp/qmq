@@ -17,6 +17,7 @@
 package qunar.tc.qmq.delay.receiver;
 
 import com.google.common.base.CharMatcher;
+import com.google.common.base.Function;
 import com.google.common.eventbus.Subscribe;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -84,7 +85,7 @@ public class Receiver {
 
         final short version = cmd.getHeader().getVersion();
         return Futures.transform(Futures.allAsList(futures)
-                , results -> RemotingBuilder.buildResponseDatagram(CommandCode.SUCCESS
+                , (Function<? super List<ReceivedResult>, ? extends Datagram>) results -> RemotingBuilder.buildResponseDatagram(CommandCode.SUCCESS
                         , cmd.getHeader(), new SendResultPayloadHolder(results, version)));
     }
 

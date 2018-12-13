@@ -17,6 +17,7 @@
 package qunar.tc.qmq.processor;
 
 import com.google.common.base.CharMatcher;
+import com.google.common.base.Function;
 import com.google.common.eventbus.Subscribe;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -76,7 +77,7 @@ public class SendMessageWorker {
 
         final short version = cmd.getHeader().getVersion();
         return Futures.transform(Futures.allAsList(futures),
-                input -> RemotingBuilder.buildResponseDatagram(CommandCode.SUCCESS, cmd.getHeader(), new SendResultPayloadHolder(input, version)));
+                (Function<? super List<ReceiveResult>, ? extends Datagram>) input -> RemotingBuilder.buildResponseDatagram(CommandCode.SUCCESS, cmd.getHeader(), new SendResultPayloadHolder(input, version)));
     }
 
     private void monitorMessageReceived(long receiveTime, String subject) {

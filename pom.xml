@@ -74,8 +74,8 @@
     </modules>
 
     <properties>
-        <java_source_version>1.7</java_source_version>
-        <java_target_version>1.7</java_target_version>
+        <java_source_version>1.8</java_source_version>
+        <java_target_version>1.8</java_target_version>
 
         <prometheus.client.version>0.5.0</prometheus.client.version>
         <spring.version>4.2.3.RELEASE</spring.version>
