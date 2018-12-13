@@ -75,9 +75,8 @@ public class SendMessageWorker {
             invoker.invoke(receivingMessage);
         }
 
-        final short version = cmd.getHeader().getVersion();
         return Futures.transform(Futures.allAsList(futures),
-                (Function<? super List<ReceiveResult>, ? extends Datagram>) input -> RemotingBuilder.buildResponseDatagram(CommandCode.SUCCESS, cmd.getHeader(), new SendResultPayloadHolder(input, version)));
+                (Function<? super List<ReceiveResult>, ? extends Datagram>) input -> RemotingBuilder.buildResponseDatagram(CommandCode.SUCCESS, cmd.getHeader(), new SendResultPayloadHolder(input)));
     }
 
     private void monitorMessageReceived(long receiveTime, String subject) {
@@ -205,24 +204,18 @@ public class SendMessageWorker {
 
     public static class SendResultPayloadHolder implements PayloadHolder {
         private final List<ReceiveResult> results;
-        private final short version;
 
-        SendResultPayloadHolder(List<ReceiveResult> results, short version) {
+        SendResultPayloadHolder(List<ReceiveResult> results) {
             this.results = results;
-            this.version = version;
         }
 
         @Override
         public void writeBody(ByteBuf out) {
-            if (version < RemotingHeader.VERSION_4) {
-                writeBodyV3(out);
-            } else {
-                for (ReceiveResult result : results) {
-                    int code = result.getCode();
-                    if (MessageProducerCode.SUCCESS == code) continue;
+            for (ReceiveResult result : results) {
+                int code = result.getCode();
+                if (MessageProducerCode.SUCCESS == code) continue;
 
-                    writeItem(result, out);
-                }
+                writeItem(result, out);
             }
         }
 
@@ -233,12 +226,6 @@ public class SendMessageWorker {
                 out.writeBytes(bytes);
             } else {
                 out.writeShort(0);
-            }
-        }
-
-        private void writeBodyV3(ByteBuf out) {
-            for (ReceiveResult result : results) {
-                writeItem(result, out);
             }
         }
 

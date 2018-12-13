@@ -83,10 +83,9 @@ public class Receiver {
             }
         }
 
-        final short version = cmd.getHeader().getVersion();
         return Futures.transform(Futures.allAsList(futures)
                 , (Function<? super List<ReceivedResult>, ? extends Datagram>) results -> RemotingBuilder.buildResponseDatagram(CommandCode.SUCCESS
-                        , cmd.getHeader(), new SendResultPayloadHolder(results, version)));
+                        , cmd.getHeader(), new SendResultPayloadHolder(results)));
     }
 
     private void doInvoke(ReceivedDelayMessage message) {
@@ -213,30 +212,16 @@ public class Receiver {
     public static class SendResultPayloadHolder implements PayloadHolder {
         private final List<ReceivedResult> results;
 
-        private final short version;
-
-        public SendResultPayloadHolder(List<ReceivedResult> results, short version) {
+        public SendResultPayloadHolder(List<ReceivedResult> results) {
             this.results = results;
-            this.version = version;
         }
 
         @Override
         public void writeBody(ByteBuf out) {
-            // VERSION_4 以下协议，返回所有消息信息
-            if (version < RemotingHeader.VERSION_4) {
-                writeBodyV3(out);
-            } else {
-                for (ReceivedResult result : results) {
-                    if (MessageProducerCode.SUCCESS != result.getCode()) {
-                        writeItem(result, out);
-                    }
-                }
-            }
-        }
-
-        private void writeBodyV3(ByteBuf out) {
             for (ReceivedResult result : results) {
-                writeItem(result, out);
+                if (MessageProducerCode.SUCCESS != result.getCode()) {
+                    writeItem(result, out);
+                }
             }
         }
 
