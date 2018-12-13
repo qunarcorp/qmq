@@ -48,38 +48,6 @@ public class ReceivedDelayMessageProcessor implements NettyRequestProcessor {
         this.receiver = receiver;
     }
 
-    public static List<RawMessageExtend> deserializeRawMessagesExtend(RemotingCommand request) {
-        final ByteBuf body = request.getBody();
-        if (body.readableBytes() == 0) return Collections.emptyList();
-
-        List<RawMessageExtend> messages = Lists.newArrayList();
-        while (body.isReadable()) {
-            messages.add(doDeserializeRawMessagesExtend(body));
-        }
-        return messages;
-    }
-
-    private static RawMessageExtend doDeserializeRawMessagesExtend(ByteBuf body) {
-        body.markReaderIndex();
-        int headerStart = body.readerIndex();
-        long bodyCrc = body.readLong();
-        MessageHeader header = deserializeMessageHeader(body);
-        header.setBodyCrc(bodyCrc);
-        int bodyLen = body.readInt();
-        int headerLen = body.readerIndex() - headerStart;
-        int totalLen = headerLen + bodyLen;
-
-        body.resetReaderIndex();
-        ByteBuf messageBuf = body.readSlice(totalLen);
-        // client config error,prefer to send after ten second
-        long scheduleTime = System.currentTimeMillis() + 10000;
-        if (Flags.isDelay(header.getFlag())) {
-            scheduleTime = header.getExpireTime();
-        }
-
-        return new RawMessageExtend(header, messageBuf, messageBuf.readableBytes(), scheduleTime);
-    }
-
     @Override
     public CompletableFuture<Datagram> processRequest(ChannelHandlerContext ctx, RemotingCommand request) {
         final List<RawMessageExtend> messages = deserializeRawMessagesExtend(request);
@@ -102,5 +70,37 @@ public class ReceivedDelayMessageProcessor implements NettyRequestProcessor {
     @Override
     public boolean rejectRequest() {
         return !BrokerRoleManager.isDelayMaster();
+    }
+
+    private List<RawMessageExtend> deserializeRawMessagesExtend(RemotingCommand request) {
+        final ByteBuf body = request.getBody();
+        if (body.readableBytes() == 0) return Collections.emptyList();
+
+        List<RawMessageExtend> messages = Lists.newArrayList();
+        while (body.isReadable()) {
+            messages.add(doDeserializeRawMessagesExtend(body));
+        }
+        return messages;
+    }
+
+    private RawMessageExtend doDeserializeRawMessagesExtend(ByteBuf body) {
+        body.markReaderIndex();
+        int headerStart = body.readerIndex();
+        long bodyCrc = body.readLong();
+        MessageHeader header = deserializeMessageHeader(body);
+        header.setBodyCrc(bodyCrc);
+        int bodyLen = body.readInt();
+        int headerLen = body.readerIndex() - headerStart;
+        int totalLen = headerLen + bodyLen;
+
+        body.resetReaderIndex();
+        ByteBuf messageBuf = body.readSlice(totalLen);
+        // client config error,prefer to send after ten second
+        long scheduleTime = System.currentTimeMillis() + 10000;
+        if (Flags.isDelay(header.getFlag())) {
+            scheduleTime = header.getExpireTime();
+        }
+
+        return new RawMessageExtend(header, messageBuf, messageBuf.readableBytes(), scheduleTime);
     }
 }
