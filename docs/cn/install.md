@@ -38,7 +38,9 @@ pool.size.max=10
 
 *metaserver.properties*
 ```
-# 可选，metaserver服务端口
+#可选，提供http服务，用于meta server的服务发现
+meta.server.discover.port=8080
+#可选，以tcp的方式监听，供client和server访问
 meta.server.port=20880
 # 可选，内部数据缓存刷新间隔
 refresh.period.seconds=5
@@ -83,7 +85,7 @@ Server需要将消息写入磁盘，磁盘性能和机器空闲内存是影响�
 ### 配置文件
 *broker.properties*
 ```
-# 必填，metaserver地址，即你第一步安装的meta server的ip地址
+# 必填，metaserver地址，即你第一步安装的meta server的ip地址，注意这里的地址的端口是meta.server.discover.port指定的端口，默认是8080
 meta.server.endpoint=http://<metaserver address>/meta/address
 # 可选，broker服务端口
 broker.port=20881
@@ -151,7 +153,7 @@ Delay Server需要将消息写入磁盘，磁盘性能和机器空闲内存是�
 ### 配置文件
 *delay.properties*
 ```
-# 必填，metaserver地址
+# 必填，metaserver地址，即你第一步安装的meta server的ip地址，注意这里的地址的端口是meta.server.discover.port指定的端口，默认是8080
 meta.server.endpoint=http://<metaserver address>/meta/address
 # 可选，broker服务端口
 broker.port=20881
