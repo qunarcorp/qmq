@@ -27,6 +27,7 @@
                 <include>bin/**</include>
             </includes>
             <fileMode>0755</fileMode>
+            <lineEnding>keep</lineEnding>
         </fileSet>
     </fileSets>
 

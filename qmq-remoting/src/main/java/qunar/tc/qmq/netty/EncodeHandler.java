@@ -58,8 +58,6 @@ public class EncodeHandler extends MessageToByteEncoder<Datagram> {
         out.writeShort(header.getVersion());
         out.writeInt(header.getOpaque());
         out.writeInt(header.getFlag());
-        if (header.getVersion() >= RemotingHeader.VERSION_3) {
-            out.writeShort(header.getRequestCode());
-        }
+        out.writeShort(header.getRequestCode());
     }
 }

@@ -53,14 +53,14 @@
 ## 延时/定时消息
 QMQ提供任意时间的延时/定时消息，你可以指定消息在未来两年内任意时间内投递。比起RocketMQ提供的多个不同延时level的延时消息，QMQ的延时消息更加灵活。比如在OTA场景中，客人经常是预订未来某个时刻的酒店或者机票，这个时间是不固定的，我们无法使用几个固定的延时level来实现这个场景。
 
-QMQ的延时/定时消息使用的是两层HashWheelTimer来实现的。第一层位于磁盘上，每个小时为一个刻度，每个刻度会生成一个日志文件，因为QMQ支持两年内的延迟消息，则最多会生成 2 * 366 * 24 = 17568 个文件。第二层在内存中，当消息的投递时间即将到来的时候，会将这个小时的消息索引从磁盘文件加载到内存中的HashWheelTimer上。
+QMQ的延时/定时消息使用的是两层hash wheel来实现的。第一层位于磁盘上，每个小时为一个刻度，每个刻度会生成一个日志文件(schedule log)，因为QMQ支持两年内的延迟消息，则最多会生成 2 * 366 * 24 = 17568 个文件。第二层在内存中，当消息的投递时间即将到来的时候，会将这个小时的消息索引从磁盘文件加载到内存中的hash wheel上，内存中的hash wheel则是以500ms为一个刻度。
 
 ![img](../images/arch4.png)
 
 在延时/定时消息里也存在三种log:
-* message log 和实时消息里的message log类似，收到消息后append到该log
-* schedule log 按照投递时间组织，每个小时一个。该log是回放message log后根据延时时间放置对应的log上，这是上面描述的两层HashWheelTimer的第一层，位于磁盘上
-* dispatch log 延时/定时消息投递后写入，主要用于在应用重启后能够确定哪些消息已经投递
+* message log 和实时消息里的message log类似，收到消息后append到该log就返回给producer
+* schedule log 按照投递时间组织，每个小时一个。该log是回放message log后根据延时时间放置对应的log上，这是上面描述的两层hash wheel的第一层，位于磁盘上。schedule log里是包含完整的消息内容的，因为消息内容从message log同步到了schedule log，所以历史message log都可以删除。另外，schedule log是按照延时时间组织的，所以延时时间已过的schedule log文件也可以删除
+* dispatch log 延时/定时消息投递后写入，主要用于在应用重启后能够确定哪些消息已经投递，dispatch log里写入的是消息的offset，不包含消息内容
 
 [上一页](design.md)
 [回目录](../../README.md)

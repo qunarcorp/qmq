@@ -18,7 +18,12 @@ package qunar.tc.qmq.meta.startup;
 
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
-import qunar.tc.qmq.meta.web.*;
+import qunar.tc.qmq.configuration.DynamicConfig;
+import qunar.tc.qmq.configuration.DynamicConfigLoader;
+import qunar.tc.qmq.meta.web.MetaManagementServlet;
+import qunar.tc.qmq.meta.web.MetaServerAddressSupplierServlet;
+import qunar.tc.qmq.meta.web.OnOfflineServlet;
+import qunar.tc.qmq.meta.web.SubjectConsumerServlet;
 
 /**
  * @author keli.wang
@@ -29,8 +34,8 @@ public class Bootstrap {
         final ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath("/");
         context.setResourceBase(System.getProperty("java.io.tmpdir"));
-
-        final ServerWrapper wrapper = new ServerWrapper();
+        DynamicConfig config = DynamicConfigLoader.load("metaserver.properties");
+        final ServerWrapper wrapper = new ServerWrapper(config);
         wrapper.start(context.getServletContext());
 
         context.addServlet(MetaServerAddressSupplierServlet.class, "/meta/address");
@@ -39,7 +44,8 @@ public class Bootstrap {
         context.addServlet(OnOfflineServlet.class, "/onoffline");
 
         // TODO(keli.wang): allow set port use env
-        final Server server = new Server(8080);
+        int port = config.getInt("meta.server.discover.port", 8080);
+        final Server server = new Server(port);
         server.setHandler(context);
         server.start();
         server.join();

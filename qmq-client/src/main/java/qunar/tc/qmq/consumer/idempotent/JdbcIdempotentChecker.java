@@ -16,7 +16,6 @@
 
 package qunar.tc.qmq.consumer.idempotent;
 
-import com.google.common.base.Function;
 import org.springframework.jdbc.core.JdbcTemplate;
 import qunar.tc.qmq.Message;
 
@@ -42,11 +41,11 @@ public class JdbcIdempotentChecker extends AbstractIdempotentChecker {
     private final String GARBAGE_SQL;
 
     public JdbcIdempotentChecker(DataSource dataSource, String tableName) {
-        this(dataSource, tableName, DEFAULT_KEYFUNC);
+        this(dataSource, tableName, DEFAULT_EXTRACTOR);
     }
 
-    public JdbcIdempotentChecker(DataSource dataSource, String tableName, Function<Message, String> keyFunc) {
-        super(keyFunc);
+    public JdbcIdempotentChecker(DataSource dataSource, String tableName, KeyExtractor extractor) {
+        super(extractor);
         this.jdbcTemplate = new JdbcTemplate(dataSource);
         this.INSERT_SQL = String.format(INSERT_TEMP, tableName);
         this.DELETE_SQL = String.format(DELETE_TEMP, tableName);

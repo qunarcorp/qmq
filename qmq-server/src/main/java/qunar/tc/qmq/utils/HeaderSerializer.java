@@ -24,18 +24,14 @@ import static qunar.tc.qmq.protocol.RemotingHeader.*;
 
 public class HeaderSerializer {
     public static ByteBuffer serialize(RemotingHeader header, int payloadSize, int additional) {
-        short headerLength = MIN_HEADER_SIZE;
-        if (header.getVersion() >= RemotingHeader.VERSION_3) {
-            headerLength += REQUEST_CODE_LEN;
-        }
-
-        int bufferLength = TOTAL_SIZE_LEN + HEADER_SIZE_LEN + headerLength + additional;
+        short headerSize = MIN_HEADER_SIZE;
+        int bufferLength = TOTAL_SIZE_LEN + HEADER_SIZE_LEN + headerSize + additional;
         ByteBuffer buffer = ByteBuffer.allocate(bufferLength);
         // total len
-        int total = HEADER_SIZE_LEN + headerLength + payloadSize;
+        int total = HEADER_SIZE_LEN + headerSize + payloadSize;
         buffer.putInt(total);
-        // header len
-        buffer.putShort(headerLength);
+        // header size
+        buffer.putShort(headerSize);
         // magic code
         buffer.putInt(header.getMagicCode());
         // code
@@ -46,9 +42,7 @@ public class HeaderSerializer {
         buffer.putInt(header.getOpaque());
         // flag
         buffer.putInt(header.getFlag());
-        if (header.getVersion() >= RemotingHeader.VERSION_3) {
-            buffer.putShort(header.getRequestCode());
-        }
+        buffer.putShort(header.getRequestCode());
         return buffer;
     }
 }

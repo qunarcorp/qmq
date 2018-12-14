@@ -22,6 +22,10 @@ import qunar.tc.qmq.startup.ServerWrapper;
 public class Bootstrap {
     public static void main(String[] args) {
         ServerWrapper wrapper = new ServerWrapper(DynamicConfigLoader.load("broker.properties"));
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            wrapper.destroy();
+        }));
+
         wrapper.start();
     }
 }

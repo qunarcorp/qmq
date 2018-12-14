@@ -22,18 +22,7 @@ package qunar.tc.qmq.protocol;
 public class RemotingHeader {
     public static final int DEFAULT_MAGIC_CODE = 0xdec1_0ade;
 
-    public static final short VERSION_1 = 1;
-    public static final short VERSION_2 = 2;
-    public static final short VERSION_3 = 3;
     public static final short VERSION_4 = 4;
-    /**
-     * (deprecated) compute crc only on message attr
-     */
-    public static final short VERSION_5 = 5;
-    /**
-     * add crc while sending message to broker
-     */
-    public static final short VERSION_6 = 6;
     /**
      * add schedule time in message header for delay message
      */
@@ -44,13 +33,11 @@ public class RemotingHeader {
      */
     public static final short VERSION_8 = 8;
 
-    public static final short MIN_HEADER_SIZE = 16;  // magic code(4) + code(2) + version(2) + opaque(4) + flag(4)
+    public static final short MIN_HEADER_SIZE = 18;  // magic code(4) + code(2) + version(2) + opaque(4) + flag(4) + request code(2)
     public static final short HEADER_SIZE_LEN = 2;
     public static final short TOTAL_SIZE_LEN = 4;
 
     public static final short LENGTH_FIELD = TOTAL_SIZE_LEN + HEADER_SIZE_LEN;
-
-    public static final short REQUEST_CODE_LEN = 2;
 
     private int magicCode = DEFAULT_MAGIC_CODE;
     private short code;

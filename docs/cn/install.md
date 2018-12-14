@@ -16,7 +16,7 @@ JDK 1.8
 
 -Xmx1G -Xms1G
 
-在生产环境为了可用性请至少部署两台，并配置一个url用于client和server找到meta server
+在生产环境为了可用性请至少部署两台meta server，让后将其放到nginx等lb后面，将这个地址配置给client和server使用
 
 ### 初始化数据库
 运行下载的压缩包sql目录里的init.sql，初始化metaserver所需要的数据库
@@ -38,7 +38,9 @@ pool.size.max=10
 
 *metaserver.properties*
 ```
-# 可选，metaserver服务端口
+#可选，提供http服务，用于meta server的服务发现
+meta.server.discover.port=8080
+#可选，以tcp的方式监听，供client和server访问
 meta.server.port=20880
 # 可选，内部数据缓存刷新间隔
 refresh.period.seconds=5
@@ -83,7 +85,7 @@ Server需要将消息写入磁盘，磁盘性能和机器空闲内存是影响�
 ### 配置文件
 *broker.properties*
 ```
-# 必填，metaserver地址，即你第一步安装的meta server的ip地址
+# 必填，metaserver地址，即你第一步安装的meta server的ip地址，注意这里的地址的端口是meta.server.discover.port指定的端口，默认是8080
 meta.server.endpoint=http://<metaserver address>/meta/address
 # 可选，broker服务端口
 broker.port=20881
@@ -94,7 +96,7 @@ slave.sync.timeout=3000
 # 必填，数据存放目录
 store.root=/data
 # 可选，动态生效，主是否等待从写入完成再返回写入结果
-wait.slave.wrote=true
+wait.slave.wrote=false
 # 可选，动态生效，重试消息延迟派发时间
 message.retry.delay.seconds=5
 # 可选，动态生效，messagelog过期时间
@@ -126,7 +128,7 @@ message.sync.timeout.ms=10
 运行bin目录的tools.sh(windows平台使用tools.cmd)，执行以下命令:
 
 ```
->tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --borkerGroup=<groupName> --role=0 --hostname=<hostname> --ip=<ip> --servePort=20881 --syncPort-20882
+>tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerGroup=<groupName> --role=0 --hostname=<hostname> --ip=<ip> --servePort=20881 --syncPort=20882
 ```
 * metaserver address指的是ip:port,port默认是8080
 * token即metaserver的配置valid-api-tokens.properties里任何一项
@@ -151,7 +153,7 @@ Delay Server需要将消息写入磁盘，磁盘性能和机器空闲内存是�
 ### 配置文件
 *delay.properties*
 ```
-# 必填，metaserver地址
+# 必填，metaserver地址，即你第一步安装的meta server的ip地址，注意这里的地址的端口是meta.server.discover.port指定的端口，默认是8080
 meta.server.endpoint=http://<metaserver address>/meta/address
 # 可选，broker服务端口
 broker.port=20881
@@ -185,7 +187,7 @@ messagelog.retention.hours=72
 运行bin目录的tools.sh(windows平台使用tools.cmd)，执行以下命令:
 
 ```
->tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --borkerGroup=<groupName> --role=0 --hostname=<hostname> --ip=<ip> --servePort=20881 --syncPort-20882
+>tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerGroup=<groupName> --role=5 --hostname=<hostname> --ip=<ip> --servePort=20881 --syncPort=20882
 ```
 * metaserver address指的是ip:port,port默认是8080
 * token即metaserver的配置valid-api-tokens.properties里任何一项

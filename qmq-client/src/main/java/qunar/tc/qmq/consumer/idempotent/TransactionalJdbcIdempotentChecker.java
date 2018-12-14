@@ -16,7 +16,6 @@
 
 package qunar.tc.qmq.consumer.idempotent;
 
-import com.google.common.base.Function;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.interceptor.DefaultTransactionAttribute;
@@ -38,13 +37,13 @@ public class TransactionalJdbcIdempotentChecker extends AbstractIdempotentChecke
     private static final ThreadLocal<TransactionStatus> currentStatus = new ThreadLocal<>();
 
     public TransactionalJdbcIdempotentChecker(DataSourceTransactionManager transactionManager, String tableName) {
-        this(transactionManager, tableName, DEFAULT_KEYFUNC);
+        this(transactionManager, tableName, DEFAULT_EXTRACTOR);
     }
 
-    public TransactionalJdbcIdempotentChecker(DataSourceTransactionManager transactionManager, String tableName, Function<Message, String> keyFunc) {
-        super(keyFunc);
+    public TransactionalJdbcIdempotentChecker(DataSourceTransactionManager transactionManager, String tableName, KeyExtractor extractor) {
+        super(extractor);
         this.transactionManager = transactionManager;
-        this.idempotentChecker = new JdbcIdempotentChecker(transactionManager.getDataSource(), tableName, keyFunc);
+        this.idempotentChecker = new JdbcIdempotentChecker(transactionManager.getDataSource(), tableName, extractor);
     }
 
     @Override

@@ -56,9 +56,9 @@ public class ServerWrapper implements Disposable {
     private final List<Disposable> resources;
     private final DynamicConfig config;
 
-    public ServerWrapper() {
+    public ServerWrapper(DynamicConfig config) {
         this.resources = new ArrayList<>();
-        this.config = DynamicConfigLoader.load("metaserver.properties");
+        this.config = config;
     }
 
     public void start(ServletContext context) {
