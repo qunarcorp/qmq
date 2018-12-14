@@ -71,6 +71,7 @@
         <module>qmq-metrics-prometheus</module>
         <module>qmq-tools</module>
         <module>qmq-dist</module>
+        <module>qmq-watchdog</module>
     </modules>
 
     <properties>
