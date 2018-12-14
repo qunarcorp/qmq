@@ -96,6 +96,9 @@ class ProduceMessageImpl implements ProduceMessage {
     private MessageStore store;
     private long sequence;
 
+    //如果使用了分库分表等，用于临时记录分库分表的路由信息，确保在发送消息成功后能够根据路由信息找到插入的db
+    private transient Object routeKey;
+
     public ProduceMessageImpl(BaseMessage base, QueueSender sender) {
         this.base = base;
         this.sender = sender;
@@ -285,6 +288,16 @@ class ProduceMessageImpl implements ProduceMessage {
     @Override
     public long getSequence() {
         return this.sequence;
+    }
+
+    @Override
+    public void setRouteKey(Object routeKey) {
+        this.routeKey = routeKey;
+    }
+
+    @Override
+    public Object getRouteKey() {
+        return this.routeKey;
     }
 
     private void attachTraceData() {

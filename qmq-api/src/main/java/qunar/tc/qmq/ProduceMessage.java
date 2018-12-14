@@ -45,4 +45,8 @@ public interface ProduceMessage {
     void save();
 
     long getSequence();
+
+    void setRouteKey(Object routeKey);
+
+    Object getRouteKey();
 }

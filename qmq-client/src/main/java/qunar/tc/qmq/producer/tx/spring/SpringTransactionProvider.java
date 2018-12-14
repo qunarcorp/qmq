@@ -41,6 +41,10 @@ public class SpringTransactionProvider implements TransactionProvider, Transacti
         this.store = new SingleDataSourceMessageStore(bizDataSource);
     }
 
+    public SpringTransactionProvider(DataSource bizDataSource, RouterSelector routerSelector) {
+        this.store = new SingleDataSourceMessageStore(bizDataSource, routerSelector);
+    }
+
     @Override
     public void suspend() {
         if (transactionListener != null) transactionListener.suspend();

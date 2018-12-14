@@ -43,10 +43,17 @@ public class SingleDataSourceMessageStore implements MessageStore {
 
     private final Gson gson;
 
+    private final RouterSelector routerSelector;
+
     SingleDataSourceMessageStore(DataSource datasource) {
+        this(datasource, new NoopRouterSelector());
+    }
+
+    SingleDataSourceMessageStore(DataSource datasource, RouterSelector routerSelector) {
         this.platform = new JdbcTemplate(datasource);
         this.insertStatementFactory = createFactory();
         this.gson = new Gson();
+        this.routerSelector = routerSelector;
     }
 
     @Override
@@ -54,17 +61,29 @@ public class SingleDataSourceMessageStore implements MessageStore {
         KeyHolder holder = new GeneratedKeyHolder();
         String json = this.gson.toJson(message.getBase());
         platform.update(this.insertStatementFactory.newPreparedStatementCreator(new Object[]{json, new Timestamp(System.currentTimeMillis())}), holder);
+        message.setRouteKey(routerSelector.getRouteKey(platform.getDataSource()));
         return holder.getKey().longValue();
     }
 
     @Override
     public void finish(ProduceMessage message) {
-        platform.update(SqlConstant.finishSQL, message.getSequence());
+        routerSelector.setRouteKey(message.getRouteKey(), platform.getDataSource());
+        try {
+            platform.update(SqlConstant.finishSQL, message.getSequence());
+        } finally {
+            routerSelector.clearRoute(message.getRouteKey(), platform.getDataSource());
+        }
     }
 
     @Override
     public void block(ProduceMessage message) {
-        platform.update(SqlConstant.blockSQL, new Timestamp(System.currentTimeMillis()), message.getSequence());
+        routerSelector.setRouteKey(message.getRouteKey(), platform.getDataSource());
+        try {
+            platform.update(SqlConstant.blockSQL, new Timestamp(System.currentTimeMillis()), message.getSequence());
+        } finally {
+            routerSelector.clearRoute(message.getRouteKey(), platform.getDataSource());
+        }
+
     }
 
     @Override
@@ -85,5 +104,23 @@ public class SingleDataSourceMessageStore implements MessageStore {
         PreparedStatementCreatorFactory factory = new PreparedStatementCreatorFactory(SqlConstant.insertSQL, parameters);
         factory.setReturnGeneratedKeys(true);
         return factory;
+    }
+
+    private static class NoopRouterSelector implements RouterSelector {
+
+        @Override
+        public Object getRouteKey(DataSource dataSource) {
+            return null;
+        }
+
+        @Override
+        public void setRouteKey(Object key, DataSource dataSource) {
+
+        }
+
+        @Override
+        public void clearRoute(Object key, DataSource dataSource) {
+
+        }
     }
 }
