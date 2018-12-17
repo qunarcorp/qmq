@@ -84,7 +84,7 @@ public void onMessage(Message message){
   throw new EditConflictException();
 }
 ```
-我们发现这种处理方式在我们的场景中一遍又一遍的出现，那我们也将这种方式直接内置到组件之中了(NeedRetryException):
+我们发现这种处理方式在我们的场景中一遍又一遍的出现，那我们也将这种方式直接内置到组件之中了([NeedRetryException](../../qmq-api/src/main/java/qunar/tc/qmq/NeedRetryException.java)):
 
 ```java
 public void onMessage(Message message){
@@ -120,7 +120,7 @@ public void onMessage(final Message message){
 一般消息都是单条处理的，但是有很多时候批量处理是能提高性能的，比如数据库的批量插入相比单条插入，ES的批量更新相比单条更新等等。那么我们就需要将单条接收的消息转成批量了。转成批量的方式一般就是先将消息入一个队列，然后在队列的那头用线程批量的从队列里取消息，然后批量处理。不过批量处理也是有讲究的。
 
 ### 能批量就批量
-这种方式是说如果我们的消费端本来就能处理好快啊，大部分时候都比生产要快，那我就没有必要还批量了。比如虽然批量插入数据库的性能是比单条快很多，但是现在消息生产的qps就只有几十，我还要等一个个批量满就没有啥必要了，但是有的时候生产速度也会快一些，那这个时候就可以批量了。这种方式能在性能和处理速度之间达到一个比较好的平衡。恭喜你，QMQ已经提供了这种处理模式了，在QMQ Client里提供了一个BatchExecutor的类，就是专门为这种场景设计的。请看示例代码:
+这种方式是说如果我们的消费端本来就能处理好快啊，大部分时候都比生产要快，那我就没有必要还批量了。比如虽然批量插入数据库的性能是比单条快很多，但是现在消息生产的qps就只有几十，我还要等一个个批量满就没有啥必要了，但是有的时候生产速度也会快一些，那这个时候就可以批量了。这种方式能在性能和处理速度之间达到一个比较好的平衡。恭喜你，QMQ已经提供了这种处理模式了，在QMQ Client里提供了一个[BatchExecutor](../../qmq-common/src/main/java/qunar/tc/qmq/batch/BatchExecutor.java)的类，就是专门为这种场景设计的。请看示例代码:
 
 ```java
 private final BatchExecutor executor = new BatchExecutor(/*会作为线程名字前缀*/ "worker", 
