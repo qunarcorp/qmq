@@ -91,6 +91,26 @@ CREATE TABLE `broker`
   UNIQUE KEY uniq_broker (`hostname`, `serve_port`),
   UNIQUE KEY uniq_group_role (`group_name`, `role`),
   KEY idx_broker_group (`group_name`)
-) ENGINE InnoDB
-  DEFAULT CHARSET = utf8mb4
-  COMMENT 'broker列表';
+) ENGINE InnoDB DEFAULT CHARSET = utf8mb4 COMMENT 'broker列表';
+
+CREATE TABLE leader_election (
+  `id` int(10) unsigned not null auto_increment comment '主键id',
+  `name` varchar(128) not null default '' comment '名称',
+  `node` varchar(128) NOT NULL default '' comment '节点',
+  `last_seen_active` bigint(20) NOT NULL DEFAULT 0 comment '最后更新时间',
+  PRIMARY KEY (id),
+  unique key uniq_idx_name(name)
+) ENGINE=InnoDB default charset=utf8mb4 comment 'leader选举';
+
+CREATE TABLE datasource_config (
+  `id` int(10) unsigned not null auto_increment comment '主键id',
+  `url` varchar(128) not null default '' comment 'jdbc url',
+  `user_name` varchar(100) NOT NULL default '' comment 'db username',
+  `password` varchar(100) NOT NULL DEFAULT '' comment 'db password',
+  `status` TINYINT NOT NULL DEFAULT 0 COMMENT 'db状态',
+  `room`           VARCHAR(20)      NOT NULL DEFAULT '' COMMENT '机房',
+  `create_time` TIMESTAMP NOT NULL DEFAULT '2018-01-01 01:01:01' COMMENT '创建时间',
+  `update_time` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '修改时间',
+  PRIMARY KEY (id),
+  unique key uniq_idx_name(name)
+) ENGINE=InnoDB default charset=utf8mb4 comment '客户端db配置表';

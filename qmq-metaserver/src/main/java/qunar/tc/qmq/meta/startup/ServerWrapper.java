@@ -31,9 +31,11 @@ import qunar.tc.qmq.meta.route.SubjectRouter;
 import qunar.tc.qmq.meta.route.impl.DefaultSubjectRouter;
 import qunar.tc.qmq.meta.route.impl.DelayRouter;
 import qunar.tc.qmq.meta.store.BrokerStore;
+import qunar.tc.qmq.meta.store.ClientDbConfigurationStore;
 import qunar.tc.qmq.meta.store.JdbcTemplateHolder;
 import qunar.tc.qmq.meta.store.Store;
 import qunar.tc.qmq.meta.store.impl.BrokerStoreImpl;
+import qunar.tc.qmq.meta.store.impl.ClientDbConfigurationStoreImpl;
 import qunar.tc.qmq.meta.store.impl.DatabaseStore;
 import qunar.tc.qmq.netty.DefaultConnectionEventHandler;
 import qunar.tc.qmq.netty.NettyServer;
@@ -81,6 +83,8 @@ public class ServerWrapper implements Disposable {
         metaNettyServer.registerProcessor(CommandCode.BROKER_ACQUIRE_META, brokerAcquireMetaProcessor);
         metaNettyServer.start();
 
+        ClientDbConfigurationStore clientDbConfigurationStore = new ClientDbConfigurationStoreImpl();
+
         final MetaManagementActionSupplier actions = MetaManagementActionSupplier.getInstance();
         actions.register("AddBroker", new TokenVerificationAction(new AddBrokerAction(brokerStore)));
         actions.register("ReplaceBroker", new TokenVerificationAction(new ReplaceBrokerAction(brokerStore)));
@@ -91,6 +95,7 @@ public class ServerWrapper implements Disposable {
         actions.register("RemoveSubjectBrokerGroup", new TokenVerificationAction(new RemoveSubjectBrokerGroupAction(store, cachedMetaInfoManager)));
         actions.register("AddNewSubject", new TokenVerificationAction(new AddNewSubjectAction(store)));
         actions.register("ExtendSubjectRoute", new TokenVerificationAction(new ExtendSubjectRouteAction(store, cachedMetaInfoManager)));
+        actions.register("AddDb", new TokenVerificationAction(new RegisterClientDbAction(clientDbConfigurationStore)));
 
         resources.add(cachedMetaInfoManager);
         resources.add(metaNettyServer);

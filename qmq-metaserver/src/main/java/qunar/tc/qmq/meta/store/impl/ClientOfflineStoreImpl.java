@@ -62,7 +62,6 @@ public class ClientOfflineStoreImpl implements ClientOfflineStore {
 
     @Override
     public long now() {
-        JdbcTemplate jdbcTemplate = JdbcTemplateHolder.getOrCreate();
         List<Long> results = jdbcTemplate.query(SELECT_NOW_SQL, (rs, rowNum) -> {
             try {
                 return rs.getTimestamp("ts").getTime();
