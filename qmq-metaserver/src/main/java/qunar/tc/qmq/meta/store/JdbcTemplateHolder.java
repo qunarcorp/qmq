@@ -62,7 +62,4 @@ public class JdbcTemplateHolder {
         return SUPPLIER.get();
     }
 
-    public static TransactionTemplate getTransactionOrCreate() {
-        return TRANS_SUPPLIER.get();
-    }
 }

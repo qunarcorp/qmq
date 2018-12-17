@@ -31,6 +31,7 @@ public class Tools implements Runnable {
 
         final CommandLine cmd = new CommandLine(new Tools());
         cmd.addSubcommand("AddBroker", new AddBrokerCommand(service));
+        cmd.addSubcommand("AddDb", new AddDbCommand(service));
         cmd.addSubcommand("ReplaceBroker", new ReplaceBrokerCommand(service));
         cmd.addSubcommand("ListBrokers", new ListBrokersCommand(service));
         cmd.addSubcommand("ListBrokerGroups", new ListBrokerGroupsCommand(service));

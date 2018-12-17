@@ -5,12 +5,7 @@ import org.apache.tomcat.jdbc.pool.PoolProperties;
 
 import javax.sql.DataSource;
 
-/**
- * Created by IntelliJ IDEA. User: liuzz Date: 12-12-21 Time: 下午2:17
- */
-
 public class TomcatDataSourceService implements IDataSourceService {
-
 
     @Override
     public DataSource makeDataSource(String url, String driverClassName, String username, String pwd) {
@@ -34,7 +29,7 @@ public class TomcatDataSourceService implements IDataSourceService {
 
     @Override
     public void close(DataSource dataSource) {
-        if (dataSource != null && dataSource instanceof org.apache.tomcat.jdbc.pool.DataSource) {
+        if (dataSource instanceof org.apache.tomcat.jdbc.pool.DataSource) {
             ((org.apache.tomcat.jdbc.pool.DataSource) dataSource).close();
         }
     }
