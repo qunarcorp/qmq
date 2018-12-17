@@ -38,11 +38,11 @@ public class SpringTransactionProvider implements TransactionProvider, Transacti
     private TransactionListener transactionListener;
 
     public SpringTransactionProvider(DataSource bizDataSource) {
-        this.store = new SingleDataSourceMessageStore(bizDataSource);
+        this.store = new DefaultMessageStore(bizDataSource);
     }
 
     public SpringTransactionProvider(DataSource bizDataSource, RouterSelector routerSelector) {
-        this.store = new SingleDataSourceMessageStore(bizDataSource, routerSelector);
+        this.store = new DefaultMessageStore(bizDataSource, routerSelector);
     }
 
     @Override

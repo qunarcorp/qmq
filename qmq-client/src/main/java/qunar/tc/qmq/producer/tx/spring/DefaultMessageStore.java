@@ -36,7 +36,7 @@ import java.util.List;
  * @author miao.yang susing@gmail.com
  * @date 2013-1-9
  */
-public class SingleDataSourceMessageStore implements MessageStore {
+public class DefaultMessageStore implements MessageStore {
     private final JdbcTemplate platform;
 
     private final PreparedStatementCreatorFactory insertStatementFactory;
@@ -45,11 +45,11 @@ public class SingleDataSourceMessageStore implements MessageStore {
 
     private final RouterSelector routerSelector;
 
-    SingleDataSourceMessageStore(DataSource datasource) {
+    DefaultMessageStore(DataSource datasource) {
         this(datasource, new NoopRouterSelector());
     }
 
-    SingleDataSourceMessageStore(DataSource datasource, RouterSelector routerSelector) {
+    DefaultMessageStore(DataSource datasource, RouterSelector routerSelector) {
         this.platform = new JdbcTemplate(datasource);
         this.insertStatementFactory = createFactory();
         this.gson = new Gson();
