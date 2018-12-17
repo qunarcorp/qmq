@@ -46,6 +46,7 @@ qmq的客户端已经发布到maven中央仓库，可以通过下面的方式获
 * [服务端tag过滤](docs/cn/tag.md)
 * [开源协议](docs/cn/opensource.md)
 * [技术支持](docs/cn/support.md)
+* [文章分享](docs/cn/article.md)
 
 # 技术支持
 
