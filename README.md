@@ -13,7 +13,7 @@ QMQ是去哪儿网内部广泛使用的消息中间件，自2012年诞生以来�
 * 结合Spring annotation使用的简单API
 * 提供丰富的监控指标
 * 接入OpenTracing
-* 分布式事务(即将开源)
+* 事务消息
 * 消息投递轨迹(即将开源)
 * 历史消息的自动备份(即将开源)
 
@@ -41,6 +41,7 @@ qmq的客户端已经发布到maven中央仓库，可以通过下面的方式获
 * [监控](docs/cn/monitor.md)
 * [Trace](docs/cn/trace.md)
 * [发送消息](docs/cn/producer.md)
+* [事务消息](docs/cn/transaction.md)
 * [消费消息](docs/cn/consumer.md)
 * [延时/定时消息](docs/cn/delay.md)
 * [服务端tag过滤](docs/cn/tag.md)
