@@ -17,7 +17,7 @@ public class ClientDbConfigurationStoreImpl implements ClientDbConfigurationStor
 
     @Override
     public void insertDb(ClientDbInfo clientDbInfo) {
-        jdbcTemplate.update("insert into ingore datasource_config(url,username,password,create_time) values(?,?,?,?)",
-                clientDbInfo.getUrl(), clientDbInfo.getUserName(), clientDbInfo.getPassword(), new Timestamp(System.currentTimeMillis()));
+        jdbcTemplate.update("INSERT IGNORE INTO datasource_config(url,user_name,password,room,create_time) VALUES(?,?,?,?)",
+                clientDbInfo.getUrl(), clientDbInfo.getUserName(), clientDbInfo.getPassword(), clientDbInfo.getRoom(), new Timestamp(System.currentTimeMillis()));
     }
 }

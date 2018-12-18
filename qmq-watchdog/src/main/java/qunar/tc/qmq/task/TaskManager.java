@@ -64,12 +64,12 @@ class TaskManager {
 
     private void scheduleExecuteTasks() {
         final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("execute-send-message-task", true));
-        executor.scheduleAtFixedRate(this::checkErrorMessages, checkInterval, checkInterval, TimeUnit.MINUTES);
+        executor.scheduleAtFixedRate(this::checkErrorMessages, checkInterval, checkInterval, TimeUnit.MILLISECONDS);
     }
 
     private void scheduleRefreshTask() {
         final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("refresh-send-message-task", true));
-        executor.scheduleAtFixedRate(this::initSendMessagesTasks, refreshInterval, refreshInterval, TimeUnit.MINUTES);
+        executor.scheduleAtFixedRate(this::initSendMessagesTasks, refreshInterval, refreshInterval, TimeUnit.MILLISECONDS);
     }
 
     private void initSendMessagesTasks() {
@@ -84,6 +84,7 @@ class TaskManager {
 
     private void refreshAllTasks() {
         final List<DataSourceInfoModel> dataSources = dataSourceConfigStore.findDataSourceInfos(DataSourceInfoStatus.ONLINE, namespace);
+        LOG.info("need process db: {}", dataSources.size());
         if (dataSources.isEmpty())
             return;
 
@@ -113,7 +114,8 @@ class TaskManager {
             try {
                 final SendMessageTask task = new SendMessageTask(dataSource, databaseDriverMapping, messageClientStore, serializer, sendMessageTaskExecuteTimeout, producer);
                 sendMessageTasks.put(key, task);
-            } catch (Exception ignore) {
+            } catch (Exception e) {
+                LOG.error("create task failed", e);
             }
         }
     }

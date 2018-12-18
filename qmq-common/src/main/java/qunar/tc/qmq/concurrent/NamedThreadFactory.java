@@ -16,10 +16,14 @@
 
 package qunar.tc.qmq.concurrent;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class NamedThreadFactory implements ThreadFactory {
+    private static final Logger LOGGER = LoggerFactory.getLogger(NamedThreadFactory.class);
 
     private final AtomicInteger mThreadNum = new AtomicInteger(1);
 
@@ -40,9 +44,19 @@ public class NamedThreadFactory implements ThreadFactory {
         mGroup = (s == null) ? Thread.currentThread().getThreadGroup() : s.getThreadGroup();
     }
 
-    public Thread newThread(Runnable runnable) {
+    public Thread newThread(final Runnable runnable) {
+        Runnable safeRunnable = new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    runnable.run();
+                } catch (Exception e) {
+                    LOGGER.error("process error", e);
+                }
+            }
+        };
         String name = mPrefix + mThreadNum.getAndIncrement();
-        Thread ret = new Thread(mGroup, runnable, name, 0);
+        Thread ret = new Thread(mGroup, safeRunnable, name, 0);
         ret.setDaemon(mDaemo);
         return ret;
     }

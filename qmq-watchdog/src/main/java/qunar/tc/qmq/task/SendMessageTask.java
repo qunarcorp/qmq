@@ -71,6 +71,7 @@ class SendMessageTask implements Callable<Void> {
 
     @Override
     public Void call() {
+        LOG.info("{} start...", dataSourceInfo.getUrl());
         stop = false;
         String name = Thread.currentThread().getName();
         try {
@@ -90,6 +91,7 @@ class SendMessageTask implements Callable<Void> {
         } finally {
             stop = true;
             Thread.currentThread().setName(name);
+            LOG.info("{} finish", dataSourceInfo.getUrl());
         }
         return null;
     }
@@ -174,6 +176,7 @@ class SendMessageTask implements Callable<Void> {
 
                     @Override
                     public void onFailed(Message message) {
+                        LOG.warn("send message failed {}", message.getMessageId());
                         Qmon.sendNewqmqMesssagesFailedCountInc(message.getSubject(), dataSourceInfo.getUrl());
                         latch.countDown();
                     }

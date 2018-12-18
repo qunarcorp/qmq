@@ -17,9 +17,10 @@ import qunar.tc.qmq.task.store.impl.LeaderElectionDaoImpl;
 import javax.sql.DataSource;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 
 public class Bootstrap {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
         DynamicConfig config = DynamicConfigLoader.load("watchdog.properties");
         int sendMessageTaskExecuteTimeout = config.getInt("sendMessageTaskExecuteTimeout", 3 * 60 * 1000);
         int refreshInterval = config.getInt("refreshInterval", 3 * 60 * 1000);
@@ -33,6 +34,9 @@ public class Bootstrap {
         Tasks tasks = new Tasks(namespace, taskManager, new LeaderElectionDaoImpl(jdbcTemplate));
         Runtime.getRuntime().addShutdownHook(new Thread(() -> tasks.destroy()));
         tasks.start();
+
+        CountDownLatch waiter = new CountDownLatch(1);
+        waiter.await();
     }
 
     private static MessageProducer createMessageProducer(DynamicConfig config) {
@@ -54,7 +58,7 @@ public class Bootstrap {
         TomcatDataSourceService dataSourceService = new TomcatDataSourceService();
         String jdbcUrl = config.getString("jdbc.url");
         String jdbcDriver = config.getString("jdbc.driverClassName");
-        String userName = config.getString("jdbc.userName");
+        String userName = config.getString("jdbc.username");
         String password = config.getString("jdbc.password");
         DataSource dataSource = dataSourceService.makeDataSource(jdbcUrl, jdbcDriver, userName, password);
         return new JdbcTemplate(dataSource);

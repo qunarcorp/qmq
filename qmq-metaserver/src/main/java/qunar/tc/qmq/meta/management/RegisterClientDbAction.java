@@ -19,7 +19,7 @@ public class RegisterClientDbAction implements MetaManagementAction {
         String type = req.getParameter("type");
         String host = req.getParameter("host");
         int port = Integer.valueOf(req.getParameter("port"));
-        String userName = req.getParameter("userName");
+        String userName = req.getParameter("username");
         String password = req.getParameter("password");
 
         String room = req.getParameter("room");
@@ -35,9 +35,9 @@ public class RegisterClientDbAction implements MetaManagementAction {
         clientDbInfo.setRoom(room);
         try {
             store.insertDb(clientDbInfo);
-            return Optional.of("register success");
+            return ActionResult.ok("register success");
         } catch (Exception e) {
-            return Optional.of("register failed " + e.getMessage());
+            return ActionResult.error("register failed " + e.getMessage());
         }
     }
 }

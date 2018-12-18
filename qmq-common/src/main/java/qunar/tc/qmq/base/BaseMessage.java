@@ -418,37 +418,4 @@ public class BaseMessage implements Message, Serializable {
         return this.durable;
     }
 
-    public String toContent() {
-        StringBuilder result = new StringBuilder();
-        result.append('{')
-                .append("\"subject\":\"").append(subject).append("\",")
-                .append("\"messageId\":\"").append(messageId).append("\",")
-                .append("\"durable\":\"").append(durable).append("\",");
-        appendAttrs(result);
-        result.append('}');
-        return result.toString();
-    }
-
-    private void appendAttrs(StringBuilder result) {
-        int count = 0;
-        result.append("\"attrs\":{");
-        for (Map.Entry<String, Object> entry : attrs.entrySet()) {
-            result.append("\"").append(entry.getKey()).append("\":");
-            appendValue(result, entry.getValue());
-            if (++count < attrs.size()) {
-                result.append(',');
-            }
-        }
-        result.append('}');
-    }
-
-    private void appendValue(StringBuilder result, Object value) {
-        if(value == null){
-            result.append("null");
-            return;
-        }
-
-
-    }
-
 }

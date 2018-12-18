@@ -17,6 +17,8 @@
 package qunar.tc.qmq.producer.tx.spring;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.LongSerializationPolicy;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.PreparedStatementCreatorFactory;
 import org.springframework.jdbc.core.SqlParameter;
@@ -52,7 +54,7 @@ public class DefaultMessageStore implements MessageStore {
     DefaultMessageStore(DataSource datasource, RouterSelector routerSelector) {
         this.platform = new JdbcTemplate(datasource);
         this.insertStatementFactory = createFactory();
-        this.gson = new Gson();
+        this.gson = new GsonBuilder().setLongSerializationPolicy(LongSerializationPolicy.STRING).create();
         this.routerSelector = routerSelector;
     }
 
