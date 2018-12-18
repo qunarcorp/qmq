@@ -64,6 +64,21 @@ public void pay(Order order){
 ### 发送消息
 在java里一般我们使用Spring的事务管理器来提供事务，QMQ提供了内置Spring事务的方式，使用起来非常方便:
 
+在需要放在同一个事务的业务db的相同实例上创建QMQ的数据库，这个过程如果公司方便的话，可以直接合并进DBA的初始化数据库的自动化流程中，这样就透明了：
+```sql
+CREATE DATABASE `qmq_produce`;
+CREATE TABLE `qmq_msg_queue` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `content` longtext NOT NULL,
+  `status` smallint(6) NOT NULL DEFAULT '0' COMMENT '消息状态',
+  `error` int unsigned NOT NULL DEFAULT '0' COMMENT '错误次数',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='记录业务系统消息';
+```
+
+以下是Spring中的xml配置，下面的dataSource所指向的
 ```xml
     <!-- 配置数据源，业务操作和qmq共享使用 -->
     <bean id="dataSource" class="org.apache.tomcat.jdbc.pool.DataSource" destroy-method="close">
