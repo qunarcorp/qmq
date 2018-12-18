@@ -15,7 +15,7 @@
         <java_source_version>1.8</java_source_version>
         <java_target_version>1.8</java_target_version>
 
-        <maven_deploy_skip>false</maven_deploy_skip>
+        <maven_deploy_skip>true</maven_deploy_skip>
     </properties>
 
     <dependencyManagement>
