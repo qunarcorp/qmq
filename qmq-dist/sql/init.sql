@@ -112,5 +112,5 @@ CREATE TABLE datasource_config (
   `create_time` TIMESTAMP NOT NULL DEFAULT '2018-01-01 01:01:01' COMMENT '创建时间',
   `update_time` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '修改时间',
   PRIMARY KEY (id),
-  unique key uniq_idx_name(name)
+  unique key uniq_idx_name(url)
 ) ENGINE=InnoDB default charset=utf8mb4 comment '客户端db配置表';
