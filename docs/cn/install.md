@@ -16,7 +16,7 @@ JDK 1.8
 
 -Xmx1G -Xms1G
 
-在生产环境为了可用性请至少部署两台meta server，让后将其放到nginx等lb后面，将这个地址配置给client和server使用
+在生产环境为了可用性请至少部署两台meta server，然后将其放到nginx等lb后面，将这个地址配置给client和server使用
 
 ### 初始化数据库
 运行下载的压缩包sql目录里的init.sql，初始化metaserver所需要的数据库
