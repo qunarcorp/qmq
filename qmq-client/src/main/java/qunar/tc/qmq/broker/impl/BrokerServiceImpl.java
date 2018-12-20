@@ -50,9 +50,12 @@ public class BrokerServiceImpl implements BrokerService {
 
     @Subscribe
     public void onReceiveMetaInfo(MetaInfo metaInfo) {
-        LOGGER.debug("BrokerServiceOnReceiveMetaInfo", "receive MetaInfo: {}", metaInfo);
         String key = MapKeyBuilder.buildMetaInfoKey(metaInfo.getClientType(), metaInfo.getSubject());
         ClusterFuture future = clusterMap.get(key);
+        if (isEmptyCluster(metaInfo)) {
+            logMetaInfo(metaInfo, future);
+            return;
+        }
         if (future == null) {
             future = new ClusterFuture(metaInfo.getClusterInfo());
             ClusterFuture oldFuture = clusterMap.putIfAbsent(key, future);
@@ -62,6 +65,19 @@ public class BrokerServiceImpl implements BrokerService {
         } else {
             future.set(metaInfo.getClusterInfo());
         }
+    }
+
+    private void logMetaInfo(MetaInfo metaInfo, ClusterFuture future) {
+        if (future == null || future.cluster.get() == null) {
+            LOGGER.error("meta server return empty broker, will retry in a few seconds. subject={}, client={}", metaInfo.getSubject(), metaInfo.getClientType());
+        } else {
+            LOGGER.info("meta server return empty broker, will retry in a few seconds. subject={}, client={}", metaInfo.getSubject(), metaInfo.getClientType());
+        }
+    }
+
+    private boolean isEmptyCluster(MetaInfo metaInfo) {
+        return metaInfo.getClientType() != ClientType.CONSUMER
+                && metaInfo.getClusterInfo().getGroups().isEmpty();
     }
 
     @Override

@@ -130,12 +130,8 @@ public class MetaInfoService implements MetaInfoClient.ResponseSubscriber, Runna
 
         MetaInfo metaInfo = parseResponse(response);
         if (metaInfo != null) {
-            if (metaInfo.getClusterInfo().getGroups().isEmpty() && metaInfo.getClientType() != ClientType.CONSUMER) {
-                LOGGER.debug("MetaInfoService", "meta server return empty broker, will retry in a few seconds. subject={}, client={}", metaInfo.getSubject(), metaInfo.getClientType().name());
-            } else {
-                LOGGER.debug("MetaInfoService", "meta info: {}", metaInfo);
-                eventBus.post(metaInfo);
-            }
+            LOGGER.debug("MetaInfoService", "meta info: {}", metaInfo);
+            eventBus.post(metaInfo);
         } else {
             LOGGER.warn("request meta info fail, will retry in a few seconds.");
         }
