@@ -14,7 +14,7 @@
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
 
-    <bean class="qunar.tc.qmq.MessageProducerProvider">
+    <bean class="qunar.tc.qmq.producer.MessageProducerProvider">
         <property name="appCode" value="your app" />
         <property name="metaServer" value="http://meta server/meta/address" />
     </bean>
