@@ -16,7 +16,7 @@ QMQ除了提供使用API来消费消息的方式外，还提供了跟Spring结�
     xmlns:context="http://www.springframework.org/schema/context"
 	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
     http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
-	http://www.qunar.com/schema/qmq http://www.qunar.com/schema/qmq.xsd">
+	http://www.qunar.com/schema/qmq http://www.qunar.com/schema/qmq/qmq.xsd">
 
     <qmq:consumer appCode="your app" metaServer="http://meta server/meta/address" />
 
