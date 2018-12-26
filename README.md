@@ -23,7 +23,7 @@ qmq的客户端已经发布到maven中央仓库，可以通过下面的方式获
 <dependency>
     <groupId>com.qunar.qmq</groupId>
     <artifactId>qmq</artifactId>
-    <version>1.0.0</version>
+    <version>1.1.0</version>
 </dependency>
 ```
 
