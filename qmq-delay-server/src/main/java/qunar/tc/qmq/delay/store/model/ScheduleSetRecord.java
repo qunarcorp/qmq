@@ -28,7 +28,7 @@ public class ScheduleSetRecord implements LogRecord {
     private final long startOffset;
     private final int recordSize;
 
-    private ByteBuffer record;
+    private final ByteBuffer record;
 
     public ScheduleSetRecord(String messageId, String subject, long scheduleTime, long startOffset, int recordSize, long sequence, ByteBuffer record) {
         this.header = new LogRecordHeader(subject, messageId, scheduleTime, sequence);
