@@ -30,16 +30,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Function;
-
-import static qunar.tc.qmq.store.MessageLog.PER_SEGMENT_FILE_SIZE;
-
 /**
  * @author xufeng.deng dennisdxf@gmail.com
  * @since 2018-07-19 17:43
  */
 public class MessageLogReplayer implements Switchable {
     private static final Logger LOGGER = LoggerFactory.getLogger(MessageLogReplayer.class);
+
     private static final RateLimiter LOG_LIMITER = RateLimiter.create((double) 1 / 6);
+
     private final DelayLogFacade facade;
     private final Thread dispatcherThread;
     private final LongAdder iterateFrom;

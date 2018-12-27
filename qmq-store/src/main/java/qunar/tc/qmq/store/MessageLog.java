@@ -33,7 +33,7 @@ import java.nio.charset.StandardCharsets;
 public class MessageLog implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(MessageLog.class);
 
-    public static final int PER_SEGMENT_FILE_SIZE = 100 * 1024 * 1024;
+    private static final int PER_SEGMENT_FILE_SIZE = 1024 * 1024 * 1024;
 
     //4 bytes magic code + 1 byte attribute + 8 bytes timestamp
     public static final int MIN_RECORD_BYTES = 13;
