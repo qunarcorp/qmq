@@ -104,7 +104,7 @@ public class DelayMessageLogVisitor implements LogVisitor<LogRecord> {
         // magic
         final int magic = buffer.getInt();
         if (!MagicCodeSupport.isValidMessageLogMagicCode(magic)) {
-//            visitedBufferSize.set(currentBuffer.getSize());
+            visitedBufferSize.set(currentBuffer.getSize());
             return Optional.of(EMPTY_LOG_RECORD);
         }
 
