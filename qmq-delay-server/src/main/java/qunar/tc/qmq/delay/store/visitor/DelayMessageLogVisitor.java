@@ -38,7 +38,8 @@ import static qunar.tc.qmq.delay.store.model.MessageLogAttrEnum.ATTR_SKIP_RECORD
 public class DelayMessageLogVisitor implements LogVisitor<LogRecord> {
     private static final Logger LOGGER = LoggerFactory.getLogger(DelayMessageLogVisitor.class);
 
-    private static final EmptyLogRecord EMPTY_LOG_RECORD = new EmptyLogRecord();
+    public static final EmptyLogRecord EMPTY_LOG_RECORD = new EmptyLogRecord();
+
     private static final int MIN_RECORD_BYTES = 13;
 
     private final AtomicInteger visitedBufferSize = new AtomicInteger(0);

@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Function;
+
 /**
  * @author xufeng.deng dennisdxf@gmail.com
  * @since 2018-07-19 17:43
@@ -129,8 +130,7 @@ public class MessageLogReplayer implements Switchable {
 
             while (true) {
                 final Optional<LogRecord> recordOptional = visitor.nextRecord();
-                if (recordOptional.isPresent()
-                        && recordOptional.get() instanceof DelayMessageLogVisitor.EmptyLogRecord) {
+                if (recordOptional.isPresent() && recordOptional.get() == DelayMessageLogVisitor.EMPTY_LOG_RECORD) {
                     break;
                 }
 
