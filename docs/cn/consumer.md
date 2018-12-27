@@ -128,6 +128,11 @@ for(Message message : messages){
 }
 ```
 
+* 注意
+```
+QMQ的Message.setProperty(key, value)如果value是字符串，则value的大小默认不能超过32K，如果你需要传输超大的字符串，请务必使用message.setLargeString(key, value)，这样你甚至可以传输十几兆的内容了，但是消费消息的时候也需要使用message.getLargeString(key)。
+```
+
 [上一页](producer.md)
 [回目录](../../README.md)
 [下一页](delay.md)
