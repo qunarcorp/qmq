@@ -117,7 +117,6 @@ public class MessageLogReplayer implements Switchable {
                 if (LOG_LIMITER.tryAcquire()) {
                     LOGGER.info("replay message log failed,cursor < iterate,cursor:{},iterate:{}", cursor, iterate);
                 }
-                if ((iterate % PER_SEGMENT_FILE_SIZE) != 0) throw new RuntimeException("MessageReplayLessThanEx");
                 this.cursor.set(iterate);
             }
 
