@@ -11,7 +11,11 @@
     </parent>
 
     <artifactId>qmq-gateway</artifactId>
-    <packaging>war</packaging>
+    <packaging>jar</packaging>
+
+    <properties>
+        <maven_deploy_skip>true</maven_deploy_skip>
+    </properties>
 
     <dependencies>
         <dependency>
@@ -59,8 +63,4 @@
             <artifactId>jackson-databind</artifactId>
         </dependency>
     </dependencies>
-
-    <build>
-        <finalName>ROOT</finalName>
-    </build>
 </project>

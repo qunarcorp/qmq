@@ -67,8 +67,4 @@
             <artifactId>guava</artifactId>
         </dependency>
     </dependencies>
-
-    <build>
-        <finalName>ROOT</finalName>
-    </build>
 </project>
