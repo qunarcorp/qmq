@@ -20,12 +20,15 @@ import com.google.common.eventbus.Subscribe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
+import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.common.MapKeyBuilder;
 import qunar.tc.qmq.metainfoclient.MetaInfo;
 import qunar.tc.qmq.metainfoclient.MetaInfoService;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
@@ -63,8 +66,53 @@ public class BrokerServiceImpl implements BrokerService {
                 oldFuture.set(metaInfo.getClusterInfo());
             }
         } else {
-            future.set(metaInfo.getClusterInfo());
+            updateOnDemand(future, metaInfo.getClusterInfo());
         }
+    }
+
+    private void updateOnDemand(ClusterFuture future, BrokerClusterInfo clusterInfo) {
+        BrokerClusterInfo oldClusterInfo = future.get();
+        if (oldClusterInfo == null) {
+            future.set(clusterInfo);
+            return;
+        }
+
+        if (isEquals(oldClusterInfo, clusterInfo)) {
+            return;
+        }
+
+        List<BrokerGroupInfo> groups = clusterInfo.getGroups();
+        List<BrokerGroupInfo> updated = new ArrayList<>(groups.size());
+        for (BrokerGroupInfo group : groups) {
+            BrokerGroupInfo oldGroup = oldClusterInfo.getGroupByName(group.getGroupName());
+            if (oldGroup == null) {
+                updated.add(group);
+                continue;
+            }
+
+            if (oldGroup.getMaster().equals(group.getMaster())) {
+                BrokerGroupInfo copy = new BrokerGroupInfo(group.getGroupIndex(),
+                        group.getGroupName(), group.getMaster(), group.getSlaves(), oldGroup.getCircuitBreaker());
+                updated.add(copy);
+                continue;
+            }
+
+            updated.add(group);
+        }
+
+        BrokerClusterInfo updatedCluster = new BrokerClusterInfo(updated);
+        future.set(updatedCluster);
+    }
+
+    private boolean isEquals(BrokerClusterInfo oldClusterInfo, BrokerClusterInfo clusterInfo) {
+        List<BrokerGroupInfo> groups = clusterInfo.getGroups();
+        for (BrokerGroupInfo group : groups) {
+            BrokerGroupInfo oldGroup = oldClusterInfo.getGroupByName(group.getGroupName());
+            if (oldGroup == null) return false;
+
+            if (!oldGroup.getMaster().equals(group.getMaster())) return false;
+        }
+        return true;
     }
 
     private void logMetaInfo(MetaInfo metaInfo, ClusterFuture future) {

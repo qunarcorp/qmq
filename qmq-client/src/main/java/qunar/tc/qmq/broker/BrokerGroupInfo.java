@@ -35,13 +35,17 @@ public class BrokerGroupInfo {
     private final CircuitBreaker circuitBreaker;
 
     public BrokerGroupInfo(int groupIndex, String groupName, String master, List<String> slaves) {
+        this(groupIndex, groupName, master, slaves, new CircuitBreaker());
+    }
+
+    public BrokerGroupInfo(int groupIndex, String groupName, String master, List<String> slaves, CircuitBreaker circuitBreaker) {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(groupName), "groupName不能是空");
         Preconditions.checkArgument(!Strings.isNullOrEmpty(master), "master不能是空");
         this.groupIndex = groupIndex;
         this.groupName = groupName;
         this.master = master;
         this.slaves = slaves;
-        this.circuitBreaker = new CircuitBreaker();
+        this.circuitBreaker = circuitBreaker;
     }
 
     public int getGroupIndex() {
@@ -78,6 +82,10 @@ public class BrokerGroupInfo {
 
     public static boolean isInvalid(BrokerGroupInfo brokerGroup) {
         return brokerGroup == null || !brokerGroup.isAvailable();
+    }
+
+    public CircuitBreaker getCircuitBreaker() {
+        return circuitBreaker;
     }
 
     @Override
