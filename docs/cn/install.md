@@ -128,12 +128,12 @@ message.sync.timeout.ms=10
 运行bin目录的tools.sh(windows平台使用tools.cmd)，执行以下命令:
 
 ```
-# 注册实时server的master节点
+# 注册实时server的master节点
 >tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerGroup=<groupName> --role=0 --hostname=<hostname> --ip=<ip> --servePort=20881 --syncPort=20882
 ```
 
 ```
-# 注册实时server的slave节点
+# 注册实时server的slave节点
 >tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerGroup=<groupName> --role=1 --hostname=<hostname> --ip=<ip> --servePort=20881 --syncPort=20882
 ```
 
