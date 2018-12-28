@@ -52,7 +52,7 @@ min.group.num=2
 
 *valid-api-tokens.properties*
 ```
-# http请求的白名单token列表，用于控制权限
+# metaserver的管理工具token列表，用于控制权限。下面的tools.sh工具使用时需要该token
 # 每行一个token
 <token 1>=<token 1 desc>
 <token 2>=<token 2 desc>
@@ -60,7 +60,7 @@ min.group.num=2
 
 *client_log_switch.properties*
 ```
-# 是否输出所有主题的详细请求信息
+# 是否输出所有主题的详细请求信息，主要用于metaserver问题诊断
 default=false
 
 # 可以控制单个主题是否输出详细请求信息
@@ -128,15 +128,22 @@ message.sync.timeout.ms=10
 运行bin目录的tools.sh(windows平台使用tools.cmd)，执行以下命令:
 
 ```
+# 注册实时server的master节点
 >tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerGroup=<groupName> --role=0 --hostname=<hostname> --ip=<ip> --servePort=20881 --syncPort=20882
 ```
+
+```
+# 注册实时server的slave节点
+>tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerGroup=<groupName> --role=1 --hostname=<hostname> --ip=<ip> --servePort=20881 --syncPort=20882
+```
+
 * metaserver address指的是ip:port,port默认是8080
 * token即metaserver的配置valid-api-tokens.properties里任何一项
-* brokerGroup 这一组的名字，每一组分为一主一从(默认可以不配置slave，但是在生产环境强烈建议配置slave，brokerGroup必须全局唯一)
+* brokerGroup 这一组的名字，每一组分为一主一从(默认可以不配置slave，但是在生产环境强烈建议配置slave，brokerGroup必须全局唯一，主从两个节点的brokerGroup相同)
 * role 角色 0 - master, 1 - slave, 5 - delay master, 6 - delay slave
-* hostname broker的主机名
-* ip broker的ip地址
-* servePort broker接收消息的端口
+* hostname 机器的主机名，注意必须是真实有效的主机名。linux/mac使用hostname命令查看
+* ip 机器的ip地址
+* servePort 接收消息的端口
 * syncPort 主从同步端口
 
 ## Delay Server
@@ -187,15 +194,22 @@ messagelog.retention.hours=72
 运行bin目录的tools.sh(windows平台使用tools.cmd)，执行以下命令:
 
 ```
+# 注册delay server的master节点
 >tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerGroup=<groupName> --role=5 --hostname=<hostname> --ip=<ip> --servePort=20881 --syncPort=20882
 ```
+
+```
+# 注册delay server的slave节点
+>tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerGroup=<groupName> --role=6 --hostname=<hostname> --ip=<ip> --servePort=20881 --syncPort=20882
+```
+
 * metaserver address指的是ip:port,port默认是8080
 * token即metaserver的配置valid-api-tokens.properties里任何一项
-* brokerGroup 这一组的名字，每一组分为一主一从(默认可以不配置slave，但是在生产环境强烈建议配置slave，brokerGroup必须全局唯一)
+* brokerGroup 这一组的名字，每一组分为一主一从(默认可以不配置slave，但是在生产环境强烈建议配置slave，brokerGroup必须全局唯一，主从两个节点的brokerGroup相同)
 * role 角色 0 - master, 1 - slave, 5 - delay master, 6 - delay slave
-* hostname broker的主机名
-* ip broker的ip地址
-* servePort broker接收消息的端口
+* hostname 机器的主机名，注意必须是真实有效的主机名。linux/mac使用hostname命令查看
+* ip 机器的ip地址
+* servePort 接收消息的端口
 * syncPort 主从同步端口
 
 [上一页](quickstart.md)
