@@ -132,7 +132,7 @@ message.sync.timeout.ms=10
 ```
 * metaserver address指的是ip:port,port默认是8080
 * token即metaserver的配置valid-api-tokens.properties里任何一项
-* brokerGroup 这一组的名字，每一组分为主从
+* brokerGroup 这一组的名字，每一组分为一主一从(默认可以不配置slave，但是在生产环境强烈建议配置slave，brokerGroup必须全局唯一)
 * role 角色 0 - master, 1 - slave, 5 - delay master, 6 - delay slave
 * hostname broker的主机名
 * ip broker的ip地址
@@ -191,7 +191,7 @@ messagelog.retention.hours=72
 ```
 * metaserver address指的是ip:port,port默认是8080
 * token即metaserver的配置valid-api-tokens.properties里任何一项
-* brokerGroup 这一组的名字，每一组分为主从
+* brokerGroup 这一组的名字，每一组分为一主一从(默认可以不配置slave，但是在生产环境强烈建议配置slave，brokerGroup必须全局唯一)
 * role 角色 0 - master, 1 - slave, 5 - delay master, 6 - delay slave
 * hostname broker的主机名
 * ip broker的ip地址
