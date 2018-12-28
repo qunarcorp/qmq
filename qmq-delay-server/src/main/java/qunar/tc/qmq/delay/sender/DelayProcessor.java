@@ -16,8 +16,8 @@
 
 package qunar.tc.qmq.delay.sender;
 
-import io.netty.buffer.ByteBuf;
 import qunar.tc.qmq.common.Disposable;
+import qunar.tc.qmq.delay.ScheduleIndex;
 
 /**
  * @author xufeng.deng dennisdxf@gmail.com
@@ -26,5 +26,5 @@ import qunar.tc.qmq.common.Disposable;
 public interface DelayProcessor extends Disposable {
     void init();
 
-    void send(ByteBuf record);
+    void send(ScheduleIndex index);
 }

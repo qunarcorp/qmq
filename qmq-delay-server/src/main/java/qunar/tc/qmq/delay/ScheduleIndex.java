@@ -16,45 +16,33 @@
 
 package qunar.tc.qmq.delay;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
-import io.netty.util.ReferenceCountUtil;
-
-import java.util.List;
-
 public class ScheduleIndex {
-    public static ByteBuf buildIndex(long scheduleTime, long offset, int size, long sequence) {
-        ByteBuf index = PooledByteBufAllocator.DEFAULT.ioBuffer(8 + 8 + 4 + 8);
-        index.writeLong(scheduleTime);
-        index.writeLong(offset);
-        index.writeInt(size);
-        index.writeLong(sequence);
-        return index;
+
+    private final long scheduleTime;
+    private final long offset;
+    private final int size;
+    private final long sequence;
+
+    public ScheduleIndex(long scheduleTime, long offset, int size, long sequence) {
+        this.scheduleTime = scheduleTime;
+        this.offset = offset;
+        this.size = size;
+        this.sequence = sequence;
     }
 
-    public static long scheduleTime(ByteBuf index) {
-        return index.getLong(0);
+    public long getScheduleTime() {
+        return scheduleTime;
     }
 
-    public static long offset(ByteBuf index) {
-        return index.getLong(8);
+    public long getOffset() {
+        return offset;
     }
 
-    public static int size(ByteBuf index) {
-        return index.getInt(16);
+    public int getSize() {
+        return size;
     }
 
-    public static long sequence(ByteBuf index) {
-        return index.getLong(20);
-    }
-
-    public static void release(List<ByteBuf> resources) {
-        for (ByteBuf resource : resources) {
-            release(resource);
-        }
-    }
-
-    public static void release(ByteBuf resource) {
-        ReferenceCountUtil.safeRelease(resource);
+    public long getSequence() {
+        return sequence;
     }
 }

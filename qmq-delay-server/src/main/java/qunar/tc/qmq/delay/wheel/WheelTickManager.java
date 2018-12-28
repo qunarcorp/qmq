@@ -18,11 +18,9 @@ package qunar.tc.qmq.delay.wheel;
 
 import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.broker.BrokerService;
-import qunar.tc.qmq.configuration.DynamicConfigLoader;
 import qunar.tc.qmq.delay.DelayLogFacade;
 import qunar.tc.qmq.delay.ScheduleIndex;
 import qunar.tc.qmq.delay.Switchable;
@@ -237,16 +235,16 @@ public class WheelTickManager implements Switchable, HashedWheelTimer.Processor 
             if (baseOffset == loadedCursorEntry.getBaseOffset() && loadedCursorEntry.getOffset() > -1)
                 startOffset = loadedCursorEntry.getOffset();
 
-            LogVisitor<ByteBuf> visitor = segment.newVisitor(startOffset, config.getSingleMessageLimitSize());
+            LogVisitor<ScheduleIndex> visitor = segment.newVisitor(startOffset, config.getSingleMessageLimitSize());
             try {
                 loadedCursor.shiftCursor(baseOffset, startOffset);
 
                 long currentOffset = startOffset;
                 while (currentOffset < offset) {
-                    Optional<ByteBuf> recordOptional = visitor.nextRecord();
+                    Optional<ScheduleIndex> recordOptional = visitor.nextRecord();
                     if (!recordOptional.isPresent()) break;
-                    ByteBuf index = recordOptional.get();
-                    currentOffset = ScheduleIndex.offset(index) + ScheduleIndex.size(index);
+                    ScheduleIndex index = recordOptional.get();
+                    currentOffset = index.getOffset() + index.getSize();
                     refresh(index);
                     loadedCursor.shiftOffset(currentOffset);
                 }
@@ -260,12 +258,12 @@ public class WheelTickManager implements Switchable, HashedWheelTimer.Processor 
         }
     }
 
-    private void refresh(ByteBuf record) {
+    private void refresh(ScheduleIndex index) {
         long now = System.currentTimeMillis();
         long scheduleTime = now;
         try {
-            scheduleTime = ScheduleIndex.scheduleTime(record);
-            timer.newTimeout(record, scheduleTime - now, TimeUnit.MILLISECONDS);
+            scheduleTime = index.getScheduleTime();
+            timer.newTimeout(index, scheduleTime - now, TimeUnit.MILLISECONDS);
         } catch (Throwable e) {
             LOGGER.error("wheel refresh error, scheduleTime:{}, delay:{}", scheduleTime, scheduleTime - now);
             throw Throwables.propagate(e);
@@ -283,8 +281,8 @@ public class WheelTickManager implements Switchable, HashedWheelTimer.Processor 
         }
     }
 
-    public void addWHeel(ByteBuf record) {
-        refresh(record);
+    public void addWHeel(ScheduleIndex index) {
+        refresh(index);
     }
 
     public boolean canAdd(long scheduleTime, long offset) {
@@ -302,8 +300,8 @@ public class WheelTickManager implements Switchable, HashedWheelTimer.Processor 
     }
 
     @Override
-    public void process(ByteBuf record) {
+    public void process(ScheduleIndex index) {
         QMon.scheduleDispatch();
-        sender.send(record);
+        sender.send(index);
     }
 }

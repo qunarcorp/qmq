@@ -16,7 +16,6 @@
 
 package qunar.tc.qmq.delay;
 
-import io.netty.buffer.ByteBuf;
 import qunar.tc.qmq.delay.base.LongHashSet;
 import qunar.tc.qmq.delay.base.ReceivedDelayMessage;
 import qunar.tc.qmq.delay.base.ReceivedResult;
@@ -51,7 +50,7 @@ public class DefaultDelayLogFacade implements DelayLogFacade {
     private final LogCleaner cleaner;
     private final MessageLogReplayer replayer;
 
-    public DefaultDelayLogFacade(final StoreConfiguration config, final Function<ByteBuf, Boolean> func) {
+    public DefaultDelayLogFacade(final StoreConfiguration config, final Function<ScheduleIndex, Boolean> func) {
         this.messageLog = new MessageLog(config);
         this.scheduleLog = new ScheduleLog(config);
         this.dispatchLog = new DispatchLog(config);
@@ -125,8 +124,8 @@ public class DefaultDelayLogFacade implements DelayLogFacade {
     }
 
     @Override
-    public List<ScheduleSetRecord> recoverLogRecord(final List<ByteBuf> pureRecords) {
-        return scheduleLog.recoverLogRecord(pureRecords);
+    public List<ScheduleSetRecord> recoverLogRecord(final List<ScheduleIndex> indexList) {
+        return scheduleLog.recoverLogRecord(indexList);
     }
 
     @Override
@@ -150,7 +149,7 @@ public class DefaultDelayLogFacade implements DelayLogFacade {
     }
 
     @Override
-    public WheelLoadCursor.Cursor loadUnDispatch(final ScheduleSetSegment setSegment, final LongHashSet dispatchedSet, final Consumer<ByteBuf> refresh) {
+    public WheelLoadCursor.Cursor loadUnDispatch(final ScheduleSetSegment setSegment, final LongHashSet dispatchedSet, final Consumer<ScheduleIndex> refresh) {
         return scheduleLog.loadUnDispatch(setSegment, dispatchedSet, refresh);
     }
 
@@ -170,7 +169,7 @@ public class DefaultDelayLogFacade implements DelayLogFacade {
     }
 
     @Override
-    public AppendLogResult<ByteBuf> appendScheduleLog(LogRecord event) {
+    public AppendLogResult<ScheduleIndex> appendScheduleLog(LogRecord event) {
         return scheduleLog.append(event);
     }
 

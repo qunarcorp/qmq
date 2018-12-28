@@ -16,7 +16,6 @@
 
 package qunar.tc.qmq.delay.store.visitor;
 
-import io.netty.buffer.ByteBuf;
 import qunar.tc.qmq.delay.ScheduleIndex;
 
 import java.nio.ByteBuffer;
@@ -27,14 +26,14 @@ import java.util.Optional;
  * @author xufeng.deng dennisdxf@gmail.com
  * @since 2018-07-15 15:01
  */
-public class ScheduleIndexVisitor extends AbstractLogVisitor<ByteBuf> {
+public class ScheduleIndexVisitor extends AbstractLogVisitor<ScheduleIndex> {
 
     public ScheduleIndexVisitor(long from, FileChannel fileChannel, int singleMessageLimitSize) {
         super(from, fileChannel, singleMessageLimitSize);
     }
 
     @Override
-    protected Optional<ByteBuf> readOneRecord(ByteBuffer buffer) {
+    protected Optional<ScheduleIndex> readOneRecord(ByteBuffer buffer) {
         long curPos = buffer.position();
 
         if (buffer.remaining() < Long.BYTES) {
@@ -81,7 +80,7 @@ public class ScheduleIndexVisitor extends AbstractLogVisitor<ByteBuf> {
         long startOffset = visitedBufferSize();
         buffer.position(Math.toIntExact(curPos + recordSize));
 
-        return Optional.of(ScheduleIndex.buildIndex(scheduleTime, startOffset, recordSize, sequence));
+        return Optional.of(new ScheduleIndex(scheduleTime, startOffset, recordSize, sequence));
     }
 
     private int getMetaSize(int messageId, int subject) {

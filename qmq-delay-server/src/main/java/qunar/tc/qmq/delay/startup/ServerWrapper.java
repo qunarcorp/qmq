@@ -17,7 +17,6 @@
 package qunar.tc.qmq.delay.startup;
 
 import com.google.common.base.Preconditions;
-import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.broker.BrokerService;
@@ -114,11 +113,11 @@ public class ServerWrapper implements Disposable {
         this.processor = new ReceivedDelayMessageProcessor(receiver);
     }
 
-    private boolean iterateCallback(final ByteBuf buf) {
-        long scheduleTime = ScheduleIndex.scheduleTime(buf);
-        long offset = ScheduleIndex.offset(buf);
+    private boolean iterateCallback(final ScheduleIndex index) {
+        long scheduleTime = index.getScheduleTime();
+        long offset = index.getOffset();
         if (wheelTickManager.canAdd(scheduleTime, offset)) {
-            wheelTickManager.addWHeel(buf);
+            wheelTickManager.addWHeel(index);
             return true;
         }
 

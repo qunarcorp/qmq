@@ -17,7 +17,6 @@
 package qunar.tc.qmq.delay.sender;
 
 import com.google.common.collect.Sets;
-import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.batch.BatchExecutor;
@@ -35,13 +34,11 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import static qunar.tc.qmq.delay.ScheduleIndex.buildIndex;
-
 /**
  * @author xufeng.deng dennisdxf@gmail.com
  * @since 2018-07-25 13:59
  */
-public class SenderProcessor implements DelayProcessor, Processor<ByteBuf>, SenderGroup.ResultHandler {
+public class SenderProcessor implements DelayProcessor, Processor<ScheduleIndex>, SenderGroup.ResultHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(SenderProcessor.class);
 
     private static final long DEFAULT_SEND_WAIT_TIME = 1;
@@ -54,7 +51,7 @@ public class SenderProcessor implements DelayProcessor, Processor<ByteBuf>, Send
     private final BrokerService brokerService;
     private final DelayLogFacade facade;
 
-    private BatchExecutor<ByteBuf> batchExecutor;
+    private BatchExecutor<ScheduleIndex> batchExecutor;
 
     private long sendWaitTime = DEFAULT_SEND_WAIT_TIME;
 
@@ -77,9 +74,8 @@ public class SenderProcessor implements DelayProcessor, Processor<ByteBuf>, Send
     }
 
     @Override
-    public void send(ByteBuf index) {
+    public void send(ScheduleIndex index) {
         if (!BrokerRoleManager.isDelayMaster()) {
-            ScheduleIndex.release(index);
             return;
         }
 
@@ -100,23 +96,22 @@ public class SenderProcessor implements DelayProcessor, Processor<ByteBuf>, Send
     }
 
     @Override
-    public void process(List<ByteBuf> pureRecords) {
-        if (pureRecords == null || pureRecords.isEmpty()) {
+    public void process(List<ScheduleIndex> indexList) {
+        if (indexList == null || indexList.isEmpty()) {
             return;
         }
 
-        List<ScheduleSetRecord> records = null;
+        List<ScheduleSetRecord> records = facade.recoverLogRecord(indexList);
         try {
-            records = facade.recoverLogRecord(pureRecords);
             senderExecutor.execute(records, this, brokerService);
         } catch (Exception e) {
-            LOGGER.error("send message failed,messageSize:{} will retry", pureRecords.size(), e);
+            LOGGER.error("send message failed,messageSize:{} will retry", indexList.size(), e);
             retry(records);
         }
     }
 
-    private void reject(ByteBuf record) {
-        send(record);
+    private void reject(ScheduleIndex index) {
+        send(index);
     }
 
     private void success(ScheduleSetRecord record) {
@@ -128,7 +123,7 @@ public class SenderProcessor implements DelayProcessor, Processor<ByteBuf>, Send
         for (ScheduleSetRecord record : records) {
             if (messageIds.contains(record.getMessageId())) {
                 refresh(record, refreshSubject);
-                send(buildIndex(record.getScheduleTime(), record.getStartWroteOffset(), record.getRecordSize(), record.getSequence()));
+                send(new ScheduleIndex(record.getScheduleTime(), record.getStartWroteOffset(), record.getRecordSize(), record.getSequence()));
                 continue;
             }
             success(record);
@@ -143,7 +138,7 @@ public class SenderProcessor implements DelayProcessor, Processor<ByteBuf>, Send
         final Set<String> refreshSubject = Sets.newHashSet();
         for (ScheduleSetRecord record : records) {
             refresh(record, refreshSubject);
-            send(buildIndex(record.getScheduleTime(), record.getStartWroteOffset(), record.getRecordSize(), record.getSequence()));
+            send(new ScheduleIndex(record.getScheduleTime(), record.getStartWroteOffset(), record.getRecordSize(), record.getSequence()));
         }
     }
 

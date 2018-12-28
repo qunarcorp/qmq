@@ -17,7 +17,6 @@
 package qunar.tc.qmq.delay.store.log;
 
 import com.google.common.collect.Lists;
-import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.common.Disposable;
@@ -46,7 +45,7 @@ import static qunar.tc.qmq.delay.store.ScheduleLogValidatorSupport.getSupport;
  * @author xufeng.deng dennisdxf@gmail.com
  * @since 2018-08-02 17:47
  */
-public class ScheduleLog implements Log<ByteBuf, LogRecord>, Disposable {
+public class ScheduleLog implements Log<ScheduleIndex, LogRecord>, Disposable {
     private static final Logger LOGGER = LoggerFactory.getLogger(ScheduleLog.class);
 
     private final ScheduleSet scheduleSet;
@@ -71,7 +70,7 @@ public class ScheduleLog implements Log<ByteBuf, LogRecord>, Disposable {
     }
 
     @Override
-    public AppendLogResult<ByteBuf> append(LogRecord record) {
+    public AppendLogResult<ScheduleIndex> append(LogRecord record) {
         if (!open.get()) {
             return new AppendLogResult<>(MessageProducerCode.STORE_ERROR, "schedule log closed");
         }
@@ -83,14 +82,14 @@ public class ScheduleLog implements Log<ByteBuf, LogRecord>, Disposable {
         }
 
         RecordResult<ScheduleSetSequence> recordResult = result.getAdditional();
-        ByteBuf index = buildIndexRecord(record.getScheduleTime(), recordResult.getResult().getWroteOffset(),
+        ScheduleIndex index = buildIndexRecord(record.getScheduleTime(), recordResult.getResult().getWroteOffset(),
                 recordResult.getResult().getWroteBytes(), recordResult.getResult().getAdditional().getSequence());
 
         return new AppendLogResult<>(MessageProducerCode.SUCCESS, "", index);
     }
 
-    private ByteBuf buildIndexRecord(long scheduleTime, long offset, int size, long sequence) {
-        return ScheduleIndex.buildIndex(scheduleTime, offset, size, sequence);
+    private ScheduleIndex buildIndexRecord(long scheduleTime, long offset, int size, long sequence) {
+        return new ScheduleIndex(scheduleTime, offset, size, sequence);
     }
 
     @Override
@@ -105,43 +104,37 @@ public class ScheduleLog implements Log<ByteBuf, LogRecord>, Disposable {
         }
     }
 
-    public List<ScheduleSetRecord> recoverLogRecord(List<ByteBuf> pureRecords) {
-        try {
-            List<ScheduleSetRecord> records = Lists.newArrayListWithCapacity(pureRecords.size());
-            for (ByteBuf record : pureRecords) {
-                ScheduleSetRecord logRecord = scheduleSet.recoverRecord(record);
-                if (logRecord == null) {
-                    LOGGER.error("schedule log recover null record");
-                    continue;
-                }
-
-                records.add(logRecord);
+    public List<ScheduleSetRecord> recoverLogRecord(List<ScheduleIndex> pureRecords) {
+        List<ScheduleSetRecord> records = Lists.newArrayListWithCapacity(pureRecords.size());
+        for (ScheduleIndex index : pureRecords) {
+            ScheduleSetRecord logRecord = scheduleSet.recoverRecord(index);
+            if (logRecord == null) {
+                LOGGER.error("schedule log recover null record");
+                continue;
             }
 
-            return records;
-        } finally {
-            ScheduleIndex.release(pureRecords);
+            records.add(logRecord);
         }
+
+        return records;
     }
 
     public void clean() {
         scheduleSet.clean();
     }
 
-    public WheelLoadCursor.Cursor loadUnDispatch(ScheduleSetSegment segment, final LongHashSet dispatchedSet, final Consumer<ByteBuf> func) {
-        LogVisitor<ByteBuf> visitor = segment.newVisitor(0, config.getSingleMessageLimitSize());
+    public WheelLoadCursor.Cursor loadUnDispatch(ScheduleSetSegment segment, final LongHashSet dispatchedSet, final Consumer<ScheduleIndex> func) {
+        LogVisitor<ScheduleIndex> visitor = segment.newVisitor(0, config.getSingleMessageLimitSize());
         try {
             long offset = 0;
             while (true) {
-                Optional<ByteBuf> recordOptional = visitor.nextRecord();
+                Optional<ScheduleIndex> recordOptional = visitor.nextRecord();
                 if (!recordOptional.isPresent()) break;
-                ByteBuf index = recordOptional.get();
-                long sequence = ScheduleIndex.sequence(index);
-                offset = ScheduleIndex.offset(index) + ScheduleIndex.size(index);
+                ScheduleIndex index = recordOptional.get();
+                long sequence = index.getSequence();
+                offset = index.getOffset() + index.getSize();
                 if (!dispatchedSet.contains(sequence)) {
                     func.accept(index);
-                } else {
-                    ScheduleIndex.release(index);
                 }
             }
             return new WheelLoadCursor.Cursor(segment.getSegmentBaseOffset(), offset);

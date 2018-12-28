@@ -16,7 +16,6 @@
 
 package qunar.tc.qmq.delay.store.log;
 
-import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.delay.ScheduleIndex;
@@ -49,7 +48,7 @@ public class ScheduleSetSegment extends AbstractDelaySegment<ScheduleSetSequence
 
     ScheduleSetRecord recover(long offset, int size) {
         // 交给gc，不能给每个segment分配一个局部buffer
-        ByteBuffer recoverBuffer = ByteBuffer.allocate(size);
+        ByteBuffer recoverBuffer = ByteBuffer.allocateDirect(size);
         try {
             int bytes = fileChannel.read(recoverBuffer, offset);
             if (bytes != size) {
@@ -82,18 +81,17 @@ public class ScheduleSetSegment extends AbstractDelaySegment<ScheduleSetSequence
         }
     }
 
-    public LogVisitor<ByteBuf> newVisitor(long from, int singleMessageLimitSize) {
+    public LogVisitor<ScheduleIndex> newVisitor(long from, int singleMessageLimitSize) {
         return new ScheduleIndexVisitor(from, fileChannel, singleMessageLimitSize);
     }
 
     long doValidate(int singleMessageLimitSize) {
         LOGGER.info("validate schedule log {}", getSegmentBaseOffset());
-        LogVisitor<ByteBuf> visitor = newVisitor(0, singleMessageLimitSize);
+        LogVisitor<ScheduleIndex> visitor = newVisitor(0, singleMessageLimitSize);
         try {
             while (true) {
-                Optional<ByteBuf> optionalRecord = visitor.nextRecord();
+                Optional<ScheduleIndex> optionalRecord = visitor.nextRecord();
                 if (optionalRecord.isPresent()) {
-                    ScheduleIndex.release(optionalRecord.get());
                     continue;
                 }
                 break;

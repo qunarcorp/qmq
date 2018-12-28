@@ -46,7 +46,7 @@ public class MessageLogReplayer implements Switchable {
     private final EventListener<LogRecord> dispatcher;
     private volatile boolean stop = true;
 
-    MessageLogReplayer(final DelayLogFacade facade, final Function<ByteBuf, Boolean> func) {
+    MessageLogReplayer(final DelayLogFacade facade, final Function<ScheduleIndex, Boolean> func) {
         this.facade = facade;
         this.dispatcher = new MessageIterateEventListener(facade, func);
         this.iterateFrom = new LongAdder();

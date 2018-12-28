@@ -15,9 +15,9 @@
  */
 package qunar.tc.qmq.delay.wheel;
 
-import io.netty.buffer.ByteBuf;
 import io.netty.util.internal.PlatformDependent;
 import io.netty.util.internal.StringUtil;
+import qunar.tc.qmq.delay.ScheduleIndex;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -172,14 +172,14 @@ public class HashedWheelTimer {
         return worker.unprocessedTimeouts();
     }
 
-    public void newTimeout(ByteBuf record, long delay, TimeUnit unit) {
+    public void newTimeout(ScheduleIndex index, long delay, TimeUnit unit) {
         long deadline = System.nanoTime() + unit.toNanos(delay) - startTime;
-        HashedWheelTimeout timeout = new HashedWheelTimeout(this, record, deadline);
+        HashedWheelTimeout timeout = new HashedWheelTimeout(this, index, deadline);
         timeouts.add(timeout);
     }
 
-    private void expire(ByteBuf record) {
-        processor.process(record);
+    private void expire(ScheduleIndex index) {
+        processor.process(index);
     }
 
     private final class Worker implements Runnable {
@@ -307,7 +307,7 @@ public class HashedWheelTimer {
         }
 
         private final HashedWheelTimer timer;
-        private final ByteBuf entity;
+        private final ScheduleIndex entity;
         private final long deadline;
 
         @SuppressWarnings({"unused", "FieldMayBeFinal", "RedundantFieldInitialization"})
@@ -325,7 +325,7 @@ public class HashedWheelTimer {
         // The bucket to which the timeout was added
         HashedWheelBucket bucket;
 
-        HashedWheelTimeout(HashedWheelTimer timer, ByteBuf entity, long deadline) {
+        HashedWheelTimeout(HashedWheelTimer timer, ScheduleIndex entity, long deadline) {
             this.timer = timer;
             this.entity = entity;
             this.deadline = deadline;
@@ -492,6 +492,6 @@ public class HashedWheelTimer {
     }
 
     public interface Processor {
-        void process(ByteBuf record);
+        void process(ScheduleIndex index);
     }
 }

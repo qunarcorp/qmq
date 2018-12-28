@@ -16,7 +16,6 @@
 
 package qunar.tc.qmq.delay;
 
-import io.netty.buffer.ByteBuf;
 import qunar.tc.qmq.delay.base.LongHashSet;
 import qunar.tc.qmq.delay.base.ReceivedDelayMessage;
 import qunar.tc.qmq.delay.base.ReceivedResult;
@@ -61,7 +60,7 @@ public interface DelayLogFacade {
 
     boolean appendDispatchLogData(long startOffset, int baseOffset, ByteBuffer body);
 
-    List<ScheduleSetRecord> recoverLogRecord(List<ByteBuf> pureRecords);
+    List<ScheduleSetRecord> recoverLogRecord(List<ScheduleIndex> indexList);
 
     void appendDispatchLog(LogRecord record);
 
@@ -71,13 +70,13 @@ public interface DelayLogFacade {
 
     ScheduleSetSegment loadScheduleLogSegment(int segmentBaseOffset);
 
-    WheelLoadCursor.Cursor loadUnDispatch(ScheduleSetSegment setSegment, LongHashSet dispatchedSet, Consumer<ByteBuf> refresh);
+    WheelLoadCursor.Cursor loadUnDispatch(ScheduleSetSegment setSegment, LongHashSet dispatchedSet, Consumer<ScheduleIndex> refresh);
 
     int higherScheduleBaseOffset(int index);
 
     LogVisitor<LogRecord> newMessageLogVisitor(long start);
 
-    AppendLogResult<ByteBuf> appendScheduleLog(LogRecord event);
+    AppendLogResult<ScheduleIndex> appendScheduleLog(LogRecord event);
 
     long initialMessageIterateFrom();
 
