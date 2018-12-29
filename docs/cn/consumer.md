@@ -22,6 +22,14 @@ QMQ除了提供使用API来消费消息的方式外，还提供了跟Spring结�
 
     <context:annotation-config />
     <context:component-scan base-package="qunar.tc.qmq.demo.consumer.*" />
+
+    <!-- 供处理消息用的线程池 -->
+    <bean id="qmqExecutor" class="org.springframework.scheduling.concurrent.ThreadPoolExecutorFactoryBean">
+        <property name="corePoolSize" value="2" />
+        <property name="maxPoolSize" value="2" />
+        <property name="queueCapacity" value="1000" />
+        <property name="threadNamePrefix" value="qmq-process" />
+    </bean>
 </beans>
 ```
 
