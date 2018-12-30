@@ -175,6 +175,16 @@
                 <version>${prometheus.client.version}</version>
             </dependency>
             <dependency>
+                <groupId>io.prometheus</groupId>
+                <artifactId>simpleclient_httpserver</artifactId>
+                <version>${prometheus.client.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.prometheus</groupId>
+                <artifactId>simpleclient_graphite_bridge</artifactId>
+                <version>${prometheus.client.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>io.opentracing</groupId>
                 <artifactId>opentracing-util</artifactId>
                 <version>0.31.0</version>

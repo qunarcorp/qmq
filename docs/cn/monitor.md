@@ -9,6 +9,28 @@
 
 ## 定制监控插件
 
+QMQ使用SPI的机制提供第三方监控的接入能力，QMQ默认提供了Prometheus的接入。如果要接入一个第三方监控系统的话可以按照如下方式进行：
+
+1. 创建一个maven工程，引入下面的依赖
+```xml
+        <dependency>
+            <groupId>com.qunar.qmq</groupId>
+            <artifactId>qmq</artifactId>
+            <version>1.1.0</version>
+            <!--注意这里的optinal-->
+            <optional>true</optional>
+        </dependency>
+```
+
+2. 实现QmqCounter, QmqMeter, QmqTimer, QmqMetricRegistry几个接口
+* [QmqCounter](https://github.com/qunarcorp/qmq/blob/master/qmq-common/src/main/java/qunar/tc/qmq/metrics/QmqCounter.java) 计数监控，比如每分钟发送的消息条数。请参考[PrometheusQmqCounter](https://github.com/qunarcorp/qmq/blob/master/qmq-metrics-prometheus/src/main/java/qunar/tc/qmq/metrics/prometheus/PrometheusQmqCounter.java)了解如何实现。
+* [QmqMeter](https://github.com/qunarcorp/qmq/blob/master/qmq-common/src/main/java/qunar/tc/qmq/metrics/QmqMeter.java) qps/tps 监控，比如发送的qps。请参考[PrometheusQmqMeter](https://github.com/qunarcorp/qmq/blob/master/qmq-metrics-prometheus/src/main/java/qunar/tc/qmq/metrics/prometheus/PrometheusQmqMeter.java)了解如何实现。
+* [QmqTimer](https://github.com/qunarcorp/qmq/blob/master/qmq-common/src/main/java/qunar/tc/qmq/metrics/QmqTimer.java) 时长监控，比如发送消息耗时。请参考[PrometheusQmqTimer](https://github.com/qunarcorp/qmq/blob/master/qmq-metrics-prometheus/src/main/java/qunar/tc/qmq/metrics/prometheus/PrometheusQmqTimer.java)了解如何实现。
+* [QmqMetricRegistry](https://github.com/qunarcorp/qmq/blob/master/qmq-common/src/main/java/qunar/tc/qmq/metrics/QmqMetricRegistry.java) SPI入口类。请参考[PrometheusQmqMetricRegistry](https://github.com/qunarcorp/qmq/blob/master/qmq-metrics-prometheus/src/main/java/qunar/tc/qmq/metrics/prometheus/PrometheusQmqMetricRegistry.java)了解如何实现。QmqMetricRegistry类只会初始化一次，所以一些监控的初始化工作可以在构造函数里进行。
+
+2. 在resources下创建META-INF/services文件夹，在里面创建名为qunar.tc.qmq.metrics.QmqMetricRegistry的文本文件，文件内容即QmqMetricRegistry实现类的全名(包括包名)。比如：qunar.tc.qmq.metrics.prometheus.PrometheusQmqMetricRegistry
+
+
 ## Server监控指标
 
 下面列出一些重要的监控，还有其他一些未列出监控可以从qunar.tc.qmq.monitor.Qmon.java 来查看
