@@ -81,7 +81,6 @@
 
         <prometheus.client.version>0.5.0</prometheus.client.version>
         <spring.version>4.2.3.RELEASE</spring.version>
-        <maven_deploy_skip>false</maven_deploy_skip>
     </properties>
 
     <dependencyManagement>
