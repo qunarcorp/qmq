@@ -125,14 +125,31 @@ public class MessageConsumerProvider implements MessageConsumer {
         return pullConsumerFactory.getOrCreateDefault(subject, group, isBroadcast);
     }
 
+    /**
+     * QMQ需要每个consumer实例有一个全局唯一并且不频繁变更的client id
+     * QMQ默认会根据部署的路径和hostname生成一个唯一id，如果当前运行环境不能提供唯一id，可以通过ClientIdProvider定制自己的client id
+     *
+     * @param clientIdProvider @see DefaultClientIdProvider
+     */
     public void setClientIdProvider(ClientIdProvider clientIdProvider) {
         this.clientIdProvider = clientIdProvider;
     }
 
+    /**
+     * 为了方便维护应用与消息主题之间的关系，每个应用提供一个唯一的标识
+     *
+     * @param appCode
+     */
     public void setAppCode(String appCode) {
         this.appCode = appCode;
     }
 
+    /**
+     * 用于发现meta server集群的地址
+     * 格式: http://<meta server address>/meta/address
+     *
+     * @param metaServer
+     */
     public void setMetaServer(String metaServer) {
         this.metaServer = metaServer;
     }

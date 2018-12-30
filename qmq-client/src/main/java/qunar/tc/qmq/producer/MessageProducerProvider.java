@@ -140,7 +140,7 @@ public class MessageProducerProvider implements MessageProducer {
     }
 
     /**
-     * 内存发送队列最大值，默认值 @see QUEUE_MEM_SIZE
+     * 内存发送队列最大值，默认值 10000
      *
      * @param maxQueueSize 内存队列大小
      */
@@ -149,7 +149,7 @@ public class MessageProducerProvider implements MessageProducer {
     }
 
     /**
-     * 发送线程数 @see SEND_THREADS
+     * 发送线程数，默认3个线程
      *
      * @param sendThreads
      */
@@ -158,7 +158,7 @@ public class MessageProducerProvider implements MessageProducer {
     }
 
     /**
-     * 批量发送，每批量大小 @see SEND_BATCH
+     * 批量发送，每批量大小，默认值30
      *
      * @param sendBatch
      */
@@ -167,9 +167,9 @@ public class MessageProducerProvider implements MessageProducer {
     }
 
     /**
-     * 发送失败重试次数
+     * 发送失败重试次数，默认值10
      *
-     * @param sendTryCount @see SEND_TRY_COUNT
+     * @param sendTryCount
      */
     public void setSendTryCount(int sendTryCount) {
         configs.setSendTryCount(sendTryCount);
@@ -190,6 +190,7 @@ public class MessageProducerProvider implements MessageProducer {
 
     /**
      * 用于发现meta server集群的地址
+     * 格式: http://<meta server address>/meta/address
      *
      * @param metaServer
      */
