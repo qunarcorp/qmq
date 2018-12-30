@@ -46,6 +46,7 @@ public class PullServlet extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        req.setCharacterEncoding("UTF-8");
         String subject = extractSubject(req);
         String group = req.getParameter("group");
         if (inValid(subject, group)) {

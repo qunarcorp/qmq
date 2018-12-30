@@ -39,6 +39,7 @@ public class SendServlet extends HttpServlet {
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        req.setCharacterEncoding("UTF-8");
         String subject = req.getPathInfo();
         if (subject == null || subject.length() == 0) {
             error(resp, "subject is required");
