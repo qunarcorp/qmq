@@ -16,7 +16,7 @@
 
     <bean class="qunar.tc.qmq.producer.MessageProducerProvider">
         <property name="appCode" value="your app" />
-        <property name="metaServer" value="http://meta server/meta/address" />
+        <property name="metaServer" value="http://<meta server address>/meta/address" />
     </bean>
 </beans>
 ```
@@ -49,7 +49,7 @@ public class Configuration{
     public MessageProducer producer(){
         MessageProducerProvider producer = new MessageProducerProvider();
         producer.setAppCode("your app");
-        producer.setMetaServer("http://meta server/meta/address");
+        producer.setMetaServer("http://<meta server address>/meta/address");
         return producer;
     }
 }
@@ -59,7 +59,7 @@ public class Configuration{
 ```java
 MessageProducerProvider producer = new MessageProducerProvider();
 producer.setAppCode("your app");
-producer.setMetaServer("http://meta server/meta/address");
+producer.setMetaServer("http://<meta server address>/meta/address");
 producer.init();
 
 //每次发消息之前请使用generateMessage生成一个Message对象，然后填充数据

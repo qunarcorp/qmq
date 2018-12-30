@@ -36,7 +36,7 @@ QMQ除了提供使用API来消费消息的方式外，还提供了跟Spring结�
 当然，如果你的应用使用的是Spring annotation的配置方式，没有xml，那么也可以使用@EnableQmq的方式配置
 ```java
 @Configuration
-@EnableQmq(appCode="your app", metaServer="http://meta server/meta/address")
+@EnableQmq(appCode="your app", metaServer="http://<meta server address>/meta/address")
 public class Config{}
 ```
 
@@ -104,7 +104,7 @@ Listener的方式与@QmqConsumer提供的功能基本类似
 //推荐一个应用里只创建一个实例
 MessageConsumerProvider consumer = new MessageConsumerProvider();
 consumer.setAppCode("your app");
-consumer.setMetaServer("http://meta server/meta/address");
+consumer.setMetaServer("http://<meta server address>/meta/address");
 consumer.init();
 
 consumer.addListener("your subject", "group", (m) -> {
@@ -120,7 +120,7 @@ Pull API是最基础的API，需要考虑更多情况，如无必要，我们推
 //推荐一个应用里只创建一个实例
 MessageConsumerProvider consumer = new MessageConsumerProvider();
 consumer.setAppCode("your app");
-consumer.setMetaServer("http://meta server/meta/address");
+consumer.setMetaServer("http://<meta server address>/meta/address");
 consumer.init();
 
 PullConsumer pullConsumer = consumer.getOrCreatePullConsumer("your subject", "group", false);
