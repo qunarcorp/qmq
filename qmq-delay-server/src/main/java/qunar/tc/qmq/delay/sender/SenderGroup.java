@@ -80,7 +80,10 @@ public class SenderGroup implements Disposable {
 
     private void send(Sender sender, ResultHandler handler, BrokerGroupInfo groupInfo, String groupName, List<ScheduleIndex> list) {
         try {
+            long start = System.currentTimeMillis();
             List<ScheduleSetRecord> records = store.recoverLogRecord(list);
+            QMon.loadMsgTime(System.currentTimeMillis() - start);
+
             Datagram response = sendMessages(records, sender);
             release(records);
             monitor(list, groupName);

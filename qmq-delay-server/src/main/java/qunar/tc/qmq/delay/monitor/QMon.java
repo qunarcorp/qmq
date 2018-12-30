@@ -89,16 +89,16 @@ public class QMon {
         Metrics.counter(name, tags, values).inc();
     }
 
+    public static void loadMsgTime(long time) {
+        Metrics.timer("loadMsgTime", EMPTY, EMPTY).update(time, TimeUnit.MILLISECONDS);
+    }
+
     public static void sendMsgTime(String broker, long time) {
         Metrics.timer("sendMsgTime", BROKER_ARRAY, new String[]{broker}).update(time, TimeUnit.MILLISECONDS);
     }
 
     public static void receiveFailedCuntInc(String subject) {
         countInc("receivedFailedCount", subject);
-    }
-
-    public static void expiredMessagesCountInc(String subject) {
-        countInc("expiredMessagesCount", subject);
     }
 
     public static void overDelay(String subject) {
