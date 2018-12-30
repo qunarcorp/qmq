@@ -20,13 +20,17 @@ QMQ是去哪儿网内部广泛使用的消息中间件，自2012年诞生以来�
 * 消息投递轨迹(即将开源)
 * 历史消息的自动备份(即将开源)
 
+# JDK最低版本要求
+* Client: 1.7及其以上版本
+* Server: 1.8及其以上版本
+
 # Maven
 qmq的客户端已经发布到maven中央仓库，可以通过下面的方式获取
 ```xml
 <dependency>
     <groupId>com.qunar.qmq</groupId>
     <artifactId>qmq</artifactId>
-    <version>1.1.0</version>
+    <version>1.1.1</version>
 </dependency>
 ```
 
