@@ -56,13 +56,13 @@ QMQ使用SPI的机制提供第三方监控的接入能力，QMQ默认提供了Pr
 
 1. 创建一个maven工程，引入下面的依赖
 ```xml
-        <dependency>
-            <groupId>com.qunar.qmq</groupId>
-            <artifactId>qmq</artifactId>
-            <version>1.1.0</version>
-            <!--注意这里的optinal-->
-            <optional>true</optional>
-        </dependency>
+<dependency>
+    <groupId>com.qunar.qmq</groupId>
+    <artifactId>qmq</artifactId>
+    <version>1.1.0</version>
+    <!--注意这里的optinal-->
+    <optional>true</optional>
+</dependency>
 ```
 
 2. 实现QmqCounter, QmqMeter, QmqTimer, QmqMetricRegistry几个接口
@@ -71,7 +71,7 @@ QMQ使用SPI的机制提供第三方监控的接入能力，QMQ默认提供了Pr
 * [QmqTimer](https://github.com/qunarcorp/qmq/blob/master/qmq-common/src/main/java/qunar/tc/qmq/metrics/QmqTimer.java) 时长监控，比如发送消息耗时。请参考[PrometheusQmqTimer](https://github.com/qunarcorp/qmq/blob/master/qmq-metrics-prometheus/src/main/java/qunar/tc/qmq/metrics/prometheus/PrometheusQmqTimer.java)了解如何实现。
 * [QmqMetricRegistry](https://github.com/qunarcorp/qmq/blob/master/qmq-common/src/main/java/qunar/tc/qmq/metrics/QmqMetricRegistry.java) SPI入口类。请参考[PrometheusQmqMetricRegistry](https://github.com/qunarcorp/qmq/blob/master/qmq-metrics-prometheus/src/main/java/qunar/tc/qmq/metrics/prometheus/PrometheusQmqMetricRegistry.java)了解如何实现。QmqMetricRegistry类只会初始化一次，所以一些监控的初始化工作可以在构造函数里进行。
 
-2. 在resources下创建META-INF/services文件夹，在里面创建名为qunar.tc.qmq.metrics.QmqMetricRegistry的文本文件，文件内容即QmqMetricRegistry实现类的全名(包括包名)。比如：qunar.tc.qmq.metrics.prometheus.PrometheusQmqMetricRegistry
+3. 在resources下创建META-INF/services文件夹，在里面创建名为qunar.tc.qmq.metrics.QmqMetricRegistry的文本文件，文件内容即QmqMetricRegistry实现类的全名(包括包名)。比如：qunar.tc.qmq.metrics.prometheus.PrometheusQmqMetricRegistry
 
 
 ## Server监控指标
