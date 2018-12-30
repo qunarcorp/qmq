@@ -7,6 +7,47 @@
 
 运维可靠的消息队列服务，需要对各个环境进行充分的监控，QMQ在各个关键节点都有埋点监控。QMQ提供插件式的监控接入，默认提供Prometheus客户端的接入，如果使用其他监控工具，也很容易定制。
 
+## 使用Prometheus
+QMQ默认提供了Prometheus的接入方式，按照下面的方式操作即可:
+
+### 对于server端(包括metaserver, broker, delay broker)
+去maven仓库下载下面的jar包，将其放置在server端的lib目录中
+
+[prometheus-client](http://central.maven.org/maven2/io/prometheus/simpleclient/0.6.0/simpleclient-0.6.0.jar)
+
+[prometheus-common](http://central.maven.org/maven2/io/prometheus/simpleclient_common/0.6.0/simpleclient_common-0.6.0.jar)
+
+[prometheus-httpserver](http://central.maven.org/maven2/io/prometheus/simpleclient_httpserver/0.6.0/simpleclient_httpserver-0.6.0.jar)
+
+[prometheus-graphite](http://central.maven.org/maven2/io/prometheus/simpleclient_graphite_bridge/0.6.0/simpleclient_graphite_bridge-0.6.0.jar)
+
+
+默认情况下Prometheus会以http的形式在3333端口暴露http监控指标，你可以添加qmq.prometheus.properties配置修改该端口号:
+```
+monitor.port=3333
+```
+
+另外也提供了Graphite方式的接入，只需要在里按照如下配置即可：
+```
+monitor.type=graphite
+graphite.host=<host>
+graphite.port=<port>
+```
+
+### 客户端引入
+```xml
+<dependency>
+    <groupId>com.qunar.qmq</groupId>
+    <artifactId>qmq-metrics-prometheus</artifactId>
+    <version>1.1.1</version>
+</dependency>
+```
+
+如果客户端应用已经使用了prometheus，那么你可能不再希望qmq client暴露另外一个prometheus http server，则可以在qmq.prometheus.properties添加下面的配置关闭：
+```
+monitor.action=none
+```
+
 ## 定制监控插件
 
 QMQ使用SPI的机制提供第三方监控的接入能力，QMQ默认提供了Prometheus的接入。如果要接入一个第三方监控系统的话可以按照如下方式进行：
