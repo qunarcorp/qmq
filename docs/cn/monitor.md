@@ -13,6 +13,7 @@ QMQ默认提供了Prometheus的接入方式，按照下面的方式操作即可:
 ### 对于server端(包括metaserver, broker, delay broker)
 去maven仓库下载下面的jar包，将其放置在server端的lib目录中
 
+[qmq-metrics-prometheus](http://central.maven.org/maven2/com/qunar/qmq/qmq-metrics-prometheus/1.1.1/qmq-metrics-prometheus-1.1.1.jar)
 [prometheus-client](http://central.maven.org/maven2/io/prometheus/simpleclient/0.6.0/simpleclient-0.6.0.jar)
 
 [prometheus-common](http://central.maven.org/maven2/io/prometheus/simpleclient_common/0.6.0/simpleclient_common-0.6.0.jar)
