@@ -34,6 +34,10 @@
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
+            <artifactId>qmq-gateway</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
             <artifactId>qmq-tools</artifactId>
         </dependency>
     </dependencies>

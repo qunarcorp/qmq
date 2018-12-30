@@ -147,6 +147,11 @@
             </dependency>
             <dependency>
                 <groupId>${project.groupId}</groupId>
+                <artifactId>qmq-gateway</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>${project.groupId}</groupId>
                 <artifactId>qmq-tools</artifactId>
                 <version>${project.version}</version>
             </dependency>
