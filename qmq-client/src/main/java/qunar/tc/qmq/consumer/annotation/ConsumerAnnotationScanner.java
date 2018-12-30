@@ -67,7 +67,7 @@ class ConsumerAnnotationScanner implements BeanPostProcessor, ApplicationContext
             if (annotation == null) continue;
 
             if (!Modifier.isPublic(method.getModifiers())) {
-                throw new RuntimeException("标记QmqConsumer的方法必须是public的");
+                throw new RuntimeException("标记@QmqConsumer的方法必须是public的");
             }
 
             String methodName = method.getName();
@@ -85,7 +85,7 @@ class ConsumerAnnotationScanner implements BeanPostProcessor, ApplicationContext
             String subject = resolve(annotation.subject());
 
             if (Strings.isNullOrEmpty(subject)) {
-                String err = String.format("使用@QmqConsumer,必须提供prefix, class:%s method:%s", beanName, methodName);
+                String err = String.format("使用@QmqConsumer,必须提供subject, class:%s method:%s", beanName, methodName);
                 logger.error(err);
                 throw new RuntimeException(err);
             }
