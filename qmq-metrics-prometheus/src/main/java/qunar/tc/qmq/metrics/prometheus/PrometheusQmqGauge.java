@@ -21,10 +21,7 @@ import io.prometheus.client.Collector;
 import io.prometheus.client.GaugeMetricFamily;
 import io.prometheus.client.SimpleCollector;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class PrometheusQmqGauge extends SimpleCollector<PrometheusQmqGauge.Child> implements Collector.Describable {
 
@@ -52,7 +49,9 @@ public class PrometheusQmqGauge extends SimpleCollector<PrometheusQmqGauge.Child
 
     @Override
     public List<MetricFamilySamples> describe() {
-        return Collections.singletonList(new GaugeMetricFamily(fullname, help, labelNames));
+        List<MetricFamilySamples> list = new ArrayList<>();
+        list.add(new GaugeMetricFamily(fullname, help, labelNames));
+        return list;
     }
 
     public static class Builder extends SimpleCollector.Builder<Builder, PrometheusQmqGauge> {

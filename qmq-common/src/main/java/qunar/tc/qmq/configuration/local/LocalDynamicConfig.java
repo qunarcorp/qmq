@@ -44,6 +44,7 @@ public class LocalDynamicConfig implements DynamicConfig {
     LocalDynamicConfig(String name, boolean failOnNotExist) {
         this.name = name;
         this.listeners = new CopyOnWriteArrayList<>();
+        this.config = new HashMap<>();
         this.file = getFileByName(name);
 
         if (failOnNotExist && (file == null || !file.exists())) {

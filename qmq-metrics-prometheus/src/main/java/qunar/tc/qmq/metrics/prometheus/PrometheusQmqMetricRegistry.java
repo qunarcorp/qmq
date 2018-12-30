@@ -20,15 +20,17 @@ import com.google.common.base.Supplier;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import io.prometheus.client.Collector;
-import io.prometheus.client.Gauge;
-import io.prometheus.client.SimpleCollector;
-import io.prometheus.client.Summary;
+import io.prometheus.client.*;
+import io.prometheus.client.bridge.Graphite;
+import io.prometheus.client.exporter.HTTPServer;
+import qunar.tc.qmq.configuration.DynamicConfig;
+import qunar.tc.qmq.configuration.DynamicConfigLoader;
 import qunar.tc.qmq.metrics.QmqCounter;
 import qunar.tc.qmq.metrics.QmqMeter;
 import qunar.tc.qmq.metrics.QmqMetricRegistry;
 import qunar.tc.qmq.metrics.QmqTimer;
 
+import java.io.IOException;
 import java.util.Arrays;
 
 /**
@@ -43,6 +45,27 @@ public class PrometheusQmqMetricRegistry implements QmqMetricRegistry {
                     return key.create();
                 }
             });
+
+    public PrometheusQmqMetricRegistry() {
+        DynamicConfig config = DynamicConfigLoader.load("qmq.prometheus.properties", false);
+        String type = config.getString("monitor.type", "prometheus");
+        if ("prometheus".equals(type)) {
+            String action = config.getString("monitor.action", "pull");
+            if ("pull".equals(action)) {
+                try {
+                    HTTPServer server = new HTTPServer(config.getInt("monitor.port", 3333));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        } else if ("graphite".equals(type)) {
+            String host = config.getString("graphite.host");
+            int port = config.getInt("graphite.port");
+            Graphite graphite = new Graphite(host, port);
+            graphite.start(CollectorRegistry.defaultRegistry, 60);
+        }
+
+    }
 
     @SuppressWarnings("unchecked")
     private static <M extends Collector> M cacheFor(Key<M> key) {
