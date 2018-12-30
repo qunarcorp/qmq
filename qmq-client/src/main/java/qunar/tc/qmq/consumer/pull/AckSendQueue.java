@@ -16,7 +16,6 @@
 
 package qunar.tc.qmq.consumer.pull;
 
-import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
 import com.google.common.util.concurrent.RateLimiter;
 import io.netty.util.Timeout;
@@ -273,7 +272,7 @@ class AckSendQueue implements TimerTask {
                     LOGGER.error("ack send error: {}, {}", sendEntry, head);
                     sendErrorCount.inc();
                 } else {
-                    LOGGER.debug("AckSendRet", "ok [{}, {}]", sendEntry.getPullOffsetBegin(), sendEntry.getPullOffsetLast());
+                    LOGGER.debug("AckSendRet ok [{}, {}]", sendEntry.getPullOffsetBegin(), sendEntry.getPullOffsetLast());
                     sendEntryQueue.poll();
                 }
 
@@ -286,7 +285,7 @@ class AckSendQueue implements TimerTask {
                 if (ackSendFailLogLimit.tryAcquire()) {
                     LOGGER.warn("send ack fail, will retry next", ex);
                 }
-                LOGGER.debug("AckSendRet", "fail [{}, {}]", sendEntry.getPullOffsetBegin(), sendEntry.getPullOffsetLast());
+                LOGGER.debug("AckSendRet fail [{}, {}]", sendEntry.getPullOffsetBegin(), sendEntry.getPullOffsetLast());
                 sendFailCount.inc();
                 inSending.set(false);
             }
@@ -349,12 +348,12 @@ class AckSendQueue implements TimerTask {
     private static final AckService.SendAckCallback EMPTY_ACK_CALLBACK = new AckService.SendAckCallback() {
         @Override
         public void success() {
-            LOGGER.info("send empty Ack ok");
+            LOGGER.debug("send heartbeat ok");
         }
 
         @Override
         public void fail(Exception ex) {
-            LOGGER.error("send empty Ack fail: " + Strings.nullToEmpty(ex.getMessage()));
+            LOGGER.error("send heartbeat fail", ex);
         }
     };
 

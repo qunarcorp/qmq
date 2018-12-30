@@ -101,7 +101,7 @@ public class MetaInfoService implements MetaInfoClient.ResponseSubscriber, Runna
             Metrics.counter("qmq_pull_metainfo_request_count", SUBJECT_GROUP_ARRAY, new String[]{param.subject, param.group}).inc();
             request(param);
         } catch (Exception e) {
-            LOGGER.debug("MetaInfoService", "request meta info exception. {} {} {}", param.clientType.name(), param.subject, param.group, e);
+            LOGGER.debug("request meta info exception. {} {} {}", param.clientType.name(), param.subject, param.group, e);
             Metrics.counter("qmq_pull_metainfo_request_fail", SUBJECT_GROUP_ARRAY, new String[]{param.subject, param.group}).inc();
         }
     }
@@ -120,7 +120,7 @@ public class MetaInfoService implements MetaInfoClient.ResponseSubscriber, Runna
             request.setRequestType(ClientRequestType.HEARTBEAT);
         }
 
-        LOGGER.debug("MetaInfoServiceRequest", "meta info request: {}", request);
+        LOGGER.debug("meta info request: {}", request);
         client.sendRequest(request);
     }
 
@@ -130,7 +130,7 @@ public class MetaInfoService implements MetaInfoClient.ResponseSubscriber, Runna
 
         MetaInfo metaInfo = parseResponse(response);
         if (metaInfo != null) {
-            LOGGER.debug("MetaInfoService", "meta info: {}", metaInfo);
+            LOGGER.debug("meta info: {}", metaInfo);
             eventBus.post(metaInfo);
         } else {
             LOGGER.warn("request meta info fail, will retry in a few seconds.");
@@ -141,7 +141,7 @@ public class MetaInfoService implements MetaInfoClient.ResponseSubscriber, Runna
         updateLock.lock();
         try {
             if (isStale(response.getTimestamp(), lastUpdateTimestamp)) {
-                LOGGER.debug("MetaInfoService", "skip response {}", response);
+                LOGGER.debug("skip response {}", response);
                 return;
             }
             lastUpdateTimestamp = response.getTimestamp();
@@ -151,7 +151,7 @@ public class MetaInfoService implements MetaInfoClient.ResponseSubscriber, Runna
 
             if (RetrySubjectUtils.isRealSubject(subject) && !Strings.isNullOrEmpty(consumerGroup)) {
                 boolean online = response.getOnOfflineState() == OnOfflineState.ONLINE;
-                LOGGER.debug("MetaInfoService", "消费者状态发生变更 {}/{}:{}", subject, consumerGroup, online);
+                LOGGER.debug("消费者状态发生变更 {}/{}:{}", subject, consumerGroup, online);
                 triggerConsumerStateChanged(subject, consumerGroup, online);
             }
 
