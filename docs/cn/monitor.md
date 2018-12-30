@@ -11,7 +11,7 @@
 QMQ默认提供了Prometheus的接入方式，按照下面的方式操作即可:
 
 ### 对于server端(包括metaserver, broker, delay broker)
-去maven仓库下载下面的jar包，将其放置在server端的lib目录中
+去maven仓库下载下面的jar包，将其放置在server端的lib目录中
 
 [prometheus-client](http://central.maven.org/maven2/io/prometheus/simpleclient/0.6.0/simpleclient-0.6.0.jar)
 
@@ -65,9 +65,9 @@ QMQ使用SPI的机制提供第三方监控的接入能力，QMQ默认提供了Pr
 
 2. 实现QmqCounter, QmqMeter, QmqTimer, QmqMetricRegistry几个接口
 * [QmqCounter](https://github.com/qunarcorp/qmq/blob/master/qmq-common/src/main/java/qunar/tc/qmq/metrics/QmqCounter.java) 计数监控，比如每分钟发送的消息条数。请参考[PrometheusQmqCounter](https://github.com/qunarcorp/qmq/blob/master/qmq-metrics-prometheus/src/main/java/qunar/tc/qmq/metrics/prometheus/PrometheusQmqCounter.java)了解如何实现。
-* [QmqMeter](https://github.com/qunarcorp/qmq/blob/master/qmq-common/src/main/java/qunar/tc/qmq/metrics/QmqMeter.java) qps/tps 监控，比如发送的qps。请参考[PrometheusQmqMeter](https://github.com/qunarcorp/qmq/blob/master/qmq-metrics-prometheus/src/main/java/qunar/tc/qmq/metrics/prometheus/PrometheusQmqMeter.java)了解如何实现。
+* [QmqMeter](https://github.com/qunarcorp/qmq/blob/master/qmq-common/src/main/java/qunar/tc/qmq/metrics/QmqMeter.java) qps/tps 监控，比如发送的qps。请参考[PrometheusQmqMeter](https://github.com/qunarcorp/qmq/blob/master/qmq-metrics-prometheus/src/main/java/qunar/tc/qmq/metrics/prometheus/PrometheusQmqMeter.java)了解如何实现。
 * [QmqTimer](https://github.com/qunarcorp/qmq/blob/master/qmq-common/src/main/java/qunar/tc/qmq/metrics/QmqTimer.java) 时长监控，比如发送消息耗时。请参考[PrometheusQmqTimer](https://github.com/qunarcorp/qmq/blob/master/qmq-metrics-prometheus/src/main/java/qunar/tc/qmq/metrics/prometheus/PrometheusQmqTimer.java)了解如何实现。
-* [QmqMetricRegistry](https://github.com/qunarcorp/qmq/blob/master/qmq-common/src/main/java/qunar/tc/qmq/metrics/QmqMetricRegistry.java) SPI入口类。请参考[PrometheusQmqMetricRegistry](https://github.com/qunarcorp/qmq/blob/master/qmq-metrics-prometheus/src/main/java/qunar/tc/qmq/metrics/prometheus/PrometheusQmqMetricRegistry.java)了解如何实现。QmqMetricRegistry类只会初始化一次，所以一些监控的初始化工作可以在构造函数里进行。
+* [QmqMetricRegistry](https://github.com/qunarcorp/qmq/blob/master/qmq-common/src/main/java/qunar/tc/qmq/metrics/QmqMetricRegistry.java) SPI入口类。请参考[PrometheusQmqMetricRegistry](https://github.com/qunarcorp/qmq/blob/master/qmq-metrics-prometheus/src/main/java/qunar/tc/qmq/metrics/prometheus/PrometheusQmqMetricRegistry.java)了解如何实现。QmqMetricRegistry类只会初始化一次，所以一些监控的初始化工作可以在构造函数里进行。
 
 2. 在resources下创建META-INF/services文件夹，在里面创建名为qunar.tc.qmq.metrics.QmqMetricRegistry的文本文件，文件内容即QmqMetricRegistry实现类的全名(包括包名)。比如：qunar.tc.qmq.metrics.prometheus.PrometheusQmqMetricRegistry
 
