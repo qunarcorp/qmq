@@ -82,14 +82,14 @@ public class ScheduleLog implements Log<ScheduleIndex, LogRecord>, Disposable {
         }
 
         RecordResult<ScheduleSetSequence> recordResult = result.getAdditional();
-        ScheduleIndex index = buildIndexRecord(record.getScheduleTime(), recordResult.getResult().getWroteOffset(),
-                recordResult.getResult().getWroteBytes(), recordResult.getResult().getAdditional().getSequence());
+        ScheduleIndex index = new ScheduleIndex(
+                record.getSubject(),
+                record.getScheduleTime(),
+                recordResult.getResult().getWroteOffset(),
+                recordResult.getResult().getWroteBytes(),
+                recordResult.getResult().getAdditional().getSequence());
 
         return new AppendLogResult<>(MessageProducerCode.SUCCESS, "", index);
-    }
-
-    private ScheduleIndex buildIndexRecord(long scheduleTime, long offset, int size, long sequence) {
-        return new ScheduleIndex(scheduleTime, offset, size, sequence);
     }
 
     @Override

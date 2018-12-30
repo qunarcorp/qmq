@@ -100,7 +100,7 @@ public class ScheduleSetSegmentContainer extends AbstractDelaySegmentContainer<S
 
     ScheduleSetRecord recover(long scheduleTime, int size, long offset) {
         ScheduleSetSegment segment = (ScheduleSetSegment) locateSegment(scheduleTime);
-        if (null == segment) {
+        if (segment == null) {
             LOGGER.error("schedule set recover null value, scheduleTime:{}, size:{}, offset:{}", scheduleTime, size, offset);
             return null;
         }

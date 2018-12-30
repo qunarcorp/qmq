@@ -17,6 +17,8 @@
 package qunar.tc.qmq.delay.store.model;
 
 
+import qunar.tc.qmq.delay.store.log.DirectBufCloser;
+
 import java.nio.ByteBuffer;
 
 /**
@@ -75,6 +77,10 @@ public class ScheduleSetRecord implements LogRecord {
     @Override
     public long getSequence() {
         return header.getSequence();
+    }
+
+    public void release() {
+        DirectBufCloser.close(record);
     }
 
     @Override

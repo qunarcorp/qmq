@@ -41,7 +41,7 @@ public class BaseMessage implements Message, Serializable {
 
     String subject;
 
-    private final transient Set<String> tags = new CopyOnWriteArraySet<>();
+    private final Set<String> tags = new CopyOnWriteArraySet<>();
 
     transient boolean isBigMessage = false;
     private boolean storeAtFailed;

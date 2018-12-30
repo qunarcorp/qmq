@@ -17,6 +17,7 @@
 package qunar.tc.qmq.delay.store.visitor;
 
 import qunar.tc.qmq.delay.ScheduleIndex;
+import qunar.tc.qmq.utils.CharsetUtils;
 
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -64,31 +65,33 @@ public class ScheduleIndexVisitor extends AbstractLogVisitor<ScheduleIndex> {
         if (buffer.remaining() < Integer.BYTES) {
             return Optional.empty();
         }
-        int subject = buffer.getInt();
+        int subjectLen = buffer.getInt();
 
-        if (buffer.remaining() < subject) {
+        if (buffer.remaining() < subjectLen) {
             return Optional.empty();
         }
-        buffer.position(buffer.position() + subject);
+        byte[] bs = new byte[subjectLen];
+        buffer.get(bs);
+        String subject = CharsetUtils.toUTF8String(bs);
 
         if (buffer.remaining() < payloadSize) {
             return Optional.empty();
         }
 
-        int metaSize = getMetaSize(messageId, subject);
+        int metaSize = getMetaSize(messageId, subjectLen);
         int recordSize = metaSize + payloadSize;
         long startOffset = visitedBufferSize();
         buffer.position(Math.toIntExact(curPos + recordSize));
 
-        return Optional.of(new ScheduleIndex(scheduleTime, startOffset, recordSize, sequence));
+        return Optional.of(new ScheduleIndex(subject, scheduleTime, startOffset, recordSize, sequence));
     }
 
-    private int getMetaSize(int messageId, int subject) {
+    private int getMetaSize(int messageId, int subjectLen) {
         return 8 + 8
                 + 4
                 + 4
                 + 4
                 + messageId
-                + subject;
+                + subjectLen;
     }
 }

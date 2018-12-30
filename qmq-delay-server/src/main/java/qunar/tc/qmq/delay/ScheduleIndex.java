@@ -16,14 +16,21 @@
 
 package qunar.tc.qmq.delay;
 
+import com.google.common.collect.Interner;
+import com.google.common.collect.Interners;
+
 public class ScheduleIndex {
 
+    private static final Interner<String> INTERNER = Interners.newStrongInterner();
+
+    private final String subject;
     private final long scheduleTime;
     private final long offset;
     private final int size;
     private final long sequence;
 
-    public ScheduleIndex(long scheduleTime, long offset, int size, long sequence) {
+    public ScheduleIndex(String subject, long scheduleTime, long offset, int size, long sequence) {
+        this.subject = INTERNER.intern(subject);
         this.scheduleTime = scheduleTime;
         this.offset = offset;
         this.size = size;
@@ -44,5 +51,9 @@ public class ScheduleIndex {
 
     public long getSequence() {
         return sequence;
+    }
+
+    public String getSubject() {
+        return subject;
     }
 }

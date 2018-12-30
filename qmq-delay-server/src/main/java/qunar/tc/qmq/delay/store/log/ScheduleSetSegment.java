@@ -48,25 +48,26 @@ public class ScheduleSetSegment extends AbstractDelaySegment<ScheduleSetSequence
 
     ScheduleSetRecord recover(long offset, int size) {
         // 交给gc，不能给每个segment分配一个局部buffer
-        ByteBuffer recoverBuffer = ByteBuffer.allocateDirect(size);
+        ByteBuffer result = ByteBuffer.allocateDirect(size);
         try {
-            int bytes = fileChannel.read(recoverBuffer, offset);
+            int bytes = fileChannel.read(result, offset);
             if (bytes != size) {
+                DirectBufCloser.close(result);
                 LOGGER.error("schedule set segment recovered failed,need read more bytes,segment:{},offset:{},size:{}, readBytes:{}, segmentTotalSize:{}", fileName, offset, size, bytes, fileChannel.size());
                 return null;
             }
-            recoverBuffer.flip();
-            long scheduleTime = recoverBuffer.getLong();
-            long sequence = recoverBuffer.getLong();
-            recoverBuffer.getInt();
+            result.flip();
+            long scheduleTime = result.getLong();
+            long sequence = result.getLong();
+            result.getInt();
 
-            int messageIdSize = recoverBuffer.getInt();
+            int messageIdSize = result.getInt();
             byte[] messageId = new byte[messageIdSize];
-            recoverBuffer.get(messageId);
-            int subjectSize = recoverBuffer.getInt();
+            result.get(messageId);
+            int subjectSize = result.getInt();
             byte[] subject = new byte[subjectSize];
-            recoverBuffer.get(subject);
-            return new ScheduleSetRecord(new String(messageId, StandardCharsets.UTF_8), new String(subject, StandardCharsets.UTF_8), scheduleTime, offset, size, sequence, recoverBuffer.slice());
+            result.get(subject);
+            return new ScheduleSetRecord(new String(messageId, StandardCharsets.UTF_8), new String(subject, StandardCharsets.UTF_8), scheduleTime, offset, size, sequence, result.slice());
         } catch (Throwable e) {
             LOGGER.error("schedule set segment recovered error,segment:{}, offset-size:{} {}", fileName, offset, size, e);
             return null;
