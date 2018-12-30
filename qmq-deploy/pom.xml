@@ -11,7 +11,7 @@
     <artifactId>qmq</artifactId>
     <packaging>jar</packaging>
 
-    <name>qmq deploy</name>
+    <name>qmq client</name>
     <description>build all in one module</description>
 
     <properties>
