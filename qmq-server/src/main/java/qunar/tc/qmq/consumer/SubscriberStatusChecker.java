@@ -55,7 +55,7 @@ public class SubscriberStatusChecker implements ActorSystem.Processor<Subscriber
         this.config = config;
         this.storage = storage;
         this.consumerSequenceManager = consumerSequenceManager;
-        this.actorSystem = new ActorSystem("consumer-consumers", 4, false);
+        this.actorSystem = new ActorSystem("consumers", 4, false);
     }
 
     public void init() {
