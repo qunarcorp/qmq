@@ -153,10 +153,6 @@ public final class QMon {
         subjectCountInc("receivedFailedCount", subject);
     }
 
-    public static void receiveExpiredMessagesCountInc(String subject) {
-        subjectCountInc("receiveExpiredMessagesCount", subject);
-    }
-
     public static void ackProcessTime(String subject, String group, long elapsed) {
         Metrics.timer("ackProcessTime", SUBJECT_GROUP_ARRAY, new String[]{subject, group}).update(elapsed, TimeUnit.MILLISECONDS);
     }
@@ -376,18 +372,18 @@ public final class QMon {
     }
 
     public static void dispatchersGauge(String name, Supplier<Double> supplier) {
-        Metrics.gauge("dispatchers-" + name, NONE, NONE, supplier);
+        Metrics.gauge("dispatchers." + name, NONE, NONE, supplier);
     }
 
     public static void actorQueueGauge(String systemName, String name, Supplier<Double> supplier) {
-        Metrics.gauge("actor-queue-" + systemName, new String[]{"name"}, new String[]{name}, supplier);
+        Metrics.gauge("actor.queue." + systemName, new String[]{"name"}, new String[]{name}, supplier);
     }
 
     public static void actorSystemQueueGauge(String name, Supplier<Double> supplier) {
-        Metrics.gauge("actorsystem-queue-" + name, NONE, NONE, supplier);
+        Metrics.gauge("actorsystem.queue." + name, NONE, NONE, supplier);
     }
 
     public static void actorProcessTime(String actor, long elapsedMillis) {
-        Metrics.timer("actor-processTime", new String[]{"actor"}, new String[]{actor}).update(elapsedMillis, TimeUnit.MILLISECONDS);
+        Metrics.timer("actor.processTime", new String[]{"actor"}, new String[]{actor}).update(elapsedMillis, TimeUnit.MILLISECONDS);
     }
 }
