@@ -71,7 +71,7 @@ public class BrokerServiceImpl implements BrokerService {
     }
 
     private void updateOnDemand(ClusterFuture future, BrokerClusterInfo clusterInfo) {
-        BrokerClusterInfo oldClusterInfo = future.get();
+        BrokerClusterInfo oldClusterInfo = future.cluster.get();
         if (oldClusterInfo == null) {
             future.set(clusterInfo);
             return;
