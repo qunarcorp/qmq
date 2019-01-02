@@ -17,6 +17,10 @@
         <maven>3.2.5</maven>
     </prerequisites>
 
+    <properties>
+        <maven_deploy_skip>false</maven_deploy_skip>
+    </properties>
+
     <licenses>
         <license>
             <name>Apache License, Version 2.0</name>
