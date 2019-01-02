@@ -17,10 +17,6 @@
         <maven>3.2.5</maven>
     </prerequisites>
 
-    <properties>
-        <maven_deploy_skip>false</maven_deploy_skip>
-    </properties>
-
     <licenses>
         <license>
             <name>Apache License, Version 2.0</name>
@@ -82,6 +78,7 @@
     <properties>
         <java_source_version>1.8</java_source_version>
         <java_target_version>1.8</java_target_version>
+        <maven_deploy_skip>false</maven_deploy_skip>
 
         <prometheus.client.version>0.5.0</prometheus.client.version>
         <spring.version>4.2.3.RELEASE</spring.version>
