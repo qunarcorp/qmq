@@ -106,11 +106,11 @@ class ProduceMessageImpl implements ProduceMessage {
                     LOGGER.info("内存发送队列已满! 此消息将暂时丢弃,等待补偿服务处理 {}:{}", getSubject(), getMessageId());
                     failed();
                 } else {
-                    enterQueueFail.inc();
                     LOGGER.info("内存发送队列已满! 此消息在用户进程阻塞,等待队列激活 {}:{}", getSubject(), getMessageId());
                     if (sender.offer(this, 50)) {
                         LOGGER.info("进入发送队列 {}:{}", getSubject(), getMessageId());
                     } else {
+                        enterQueueFail.inc();
                         LOGGER.info("由于无法入队,发送失败！取消发送 {}:{}", getSubject(), getMessageId());
                         onFailed();
                     }
