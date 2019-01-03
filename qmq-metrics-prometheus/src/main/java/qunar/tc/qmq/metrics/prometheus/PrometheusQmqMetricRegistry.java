@@ -39,7 +39,7 @@ import java.util.regex.Pattern;
  * @since 2018/11/22
  */
 public class PrometheusQmqMetricRegistry implements QmqMetricRegistry {
-    private static final Pattern METRIC_NAME_RE = Pattern.compile("[a-zA-Z_][a-zA-Z0-9_]*");
+    private static final Pattern METRIC_NAME_RE = Pattern.compile("[^0-9a-zA-Z_]");
 
     private static final LoadingCache<Key, Collector> CACHE = CacheBuilder.newBuilder()
             .build(new CacheLoader<Key, Collector>() {
