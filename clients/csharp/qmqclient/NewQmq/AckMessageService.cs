@@ -24,7 +24,8 @@ namespace Qunar.TC.Qmq.Client.NewQmq
             {
                 _brokerGroupService.ConsumerGetSubjectCluster(request.Subject, request.Group, true);
                 var tsc = new TaskCompletionSource<Response>();
-                tsc.SetResult(new Response(-1, Response.Error){
+                tsc.SetResult(new Response(-1, Response.Error)
+                {
                     Result = new NoWritableBrokerException(
                         $"broker group {brokerGroup} is not writable now, so cannot send ack for {request.Subject}/{request.Group}")
                 });

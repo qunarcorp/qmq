@@ -10,7 +10,7 @@ namespace Qunar.TC.Qmq.Client.Transport
 {
     class DecodeHandler : AbstractHandler
     {
-		private static readonly Logger logger = LogManager.GetCurrentClassLogger();
+        private static readonly Logger logger = LogManager.GetCurrentClassLogger();
 
         private readonly Decoder decoder;
 
@@ -63,7 +63,7 @@ namespace Qunar.TC.Qmq.Client.Transport
             }
             catch (Exception e)
             {
-                logger.Error(e,"decode data error, close the channel");
+                logger.Error(e, "decode data error, close the channel");
                 cumulation = null;
                 context.Close();
             }

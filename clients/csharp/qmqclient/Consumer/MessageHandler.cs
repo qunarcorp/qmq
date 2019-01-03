@@ -26,7 +26,7 @@ namespace Qunar.TC.Qmq.Client.Consumer
             if (Enqueue(task, MinThreads)) return true;
 
             if (_queue.TryAdd(task)) return true;
-            
+
             return Enqueue(task, MaxThreads);
         }
 

@@ -15,7 +15,7 @@ namespace Qunar.TC.Qmq.Client.Transport
     /// </summary>
     internal class SocketChannel : Channel
     {
-		private static readonly Logger logger = LogManager.GetCurrentClassLogger();
+        private static readonly Logger logger = LogManager.GetCurrentClassLogger();
 
         private const int READING = 1;
 
@@ -110,7 +110,7 @@ namespace Qunar.TC.Qmq.Client.Transport
                 }
                 catch (Exception e)
                 {
-                    logger.Warn(e,"close socket error");
+                    logger.Warn(e, "close socket error");
                 }
                 finally
                 {
@@ -396,7 +396,7 @@ namespace Qunar.TC.Qmq.Client.Transport
             }
             catch (Exception e)
             {
-                logger.Warn(e,"read data error");
+                logger.Warn(e, "read data error");
                 Close();
             }
         }
@@ -453,7 +453,7 @@ namespace Qunar.TC.Qmq.Client.Transport
             }
             catch (Exception e)
             {
-                logger.Warn(e,"send data error");
+                logger.Warn(e, "send data error");
                 Close();
                 return -1;
             }
@@ -472,7 +472,7 @@ namespace Qunar.TC.Qmq.Client.Transport
             }
             catch (Exception e)
             {
-                logger.Warn(e,"send data error");
+                logger.Warn(e, "send data error");
                 Close();
                 return true;
             }

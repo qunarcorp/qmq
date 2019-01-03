@@ -1,21 +1,21 @@
 ﻿// yuzhaohui
 // 2016/7/14
-using System;
+
 namespace Qunar.TC.Qmq.Client.Transport
 {
-	interface Handler
-	{
-		// ->
-		void Receive(HandlerContext context, object msg);
+    interface Handler
+    {
+        // ->
+        void Receive(HandlerContext context, object msg);
 
-		// ->
-		void InActive(HandlerContext context);
+        // ->
+        void InActive(HandlerContext context);
 
-		// <-
-		void Write(HandlerContext context, object msg);
+        // <-
+        void Write(HandlerContext context, object msg);
 
-		// <-
-		void Close(HandlerContext context);
-	}
+        // <-
+        void Close(HandlerContext context);
+    }
 }
 

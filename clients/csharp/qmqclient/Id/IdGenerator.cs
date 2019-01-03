@@ -1,10 +1,8 @@
-﻿using System;
-
-namespace Qunar.TC.Qmq.Client
+﻿namespace Qunar.TC.Qmq.Client
 {
-	interface IdGenerator
-	{
-		string Generate();
-	}
+    interface IdGenerator
+    {
+        string Generate();
+    }
 }
 

@@ -2,7 +2,6 @@
 using Qunar.TC.Qmq.Client.Codec.NewQmq;
 using Qunar.TC.Qmq.Client.Model;
 using Qunar.TC.Qmq.Client.Util;
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -37,30 +36,30 @@ namespace Qunar.TC.Qmq.Client.NewQmq
 
         private void SerializeMessage(BaseMessage message, Stream output)
         {
-			var crcIndex = (int)output.Position;
-			output.Position = crcIndex + 8; //这里预留8保存crc信息
+            var crcIndex = (int)output.Position;
+            output.Position = crcIndex + 8; //这里预留8保存crc信息
 
-			var messageStart = (int)output.Position;
+            var messageStart = (int)output.Position;
 
-			Flag flag = Flags.GetMessageFlags(message);
+            Flag flag = Flags.GetMessageFlags(message);
             // flag
-			ByteBufHelper.WriteByte((byte)flag, output);
+            ByteBufHelper.WriteByte((byte)flag, output);
 
             byte[] buffer = new byte[8];
             // created time
             ByteBufHelper.WriteInt64(message.CreatedTime.Value.ToTime(), buffer, output);
 
-			if(Flags.IsDelayMessage(flag))
-			{
-				//Schedule Time
+            if (Flags.IsDelayMessage(flag))
+            {
+                //Schedule Time
                 ByteBufHelper.WriteInt64(message.ScheduleReceiveTime.Value.ToTime(), buffer, output);
-			}
-			else
-			{
-				// expired time
-            	ByteBufHelper.WriteInt64(message.ExpiredTime.Value.ToTime(), buffer, output);
-			}
-            
+            }
+            else
+            {
+                // expired time
+                ByteBufHelper.WriteInt64(message.ExpiredTime.Value.ToTime(), buffer, output);
+            }
+
 
             // subject
             ByteBufHelper.WriteString(message.Subject, buffer, output);
@@ -68,7 +67,7 @@ namespace Qunar.TC.Qmq.Client.NewQmq
             // message id
             ByteBufHelper.WriteString(message.MessageId, buffer, output);
 
-			WriteTags(flag, message, output);
+            WriteTags(flag, message, output);
 
             //记录当前指针位置
             int writerIndex = (int)output.Position;
@@ -79,35 +78,35 @@ namespace Qunar.TC.Qmq.Client.NewQmq
 
             int end = (int)output.Position;
             int bodyLen = end - bodyStart;
-			int messageLength = end - messageStart;
+            int messageLength = end - messageStart;
 
             output.Position = writerIndex;
             //记录 body 的长度
             ByteBufHelper.WriteInt32(bodyLen, buffer, output);
 
-			//write crc32
-			output.Position = crcIndex;
-			ByteBufHelper.WriteInt64(Crc32.GetCRC32(output, messageStart, messageLength),buffer, output);
+            //write crc32
+            output.Position = crcIndex;
+            ByteBufHelper.WriteInt64(Crc32.GetCRC32(output, messageStart, messageLength), buffer, output);
             //指针重置到尾端
             output.Position = end;
 
         }
 
-		void WriteTags(Flag flag, BaseMessage message, Stream output)
-		{
-			if (Flags.HasTag(flag))
+        void WriteTags(Flag flag, BaseMessage message, Stream output)
+        {
+            if (Flags.HasTag(flag))
             {
-				var tags = message.GetTags();
-				byte[] buffer = new byte[8];
+                var tags = message.GetTags();
+                byte[] buffer = new byte[8];
                 ByteBufHelper.WriteByte((byte)tags.Count, output);
                 foreach (var item in tags)
                 {
                     ByteBufHelper.WriteString(item, buffer, output);
                 }
             }
-		}
+        }
 
-		private void SerializeMap(Hashtable map, byte[] lenBuffer, Stream output)
+        private void SerializeMap(Hashtable map, byte[] lenBuffer, Stream output)
         {
             if (map == null || map.Count == 0) return;
 

@@ -1,5 +1,4 @@
-﻿using System;
-using System.IO;
+﻿using System.IO;
 
 namespace Qunar.TC.Qmq.Client.Codec.NewQmq
 {

@@ -8,7 +8,7 @@ namespace Qunar.TC.Qmq.Client.Metainfo
 {
     internal class MetainfoAddressResolver
     {
-		private static readonly NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
+        private static readonly NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
 
         private readonly string _metaServer;
         private readonly WaitHolder<HostAndPort> hostAndPortFuture = new WaitHolder<HostAndPort>();
@@ -16,7 +16,7 @@ namespace Qunar.TC.Qmq.Client.Metainfo
 
         public MetainfoAddressResolver(string metaServer)
         {
-			_metaServer = metaServer;
+            _metaServer = metaServer;
         }
 
         public HostAndPort Resolve()
@@ -29,7 +29,7 @@ namespace Qunar.TC.Qmq.Client.Metainfo
         {
             try
             {
-				var request = (HttpWebRequest)WebRequest.Create(_metaServer);
+                var request = (HttpWebRequest)WebRequest.Create(_metaServer);
                 request.Timeout = 20000;
                 request.Method = "GET";
 
@@ -61,7 +61,7 @@ namespace Qunar.TC.Qmq.Client.Metainfo
             }
             catch (Exception e)
             {
-                logger.Warn(e,"refresh metaserver address failed");
+                logger.Warn(e, "refresh metaserver address failed");
             }
 
         }

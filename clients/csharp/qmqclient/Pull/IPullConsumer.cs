@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using Qunar.TC.Qmq.Client.Consumer;
 
 namespace Qunar.TC.Qmq.Client.Pull

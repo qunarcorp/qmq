@@ -6,14 +6,14 @@ namespace Qunar.TC.Qmq.Client.Metainfo
 {
     internal class BrokerGroupService
     {
-		private static readonly NLog.Logger Logger = NLog.LogManager.GetCurrentClassLogger();
+        private static readonly NLog.Logger Logger = NLog.LogManager.GetCurrentClassLogger();
 
         private readonly MetainfoClient _client;
         private readonly ConcurrentDictionary<CacheKey, NewQmqClusterInfo> _cache;
 
         public BrokerGroupService(string appCode, string metaServer)
         {
-			_client = new MetainfoClient(appCode, new MetainfoAddressResolver(metaServer));
+            _client = new MetainfoClient(appCode, new MetainfoAddressResolver(metaServer));
             _cache = new ConcurrentDictionary<CacheKey, NewQmqClusterInfo>();
 
             Scheduler.INSTANCE.ScheduleAtFixDelay(RefreshCache, 60);
@@ -30,7 +30,7 @@ namespace Qunar.TC.Qmq.Client.Metainfo
             }
             catch (Exception e)
             {
-                Logger.Debug(e,"refresh error");
+                Logger.Debug(e, "refresh error");
             }
         }
 
