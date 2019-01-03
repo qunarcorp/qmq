@@ -4,9 +4,9 @@
 namespace Qunar.TC.Qmq.Client.Consumer
 {
     internal interface IConsumerRegister
-	{
-		void Registe(string prefix, string group, ExtraListenerConfig config);
+    {
+        void Registe(string prefix, string group, ExtraListenerConfig config);
 
-		void Unregiste(string prefix, string group);
-	}
+        void Unregiste(string prefix, string group);
+    }
 }

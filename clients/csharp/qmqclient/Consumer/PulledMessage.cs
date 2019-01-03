@@ -2,7 +2,6 @@
 using System.Threading;
 using Qunar.TC.Qmq.Client.Model;
 using Qunar.TC.Qmq.Client.NewQmq;
-using Qunar.TC.Qmq.Client.Exceptions;
 using Qunar.TC.Qmq.Client.Util;
 
 namespace Qunar.TC.Qmq.Client.Consumer

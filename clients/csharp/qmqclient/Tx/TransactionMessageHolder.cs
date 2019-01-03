@@ -8,7 +8,7 @@ namespace Qunar.TC.Qmq.Client.Tx
 {
     internal class TransactionMessageHolder
     {
-		private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
+        private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
         private static readonly ThreadLocal<Dictionary<Transaction, TransactionMessageHolder>> Holder = new ThreadLocal<Dictionary<Transaction, TransactionMessageHolder>>();
 
@@ -58,8 +58,8 @@ namespace Qunar.TC.Qmq.Client.Tx
             }
             catch (Exception ex)
             {
-               
-                Logger.Error(ex,"TransactionMessageHolder InsertMessage error");
+
+                Logger.Error(ex, "TransactionMessageHolder InsertMessage error");
                 throw;
             }
             finally

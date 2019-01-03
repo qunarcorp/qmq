@@ -7,7 +7,7 @@ namespace Qunar.TC.Qmq.Client.Consumer
 {
     internal class PulledMessageHandleTask : IMessageHandleTask
     {
-		private static readonly NLog.Logger Logger = NLog.LogManager.GetCurrentClassLogger();
+        private static readonly NLog.Logger Logger = NLog.LogManager.GetCurrentClassLogger();
 
         private readonly PulledMessage _message;
 
@@ -46,7 +46,7 @@ namespace Qunar.TC.Qmq.Client.Consumer
                 ex = e;
                 if (!(e is NeedRetryException))
                 {
-                    Logger.Error(e,$"process msg error: {_message.MessageId}");
+                    Logger.Error(e, $"process msg error: {_message.MessageId}");
                 }
             }
             finally

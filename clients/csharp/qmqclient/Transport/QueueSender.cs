@@ -14,17 +14,17 @@ namespace Qunar.TC.Qmq.Client.Transport
 {
     internal class QueueSender : Sender, IDisposable
     {
-		private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
+        private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
         private static readonly ConcurrentDictionary<string, ICluster> Clusters = new ConcurrentDictionary<string, ICluster>();
 
         private readonly BatchExecutor<ProducerMessageImpl> _queue;
 
-		private readonly BrokerGroupService _brokerGroupService;
+        private readonly BrokerGroupService _brokerGroupService;
 
         public QueueSender(BrokerGroupService brokerGroupService)
         {
-			_brokerGroupService = brokerGroupService;
+            _brokerGroupService = brokerGroupService;
             _queue = new BatchExecutor<ProducerMessageImpl>("qmq-sender", 30, DoSend, 4);
         }
 
@@ -35,11 +35,11 @@ namespace Qunar.TC.Qmq.Client.Transport
 
                 if (_queue.Add(message))
                 {
-                    
+
                 }
                 else if (_queue.Add(message, 50))
                 {
-                    
+
                 }
                 else
                 {
@@ -102,34 +102,34 @@ namespace Qunar.TC.Qmq.Client.Transport
             return group;
         }
 
-		private ICluster Resolve(Message message)
-		{
-			bool isDelayMessage = IsDelayMessage(message);
-			string key = message.Subject + "|" + isDelayMessage;
-			if(Clusters.TryGetValue(key, out ICluster cluster))
-			{
-				return cluster;
-			}
-
-			var newCluster = new NewQmqCluster(key, _brokerGroupService, message.Subject, isDelayMessage);
-			var oldCluster = Clusters.GetOrAdd(key, newCluster);
-			if(oldCluster == newCluster)
-			{
-				newCluster.Init();
-			}
-			return oldCluster;
-		}
-
-		private bool IsDelayMessage(Message message)
-		{
-			var schedule = message.GetDateProperty(BaseMessage.keys.qmq_scheduleRecevieTime.ToString());
-            if (schedule != null)
+        private ICluster Resolve(Message message)
+        {
+            bool isDelayMessage = IsDelayMessage(message);
+            string key = message.Subject + "|" + isDelayMessage;
+            if (Clusters.TryGetValue(key, out ICluster cluster))
             {
-				return true;
+                return cluster;
             }
 
-			return false;
-		}
+            var newCluster = new NewQmqCluster(key, _brokerGroupService, message.Subject, isDelayMessage);
+            var oldCluster = Clusters.GetOrAdd(key, newCluster);
+            if (oldCluster == newCluster)
+            {
+                newCluster.Init();
+            }
+            return oldCluster;
+        }
+
+        private bool IsDelayMessage(Message message)
+        {
+            var schedule = message.GetDateProperty(BaseMessage.keys.qmq_scheduleRecevieTime.ToString());
+            if (schedule != null)
+            {
+                return true;
+            }
+
+            return false;
+        }
 
         private void ProcessResult(IEnumerable<Tuple<Future<Response>, List<ProducerMessageImpl>>> futures)
         {

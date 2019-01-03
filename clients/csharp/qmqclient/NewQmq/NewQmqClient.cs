@@ -12,7 +12,7 @@ namespace Qunar.TC.Qmq.Client.NewQmq
 {
     internal class NewQmqClient : Processor
     {
-		private static readonly NLog.Logger LOG = NLog.LogManager.GetCurrentClassLogger();
+        private static readonly NLog.Logger LOG = NLog.LogManager.GetCurrentClassLogger();
 
         private static readonly ConcurrentDictionary<int, Promise> Promises = new ConcurrentDictionary<int, Promise>();
 

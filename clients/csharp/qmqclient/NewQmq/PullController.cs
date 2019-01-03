@@ -7,7 +7,7 @@ namespace Qunar.TC.Qmq.Client.NewQmq
     {
         public PullController(string appCode, string metaServer)
         {
-			BrokerGroupService = new BrokerGroupService(appCode, metaServer);
+            BrokerGroupService = new BrokerGroupService(appCode, metaServer);
             var sendMessageBackService = new SendMessageBackService(BrokerGroupService);
             AckMessageService = new AckMessageService(BrokerGroupService);
             AckHandlerQueueManager = new AckHandlerQueueManager(AckMessageService, sendMessageBackService);

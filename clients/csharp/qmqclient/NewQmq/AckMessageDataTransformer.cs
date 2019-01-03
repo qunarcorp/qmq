@@ -7,7 +7,7 @@ namespace Qunar.TC.Qmq.Client.NewQmq
 {
     internal class AckMessageDataTransformer : IDataTransformer
     {
-		private static readonly NLog.Logger Logger = NLog.LogManager.GetCurrentClassLogger();
+        private static readonly NLog.Logger Logger = NLog.LogManager.GetCurrentClassLogger();
 
         public Datagram TransformRequest(Request request)
         {

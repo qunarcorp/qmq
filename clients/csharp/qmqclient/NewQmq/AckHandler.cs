@@ -11,7 +11,7 @@ namespace Qunar.TC.Qmq.Client.NewQmq
 {
     internal class AckHandler
     {
-		private static readonly NLog.Logger Logger = NLog.LogManager.GetCurrentClassLogger();
+        private static readonly NLog.Logger Logger = NLog.LogManager.GetCurrentClassLogger();
 
         private const int MaxRetryTimes = 100;
         private const int RetryIntervalMillis = 500;

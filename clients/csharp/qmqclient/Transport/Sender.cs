@@ -1,9 +1,8 @@
-﻿using System;
-namespace Qunar.TC.Qmq.Client.Transport
+﻿namespace Qunar.TC.Qmq.Client.Transport
 {
-	interface Sender
-	{
-		void Send(ProducerMessageImpl message);
-	}
+    interface Sender
+    {
+        void Send(ProducerMessageImpl message);
+    }
 }
 

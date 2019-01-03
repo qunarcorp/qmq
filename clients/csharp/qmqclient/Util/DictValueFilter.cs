@@ -6,7 +6,7 @@ namespace Qunar.TC.Qmq.Client.Util
 {
     internal static class DictValueFilter
     {
-		private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
+        private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
         public static List<TValue> Filter<TKey, TValue>(Dictionary<TKey, TValue> dict, Func<TValue, bool> pred)
         {
@@ -27,7 +27,7 @@ namespace Qunar.TC.Qmq.Client.Util
             }
             catch (Exception e)
             {
-                Logger.Error(e,$"ValueCollection filter failed. count: {source.Count}, values: {string.Join(", ", source)}");
+                Logger.Error(e, $"ValueCollection filter failed. count: {source.Count}, values: {string.Join(", ", source)}");
                 throw;
             }
             finally
