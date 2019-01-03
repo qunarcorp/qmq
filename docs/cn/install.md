@@ -129,12 +129,12 @@ message.sync.timeout.ms=10
 
 ```
 # 注册实时server的master节点
->tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerGroup=<groupName> --role=0 --hostname=<hostname> --ip=<ip> --servePort=20881 --syncPort=20882
+>tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerGroup=<groupName> --role=0 --hostname=<hostname> --ip=<ip> --servePort=<server port> --syncPort=<sync port>
 ```
 
 ```
 # 注册实时server的slave节点
->tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerGroup=<groupName> --role=1 --hostname=<hostname> --ip=<ip> --servePort=20881 --syncPort=20882
+>tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerGroup=<groupName> --role=1 --hostname=<hostname> --ip=<ip> --servePort=<server port> --syncPort=<sync port>
 ```
 
 * metaserver address指的是ip:port,port默认是8080
@@ -195,12 +195,12 @@ messagelog.retention.hours=72
 
 ```
 # 注册delay server的master节点
->tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerGroup=<groupName> --role=5 --hostname=<hostname> --ip=<ip> --servePort=20881 --syncPort=20882
+>tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerGroup=<groupName> --role=5 --hostname=<hostname> --ip=<ip> --servePort=<server port> --syncPort=<sync port>
 ```
 
 ```
 # 注册delay server的slave节点
->tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerGroup=<groupName> --role=6 --hostname=<hostname> --ip=<ip> --servePort=20881 --syncPort=20882
+>tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerGroup=<groupName> --role=6 --hostname=<hostname> --ip=<ip> --servePort=<server port> --syncPort=<sync port>
 ```
 
 * metaserver address指的是ip:port,port默认是8080
