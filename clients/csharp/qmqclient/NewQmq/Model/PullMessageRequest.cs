@@ -1,6 +1,4 @@
-﻿using Qunar.TC.Qmq.Client.tag;
-
-namespace Qunar.TC.Qmq.Client.NewQmq.Model
+﻿namespace Qunar.TC.Qmq.Client.NewQmq.Model
 {
     internal class PullMessageRequest
     {

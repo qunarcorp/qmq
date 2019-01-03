@@ -7,27 +7,27 @@ using Qunar.TC.Qmq.Client.tag;
 
 namespace Qunar.TC.Qmq.Client
 {
-	public interface MessageSubscriber
-	{
-		event MessageListener Received;
+    public interface MessageSubscriber
+    {
+        event MessageListener Received;
 
-	    ConsumeMode Mode
-	    {
-	        get;
-	        set;
-	    }
+        ConsumeMode Mode
+        {
+            get;
+            set;
+        }
 
-	    int PullBatchSize
-	    {
-	        get;
-	        set;
-	    }
+        int PullBatchSize
+        {
+            get;
+            set;
+        }
 
-	    TimeSpan PullBatchTimeout
-	    {
-	        get;
-	        set;
-	    }
+        TimeSpan PullBatchTimeout
+        {
+            get;
+            set;
+        }
 
         string[] Tags
         {
@@ -39,8 +39,8 @@ namespace Qunar.TC.Qmq.Client
             set;
         }
 
-		void Start();
+        void Start();
 
-		void Stop();
-	}
+        void Stop();
+    }
 }

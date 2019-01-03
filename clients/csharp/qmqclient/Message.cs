@@ -95,9 +95,9 @@ namespace Qunar.TC.Qmq.Client
 
         bool Durable { get; set; }
 
-		void SetTags(string[] tags);
+        void SetTags(string[] tags);
 
-		IList<string> GetTags();
+        IList<string> GetTags();
     }
 }
 

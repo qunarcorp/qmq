@@ -1,13 +1,10 @@
-﻿using System;
-
-using System.IO;
-using Qunar.TC.Qmq.Client.Transport;
+﻿using Qunar.TC.Qmq.Client.Transport;
 
 namespace Qunar.TC.Qmq.Client.Codec
 {
-	interface Decoder
-	{
-		object Decode(InputStream stream);
-	}
+    interface Decoder
+    {
+        object Decode(InputStream stream);
+    }
 }
 

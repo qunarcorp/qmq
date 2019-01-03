@@ -1,11 +1,10 @@
-﻿using System;
-using System.IO;
+﻿using System.IO;
 
 namespace Qunar.TC.Qmq.Client.Codec
 {
-	interface Encoder
-	{
-		void Encode(object msg, Stream stream);
-	}
+    interface Encoder
+    {
+        void Encode(object msg, Stream stream);
+    }
 }
 

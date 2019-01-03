@@ -1,6 +1,4 @@
-﻿using System.Threading;
-
-namespace Qunar.TC.Qmq.Client.Util
+﻿namespace Qunar.TC.Qmq.Client.Util
 {
     class HostAndPort
     {

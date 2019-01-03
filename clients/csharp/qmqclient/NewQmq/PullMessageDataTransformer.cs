@@ -6,7 +6,6 @@ using Qunar.TC.Qmq.Client.NewQmq.Model;
 using Qunar.TC.Qmq.Client.Transport;
 using Qunar.TC.Qmq.Client.Util;
 using Qunar.TC.Qmq.Client.Metainfo;
-using System;
 
 namespace Qunar.TC.Qmq.Client.NewQmq
 {

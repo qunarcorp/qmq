@@ -14,7 +14,7 @@ namespace Qunar.TC.Qmq.Client.Transport
     /// </summary>
     internal sealed class TransportClient : AbstractHandler, Client
     {
-		private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
+        private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
         /// <summary>
         /// 最大递增重连次数，小于这个次数每次重连间隔递增，大于这个次数每次重连间隔稳定为5分钟
@@ -105,7 +105,7 @@ namespace Qunar.TC.Qmq.Client.Transport
                     try
                     {
                         s.EndConnect(result);
-        				Thread.VolatileWrite(ref _lastConnect, DateTime.Now.ToTime());
+                        Thread.VolatileWrite(ref _lastConnect, DateTime.Now.ToTime());
                         _reconnects = 0;
                         if (_channel == null)
                         {
@@ -272,8 +272,8 @@ namespace Qunar.TC.Qmq.Client.Transport
                     }
                     catch
                     {
-                // ignored
-            }
+                        // ignored
+                    }
 
                     Thread.Sleep(300);
                 }

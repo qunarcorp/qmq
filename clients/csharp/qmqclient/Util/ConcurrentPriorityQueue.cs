@@ -111,7 +111,7 @@ namespace Qunar.TC.Qmq.Client.Util
         public IEnumerator<TValue> GetEnumerator()
         {
             var arr = ToArray();
-            return ((IEnumerable<TValue>) arr).GetEnumerator();
+            return ((IEnumerable<TValue>)arr).GetEnumerator();
         }
 
         /// <summary>Returns an enumerator that iterates through a collection.</summary>
@@ -132,7 +132,7 @@ namespace Qunar.TC.Qmq.Client.Util
         {
             lock (_syncLock)
             {
-                ((ICollection) _minHeap.Items).CopyTo(array, index);
+                ((ICollection)_minHeap.Items).CopyTo(array, index);
             }
         }
 

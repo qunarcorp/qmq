@@ -9,7 +9,7 @@ namespace Qunar.TC.Qmq.Client.Util
 {
     internal static class ClientId
     {
-		private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
+        private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private static readonly ThreadLocal<MD5> ThreadLocalMd5 = new ThreadLocal<MD5>(MD5.Create);
 
         private static readonly string HostName = System.Net.Dns.GetHostName();

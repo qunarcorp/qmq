@@ -18,7 +18,7 @@ namespace Qunar.TC.Qmq.Client.Model
 
         private Hashtable attrs = new Hashtable();
 
-		private string[] tags;
+        private string[] tags;
 
         private static readonly ISet<string> keyNames = new HashSet<string>();
 
@@ -331,16 +331,16 @@ namespace Qunar.TC.Qmq.Client.Model
             }
         }
 
-		public void SetTags(string[] tags)
-		{
-			this.tags = tags;
-		}
+        public void SetTags(string[] tags)
+        {
+            this.tags = tags;
+        }
 
-		public IList<string> GetTags()
-		{
-			if (tags == null) return null;
-			return new List<string>(tags);
-		}
+        public IList<string> GetTags()
+        {
+            if (tags == null) return null;
+            return new List<string>(tags);
+        }
 
         public override string ToString()
         {
@@ -348,30 +348,30 @@ namespace Qunar.TC.Qmq.Client.Model
             result.Append("{\"subject\":").Append("\"").Append(subject).Append("\",");
             result.Append("\"messageId\":").Append("\"").Append(messageId).Append("\",");
             result.Append("\"durable\":").Append(durable.ToString().ToLower()).Append(',');
-			AppendTags(result);
+            AppendTags(result);
             AppendAttrs(result);
             result.Append('}');
             return result.ToString();
         }
 
-		void AppendTags(StringBuilder result)
-		{
-			if (tags == null || tags.Length == 0) return;
-			result.Append("\"tags\":[");
-			for (int i = 0; i < tags.Length;++i)
-			{
-				result.Append("\"");
-				result.Append(tags[i]);
-				result.Append("\"");
-				if(i < tags.Length-1)
-				{
-					result.Append(',');
-				}
-			}
-			result.Append(']');
-		}
+        void AppendTags(StringBuilder result)
+        {
+            if (tags == null || tags.Length == 0) return;
+            result.Append("\"tags\":[");
+            for (int i = 0; i < tags.Length; ++i)
+            {
+                result.Append("\"");
+                result.Append(tags[i]);
+                result.Append("\"");
+                if (i < tags.Length - 1)
+                {
+                    result.Append(',');
+                }
+            }
+            result.Append(']');
+        }
 
-		private void AppendAttrs(StringBuilder result)
+        private void AppendAttrs(StringBuilder result)
         {
             var count = 0;
             result.Append("\"attrs\":{");

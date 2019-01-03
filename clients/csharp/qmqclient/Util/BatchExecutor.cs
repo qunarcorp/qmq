@@ -10,7 +10,7 @@ namespace Qunar.TC.Qmq.Client.Util
 {
     internal class BatchExecutor<Item> : IDisposable where Item : class
     {
-		private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
+        private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
         private readonly string _name;
 

@@ -1,7 +1,6 @@
 ﻿using Qunar.TC.Qmq.Client.Codec;
 using Qunar.TC.Qmq.Client.Codec.NewQmq;
 using Qunar.TC.Qmq.Client.NewQmq.Model;
-using System;
 using System.IO;
 
 namespace Qunar.TC.Qmq.Client.NewQmq
