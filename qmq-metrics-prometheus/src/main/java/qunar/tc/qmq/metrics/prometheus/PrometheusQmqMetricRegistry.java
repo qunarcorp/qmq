@@ -32,12 +32,15 @@ import qunar.tc.qmq.metrics.QmqTimer;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.regex.Pattern;
 
 /**
  * @author keli.wang
  * @since 2018/11/22
  */
 public class PrometheusQmqMetricRegistry implements QmqMetricRegistry {
+    private static final Pattern METRIC_NAME_RE = Pattern.compile("[a-zA-Z_][a-zA-Z0-9_]*");
+
     private static final LoadingCache<Key, Collector> CACHE = CacheBuilder.newBuilder()
             .build(new CacheLoader<Key, Collector>() {
                 @Override
@@ -75,32 +78,46 @@ public class PrometheusQmqMetricRegistry implements QmqMetricRegistry {
     @Override
     public void newGauge(final String name, final String[] tags, final String[] values, final Supplier<Double> supplier) {
         final PrometheusQmqGauge gauge = cacheFor(new GuageKey(name, tags));
-        gauge.labels(values).setSupplier(supplier);
+        gauge.labels(normalize(values)).setSupplier(supplier);
+    }
+
+    private static String[] normalize(String[] input) {
+        if (input == null || input.length == 0) return input;
+        String[] result = new String[input.length];
+        for (int i = 0; i < input.length; ++i) {
+            result[i] = normalize(input[i]);
+        }
+        return result;
+    }
+
+    private static String normalize(String input) {
+        if (input == null) return input;
+        return METRIC_NAME_RE.matcher(input).replaceAll("_");
     }
 
     @Override
     public QmqCounter newCounter(final String name, final String[] tags, final String[] values) {
         final Gauge gauge = cacheFor(new CounterKey(name, tags));
-        return new PrometheusQmqCounter(gauge, values);
+        return new PrometheusQmqCounter(gauge, normalize(values));
     }
 
     @Override
     public QmqMeter newMeter(final String name, final String[] tags, final String[] values) {
         final Summary summary = cacheFor(new MeterKey(name, tags));
-        return new PrometheusQmqMeter(summary, values);
+        return new PrometheusQmqMeter(summary, normalize(values));
     }
 
     @Override
     public QmqTimer newTimer(final String name, final String[] tags, final String[] values) {
         final Summary summary = cacheFor(new TimerKey(name, tags));
-        return new PrometheusQmqTimer(summary, values);
+        return new PrometheusQmqTimer(summary, normalize(values));
     }
 
     @Override
     public void remove(final String name, final String[] tags, final String[] values) {
         // TODO(keli.wang): only remove child collectors for now, may we should remove whole metric in the future
         final SimpleCollector collector = cacheFor(new SimpleCollectorKey(name, tags));
-        collector.remove(values);
+        collector.remove(normalize(values));
     }
 
     private static abstract class Key<M extends Collector> {
@@ -155,7 +172,7 @@ public class PrometheusQmqMetricRegistry implements QmqMetricRegistry {
 
         @Override
         public PrometheusQmqGauge create() {
-            return PrometheusQmqGauge.build().name(name).help(name).labelNames(tags).create().register();
+            return PrometheusQmqGauge.build().name(normalize(name)).help(name).labelNames(tags).create().register();
         }
     }
 
@@ -166,7 +183,7 @@ public class PrometheusQmqMetricRegistry implements QmqMetricRegistry {
 
         @Override
         public Gauge create() {
-            return Gauge.build().name(name).help(name).labelNames(tags).create().register();
+            return Gauge.build().name(normalize(name)).help(name).labelNames(tags).create().register();
         }
     }
 
@@ -178,7 +195,7 @@ public class PrometheusQmqMetricRegistry implements QmqMetricRegistry {
 
         @Override
         public Summary create() {
-            return Summary.build().name(name).help(name).labelNames(tags).create().register();
+            return Summary.build().name(normalize(name)).help(name).labelNames(tags).create().register();
         }
     }
 
@@ -191,7 +208,7 @@ public class PrometheusQmqMetricRegistry implements QmqMetricRegistry {
         @Override
         public Summary create() {
             return Summary.build()
-                    .name(name)
+                    .name(normalize(name))
                     .help(name)
                     .labelNames(tags)
                     .quantile(0.5, 0.05)
