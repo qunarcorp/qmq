@@ -65,7 +65,7 @@ public class ScheduleLog implements Log<ScheduleIndex, LogRecord>, Disposable {
 
     private void reValidate(int singleMessageLimitSize) {
         ScheduleLogValidatorSupport support = ScheduleLogValidatorSupport.getSupport(config);
-        Map<Integer, Long> offsets = support.loadScheduleOffsetCheckpoint();
+        Map<Long, Long> offsets = support.loadScheduleOffsetCheckpoint();
         scheduleSet.reValidate(offsets, singleMessageLimitSize);
     }
 
@@ -144,7 +144,7 @@ public class ScheduleLog implements Log<ScheduleIndex, LogRecord>, Disposable {
         }
     }
 
-    public ScheduleSetSegment loadSegment(int segmentBaseOffset) {
+    public ScheduleSetSegment loadSegment(long segmentBaseOffset) {
         return scheduleSet.loadSegment(segmentBaseOffset);
     }
 
@@ -154,11 +154,11 @@ public class ScheduleLog implements Log<ScheduleIndex, LogRecord>, Disposable {
         getSupport(config).saveScheduleOffsetCheckpoint(checkOffsets());
     }
 
-    private Map<Integer, Long> checkOffsets() {
+    private Map<Long, Long> checkOffsets() {
         return scheduleSet.countSegments();
     }
 
-    public int higherBaseOffset(int low) {
+    public long higherBaseOffset(long low) {
         return scheduleSet.higherBaseOffset(low);
     }
 }

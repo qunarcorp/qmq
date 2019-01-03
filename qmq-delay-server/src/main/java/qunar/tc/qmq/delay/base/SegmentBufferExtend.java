@@ -26,14 +26,14 @@ import java.nio.ByteBuffer;
  * @since 2018-08-13 14:32
  */
 public class SegmentBufferExtend extends SegmentBuffer {
-    private int baseOffset;
+    private long baseOffset;
 
-    public SegmentBufferExtend(long startOffset, ByteBuffer buffer, int size, int baseOffset, LogSegment logSegment) {
+    public SegmentBufferExtend(long startOffset, ByteBuffer buffer, int size, long baseOffset, LogSegment logSegment) {
         super(startOffset, buffer, size, logSegment);
         this.baseOffset = baseOffset;
     }
 
-    public int getBaseOffset() {
+    public long getBaseOffset() {
         return baseOffset;
     }
 }

@@ -54,4 +54,6 @@ public interface StoreConfiguration {
     long getLoadBlockingExitTimesInMillis();
 
     boolean isDeleteExpiredLogsEnable();
+
+    int getSegmentScale();
 }

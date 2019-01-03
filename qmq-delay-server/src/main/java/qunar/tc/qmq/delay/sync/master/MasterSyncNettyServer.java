@@ -31,10 +31,10 @@ public class MasterSyncNettyServer implements Disposable {
     private final NettyServer nettyServer;
     private final DelaySyncRequestProcessor syncRequestProcessor;
 
-    public MasterSyncNettyServer(final DynamicConfig config, final DelayLogFacade delayLogFacade) {
+    public MasterSyncNettyServer(final int scale, final DynamicConfig config, final DelayLogFacade delayLogFacade) {
         final Integer port = config.getInt("sync.port", 20802);
         this.nettyServer = new NettyServer("sync", 4, port, new DefaultConnectionEventHandler("delay-sync"));
-        this.syncRequestProcessor = new DelaySyncRequestProcessor(delayLogFacade, config);
+        this.syncRequestProcessor = new DelaySyncRequestProcessor(scale, delayLogFacade, config);
     }
 
     public void registerSyncEvent(Object listener) {

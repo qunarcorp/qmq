@@ -38,7 +38,7 @@ public interface DelaySegment<T> {
 
     long getFlushedPosition();
 
-    int getSegmentBaseOffset();
+    long getSegmentBaseOffset();
 
     long validate() throws IOException;
 

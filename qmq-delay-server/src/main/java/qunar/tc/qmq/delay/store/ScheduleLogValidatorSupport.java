@@ -38,7 +38,7 @@ import java.util.Map;
 public class ScheduleLogValidatorSupport {
     private static final Logger LOGGER = LoggerFactory.getLogger(ScheduleLogValidatorSupport.class);
 
-    public static final String SCHEDULE_OFFSET_CHECKPOINT = "schedule_offset_checkpoint.json";
+    private static final String SCHEDULE_OFFSET_CHECKPOINT = "schedule_offset_checkpoint.json";
 
     private static final ScheduleOffsetSerde SERDE = new ScheduleOffsetSerde();
     private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -59,7 +59,7 @@ public class ScheduleLogValidatorSupport {
         return SUPPORT;
     }
 
-    public void saveScheduleOffsetCheckpoint(Map<Integer, Long> offsets) {
+    public void saveScheduleOffsetCheckpoint(Map<Long, Long> offsets) {
         ensureDir(config.getScheduleOffsetCheckpointPath());
         final byte[] data = SERDE.toBytes(offsets);
         Preconditions.checkState(data != null, "Serialized checkpoint data should not be null.");
@@ -89,7 +89,7 @@ public class ScheduleLogValidatorSupport {
         LOGGER.info("Create checkpoint store {} success.", storePath);
     }
 
-    public Map<Integer, Long> loadScheduleOffsetCheckpoint() {
+    public Map<Long, Long> loadScheduleOffsetCheckpoint() {
         File file = new File(config.getScheduleOffsetCheckpointPath(), SCHEDULE_OFFSET_CHECKPOINT);
         if (!file.exists()) {
             return new HashMap<>(0);
@@ -101,7 +101,7 @@ public class ScheduleLogValidatorSupport {
                 if (!file.delete()) throw new RuntimeException("remove checkpoint error. filename=" + file);
                 return new HashMap<>(0);
             }
-            Map<Integer, Long> offsets = SERDE.fromBytes(data);
+            Map<Long, Long> offsets = SERDE.fromBytes(data);
             if (null == offsets || !file.delete()) {
                 throw new RuntimeException("Load checkpoint error. filename=" + file);
             }
@@ -114,10 +114,10 @@ public class ScheduleLogValidatorSupport {
         throw new RuntimeException("Load checkpoint failed. filename=" + file);
     }
 
-    private static class ScheduleOffsetSerde implements Serde<Map<Integer, Long>> {
+    private static class ScheduleOffsetSerde implements Serde<Map<Long, Long>> {
 
         @Override
-        public byte[] toBytes(Map<Integer, Long> value) {
+        public byte[] toBytes(Map<Long, Long> value) {
             try {
                 return MAPPER.writeValueAsBytes(value);
             } catch (JsonProcessingException e) {
@@ -126,9 +126,9 @@ public class ScheduleLogValidatorSupport {
         }
 
         @Override
-        public Map<Integer, Long> fromBytes(byte[] data) {
+        public Map<Long, Long> fromBytes(byte[] data) {
             try {
-                return MAPPER.readValue(data, new TypeReference<Map<Integer, Long>>() {
+                return MAPPER.readValue(data, new TypeReference<Map<Long, Long>>() {
                 });
             } catch (IOException e) {
                 throw new RuntimeException("deserialize schedule offset checkpoint failed.", e);

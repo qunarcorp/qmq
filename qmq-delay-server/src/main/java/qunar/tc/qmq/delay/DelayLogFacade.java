@@ -48,17 +48,17 @@ public interface DelayLogFacade {
 
     SegmentBuffer getMessageLogs(long startSyncOffset);
 
-    SegmentBuffer getDispatchLogs(int segmentBaseOffset, long dispatchLogOffset);
+    SegmentBuffer getDispatchLogs(long segmentBaseOffset, long dispatchLogOffset);
 
     long getMessageLogMaxOffset();
 
-    long getDispatchLogMaxOffset(int dispatchSegmentBaseOffset);
+    long getDispatchLogMaxOffset(long dispatchSegmentBaseOffset);
 
     DelaySyncRequest.DispatchLogSyncRequest getDispatchLogSyncMaxRequest();
 
     boolean appendMessageLogData(long startOffset, ByteBuffer buffer);
 
-    boolean appendDispatchLogData(long startOffset, int baseOffset, ByteBuffer body);
+    boolean appendDispatchLogData(long startOffset, long baseOffset, ByteBuffer body);
 
     List<ScheduleSetRecord> recoverLogRecord(List<ScheduleIndex> indexList);
 
@@ -66,13 +66,13 @@ public interface DelayLogFacade {
 
     DispatchLogSegment latestDispatchSegment();
 
-    DispatchLogSegment lowerDispatchSegment(int latestOffset);
+    DispatchLogSegment lowerDispatchSegment(long latestOffset);
 
-    ScheduleSetSegment loadScheduleLogSegment(int segmentBaseOffset);
+    ScheduleSetSegment loadScheduleLogSegment(long segmentBaseOffset);
 
     WheelLoadCursor.Cursor loadUnDispatch(ScheduleSetSegment setSegment, LongHashSet dispatchedSet, Consumer<ScheduleIndex> refresh);
 
-    int higherScheduleBaseOffset(int index);
+    long higherScheduleBaseOffset(long index);
 
     LogVisitor<LogRecord> newMessageLogVisitor(long start);
 
@@ -84,5 +84,5 @@ public interface DelayLogFacade {
 
     void blockUntilReplayDone();
 
-    int higherDispatchLogBaseOffset(int segmentBaseOffset);
+    long higherDispatchLogBaseOffset(long segmentBaseOffset);
 }
