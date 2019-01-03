@@ -1,0 +1,35 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.27130.2026
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "qmqclient", "qmqclient\qmqclient.csproj", "{753A6776-57B6-4F73-920D-CDDE55307752}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		FlightRelease|Any CPU = FlightRelease|Any CPU
+		JPRelease|Any CPU = JPRelease|Any CPU
+		Performance|Any CPU = Performance|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{753A6776-57B6-4F73-920D-CDDE55307752}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{753A6776-57B6-4F73-920D-CDDE55307752}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{753A6776-57B6-4F73-920D-CDDE55307752}.FlightRelease|Any CPU.ActiveCfg = Release|Any CPU
+		{753A6776-57B6-4F73-920D-CDDE55307752}.FlightRelease|Any CPU.Build.0 = Release|Any CPU
+		{753A6776-57B6-4F73-920D-CDDE55307752}.JPRelease|Any CPU.ActiveCfg = Release|Any CPU
+		{753A6776-57B6-4F73-920D-CDDE55307752}.JPRelease|Any CPU.Build.0 = Release|Any CPU
+		{753A6776-57B6-4F73-920D-CDDE55307752}.Performance|Any CPU.ActiveCfg = Release|Any CPU
+		{753A6776-57B6-4F73-920D-CDDE55307752}.Performance|Any CPU.Build.0 = Release|Any CPU
+		{753A6776-57B6-4F73-920D-CDDE55307752}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{753A6776-57B6-4F73-920D-CDDE55307752}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		EnterpriseLibraryConfigurationToolBinariesPath = packages\Unity.2.1.505.0\lib\NET35;packages\Unity.Interception.2.1.505.0\lib\NET35;packages\EnterpriseLibrary.Common.5.0.505.0\lib\NET35;packages\EnterpriseLibrary.Data.5.0.505.0\lib\NET35
+		SolutionGuid = {E3B01990-C312-45FB-A57A-6BFEB5DE1DE2}
+	EndGlobalSection
+EndGlobal

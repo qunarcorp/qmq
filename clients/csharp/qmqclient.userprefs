@@ -1,0 +1,26 @@
+﻿<Properties>
+  <MonoDevelop.Ide.Workbench ActiveDocument="qmqclient/NewQmq/MessageSendPayloadHolder.cs">
+    <Files>
+      <File FileName="qmqclient/NewQmq/SendMessageBackService.cs" Line="24" Column="35" />
+      <File FileName="qmqclient/NewQmq/AckHandler.cs" Line="64" Column="37" />
+      <File FileName="qmqclient/NewQmq/AckHandlerQueue.cs" Line="14" Column="26" />
+      <File FileName="qmqclient/NewQmq/AckHandlerQueueManager.cs" Line="7" Column="55" />
+      <File FileName="qmqclient/NewQmq/PullMessageService.cs" Line="35" Column="29" />
+      <File FileName="qmqclient/Pull/Puller.cs" Line="62" Column="41" />
+      <File FileName="qmqclient/Consumer/PulledMessage.cs" Line="34" Column="27" />
+      <File FileName="qmqclient/Model/BaseMessage.cs" Line="38" Column="25" />
+      <File FileName="qmqclient/NewQmq/PullController.cs" Line="17" Column="25" />
+      <File FileName="qmqclient/NewQmq/NewQmqClient.cs" Line="21" Column="33" />
+      <File FileName="qmqclient/NewQmq/IDataTransformer.cs" Line="7" Column="31" />
+      <File FileName="qmqclient/NewQmq/PullMessageDataTransformer.cs" Line="101" Column="64" />
+      <File FileName="qmqclient/NewQmq/MesssagePullPayloadHolder.cs" Line="8" Column="20" />
+      <File FileName="qmqclient/NewQmq/MessageSendPayloadHolder.cs" Line="15" Column="44" />
+    </Files>
+  </MonoDevelop.Ide.Workbench>
+  <MonoDevelop.Ide.DebuggingService.PinnedWatches />
+  <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug" />
+  <MonoDevelop.Ide.DebuggingService.Breakpoints>
+    <BreakpointStore />
+  </MonoDevelop.Ide.DebuggingService.Breakpoints>
+  <MultiItemStartupConfigurations />
+</Properties>

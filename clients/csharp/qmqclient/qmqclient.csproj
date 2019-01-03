@@ -1,0 +1,213 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{753A6776-57B6-4F73-920D-CDDE55307752}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Qunar.TC.Qmq.Client</RootNamespace>
+    <AssemblyName>qmqclient</AssemblyName>
+    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <TargetFrameworkProfile />
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug</OutputPath>
+    <DefineConstants>DEBUG;</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <ConsolePause>false</ConsolePause>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>full</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release</OutputPath>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <ConsolePause>false</ConsolePause>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Microsoft.Practices.EnterpriseLibrary.Common, Version=5.0.505.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\packages\EnterpriseLibrary.Common.5.0.505.0\lib\NET35\Microsoft.Practices.EnterpriseLibrary.Common.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Practices.EnterpriseLibrary.Data, Version=5.0.505.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\packages\EnterpriseLibrary.Data.5.0.505.0\lib\NET35\Microsoft.Practices.EnterpriseLibrary.Data.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Practices.ServiceLocation, Version=1.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\packages\CommonServiceLocator.1.0\lib\NET35\Microsoft.Practices.ServiceLocation.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Practices.Unity, Version=2.1.505.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\packages\Unity.2.1.505.0\lib\NET35\Microsoft.Practices.Unity.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Practices.Unity.Configuration, Version=2.1.505.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\packages\Unity.2.1.505.0\lib\NET35\Microsoft.Practices.Unity.Configuration.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Practices.Unity.Interception, Version=2.1.505.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\packages\Unity.Interception.2.1.505.0\lib\NET35\Microsoft.Practices.Unity.Interception.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Practices.Unity.Interception.Configuration, Version=2.1.505.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\packages\Unity.Interception.2.1.505.0\lib\NET35\Microsoft.Practices.Unity.Interception.Configuration.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Web" />
+    <Reference Include="System.Transactions" />
+    <Reference Include="NLog">
+      <HintPath>..\packages\NLog.4.5.11\lib\net40-client\NLog.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Configuration" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="System.ServiceModel" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Cluster\NewQmqCluster.cs" />
+    <Compile Include="Consumer\IMessageHandleTask.cs" />
+    <Compile Include="Consumer\PullConsumerRegister.cs" />
+    <Compile Include="Consumer\PulledMessage.cs" />
+    <Compile Include="Consumer\PulledMessageHandler.cs" />
+    <Compile Include="Consumer\PulledMessageHandleTask.cs" />
+    <Compile Include="Consumer\PullResult.cs" />
+    <Compile Include="Exceptions\BrokerReadOnlyException.cs" />
+    <Compile Include="Exceptions\BrokerRejectException.cs" />
+    <Compile Include="Exceptions\BrokerUnassignedException.cs" />
+    <Compile Include="Exceptions\NoWritableBrokerException.cs" />
+    <Compile Include="Exceptions\RemoteException.cs" />
+    <Compile Include="NewQmq\LoadBalance.cs" />
+    <Compile Include="NewQmq\RoundRobinLoadBalance.cs" />
+    <Compile Include="NewQmq\WeightLoadBalance.cs" />
+    <Compile Include="Pull\Puller.cs" />
+    <Compile Include="Pull\PullStrategy.cs" />
+    <Compile Include="tag\TagType.cs" />
+    <Compile Include="Transport\ByteBufferPool.cs" />
+    <Compile Include="Transport\EventLoop.cs" />
+    <Compile Include="Transport\SingleEventLoop.cs" />
+    <Compile Include="Transport\SocketChannel.cs" />
+    <Compile Include="Util\LargeStringUtil.cs" />
+    <Compile Include="Metainfo\BrokerGroupService.cs" />
+    <Compile Include="Metainfo\MetainfoAddressResolver.cs" />
+    <Compile Include="Metainfo\MetainfoClient.cs" />
+    <Compile Include="Metainfo\NewQmqClusterInfo.cs" />
+    <Compile Include="NewQmq\AckHandler.cs" />
+    <Compile Include="NewQmq\AckMessageDataTransformer.cs" />
+    <Compile Include="NewQmq\AckMessageService.cs" />
+    <Compile Include="NewQmq\MesssageAckPayloadHolder.cs" />
+    <Compile Include="NewQmq\Model\AckRequest.cs" />
+    <Compile Include="NewQmq\Model\BrokerGroupInfo.cs" />
+    <Compile Include="Codec\ByteBufHelper.cs" />
+    <Compile Include="NewQmq\NewQmqClient.cs" />
+    <Compile Include="Codec\NewQmq\Datagram.cs" />
+    <Compile Include="Codec\NewQmq\NewQmqDecoder.cs" />
+    <Compile Include="Codec\NewQmq\NewQmqEncoder.cs" />
+    <Compile Include="Codec\NewQmq\PayloadHolder.cs" />
+    <Compile Include="NewQmq\Model\PullMessageRequest.cs" />
+    <Compile Include="Codec\NewQmq\RemotingHeader.cs" />
+    <Compile Include="Consumer\ConsumeMode.cs" />
+    <Compile Include="Exceptions\BlockMessageException.cs" />
+    <Compile Include="Exceptions\EnqueueException.cs" />
+    <Compile Include="Exceptions\NeedRetryException.cs" />
+    <Compile Include="NewQmq\IDataTransformer.cs" />
+    <Compile Include="NewQmq\MesssagePullPayloadHolder.cs" />
+    <Compile Include="NewQmq\MessageSendPayloadHolder.cs" />
+    <Compile Include="Model\SubscribeRequest.cs" />
+    <Compile Include="Codec\NewQmq\CommandCode.cs" />
+    <Compile Include="NewQmq\NewQmqClientKeepliveStrategy.cs" />
+    <Compile Include="NewQmq\NewQmqClientManager.cs" />
+    <Compile Include="NewQmq\PullController.cs" />
+    <Compile Include="NewQmq\PullMessageDataTransformer.cs" />
+    <Compile Include="NewQmq\SendMessageBackService.cs" />
+    <Compile Include="NewQmq\SendMessageDataTransformer.cs" />
+    <Compile Include="Codec\NewQmq\SendMessageResponseCode.cs" />
+    <Compile Include="NewQmq\PullMessageService.cs" />
+    <Compile Include="NewQmq\AckHandlerQueue.cs" />
+    <Compile Include="NewQmq\AckHandlerQueueManager.cs" />
+    <Compile Include="ProducerMessage.cs" />
+    <Compile Include="Pull\DefaultPullConsumer.cs" />
+    <Compile Include="Pull\IPullConsumer.cs" />
+    <Compile Include="Pull\PullConsumers.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Codec\Encoder.cs" />
+    <Compile Include="Codec\Request.cs" />
+    <Compile Include="MessageProducer.cs" />
+    <Compile Include="Message.cs" />
+    <Compile Include="Model\BaseMessage.cs" />
+    <Compile Include="Codec\Decoder.cs" />
+    <Compile Include="MessageProducerProvider.cs" />
+    <Compile Include="Codec\Response.cs" />
+    <Compile Include="Transport\AbstractKeepliveStrategy.cs" />
+    <Compile Include="Transport\KeepliveStrategy.cs" />
+    <Compile Include="Transport\TransportClient.cs" />
+    <Compile Include="Transport\Client.cs" />
+    <Compile Include="Transport\InputStream.cs" />
+    <Compile Include="Transport\QueueSender.cs" />
+    <Compile Include="Transport\Sender.cs" />
+    <Compile Include="Exceptions\MessageException.cs" />
+    <Compile Include="Exceptions\DuplicateMessageException.cs" />
+    <Compile Include="Tx\EntlibMessageStore.cs" />
+    <Compile Include="Tx\TransactionMessageHolder.cs" />
+    <Compile Include="Tx\MessageStore.cs" />
+    <Compile Include="MessageConsumer.cs" />
+    <Compile Include="Transport\HandlerContext.cs" />
+    <Compile Include="Transport\DecodeHandler.cs" />
+    <Compile Include="Transport\Handler.cs" />
+    <Compile Include="MessageConsumerProvider.cs" />
+    <Compile Include="ListenerHolder.cs" />
+    <Compile Include="Consumer\MessageDistributor.cs" />
+    <Compile Include="Consumer\IConsumerRegister.cs" />
+    <Compile Include="Consumer\MessageHandler.cs" />
+    <Compile Include="Model\ChannelState.cs" />
+    <Compile Include="Model\ConsumerRejectException.cs" />
+    <Compile Include="Model\HandlerMismatchException.cs" />
+    <Compile Include="Model\QueryRequest.cs" />
+    <Compile Include="Model\ACKMessage.cs" />
+    <Compile Include="Codec\Bits.cs" />
+    <Compile Include="Transport\Processor.cs" />
+    <Compile Include="Util\ClientId.cs" />
+    <Compile Include="Util\ConcurrentPriorityQueue.cs" />
+    <Compile Include="Util\FloatingParser.cs" />
+    <Compile Include="Util\HostAndPort.cs" />
+    <Compile Include="Util\NetUtils.cs" />
+    <Compile Include="Util\DateTimeUtils.cs" />
+    <Compile Include="Transport\EncodeHandler.cs" />
+    <Compile Include="Util\PortSelector.cs" />
+    <Compile Include="Util\RetrySubjectUtils.cs" />
+    <Compile Include="Util\StaticRandom.cs" />
+    <Compile Include="Util\DictValueFilter.cs" />
+    <Compile Include="Util\WaitHolder.cs" />
+    <Compile Include="MessageSubscriber.cs" />
+    <Compile Include="MessageSendStateListener.cs" />
+    <Compile Include="Util\Scheduler.cs" />
+    <Compile Include="ProducerMessageImpl.cs" />
+    <Compile Include="Transport\Future.cs" />
+    <Compile Include="Util\PriorityQueue.cs" />
+    <Compile Include="Util\BatchExecutor.cs" />
+    <Compile Include="Transport\Channel.cs" />
+    <Compile Include="Transport\Packet.cs" />
+    <Compile Include="Cluster\ICluster.cs" />
+    <Compile Include="Id\IdGenerator.cs" />
+    <Compile Include="Id\TimestampIdGenerator.cs" />
+    <Compile Include="Transport\ChannelPipeline.cs" />
+    <Compile Include="Transport\AbstractHandler.cs" />
+    <Compile Include="Transport\PacketInputStream.cs" />
+    <Compile Include="Util\StateChangedArgs.cs" />
+    <Compile Include="Transport\ChannelContext.cs" />
+    <Compile Include="Consumer\IRequestHandler.cs" />
+    <Compile Include="Util\Crc32.cs" />
+    <Compile Include="Util\Flags.cs" />
+    <Compile Include="Codec\Flag.cs" />
+  </ItemGroup>
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <ItemGroup>
+    <None Include="qmqclient.nuspec">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup />
+</Project>
