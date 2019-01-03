@@ -45,12 +45,12 @@ namespace Qunar.TC.Qmq.Client
     /// 
     public class MessageProducerProvider : MessageProducer, IDisposable
     {
-		private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
+        private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
         private const int DefaultExpiredTime = 15;
 
-		private readonly string _appCode;
-		private readonly string _metaServer;
+        private readonly string _appCode;
+        private readonly string _metaServer;
 
         private static int _instanceCount;
 
@@ -58,16 +58,16 @@ namespace Qunar.TC.Qmq.Client
         private readonly QueueSender _sender;
         private readonly MessageStore _store;
 
-		private readonly BrokerGroupService _brokerGroupService;
+        private readonly BrokerGroupService _brokerGroupService;
 
-		public MessageProducerProvider(string appCode, string metaServer): this(appCode, metaServer,null)
+        public MessageProducerProvider(string appCode, string metaServer) : this(appCode, metaServer, null)
         {
         }
 
 
-        public MessageProducerProvider(string appCode, string metaServer,MessageStore messageStore)
+        public MessageProducerProvider(string appCode, string metaServer, MessageStore messageStore)
         {
-			if (appCode == null || appCode.Length == 0)
+            if (appCode == null || appCode.Length == 0)
             {
                 throw new ArgumentException("appCode未配置");
             }
@@ -80,17 +80,17 @@ namespace Qunar.TC.Qmq.Client
                     Logger.Warn("WARNING: MessageProducerProvider这个类很重，请确保在一个进程中创建[少量]的实例，严禁在服务的请求中创建实例。如果你确定你的用法没有问题可以忽略该错误日志");
                 }
 
-				_appCode = appCode;
-				_metaServer = metaServer;
+                _appCode = appCode;
+                _metaServer = metaServer;
                 _idGenerator = new TimestampIdGenerator();
-				_brokerGroupService = new BrokerGroupService(appCode, metaServer);
+                _brokerGroupService = new BrokerGroupService(appCode, metaServer);
                 Logger.Info("idGenerator inited");
-				_sender = new QueueSender(_brokerGroupService);
+                _sender = new QueueSender(_brokerGroupService);
                 _store = messageStore;
             }
             catch (Exception ex)
             {
-                Logger.Error(ex,"MessageProducerProvider Constructor error");
+                Logger.Error(ex, "MessageProducerProvider Constructor error");
                 throw;
             }
             finally
@@ -101,9 +101,9 @@ namespace Qunar.TC.Qmq.Client
         public Message GenerateMessage(string subject)
         {
             subject = Validate(subject);
-			var message = new BaseMessage(subject, _idGenerator.Generate());
-			message.SetExpiredTime(TimeSpan.FromMinutes(15));
-			message.SetProperty(BaseMessage.keys.qmq_appCode, _appCode);
+            var message = new BaseMessage(subject, _idGenerator.Generate());
+            message.SetExpiredTime(TimeSpan.FromMinutes(15));
+            message.SetProperty(BaseMessage.keys.qmq_appCode, _appCode);
             return message;
         }
 

@@ -12,7 +12,7 @@ namespace Qunar.TC.Qmq.Client
 {
     internal class ProducerMessageImpl : ProducerMessage
     {
-		private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
+        private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
         private const int MaxRetries = 3;
 
@@ -49,7 +49,7 @@ namespace Qunar.TC.Qmq.Client
         {
             try
             {
-               if (_messageStore != null && !_message.StoreAtFailed)
+                if (_messageStore != null && !_message.StoreAtFailed)
                 {
                     _messageStore.Finish(this);
                 }
@@ -75,7 +75,7 @@ namespace Qunar.TC.Qmq.Client
                     return;
                 }
 
-                Logger.Info(e,"Send message failed");
+                Logger.Info(e, "Send message failed");
 
                 if (_messageStore != null)
                 {

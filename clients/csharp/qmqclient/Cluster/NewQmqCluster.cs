@@ -13,7 +13,7 @@ namespace Qunar.TC.Qmq.Client.Cluster
 {
     internal class NewQmqCluster : ICluster
     {
-		private static readonly NLog.Logger LOG = NLog.LogManager.GetCurrentClassLogger();
+        private static readonly NLog.Logger LOG = NLog.LogManager.GetCurrentClassLogger();
 
         private static readonly NewQmqClientManager ClientManager = new NewQmqClientManager(new SendMessageDataTransformer());
 
@@ -25,14 +25,14 @@ namespace Qunar.TC.Qmq.Client.Cluster
         private volatile bool _avaliable;
         private readonly ManualResetEventSlim _waitAvaliable;
 
-		public NewQmqCluster(string name, BrokerGroupService brokerGroupService, string subject, bool isDelayMessage)
+        public NewQmqCluster(string name, BrokerGroupService brokerGroupService, string subject, bool isDelayMessage)
         {
             _waitAvaliable = new ManualResetEventSlim();
             Name = name;
             _subject = subject;
             _isDelayMessage = isDelayMessage;
 
-			_brokerGroupService = brokerGroupService;
+            _brokerGroupService = brokerGroupService;
         }
 
         public string Name { get; }

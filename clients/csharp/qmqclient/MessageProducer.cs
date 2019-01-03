@@ -6,7 +6,7 @@ namespace Qunar.TC.Qmq.Client
     /// QMQ生产者接口
     /// </summary>
 	public interface MessageProducer
-	{
+    {
         /// <summary>
         /// 生成消息
         /// </summary>
@@ -24,6 +24,6 @@ namespace Qunar.TC.Qmq.Client
         /// <param name="onSuccess">该消息成功发送到broker时会调用，可选</param>
         /// <param name="onFailed">该消息发送到broker失败时会调用，可选</param>
 		void Send(Message message, Action<Message> onSuccess = null, Action<Message> onFailed = null);
-	}
+    }
 }
 

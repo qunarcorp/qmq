@@ -11,8 +11,8 @@ namespace Qunar.TC.Qmq.Client.Consumer
 {
     internal class PullConsumerRegister : IConsumerRegister
     {
-		private readonly string _appCode;
-		private readonly string _metaServer;
+        private readonly string _appCode;
+        private readonly string _metaServer;
         private readonly IRequestHandler _handler;
 
         //一个应用，相同的consumer实例只允许创建一个
@@ -20,14 +20,14 @@ namespace Qunar.TC.Qmq.Client.Consumer
 
         public PullConsumerRegister(string appCode, string metaServer, IRequestHandler handler)
         {
-			_appCode = appCode;
-			_metaServer = metaServer;
+            _appCode = appCode;
+            _metaServer = metaServer;
             _handler = handler;
         }
 
         public void Registe(string subject, string group, ExtraListenerConfig config)
         {
-			var consumer = PullConsumers.DefaultConsumer(subject, group, config.Mode, _appCode, _metaServer);
+            var consumer = PullConsumers.DefaultConsumer(subject, group, config.Mode, _appCode, _metaServer);
             var puller = new Puller((DefaultPullConsumer)consumer, config, _handler);
             if (PULLERS.TryAdd($"{subject}/{group}", puller))
             {
@@ -45,7 +45,7 @@ namespace Qunar.TC.Qmq.Client.Consumer
 
         private class Puller
         {
-			private static readonly NLog.Logger Logger = NLog.LogManager.GetCurrentClassLogger();
+            private static readonly NLog.Logger Logger = NLog.LogManager.GetCurrentClassLogger();
 
             private readonly DefaultPullConsumer _consumer;
             private readonly ExtraListenerConfig _config;
@@ -85,7 +85,7 @@ namespace Qunar.TC.Qmq.Client.Consumer
                     }
                     catch (Exception e)
                     {
-                        Logger.Error(e,$"unexpected exception. subject: {_consumer.Subject}, group: {_consumer.ConsumerGroup}");
+                        Logger.Error(e, $"unexpected exception. subject: {_consumer.Subject}, group: {_consumer.ConsumerGroup}");
                     }
                 }
             }
@@ -103,7 +103,7 @@ namespace Qunar.TC.Qmq.Client.Consumer
                 {
                     if (e.InnerException == null)
                     {
-                        Logger.Error(e,$"consume newqmq message failed with unknown exception. subject: {_consumer.Subject}, group: {_consumer.ConsumerGroup}");
+                        Logger.Error(e, $"consume newqmq message failed with unknown exception. subject: {_consumer.Subject}, group: {_consumer.ConsumerGroup}");
                     }
                     else
                     {
@@ -138,7 +138,7 @@ namespace Qunar.TC.Qmq.Client.Consumer
                             Thread.Sleep(TimeSpan.FromSeconds(1));
                             break;
                         case Exception e:
-                            Logger.Error(e,$"unexpected exception ocurred when process qmq message. subject: {_consumer.Subject}, group: {_consumer.ConsumerGroup}, messageId: {message.MessageId}");
+                            Logger.Error(e, $"unexpected exception ocurred when process qmq message. subject: {_consumer.Subject}, group: {_consumer.ConsumerGroup}, messageId: {message.MessageId}");
                             break;
                         default:
                             return;
@@ -155,14 +155,14 @@ namespace Qunar.TC.Qmq.Client.Consumer
                         Thread.Sleep(wait);
                         break;
                     case NoWritableBrokerException _:
-                        Logger.Error(e,$"cannot find a valid qmq broker to pull messages for {_consumer.Subject}/{_consumer.ConsumerGroup}.");
+                        Logger.Error(e, $"cannot find a valid qmq broker to pull messages for {_consumer.Subject}/{_consumer.ConsumerGroup}.");
                         Thread.Sleep(TimeSpan.FromSeconds(5));
                         break;
                     //timeout的日志在之前已经打印了
                     case TimeoutException _:
                         break;
                     default:
-                        Logger.Error(e,$"consume newqmq message failed. subject: {_consumer.Subject}, group: {_consumer.ConsumerGroup}");
+                        Logger.Error(e, $"consume newqmq message failed. subject: {_consumer.Subject}, group: {_consumer.ConsumerGroup}");
                         break;
                 }
             }
