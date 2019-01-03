@@ -59,6 +59,10 @@ public class Metrics {
         return INSTANCE.newMeter(name, tags, values);
     }
 
+    public static QmqMeter meter(String name) {
+        return INSTANCE.newMeter(name, EMPTY, EMPTY);
+    }
+
     public static QmqTimer timer(String name, String[] tags, String[] values) {
         return INSTANCE.newTimer(name, tags, values);
     }

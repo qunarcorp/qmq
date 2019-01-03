@@ -27,6 +27,7 @@ import qunar.tc.qmq.ProduceMessage;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.QmqCounter;
+import qunar.tc.qmq.metrics.QmqMeter;
 import qunar.tc.qmq.tracing.TraceUtil;
 
 import java.util.concurrent.atomic.AtomicInteger;
@@ -47,6 +48,7 @@ class ProduceMessageImpl implements ProduceMessage {
 
     private static final QmqCounter sendCount = Metrics.counter("qmq_client_send_count");
     private static final QmqCounter sendOkCount = Metrics.counter("qmq_client_send_ok_count");
+    private static final QmqMeter sendOkQps = Metrics.meter("qmq_client_send_ok_qps");
     private static final QmqCounter sendErrorCount = Metrics.counter("qmq_client_send_error_count");
     private static final QmqCounter sendFailCount = Metrics.counter("qmq_client_send_fail_count");
     private static final QmqCounter resendCount = Metrics.counter("qmq_client_resend_count");
@@ -146,6 +148,7 @@ class ProduceMessageImpl implements ProduceMessage {
 
     private void onSuccess() {
         sendOkCount.inc();
+        sendOkQps.mark();
         if (sendStateListener == null) return;
         sendStateListener.onSuccess(base);
     }
