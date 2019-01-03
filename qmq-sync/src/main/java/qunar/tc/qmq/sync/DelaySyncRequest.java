@@ -41,7 +41,7 @@ public class DelaySyncRequest {
         return messageLogOffset;
     }
 
-    public int getDispatchSegmentBaseOffset() {
+    public long getDispatchSegmentBaseOffset() {
         return dispatchSyncRequest == null ? -1 : dispatchSyncRequest.getSegmentBaseOffset();
     }
 
@@ -49,7 +49,7 @@ public class DelaySyncRequest {
         return dispatchSyncRequest == null ? -1 : dispatchSyncRequest.getDispatchLogOffset();
     }
 
-    public int getLastDispatchSegmentBaseOffset() {
+    public long getLastDispatchSegmentBaseOffset() {
         return dispatchSyncRequest == null ? -1 : dispatchSyncRequest.getLastSegmentBaseOffset();
     }
 
@@ -71,19 +71,19 @@ public class DelaySyncRequest {
     }
 
     public static class DispatchLogSyncRequest {
-        private final int segmentBaseOffset;
+        private final long segmentBaseOffset;
         private final long dispatchLogOffset;
-        private final int lastSegmentBaseOffset;
+        private final long lastSegmentBaseOffset;
         private final long lastDispatchLogOffset;
 
-        public DispatchLogSyncRequest(int segmentBaseOffset, long dispatchLogOffset, int lastSegmentBaseOffset, long lastDispatchLogOffset) {
+        public DispatchLogSyncRequest(long segmentBaseOffset, long dispatchLogOffset, long lastSegmentBaseOffset, long lastDispatchLogOffset) {
             this.segmentBaseOffset = segmentBaseOffset;
             this.dispatchLogOffset = dispatchLogOffset;
             this.lastSegmentBaseOffset = lastSegmentBaseOffset;
             this.lastDispatchLogOffset = lastDispatchLogOffset;
         }
 
-        public int getSegmentBaseOffset() {
+        public long getSegmentBaseOffset() {
             return segmentBaseOffset;
         }
 
@@ -91,7 +91,7 @@ public class DelaySyncRequest {
             return dispatchLogOffset;
         }
 
-        public int getLastSegmentBaseOffset() {
+        public long getLastSegmentBaseOffset() {
             return lastSegmentBaseOffset;
         }
 

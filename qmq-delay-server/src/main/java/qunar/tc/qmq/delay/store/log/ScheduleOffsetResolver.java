@@ -18,7 +18,6 @@ package qunar.tc.qmq.delay.store.log;
 
 import org.joda.time.LocalDateTime;
 
-
 /**
  * @author xufeng.deng dennisdxf@gmail.com
  * @since 2018-07-13 11:16
@@ -29,11 +28,34 @@ public class ScheduleOffsetResolver {
         LocalDateTime.now();
     }
 
-    public static int resolveSegment(long offset) {
+    public static long resolveSegment(long offset, int scale) {
         LocalDateTime localDateTime = new LocalDateTime(offset);
-        return localDateTime.getYear() * 1000000
-                + localDateTime.getMonthOfYear() * 10000
-                + localDateTime.getDayOfMonth() * 100
-                + localDateTime.getHourOfDay();
+        long year = year(localDateTime);
+        long month = month(localDateTime);
+        long day = day(localDateTime);
+        long hour = hour(localDateTime);
+        long minute = minute(localDateTime);
+        minute = minute - (minute % scale);
+        return year + month + day + hour + minute;
+    }
+
+    private static long year(final LocalDateTime localDateTime) {
+        return localDateTime.getYear() * 100000000L;
+    }
+
+    private static long month(final LocalDateTime localDateTime) {
+        return localDateTime.getMonthOfYear() * 1000000L;
+    }
+
+    private static long day(final LocalDateTime localDateTime) {
+        return localDateTime.getDayOfMonth() * 10000L;
+    }
+
+    private static long hour(final LocalDateTime localDateTime) {
+        return localDateTime.getHourOfDay() * 100L;
+    }
+
+    private static long minute(final LocalDateTime localDateTime) {
+        return localDateTime.getMinuteOfHour();
     }
 }

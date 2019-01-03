@@ -212,7 +212,7 @@ public class Receiver {
     public static class SendResultPayloadHolder implements PayloadHolder {
         private final List<ReceivedResult> results;
 
-        public SendResultPayloadHolder(List<ReceivedResult> results) {
+        SendResultPayloadHolder(List<ReceivedResult> results) {
             this.results = results;
         }
 

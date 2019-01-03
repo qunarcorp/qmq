@@ -23,7 +23,7 @@ import java.util.Objects;
  * @since 2018-09-28 11:21
  */
 public class WheelLoadCursor {
-    private volatile int baseOffset;
+    private volatile long baseOffset;
     private volatile long offset;
 
     private final Object cursorLock = new Object();
@@ -37,7 +37,7 @@ public class WheelLoadCursor {
         this.offset = -1L;
     }
 
-    boolean shiftCursor(int shiftBaseOffset, long shiftOffset) {
+    boolean shiftCursor(long shiftBaseOffset, long shiftOffset) {
         if (shiftBaseOffset >= baseOffset) {
             synchronized (cursorLock) {
                 this.baseOffset = shiftBaseOffset;
@@ -49,7 +49,7 @@ public class WheelLoadCursor {
         return false;
     }
 
-    boolean shiftCursor(int cursor) {
+    boolean shiftCursor(long cursor) {
         if (cursor >= baseOffset) {
             synchronized (cursorLock) {
                 this.baseOffset = cursor;
@@ -78,7 +78,7 @@ public class WheelLoadCursor {
         }
     }
 
-    public int baseOffset() {
+    public long baseOffset() {
         return baseOffset;
     }
 
@@ -89,15 +89,15 @@ public class WheelLoadCursor {
     }
 
     public static class Cursor {
-        private final int baseOffset;
+        private final long baseOffset;
         private final long offset;
 
-        public Cursor(int baseOffset, long offset) {
+        public Cursor(long baseOffset, long offset) {
             this.baseOffset = baseOffset;
             this.offset = offset;
         }
 
-        public int getBaseOffset() {
+        public long getBaseOffset() {
             return baseOffset;
         }
 

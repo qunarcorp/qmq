@@ -79,7 +79,7 @@ public class DefaultDelayLogFacade implements DelayLogFacade {
     }
 
     @Override
-    public long getDispatchLogMaxOffset(final int dispatchSegmentBaseOffset) {
+    public long getDispatchLogMaxOffset(final long dispatchSegmentBaseOffset) {
         return dispatchLog.getMaxOffset(dispatchSegmentBaseOffset);
     }
 
@@ -94,7 +94,7 @@ public class DefaultDelayLogFacade implements DelayLogFacade {
     }
 
     @Override
-    public boolean appendDispatchLogData(final long startOffset, final int baseOffset, final ByteBuffer body) {
+    public boolean appendDispatchLogData(final long startOffset, final long baseOffset, final ByteBuffer body) {
         return dispatchLog.appendData(startOffset, baseOffset, body);
     }
 
@@ -104,7 +104,7 @@ public class DefaultDelayLogFacade implements DelayLogFacade {
     }
 
     @Override
-    public SegmentBuffer getDispatchLogs(final int segmentBaseOffset, final long dispatchLogOffset) {
+    public SegmentBuffer getDispatchLogs(final long segmentBaseOffset, final long dispatchLogOffset) {
         return dispatchLog.getDispatchLogData(segmentBaseOffset, dispatchLogOffset);
     }
 
@@ -139,12 +139,12 @@ public class DefaultDelayLogFacade implements DelayLogFacade {
     }
 
     @Override
-    public DispatchLogSegment lowerDispatchSegment(final int baseOffset) {
+    public DispatchLogSegment lowerDispatchSegment(final long baseOffset) {
         return dispatchLog.lowerSegment(baseOffset);
     }
 
     @Override
-    public ScheduleSetSegment loadScheduleLogSegment(final int segmentBaseOffset) {
+    public ScheduleSetSegment loadScheduleLogSegment(final long segmentBaseOffset) {
         return scheduleLog.loadSegment(segmentBaseOffset);
     }
 
@@ -154,12 +154,12 @@ public class DefaultDelayLogFacade implements DelayLogFacade {
     }
 
     @Override
-    public int higherScheduleBaseOffset(int index) {
+    public long higherScheduleBaseOffset(long index) {
         return scheduleLog.higherBaseOffset(index);
     }
 
     @Override
-    public int higherDispatchLogBaseOffset(int segmentBaseOffset) {
+    public long higherDispatchLogBaseOffset(long segmentBaseOffset) {
         return dispatchLog.higherBaseOffset(segmentBaseOffset);
     }
 

@@ -65,11 +65,11 @@ public class DispatchLog extends AbstractDelayLog<Boolean> {
         ((DispatchLogSegmentContainer) container).clean(hook);
     }
 
-    public SegmentBuffer getDispatchLogData(int segmentBaseOffset, long dispatchLogOffset) {
+    public SegmentBuffer getDispatchLogData(long segmentBaseOffset, long dispatchLogOffset) {
         return ((DispatchLogSegmentContainer) container).getDispatchData(segmentBaseOffset, dispatchLogOffset);
     }
 
-    public long getMaxOffset(int dispatchSegmentBaseOffset) {
+    public long getMaxOffset(long dispatchSegmentBaseOffset) {
         return ((DispatchLogSegmentContainer) container).getMaxOffset(dispatchSegmentBaseOffset);
     }
 
@@ -77,15 +77,15 @@ public class DispatchLog extends AbstractDelayLog<Boolean> {
         return ((DispatchLogSegmentContainer) container).getSyncMaxRequest();
     }
 
-    public boolean appendData(long startOffset, int baseOffset, ByteBuffer body) {
+    public boolean appendData(long startOffset, long baseOffset, ByteBuffer body) {
         return ((DispatchLogSegmentContainer) container).appendData(startOffset, baseOffset, body);
     }
 
-    public DispatchLogSegment lowerSegment(int latestOffset) {
+    public DispatchLogSegment lowerSegment(long latestOffset) {
         return ((DispatchLogSegmentContainer) container).lowerSegment(latestOffset);
     }
 
-    public int higherBaseOffset(int low) {
+    public long higherBaseOffset(long low) {
         return ((DispatchLogSegmentContainer) container).higherBaseOffset(low);
     }
 }

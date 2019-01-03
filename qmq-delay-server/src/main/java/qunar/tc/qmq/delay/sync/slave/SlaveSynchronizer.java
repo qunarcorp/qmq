@@ -22,7 +22,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.common.Disposable;
 import qunar.tc.qmq.configuration.DynamicConfig;
-import qunar.tc.qmq.configuration.DynamicConfigLoader;
 import qunar.tc.qmq.delay.DelayLogFacade;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.QmqTimer;
@@ -153,9 +152,9 @@ public class SlaveSynchronizer implements Disposable {
         public void writeBody(ByteBuf out) {
             out.writeByte(request.getSyncType());
             out.writeLong(request.getMessageLogOffset());
-            out.writeInt(request.getDispatchSegmentBaseOffset());
+            out.writeLong(request.getDispatchSegmentBaseOffset());
             out.writeLong(request.getDispatchLogOffset());
-            out.writeInt(request.getLastDispatchSegmentBaseOffset());
+            out.writeLong(request.getLastDispatchSegmentBaseOffset());
             out.writeLong(request.getLastDispatchSegmentOffset());
         }
     }
