@@ -53,7 +53,7 @@ public class MessageLogReplayer implements Switchable {
         this.iterateFrom.add(facade.initialMessageIterateFrom());
         this.dispatcherThread = new Thread(new Dispatcher(iterateFrom.longValue()));
 
-        Metrics.gauge("ReplayMessageLogLag", () -> (double) replayMessageLogLag());
+        Metrics.gauge("replayMessageLogLag", () -> (double) replayMessageLogLag());
     }
 
     private long replayMessageLogLag() {
@@ -103,7 +103,7 @@ public class MessageLogReplayer implements Switchable {
                 try {
                     processLog(cursor.get());
                 } catch (Throwable e) {
-                    Metrics.counter("ReplayMessageLogFailed").inc();
+                    Metrics.counter("replayMessageLogFailed").inc();
                     if (LOG_LIMITER.tryAcquire()) {
                         LOGGER.error("replay message log failed, will retry.cursor:{} iterateOffset:{}", cursor.get(), iterateFrom.longValue(), e);
                     }

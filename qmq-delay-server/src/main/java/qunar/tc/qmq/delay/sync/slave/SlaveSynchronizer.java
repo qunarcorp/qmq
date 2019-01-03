@@ -24,6 +24,7 @@ import qunar.tc.qmq.common.Disposable;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.delay.DelayLogFacade;
 import qunar.tc.qmq.metrics.Metrics;
+import qunar.tc.qmq.metrics.MetricsConstants;
 import qunar.tc.qmq.metrics.QmqTimer;
 import qunar.tc.qmq.netty.NettyClientConfig;
 import qunar.tc.qmq.netty.client.NettyClient;
@@ -112,7 +113,7 @@ public class SlaveSynchronizer implements Disposable {
                         LOGGER.error("sync data from master error", e);
                     }
                 } finally {
-                    final QmqTimer timer = Metrics.timer("SyncTask.ExecTimer", new String[]{"processor"}, new String[]{processorName});
+                    final QmqTimer timer = Metrics.timer("syncTaskExecTimer", MetricsConstants.PROCESSOR, new String[]{processorName});
                     timer.update(System.currentTimeMillis() - start, TimeUnit.MILLISECONDS);
                 }
             }
