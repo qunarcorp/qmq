@@ -107,9 +107,10 @@ consumer.setAppCode("your app");
 consumer.setMetaServer("http://<meta server address>/meta/address");
 consumer.init();
 
+//ThreadPoolExecutor根据实际业务场景进行配置
 consumer.addListener("your subject", "group", (m) -> {
     //process message
-}, new ThreadPoolExecutor(2,2,));
+}, new ThreadPoolExecutor(2,2,1,TimeUnit.MINUTES,new LinkedBlockingQueue<Runnable>(100)));
 ```
 
 ### Pull API
