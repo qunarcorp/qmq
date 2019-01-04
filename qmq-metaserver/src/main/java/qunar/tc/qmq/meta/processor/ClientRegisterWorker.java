@@ -26,6 +26,7 @@ import qunar.tc.qmq.meta.BrokerCluster;
 import qunar.tc.qmq.meta.BrokerGroup;
 import qunar.tc.qmq.meta.BrokerState;
 import qunar.tc.qmq.meta.cache.CachedOfflineStateManager;
+import qunar.tc.qmq.meta.route.ReadonlyBrokerGroupManager;
 import qunar.tc.qmq.meta.route.SubjectRouter;
 import qunar.tc.qmq.meta.store.Store;
 import qunar.tc.qmq.meta.utils.ClientLogUtils;
@@ -53,9 +54,11 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
     private final ActorSystem actorSystem;
     private final Store store;
     private final CachedOfflineStateManager offlineStateManager;
+    private final ReadonlyBrokerGroupManager readonlyBrokerGroupManager;
 
-    ClientRegisterWorker(final SubjectRouter subjectRouter, final CachedOfflineStateManager offlineStateManager, final Store store) {
+    ClientRegisterWorker(final SubjectRouter subjectRouter, final CachedOfflineStateManager offlineStateManager, final Store store, ReadonlyBrokerGroupManager readonlyBrokerGroupManager) {
         this.subjectRouter = subjectRouter;
+        this.readonlyBrokerGroupManager = readonlyBrokerGroupManager;
         this.actorSystem = new ActorSystem("qmq-meta");
         this.offlineStateManager = offlineStateManager;
         this.store = store;
@@ -84,7 +87,8 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
             }
 
             final List<BrokerGroup> brokerGroups = subjectRouter.route(realSubject, request);
-            final List<BrokerGroup> filteredBrokerGroups = filterBrokerGroups(brokerGroups);
+            List<BrokerGroup> removedReadonlyGroups = readonlyBrokerGroupManager.disableReadonlyBrokerGroup(realSubject, request.getClientTypeCode(), brokerGroups);
+            final List<BrokerGroup> filteredBrokerGroups = filterBrokerGroups(removedReadonlyGroups);
             final OnOfflineState clientState = offlineStateManager.queryClientState(request.getClientId(), request.getSubject(), request.getConsumerGroup());
 
             ClientLogUtils.log(realSubject,
