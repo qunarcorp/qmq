@@ -1,6 +1,6 @@
 [上一页](tag.md)
 [回目录](../../README.md)
-[下一页](net.md)
+[下一页](operations.md)
 
 # 在IDE里运行代码
 
@@ -24,4 +24,4 @@ git clone https://github.com/qunarcorp/qmq.git
 
 [上一页](tag.md)
 [回目录](../../README.md)
-[下一页](net.md)
+[下一页](operations.md)

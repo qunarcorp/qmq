@@ -8,7 +8,19 @@
 在github上可以[下载](https://github.com/qunarcorp/qmq/releases)我们已经打包好的压缩包
 
 ## Linux配置
+### 修改文件句柄
+QMQ需要打开大量的文件用于持久化消息等数据，如果你的集群需要承载大量消息主题请修改该参数
+```
+ulimit -n 655360
+```
+### 虚拟内存
+QMQ使用mmap的方式操作文件，如果你的集群需要承载大量消息主题请修改该参数
+```
+sysctl -w vm.max_map_count=262144
+```
 
+## JVM基本配置
+请分别在metaserver-env.sh, broker-env.sh, delay-env.sh, watchdog-env.sh里的JAVA_OPTS里配置JVM相关参数，GC日志相关参数已经配置。
 
 ## 运行MetaServer
 
@@ -18,8 +30,6 @@
 JDK 1.8
 
 -Xmx1G -Xms1G
-
-在metaserver-env.sh里的JAVA_OPTS里设置JVM选项，强烈
 
 在生产环境为了可用性请至少部署两台meta server，然后将其放到nginx等lb后面，将这个地址配置给client和server使用
 
