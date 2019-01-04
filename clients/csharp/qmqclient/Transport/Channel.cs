@@ -1,6 +1,6 @@
 ﻿// yuzhaohui
 // 12/5/2016
-using System;
+
 using System.Net;
 using System.Net.Sockets;
 namespace Qunar.TC.Qmq.Client.Transport
