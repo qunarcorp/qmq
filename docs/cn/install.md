@@ -7,6 +7,9 @@
 ## 下载
 在github上可以[下载](https://github.com/qunarcorp/qmq/releases)我们已经打包好的压缩包
 
+## Linux配置
+
+
 ## 运行MetaServer
 
 负责集群管理和集群发现
@@ -15,6 +18,8 @@
 JDK 1.8
 
 -Xmx1G -Xms1G
+
+在metaserver-env.sh里的JAVA_OPTS里设置JVM选项，强烈
 
 在生产环境为了可用性请至少部署两台meta server，然后将其放到nginx等lb后面，将这个地址配置给client和server使用
 
@@ -70,6 +75,23 @@ default=false
 
 ## 启动
 使用bin目录的metaserver.sh(windows平台上请使用metaserver.cmd)启动
+### Linux
+```
+$ metaserver.sh start
+```
+### Windows
+```
+> metaserver.cmd
+```
+##停止
+### Linux
+```
+metaserver.sh stop
+```
+### Windows
+```
+Ctrl + C
+```
 
 ## Server
 
@@ -129,12 +151,12 @@ message.sync.timeout.ms=10
 
 ```
 # 注册实时server的master节点
->tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerGroup=<groupName> --role=0 --hostname=<hostname> --ip=<ip> --servePort=<server port> --syncPort=<sync port>
+$ tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerGroup=<groupName> --role=0 --hostname=<hostname> --ip=<ip> --servePort=<server port> --syncPort=<sync port>
 ```
 
 ```
 # 注册实时server的slave节点
->tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerGroup=<groupName> --role=1 --hostname=<hostname> --ip=<ip> --servePort=<server port> --syncPort=<sync port>
+$ tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerGroup=<groupName> --role=1 --hostname=<hostname> --ip=<ip> --servePort=<server port> --syncPort=<sync port>
 ```
 
 * metaserver address指的是ip:port,port默认是8080
@@ -145,6 +167,26 @@ message.sync.timeout.ms=10
 * ip 机器的ip地址
 * servePort 接收消息的端口
 * syncPort 主从同步端口
+
+## 启动
+使用bin目录的broker.sh(windows平台上请使用broker.cmd)启动
+### Linux
+```
+$ broker.sh start
+```
+### Windows
+```
+> metaserver.cmd
+```
+##停止
+### Linux
+```
+broker.sh stop
+```
+### Windows
+```
+Ctrl + C
+```
 
 ## Delay Server
 
@@ -197,12 +239,12 @@ segment.scale.minute=60
 
 ```
 # 注册delay server的master节点
->tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerGroup=<groupName> --role=5 --hostname=<hostname> --ip=<ip> --servePort=<server port> --syncPort=<sync port>
+$ tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerGroup=<groupName> --role=5 --hostname=<hostname> --ip=<ip> --servePort=<server port> --syncPort=<sync port>
 ```
 
 ```
 # 注册delay server的slave节点
->tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerGroup=<groupName> --role=6 --hostname=<hostname> --ip=<ip> --servePort=<server port> --syncPort=<sync port>
+$ tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerGroup=<groupName> --role=6 --hostname=<hostname> --ip=<ip> --servePort=<server port> --syncPort=<sync port>
 ```
 
 * metaserver address指的是ip:port,port默认是8080
@@ -213,6 +255,26 @@ segment.scale.minute=60
 * ip 机器的ip地址
 * servePort 接收消息的端口
 * syncPort 主从同步端口
+
+## 启动
+使用bin目录的delay.sh(windows平台上请使用delay.cmd)启动
+### Linux
+```
+$ delay.sh start
+```
+### Windows
+```
+> delay.cmd
+```
+##停止
+### Linux
+```
+delay.sh stop
+```
+### Windows
+```
+Ctrl + C
+```
 
 [上一页](quickstart.md)
 [回目录](../../README.md)

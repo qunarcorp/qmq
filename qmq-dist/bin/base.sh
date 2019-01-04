@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ulimit -n 655360
-sysctl -w vm.max_map_count=262144
-
 QMQ_CFG_DIR="$QMQ_BIN_DIR/../conf"
 QMQ_PID_DIR="$QMQ_BIN_DIR/../pid"
 QMQ_LOG_DIR="$QMQ_BIN_DIR/../logs"
