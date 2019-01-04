@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+TIMESTAMP=$(date +%s)
 QMQ_CFG_DIR="$QMQ_BIN_DIR/../conf"
 QMQ_PID_DIR="$QMQ_BIN_DIR/../pid"
 QMQ_LOG_DIR="$QMQ_BIN_DIR/../logs"
