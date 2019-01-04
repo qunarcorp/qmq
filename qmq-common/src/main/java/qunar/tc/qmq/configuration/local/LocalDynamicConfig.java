@@ -41,10 +41,13 @@ public class LocalDynamicConfig implements DynamicConfig {
     private volatile boolean loaded = false;
     private volatile Map<String, String> config;
 
+    private final String confDir;
+
     LocalDynamicConfig(String name, boolean failOnNotExist) {
         this.name = name;
         this.listeners = new CopyOnWriteArrayList<>();
         this.config = new HashMap<>();
+        this.confDir = System.getProperty("qmq.conf");
         this.file = getFileByName(name);
 
         if (failOnNotExist && (file == null || !file.exists())) {
@@ -53,6 +56,9 @@ public class LocalDynamicConfig implements DynamicConfig {
     }
 
     private File getFileByName(final String name) {
+        if (confDir != null && confDir.length() > 0) {
+            return new File(confDir, name);
+        }
         try {
             final URL res = this.getClass().getClassLoader().getResource(name);
             if (res == null) {

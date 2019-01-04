@@ -25,12 +25,11 @@ import qunar.tc.qmq.MessageSendStateListener;
 import qunar.tc.qmq.MessageStore;
 import qunar.tc.qmq.ProduceMessage;
 import qunar.tc.qmq.base.BaseMessage;
-import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.QmqCounter;
+import qunar.tc.qmq.metrics.QmqMeter;
 import qunar.tc.qmq.tracing.TraceUtil;
 
-import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -47,31 +46,13 @@ class ProduceMessageImpl implements ProduceMessage {
     private static final int ERROR = -1;
     private static final int BLOCK = -2;
 
-    private static final int DEFAULT_THREADS = 10;
-
-    private static final int DEFAULT_QUEUE_SIZE = 1000;
-
-    private static final Executor EXECUTOR;
-
     private static final QmqCounter sendCount = Metrics.counter("qmq_client_send_count");
     private static final QmqCounter sendOkCount = Metrics.counter("qmq_client_send_ok_count");
+    private static final QmqMeter sendOkQps = Metrics.meter("qmq_client_send_ok_qps");
     private static final QmqCounter sendErrorCount = Metrics.counter("qmq_client_send_error_count");
     private static final QmqCounter sendFailCount = Metrics.counter("qmq_client_send_fail_count");
     private static final QmqCounter resendCount = Metrics.counter("qmq_client_resend_count");
     private static final QmqCounter enterQueueFail = Metrics.counter("qmq_client_enter_queue_fail");
-
-    static {
-        EXECUTOR = new ThreadPoolExecutor(1, DEFAULT_THREADS, 1, TimeUnit.MINUTES,
-                new LinkedBlockingQueue<Runnable>(DEFAULT_QUEUE_SIZE),
-                new NamedThreadFactory("default-send-listener", true),
-                new RejectedExecutionHandler() {
-                    @Override
-                    public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
-                        LOGGER.error("MessageSendStateListener任务被拒绝,现在的大小为:threads-{}, queue size-{}.如果在该listener里执行了比较重的操作", DEFAULT_THREADS, DEFAULT_QUEUE_SIZE);
-                    }
-                });
-
-    }
 
     /**
      * 最多尝试次数
@@ -127,11 +108,11 @@ class ProduceMessageImpl implements ProduceMessage {
                     LOGGER.info("内存发送队列已满! 此消息将暂时丢弃,等待补偿服务处理 {}:{}", getSubject(), getMessageId());
                     failed();
                 } else {
-                    enterQueueFail.inc();
                     LOGGER.info("内存发送队列已满! 此消息在用户进程阻塞,等待队列激活 {}:{}", getSubject(), getMessageId());
                     if (sender.offer(this, 50)) {
                         LOGGER.info("进入发送队列 {}:{}", getSubject(), getMessageId());
                     } else {
+                        enterQueueFail.inc();
                         LOGGER.info("由于无法入队,发送失败！取消发送 {}:{}", getSubject(), getMessageId());
                         onFailed();
                     }
@@ -167,13 +148,9 @@ class ProduceMessageImpl implements ProduceMessage {
 
     private void onSuccess() {
         sendOkCount.inc();
+        sendOkQps.mark();
         if (sendStateListener == null) return;
-        EXECUTOR.execute(new Runnable() {
-            @Override
-            public void run() {
-                sendStateListener.onSuccess(base);
-            }
-        });
+        sendStateListener.onSuccess(base);
     }
 
     @Override
@@ -241,12 +218,7 @@ class ProduceMessageImpl implements ProduceMessage {
         TraceUtil.recordEvent("send_failed", tracer);
         sendFailCount.inc();
         if (sendStateListener == null) return;
-        EXECUTOR.execute(new Runnable() {
-            @Override
-            public void run() {
-                sendStateListener.onFailed(base);
-            }
-        });
+        sendStateListener.onFailed(base);
     }
 
     private void resend() {

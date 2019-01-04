@@ -47,11 +47,11 @@ public class DispatchLogSyncProcessor implements SyncLogProcessor<DelaySyncReque
         }
 
         long startOffset = body.readLong();
-        int baseOffset = body.readInt();
+        long baseOffset = body.readLong();
         appendLogs(startOffset, baseOffset, body);
     }
 
-    private void appendLogs(long startOffset, int baseOffset, ByteBuf body) {
+    private void appendLogs(long startOffset, long baseOffset, ByteBuf body) {
         facade.appendDispatchLogData(startOffset, baseOffset, body.nioBuffer());
     }
 

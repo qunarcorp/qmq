@@ -18,6 +18,7 @@ package qunar.tc.qmq.monitor;
 
 import com.google.common.base.Supplier;
 import qunar.tc.qmq.metrics.Metrics;
+import qunar.tc.qmq.metrics.MetricsConstants;
 
 import java.util.concurrent.TimeUnit;
 
@@ -32,6 +33,11 @@ public final class QMon {
     private static final String[] NONE = {};
     private static final String[] CONSUMER_ID = {"consumerId"};
     private static final String[] REQUEST_CODE = {"requestCode"};
+    private static final String[] ACTOR = new String[]{"actor"};
+    private static final String[] BROKERGROUP = new String[]{"BrokerGroup"};
+    private static final String[] ROLE = new String[]{"role"};
+    private static final String[] NAME = new String[]{"name"};
+
 
     private static void subjectCountInc(String name, String subject) {
         countInc(name, SUBJECT_ARRAY, new String[]{subject});
@@ -47,10 +53,6 @@ public final class QMon {
 
     private static void countInc(String name, String[] tags, String[] values) {
         Metrics.counter(name, tags, values).inc();
-    }
-
-    private static void countDec(String name, String[] tags, String[] values) {
-        Metrics.counter(name, tags, values).dec();
     }
 
     private static void countInc(String name, String[] tags, String[] values, long num) {
@@ -216,27 +218,27 @@ public final class QMon {
     }
 
     public static void expiredMessagesCountInc(String subject, String group, long num) {
-        subjectAndGroupCountInc("ExpiredMessages", new String[]{subject, group}, num);
+        subjectAndGroupCountInc("expiredMessages", new String[]{subject, group}, num);
     }
 
     public static void readMessageReturnNullCountInc(String subject) {
-        subjectCountInc("ReadMessageReturnNull", subject);
+        subjectCountInc("readMessageReturnNull", subject);
     }
 
     public static void replayMessageLogFailedCountInc() {
-        countInc("ReplayMessageLogFailed", NONE, NONE);
+        countInc("replayMessageLogFailed", NONE, NONE);
     }
 
     public static void replayActionLogFailedCountInc() {
-        countInc("ReplayActionLogFailed", NONE, NONE);
+        countInc("replayActionLogFailed", NONE, NONE);
     }
 
     public static void logSegmentTotalRefCountInc() {
-        countInc("LogSegment.TotalRefCount", NONE, NONE);
+        countInc("logSegmentTotalRefCount", NONE, NONE);
     }
 
     public static void logSegmentTotalRefCountDec() {
-        countDec("LogSegment.TotalRefCount", NONE, NONE);
+        Metrics.counter("logSegmentTotalRefCount", NONE, NONE).dec();
     }
 
     public static void maybeLostMessagesCountInc(String subject, String group, long num) {
@@ -244,15 +246,15 @@ public final class QMon {
     }
 
     public static void retryTaskExecuteCountInc(String subject, String group) {
-        subjectAndGroupCountInc("ConsumerStatusChecker.RetryTask.Execute", subject, group);
+        subjectAndGroupCountInc("consumerStatusCheckerRetryTaskExecute", subject, group);
     }
 
     public static void offlineTaskExecuteCountInc(String subject, String group) {
-        subjectAndGroupCountInc("ConsumerStatusChecker.OfflineTask.Execute", subject, group);
+        subjectAndGroupCountInc("consumerStatusCheckerOfflineTaskExecute", subject, group);
     }
 
     public static void brokerReceivedInvalidMessageCountInc() {
-        countInc("Broker.ReceivedInvalidMessage", NONE, NONE);
+        countInc("brokerReceivedInvalidMessage", NONE, NONE);
     }
 
     public static void findNewExistMessageTime(String subject, String group, long elapsedMillis) {
@@ -264,67 +266,67 @@ public final class QMon {
     }
 
     public static void readPullResultAsBytesElapsed(String subject, String group, long elapsedMillis) {
-        Metrics.timer("Broker.PullResult.ReadAsBytesElapsed", SUBJECT_GROUP_ARRAY, new String[]{subject, group}).update(elapsedMillis, TimeUnit.MILLISECONDS);
+        Metrics.timer("brokerPullResultReadAsBytesElapsed", SUBJECT_GROUP_ARRAY, new String[]{subject, group}).update(elapsedMillis, TimeUnit.MILLISECONDS);
     }
 
     public static void flushPullLogCountInc() {
-        countInc("Store.PullLog.FlushCount", NONE, NONE);
+        countInc("storePullLogFlushCount", NONE, NONE);
     }
 
     public static void flushConsumerLogCountInc(String subject) {
-        subjectCountInc("Store.ConsumerLog.FlushCount", subject);
+        subjectCountInc("storeConsumerLogFlushCount", subject);
     }
 
     public static void flushPullLogTimer(long elapsedMillis) {
-        Metrics.timer("Store.PullLog.FlushTimer", NONE, NONE).update(elapsedMillis, TimeUnit.MILLISECONDS);
+        Metrics.timer("storePullLogFlushTimer", NONE, NONE).update(elapsedMillis, TimeUnit.MILLISECONDS);
     }
 
     public static void flushActionLogTimer(long elapsedMillis) {
-        Metrics.timer("Store.MessageLog.FlushTimer", NONE, NONE).update(elapsedMillis, TimeUnit.MILLISECONDS);
+        Metrics.timer("storeMessageLogFlushTimer", NONE, NONE).update(elapsedMillis, TimeUnit.MILLISECONDS);
     }
 
     public static void flushConsumerLogTimer(long elapsedMillis) {
-        Metrics.timer("Store.ConsumerLog.FlushTimer", NONE, NONE).update(elapsedMillis, TimeUnit.MILLISECONDS);
+        Metrics.timer("storeConsumerLogFlushTimer", NONE, NONE).update(elapsedMillis, TimeUnit.MILLISECONDS);
     }
 
     public static void flushMessageLogTimer(long elapsedMillis) {
-        Metrics.timer("Store.MessageLog.FlushTimer", NONE, NONE).update(elapsedMillis, TimeUnit.MILLISECONDS);
+        Metrics.timer("storeMessageLogFlushTimer", NONE, NONE).update(elapsedMillis, TimeUnit.MILLISECONDS);
     }
 
     public static void pullLogFlusherExceedCheckpointIntervalCountInc() {
-        countInc("PullLogFlusher.ExceedCheckpointInterval", NONE, NONE);
+        countInc("pullLogFlusherExceedCheckpointInterval", NONE, NONE);
     }
 
     public static void pullLogFlusherElapsedPerExecute(long elapsedMillis) {
-        Metrics.timer("PullLogFlusher.ElapsedPerExecute", NONE, NONE).update(elapsedMillis, TimeUnit.MILLISECONDS);
+        Metrics.timer("pullLogFlusherElapsedPerExecute", NONE, NONE).update(elapsedMillis, TimeUnit.MILLISECONDS);
     }
 
     public static void pullLogFlusherFlushFailedCountInc() {
-        countInc("PullLogFlusher.FlushFailed", NONE, NONE);
+        countInc("pullLogFlusherFlushFailed", NONE, NONE);
     }
 
     public static void consumerLogFlusherExceedCheckpointIntervalCountInc() {
-        countInc("ConsumerLogFlusher.ExceedCheckpointInterval", NONE, NONE);
+        countInc("consumerLogFlusherExceedCheckpointInterval", NONE, NONE);
     }
 
     public static void consumerLogFlusherElapsedPerExecute(long elapsedMillis) {
-        Metrics.timer("ConsumerLogFlusher.ElapsedPerExecute", NONE, NONE).update(elapsedMillis, TimeUnit.MILLISECONDS);
+        Metrics.timer("consumerLogFlusherElapsedPerExecute", NONE, NONE).update(elapsedMillis, TimeUnit.MILLISECONDS);
     }
 
     public static void consumerLogFlusherFlushFailedCountInc() {
-        countInc("ConsumerLogFlusher.FlushFailed", NONE, NONE);
+        countInc("consumerLogFlusherFlushFailed", NONE, NONE);
     }
 
     public static void hitDeletedConsumerLogSegmentCountInc(String subject) {
-        subjectCountInc("HitDeletedConsumerLogSegment", subject);
+        subjectCountInc("hitDeletedConsumerLogSegment", subject);
     }
 
     public static void adjustConsumerLogMinOffset(String subject) {
-        subjectCountInc("ConsumerLog.AdjustMinOffset", subject);
+        subjectCountInc("consumerLogAdjustMinOffset", subject);
     }
 
     public static void nettyRequestExecutorExecuteTimer(long elapsedMillis) {
-        Metrics.timer("NettyRequestExecutor.execute", NONE, NONE).update(elapsedMillis, TimeUnit.MILLISECONDS);
+        Metrics.timer("nettyRequestExecutorExecute", NONE, NONE).update(elapsedMillis, TimeUnit.MILLISECONDS);
     }
 
     public static void executorQueueSizeGauge(String requestCode, Supplier<Double> supplier) {
@@ -332,11 +334,11 @@ public final class QMon {
     }
 
     public static void activeConnectionGauge(String name, Supplier<Double> supplier) {
-        Metrics.gauge("NettyProvider.Connection.ActiveCount", new String[]{"name"}, new String[]{name}, supplier);
+        Metrics.gauge("nettyProviderConnectionActiveCount", NAME, new String[]{name}, supplier);
     }
 
     public static void activeClientCount(Supplier<Double> supplier) {
-        Metrics.gauge("Broker.ActiveClientCount", NONE, NONE, supplier);
+        Metrics.gauge("brokerActiveClientCount", NONE, NONE, supplier);
     }
 
     public static void messageSequenceLagGauge(String subject, String group, Supplier<Double> supplier) {
@@ -344,19 +346,19 @@ public final class QMon {
     }
 
     public static void replayMessageLogLag(Supplier<Double> supplier) {
-        Metrics.gauge("ReplayMessageLogLag", NONE, NONE, supplier);
+        Metrics.gauge("replayMessageLogLag", NONE, NONE, supplier);
     }
 
     public static void replayActionLogLag(Supplier<Double> supplier) {
-        Metrics.gauge("ReplayActionLogLag", NONE, NONE, supplier);
+        Metrics.gauge("replayActionLogLag", NONE, NONE, supplier);
     }
 
     public static void slaveMessageLogLagGauge(String role, Supplier<Double> supplier) {
-        Metrics.gauge("slaveMessageLogLag", new String[]{"role"}, new String[]{role}, supplier);
+        Metrics.gauge("slaveMessageLogLag", ROLE, new String[]{role}, supplier);
     }
 
     public static void slaveActionLogLagGauge(String role, Supplier<Double> supplier) {
-        Metrics.gauge("slaveActionLogLag", new String[]{"role"}, new String[]{role}, supplier);
+        Metrics.gauge("slaveActionLogLag", ROLE, new String[]{role}, supplier);
     }
 
     public static void removeMessageSequenceLag(String subject, String group) {
@@ -364,26 +366,26 @@ public final class QMon {
     }
 
     public static void syncTaskExecTimer(String processor, long elapsedMillis) {
-        Metrics.timer("SyncTask.ExecTimer", new String[]{"processor"}, new String[]{processor}).update(elapsedMillis, TimeUnit.MILLISECONDS);
+        Metrics.timer("syncTaskExecTimer", MetricsConstants.PROCESSOR, new String[]{processor}).update(elapsedMillis, TimeUnit.MILLISECONDS);
     }
 
     public static void syncTaskSyncFailedCountInc(String brokerGroup) {
-        countInc("SyncTask.SyncFailedCount", new String[]{"BrokerGroup"}, new String[]{brokerGroup});
+        countInc("syncTaskSyncFailedCount", BROKERGROUP, new String[]{brokerGroup});
     }
 
     public static void dispatchersGauge(String name, Supplier<Double> supplier) {
-        Metrics.gauge("dispatchers." + name, NONE, NONE, supplier);
+        Metrics.gauge("dispatchers_" + name, NONE, NONE, supplier);
     }
 
     public static void actorQueueGauge(String systemName, String name, Supplier<Double> supplier) {
-        Metrics.gauge("actor.queue." + systemName, new String[]{"name"}, new String[]{name}, supplier);
+        Metrics.gauge("actorQueue_" + systemName, NAME, new String[]{name}, supplier);
     }
 
     public static void actorSystemQueueGauge(String name, Supplier<Double> supplier) {
-        Metrics.gauge("actorsystem.queue." + name, NONE, NONE, supplier);
+        Metrics.gauge("actorSystemQueue_" + name, NONE, NONE, supplier);
     }
 
     public static void actorProcessTime(String actor, long elapsedMillis) {
-        Metrics.timer("actor.processTime", new String[]{"actor"}, new String[]{actor}).update(elapsedMillis, TimeUnit.MILLISECONDS);
+        Metrics.timer("actorProcessTime", ACTOR, new String[]{actor}).update(elapsedMillis, TimeUnit.MILLISECONDS);
     }
 }

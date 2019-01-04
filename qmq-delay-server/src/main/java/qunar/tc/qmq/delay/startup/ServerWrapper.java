@@ -74,6 +74,7 @@ public class ServerWrapper implements Disposable {
     private Integer listenPort;
     private Receiver receiver;
     private DynamicConfig config;
+    private DefaultStoreConfiguration storeConfig;
 
     public void start() {
         init();
@@ -96,7 +97,7 @@ public class ServerWrapper implements Disposable {
                 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(), new NamedThreadFactory("send-message-processor"));
 
         final Sender sender = new NettySender();
-        final DefaultStoreConfiguration storeConfig = new DefaultStoreConfiguration(config);
+        storeConfig = new DefaultStoreConfiguration(config);
         this.facade = new DefaultDelayLogFacade(storeConfig, this::iterateCallback);
 
         MetaInfoService metaInfoService = new MetaInfoService();
@@ -131,7 +132,7 @@ public class ServerWrapper implements Disposable {
     }
 
     private void sync() {
-        this.syncNettyServer = new MasterSyncNettyServer(config, facade);
+        this.syncNettyServer = new MasterSyncNettyServer(storeConfig.getSegmentScale(), config, facade);
         this.syncNettyServer.registerSyncEvent(receiver);
         this.syncNettyServer.start();
 

@@ -49,10 +49,10 @@ public class DelaySyncRequestProcessor implements NettyRequestProcessor, Disposa
     private final MessageLogSyncWorker messageLogSyncWorker;
     private final ScheduledExecutorService processorTimer;
 
-    DelaySyncRequestProcessor(DelayLogFacade delayLogFacade, DynamicConfig config) {
+    DelaySyncRequestProcessor(int scale, DelayLogFacade delayLogFacade, DynamicConfig config) {
         this.processorMap = new HashMap<>();
         this.messageLogSyncWorker = new MessageLogSyncWorker(delayLogFacade, config);
-        final DispatchLogSyncWorker dispatchLogSyncWorker = new DispatchLogSyncWorker(delayLogFacade, config);
+        final DispatchLogSyncWorker dispatchLogSyncWorker = new DispatchLogSyncWorker(scale, delayLogFacade, config);
         final HeartbeatSyncWorker heartbeatSyncWorker = new HeartbeatSyncWorker(delayLogFacade);
 
         this.processorMap.put(SyncType.message.getCode(), this.messageLogSyncWorker);

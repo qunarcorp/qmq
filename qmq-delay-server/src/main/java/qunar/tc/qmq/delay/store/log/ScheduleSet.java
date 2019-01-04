@@ -30,7 +30,7 @@ import java.util.Map;
  */
 public class ScheduleSet extends AbstractDelayLog<ScheduleSetSequence> {
 
-    public ScheduleSet(SegmentContainer<RecordResult<ScheduleSetSequence>, LogRecord> container) {
+    ScheduleSet(SegmentContainer<RecordResult<ScheduleSetSequence>, LogRecord> container) {
         super(container);
     }
 
@@ -42,19 +42,19 @@ public class ScheduleSet extends AbstractDelayLog<ScheduleSetSequence> {
         ((ScheduleSetSegmentContainer) container).clean();
     }
 
-    public ScheduleSetSegment loadSegment(int segmentBaseOffset) {
+    ScheduleSetSegment loadSegment(long segmentBaseOffset) {
         return ((ScheduleSetSegmentContainer) container).loadSegment(segmentBaseOffset);
     }
 
-    synchronized Map<Integer, Long> countSegments() {
+    synchronized Map<Long, Long> countSegments() {
         return ((ScheduleSetSegmentContainer) container).countSegments();
     }
 
-    void reValidate(final Map<Integer, Long> offsets, int singleMessageLimitSize) {
+    void reValidate(final Map<Long, Long> offsets, int singleMessageLimitSize) {
         ((ScheduleSetSegmentContainer) container).reValidate(offsets, singleMessageLimitSize);
     }
 
-    int higherBaseOffset(int low) {
+    long higherBaseOffset(long low) {
         return ((ScheduleSetSegmentContainer) container).higherBaseOffset(low);
     }
 }

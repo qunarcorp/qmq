@@ -97,12 +97,12 @@ public class LogSegment extends ReferenceObject {
         }
 
         try {
-            fileChannel.position(currentPos);
-            fileChannel.write(data);
+            fileChannel.write(data, currentPos);
+            this.wrotePosition.addAndGet(size);
         } catch (Throwable e) {
             LOG.error("Append data to log segment failed.", e);
+            return false;
         }
-        this.wrotePosition.addAndGet(size);
         return true;
     }
 

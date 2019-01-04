@@ -7,6 +7,9 @@
 ## 下载
 在github上可以[下载](https://github.com/qunarcorp/qmq/releases)我们已经打包好的压缩包
 
+## Linux配置
+
+
 ## 运行MetaServer
 
 负责集群管理和集群发现
@@ -15,6 +18,8 @@
 JDK 1.8
 
 -Xmx1G -Xms1G
+
+在metaserver-env.sh里的JAVA_OPTS里设置JVM选项，强烈
 
 在生产环境为了可用性请至少部署两台meta server，然后将其放到nginx等lb后面，将这个地址配置给client和server使用
 
@@ -70,6 +75,23 @@ default=false
 
 ## 启动
 使用bin目录的metaserver.sh(windows平台上请使用metaserver.cmd)启动
+### Linux
+```
+$ metaserver.sh start
+```
+### Windows
+```
+> metaserver.cmd
+```
+##停止
+### Linux
+```
+metaserver.sh stop
+```
+### Windows
+```
+Ctrl + C
+```
 
 ## Server
 
@@ -129,12 +151,12 @@ message.sync.timeout.ms=10
 
 ```
 # 注册实时server的master节点
->tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerGroup=<groupName> --role=0 --hostname=<hostname> --ip=<ip> --servePort=<server port> --syncPort=<sync port>
+$ tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerGroup=<groupName> --role=0 --hostname=<hostname> --ip=<ip> --servePort=<server port> --syncPort=<sync port>
 ```
 
 ```
 # 注册实时server的slave节点
->tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerGroup=<groupName> --role=1 --hostname=<hostname> --ip=<ip> --servePort=<server port> --syncPort=<sync port>
+$ tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerGroup=<groupName> --role=1 --hostname=<hostname> --ip=<ip> --servePort=<server port> --syncPort=<sync port>
 ```
 
 * metaserver address指的是ip:port,port默认是8080
@@ -145,6 +167,26 @@ message.sync.timeout.ms=10
 * ip 机器的ip地址
 * servePort 接收消息的端口
 * syncPort 主从同步端口
+
+## 启动
+使用bin目录的broker.sh(windows平台上请使用broker.cmd)启动
+### Linux
+```
+$ broker.sh start
+```
+### Windows
+```
+> metaserver.cmd
+```
+##停止
+### Linux
+```
+broker.sh stop
+```
+### Windows
+```
+Ctrl + C
+```
 
 ## Delay Server
 
@@ -186,6 +228,8 @@ log.retention.check.interval.seconds=60
 dispatch.log.keep.hour=72
 # 可选，动态生效，messagelog过期时间
 messagelog.retention.hours=72
+# 可选，一旦设置后该参数就不允许修改，如果必须修改则需要将消息数据全部清理。该参数用于控制多久生成一个刻度的schedule log（默认一个小时一个刻度），因为QMQ会预先加载一个刻度的消息索引，每条索引32 bytes，如果延时消息量极大，则默认一个小时一个刻度过大。举例：假设延时消息每秒10000 qps，则1个小时的索引大小为: 10000 * 60 * 60 * 32 / 1024 / 1024 = 1098MB。如果比qps比这个数据更高将占用更高的内存，那么如果你的延时消息的最大延时时间不是一两年之久，则可以将这个刻度调小，比如10分钟一个刻度，则10000 qps的内存占用为： 10000 * 60 * 10 * 32 / 1024 / 1024 = 5MB，这个内存占用就小多了
+segment.scale.minute=60
 ```
 
 ##启动
@@ -195,12 +239,12 @@ messagelog.retention.hours=72
 
 ```
 # 注册delay server的master节点
->tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerGroup=<groupName> --role=5 --hostname=<hostname> --ip=<ip> --servePort=<server port> --syncPort=<sync port>
+$ tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerGroup=<groupName> --role=5 --hostname=<hostname> --ip=<ip> --servePort=<server port> --syncPort=<sync port>
 ```
 
 ```
 # 注册delay server的slave节点
->tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerGroup=<groupName> --role=6 --hostname=<hostname> --ip=<ip> --servePort=<server port> --syncPort=<sync port>
+$ tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerGroup=<groupName> --role=6 --hostname=<hostname> --ip=<ip> --servePort=<server port> --syncPort=<sync port>
 ```
 
 * metaserver address指的是ip:port,port默认是8080
@@ -211,6 +255,26 @@ messagelog.retention.hours=72
 * ip 机器的ip地址
 * servePort 接收消息的端口
 * syncPort 主从同步端口
+
+## 启动
+使用bin目录的delay.sh(windows平台上请使用delay.cmd)启动
+### Linux
+```
+$ delay.sh start
+```
+### Windows
+```
+> delay.cmd
+```
+##停止
+### Linux
+```
+delay.sh stop
+```
+### Windows
+```
+Ctrl + C
+```
 
 [上一页](quickstart.md)
 [回目录](../../README.md)

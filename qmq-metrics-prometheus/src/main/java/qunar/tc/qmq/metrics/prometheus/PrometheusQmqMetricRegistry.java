@@ -38,6 +38,7 @@ import java.util.Arrays;
  * @since 2018/11/22
  */
 public class PrometheusQmqMetricRegistry implements QmqMetricRegistry {
+
     private static final LoadingCache<Key, Collector> CACHE = CacheBuilder.newBuilder()
             .build(new CacheLoader<Key, Collector>() {
                 @Override
