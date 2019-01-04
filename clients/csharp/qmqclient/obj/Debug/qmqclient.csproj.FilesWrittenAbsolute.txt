@@ -1,8 +1,0 @@
-/Users/yuzhaohui/opensource/qmqclientnet/qmqclient/obj/Debug/.NETFramework,Version=v4.0.AssemblyAttribute.cs
-/Users/yuzhaohui/opensource/qmqclientnet/qmqclient/bin/Debug/Microsoft.Practices.EnterpriseLibrary.Data.dll
-/Users/yuzhaohui/opensource/qmqclientnet/qmqclient/bin/Debug/NLog.dll
-/Users/yuzhaohui/opensource/qmqclientnet/qmqclient/bin/Debug/Framework.Logging.V2.API.dll
-/Users/yuzhaohui/opensource/qmqclientnet/qmqclient/bin/Debug/qmqclient.pdb
-/Users/yuzhaohui/opensource/qmqclientnet/qmqclient/bin/Debug/qmqclient.dll
-/Users/yuzhaohui/opensource/qmqclientnet/qmqclient/obj/Debug/qmqclient.dll
-/Users/yuzhaohui/opensource/qmqclientnet/qmqclient/obj/Debug/qmqclient.pdb
