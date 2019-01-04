@@ -1,4 +1,5 @@
-CREATE TABLE `broker_group`
+
+CREATE TABLE IF NOT EXISTS `broker_group`
 (
   `id`             INT(11) UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键',
   `group_name`     VARCHAR(30)      NOT NULL DEFAULT '' COMMENT 'group名字',
@@ -13,7 +14,7 @@ CREATE TABLE `broker_group`
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4 COMMENT = 'broker组信息';
 
-CREATE TABLE `subject_info`
+CREATE TABLE IF NOT EXISTS `subject_info`
 (
   `id`          INT(11) UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键',
   `name`        VARCHAR(100)     NOT NULL DEFAULT '' COMMENT '主题名',
@@ -26,7 +27,7 @@ CREATE TABLE `subject_info`
   DEFAULT CHARSET = utf8mb4
   COMMENT = '主题信息';
 
-CREATE TABLE `subject_route`
+CREATE TABLE IF NOT EXISTS `subject_route`
 (
   `id`                INT(11) UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键',
   `subject_info`      VARCHAR(100)     NOT NULL DEFAULT '' COMMENT '主题',
@@ -43,7 +44,7 @@ CREATE TABLE `subject_route`
   DEFAULT CHARSET = utf8mb4
   COMMENT = '主题路由信息';
 
-CREATE TABLE client_meta_info
+CREATE TABLE IF NOT EXISTS `client_meta_info`
 (
   `id`             INT(11) UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键',
   `subject_info`   VARCHAR(100)     NOT NULL DEFAULT '' COMMENT '主题',
@@ -61,7 +62,7 @@ CREATE TABLE client_meta_info
   DEFAULT CHARSET = utf8mb4
   COMMENT = '订阅关系表';
 
-CREATE TABLE `client_offline_state`
+CREATE TABLE IF NOT EXISTS `client_offline_state`
 (
   `id`             INT(11) UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键',
   `client_id`      VARCHAR(100)     NOT NULL DEFAULT '' COMMENT 'client id',
@@ -75,7 +76,7 @@ CREATE TABLE `client_offline_state`
   DEFAULT CHARSET = utf8mb4
   COMMENT = '下线的client';
 
-CREATE TABLE `broker`
+CREATE TABLE IF NOT EXISTS `broker`
 (
   `id`          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '自增主键',
   `group_name`  VARCHAR(30)     NOT NULL DEFAULT '' COMMENT 'group名字',
@@ -93,7 +94,7 @@ CREATE TABLE `broker`
   KEY idx_broker_group (`group_name`)
 ) ENGINE InnoDB DEFAULT CHARSET = utf8mb4 COMMENT 'broker列表';
 
-CREATE TABLE leader_election (
+CREATE TABLE IF NOT EXISTS `leader_election` (
   `id` int(10) unsigned not null auto_increment comment '主键id',
   `name` varchar(128) not null default '' comment '名称',
   `node` varchar(128) NOT NULL default '' comment '节点',
@@ -102,7 +103,7 @@ CREATE TABLE leader_election (
   unique key uniq_idx_name(name)
 ) ENGINE=InnoDB default charset=utf8mb4 comment 'leader选举';
 
-CREATE TABLE datasource_config (
+CREATE TABLE IF NOT EXISTS `datasource_config` (
   `id` int(10) unsigned not null auto_increment comment '主键id',
   `url` varchar(128) not null default '' comment 'jdbc url',
   `user_name` varchar(100) NOT NULL default '' comment 'db username',
@@ -114,3 +115,13 @@ CREATE TABLE datasource_config (
   PRIMARY KEY (id),
   unique key uniq_idx_name(url)
 ) ENGINE=InnoDB default charset=utf8mb4 comment '客户端db配置表';
+
+CREATE TABLE IF NOT EXISTS `readonly_broker_group_setting` (
+  `id`           BIGINT(11) UNSIGNED NOT NULL  AUTO_INCREMENT COMMENT '自增主键',
+  `subject`      VARCHAR(100)        NOT NULL DEFAULT '' COMMENT '针对哪个主题，可以使用*表示全部',
+  `broker_group` VARCHAR(20)         NOT NULL DEFAULT '' COMMENT '需要标记为readonly的组',
+  `create_time`  TIMESTAMP           NOT NULL  DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+
+  PRIMARY KEY (`id`),
+  UNIQUE `uniq_subject_broker_group` (`subject`, `broker_group`)
+)ENGINE InnoDB DEFAULT CHARSET = utf8mb4 COMMENT '只读broker group标记表';

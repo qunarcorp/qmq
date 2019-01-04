@@ -40,6 +40,9 @@ public class Tools implements Runnable {
         cmd.addSubcommand("RemoveSubjectBrokerGroup", new RemoveSubjectBrokerGroupCommand(service));
         cmd.addSubcommand("AddNewSubject", new AddNewSubjectCommand(service));
         cmd.addSubcommand("ExtendSubjectRoute", new ExtendSubjectRouteCommand(service));
+        cmd.addSubcommand("MarkReadonly", new MarkBrokerReadonlyCommand(service));
+        cmd.addSubcommand("UnMarkReadonly", new UnMarkBrokerReadonlyCommand(service));
+
         cmd.parseWithHandler(new CommandLine.RunLast(), args);
         service.close();
     }
