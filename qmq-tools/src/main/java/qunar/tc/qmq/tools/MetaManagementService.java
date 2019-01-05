@@ -16,36 +16,73 @@
 
 package qunar.tc.qmq.tools;
 
-import com.ning.http.client.AsyncHttpClient;
-import com.ning.http.client.Response;
+import com.google.common.io.CharStreams;
 
+import java.io.*;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLEncoder;
 import java.util.Map;
+
 
 /**
  * @author keli.wang
  * @since 2018-12-05
  */
 public class MetaManagementService {
-    private final AsyncHttpClient client;
-
-    public MetaManagementService() {
-        this.client = new AsyncHttpClient();
-    }
 
     public String post(final String metaServer, final String token, final Map<String, String> params) {
+        BufferedWriter writer = null;
+        InputStreamReader reader = null;
         try {
             final String url = String.format("http://%s/management", metaServer);
-            final AsyncHttpClient.BoundRequestBuilder builder = client.preparePost(url);
-            builder.addHeader("X-Api-Token", token);
-            params.forEach(builder::addQueryParam);
-            final Response response = builder.execute().get();
-            return response.getResponseBody("UTF-8");
+            HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+            connection.setConnectTimeout(2000);
+            connection.setReadTimeout(2000);
+            connection.setDoInput(true);
+            connection.setDoOutput(true);
+            connection.setRequestProperty("X-Api-Token", token);
+            connection.setRequestMethod("POST");
+            OutputStream os = connection.getOutputStream();
+            writer = new BufferedWriter(new OutputStreamWriter(os, "UTF-8"));
+            writer.write(getPostData(params));
+            writer.flush();
+
+            reader = new InputStreamReader(connection.getInputStream());
+            String content = CharStreams.toString(reader);
+            if (connection.getResponseCode() != 200) {
+                throw new RuntimeException("send request failed");
+            }
+            return content.trim();
         } catch (Exception e) {
             throw new RuntimeException("send request meta server failed.", e);
+        } finally {
+            closeQuietly(writer);
+            closeQuietly(reader);
         }
     }
 
-    public void close() {
-        client.close();
+    private void closeQuietly(Closeable closeable) {
+        if (closeable == null) return;
+        try {
+            closeable.close();
+        } catch (Exception ignore) {
+        }
+    }
+
+    private String getPostData(Map<String, String> params) throws UnsupportedEncodingException {
+        boolean first = true;
+        StringBuilder result = new StringBuilder();
+        for (Map.Entry<String, String> entry : params.entrySet()) {
+            if (first) {
+                first = false;
+            } else {
+                result.append("&");
+            }
+            result.append(URLEncoder.encode(entry.getKey(), "UTF-8"));
+            result.append("=");
+            result.append(URLEncoder.encode(entry.getValue(), "UTF-8"));
+        }
+        return result.toString();
     }
 }

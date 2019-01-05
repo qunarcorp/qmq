@@ -44,7 +44,6 @@ public class Tools implements Runnable {
         cmd.addSubcommand("UnMarkReadonly", new UnMarkBrokerReadonlyCommand(service));
 
         cmd.parseWithHandler(new CommandLine.RunLast(), args);
-        service.close();
     }
 
     @Override
