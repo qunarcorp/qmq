@@ -5,7 +5,21 @@
 # 安装
 
 ## 下载
-在github上可以[下载](https://github.com/qunarcorp/qmq/releases)我们已经打包好的压缩包
+我们推荐你直接下载编译好的文件来运行应用。在github上可以[下载](https://github.com/qunarcorp/qmq/releases)
+
+## 从源码安装
+进入代码目录运行下面的命令:
+```
+mvn clean package -am -pl qmq-dist -Pdist
+```
+在qmq-dist/target目录下即可得到编译输出，包含以下部分:
+
+```
+conf -- 配置文件目录
+bin  -- 启动脚本目录
+lib  -- jar包所在目录
+sql  -- 初始化db的目录
+```
 
 ## Linux配置
 ### 修改文件句柄
