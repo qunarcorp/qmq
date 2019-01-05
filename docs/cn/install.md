@@ -20,7 +20,7 @@ sysctl -w vm.max_map_count=262144
 ```
 
 ## JVM基本配置
-请分别在metaserver-env.sh, broker-env.sh, delay-env.sh, watchdog-env.sh里的JAVA_OPTS里配置JVM相关参数，GC日志相关参数已经配置。
+请分别在metaserver-env.sh, broker-env.sh, delay-env.sh, watchdog-env.sh里的JAVA_OPTS里配置JVM相关参数，GC日志相关参数已经配置。
 
 ## 运行MetaServer
 
@@ -93,7 +93,7 @@ $ metaserver.sh start
 ```
 > metaserver.cmd
 ```
-##停止
+## 停止
 ### Linux
 ```
 metaserver.sh stop
@@ -154,10 +154,8 @@ sync.batch.size=100000
 # 可选，动态生效，从机同步数据超时时间
 message.sync.timeout.ms=10
 ```
-##启动
-在启动broker之前，请先将其在metaserver里注册，broker启动时候需要从metaserver获取元数据信息。
-
-运行bin目录的tools.sh(windows平台使用tools.cmd)，执行以下命令:
+## 启动
+在启动broker之前，请先将其在metaserver里注册，broker启动时候需要从metaserver获取元数据信息。运行bin目录的tools.sh(windows平台使用tools.cmd\，执行以下命令:
 
 ```
 # 注册实时server的master节点
@@ -188,7 +186,7 @@ $ broker.sh start
 ```
 > metaserver.cmd
 ```
-##停止
+## 停止
 ### Linux
 ```
 broker.sh stop
@@ -242,7 +240,7 @@ messagelog.retention.hours=72
 segment.scale.minute=60
 ```
 
-##启动
+## 启动
 在启动delay之前，请先将其在metaserver里注册，delay启动时候需要从metaserver获取元数据信息。
 
 运行bin目录的tools.sh(windows平台使用tools.cmd)，执行以下命令:
@@ -276,7 +274,7 @@ $ delay.sh start
 ```
 > delay.cmd
 ```
-##停止
+## 停止
 ### Linux
 ```
 delay.sh stop
