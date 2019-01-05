@@ -2,11 +2,19 @@ sudo: required
 
 language: java
 jdk:
-   -  oraclejdk8
+  - oraclejdk8
 before_install:
   - pip install --user codecov
+install: mvn install -DskipTests=true -Dmaven.javadoc.skip=true
+
 after_success:
   - codecov
+
 branches:
-  except:
-    - appveyor
+  only:
+  - master
+services:
+  - mysql
+
+script:
+  - mvn clean org.jacoco:jacoco-maven-plugin:prepare-agent package sonar:sonar
