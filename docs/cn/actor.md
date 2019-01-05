@@ -29,3 +29,9 @@ QMQ通过引入类actor处理模型的方式，很好的做到的公平调度，
 
 QMQ借鉴Linux的Process Scheduler很简单的解决这个问题，简单描述Linux Scheduler的运行方式可以是这样：一个系统中有很多进程，有的进程需要很快的响应时间，比如面向用户的，但是它每次运行时间段，比如你移动一下鼠标，需要很快的响应你，但是移动完了又进入长时间休眠。而有一些进程会长时间执行，响应时间对它们并不关键。那么我们是不是要对进程进行分类，然后对各类进程做特殊的处理呢？Linux Scheduler很巧妙的解决了该问题，它将进程的运行时间相加，然后按照进程的总运行时间进行排序，运行时间短的会排在前面，这样就很容易解决了上面的问题了。
 那么这又和消息队列中IO堆积有什么关系呢？我们想，如果该消息堆积了，他就需要从磁盘读取消息，这样消耗的时间就越大，那么我们如果将该actor的处理耗时相加排序，将总耗时短的actor排在最前面，而耗时长的排在后面，这样就能达到动态的平衡了，相当于达到了一种类似限速的目的。
+
+Actor和消息消费处理相关代码位于:
+
+[ActorSystem](https://github.com/qunarcorp/qmq/blob/master/qmq-server-common/src/main/java/qunar/tc/qmq/concurrent/ActorSystem.java)
+
+[PullMessageWorker](https://github.com/qunarcorp/qmq/blob/master/qmq-server/src/main/java/qunar/tc/qmq/processor/PullMessageWorker.java)
