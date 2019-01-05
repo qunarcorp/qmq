@@ -26,7 +26,8 @@ import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import qunar.tc.qmq.MessageStore;
 import qunar.tc.qmq.ProduceMessage;
-import qunar.tc.qmq.producer.tx.SqlConstant;
+import qunar.tc.qmq.producer.tx.DefaultSqlStatementProvider;
+import qunar.tc.qmq.producer.tx.SqlStatementProvider;
 
 import javax.sql.DataSource;
 import java.sql.Timestamp;
@@ -47,15 +48,27 @@ public class DefaultMessageStore implements MessageStore {
 
     private final RouterSelector routerSelector;
 
+    private SqlStatementProvider sqlStatementProvider;
+
     DefaultMessageStore(DataSource datasource) {
-        this(datasource, new NoopRouterSelector());
+        this(datasource, new NoopRouterSelector(), new DefaultSqlStatementProvider());
     }
 
     DefaultMessageStore(DataSource datasource, RouterSelector routerSelector) {
+        this(datasource, routerSelector, new DefaultSqlStatementProvider());
+    }
+
+    DefaultMessageStore(DataSource datasource, SqlStatementProvider sqlStatementProvider) {
+        this(datasource, new NoopRouterSelector(), sqlStatementProvider);
+    }
+
+    DefaultMessageStore(DataSource datasource, RouterSelector routerSelector, SqlStatementProvider sqlStatementProvider) {
+        this.sqlStatementProvider = sqlStatementProvider;
         this.platform = new JdbcTemplate(datasource);
         this.insertStatementFactory = createFactory();
         this.gson = new GsonBuilder().setLongSerializationPolicy(LongSerializationPolicy.STRING).create();
         this.routerSelector = routerSelector;
+        this.sqlStatementProvider = new DefaultSqlStatementProvider();
     }
 
     @Override
@@ -71,7 +84,7 @@ public class DefaultMessageStore implements MessageStore {
     public void finish(ProduceMessage message) {
         routerSelector.setRouteKey(message.getRouteKey(), platform.getDataSource());
         try {
-            platform.update(SqlConstant.finishSQL, message.getSequence());
+            platform.update(sqlStatementProvider.getDeleteSql(), message.getSequence());
         } finally {
             routerSelector.clearRoute(message.getRouteKey(), platform.getDataSource());
         }
@@ -81,7 +94,7 @@ public class DefaultMessageStore implements MessageStore {
     public void block(ProduceMessage message) {
         routerSelector.setRouteKey(message.getRouteKey(), platform.getDataSource());
         try {
-            platform.update(SqlConstant.blockSQL, new Timestamp(System.currentTimeMillis()), message.getSequence());
+            platform.update(sqlStatementProvider.getBlockSql(), new Timestamp(System.currentTimeMillis()), message.getSequence());
         } finally {
             routerSelector.clearRoute(message.getRouteKey(), platform.getDataSource());
         }
@@ -103,7 +116,7 @@ public class DefaultMessageStore implements MessageStore {
         List<SqlParameter> parameters = new ArrayList<>();
         parameters.add(new SqlParameter("content", Types.LONGVARCHAR));
         parameters.add(new SqlParameter("create_time", Types.TIMESTAMP));
-        PreparedStatementCreatorFactory factory = new PreparedStatementCreatorFactory(SqlConstant.insertSQL, parameters);
+        PreparedStatementCreatorFactory factory = new PreparedStatementCreatorFactory(sqlStatementProvider.getInsertSql(), parameters);
         factory.setReturnGeneratedKeys(true);
         return factory;
     }

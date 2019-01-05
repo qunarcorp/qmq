@@ -46,10 +46,6 @@ public class NetworkUtils {
             final ArrayList<String> ipv6Result = new ArrayList<>();
             while (interfaces.hasMoreElements()) {
                 final NetworkInterface networkInterface = interfaces.nextElement();
-                if (networkInterface.getDisplayName().contains("docker")) {
-                    continue;
-                }
-
                 final Enumeration<InetAddress> addresses = networkInterface.getInetAddresses();
                 while (addresses.hasMoreElements()) {
                     final InetAddress address = addresses.nextElement();
@@ -65,7 +61,7 @@ public class NetworkUtils {
 
             if (!ipv4Result.isEmpty()) {
                 for (String ip : ipv4Result) {
-                    if (ip.startsWith("127.0") || ip.startsWith("192.168")) {
+                    if (ip.startsWith("127.0")) {
                         continue;
                     }
 

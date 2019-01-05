@@ -21,6 +21,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import qunar.tc.qmq.MessageStore;
 import qunar.tc.qmq.TransactionListener;
 import qunar.tc.qmq.TransactionProvider;
+import qunar.tc.qmq.producer.tx.SqlStatementProvider;
 
 import javax.sql.DataSource;
 
@@ -43,6 +44,14 @@ public class SpringTransactionProvider implements TransactionProvider, Transacti
 
     public SpringTransactionProvider(DataSource bizDataSource, RouterSelector routerSelector) {
         this.store = new DefaultMessageStore(bizDataSource, routerSelector);
+    }
+
+    public SpringTransactionProvider(DataSource bizDataSource, SqlStatementProvider sqlStatementProvider) {
+        this.store = new DefaultMessageStore(bizDataSource, sqlStatementProvider);
+    }
+
+    public SpringTransactionProvider(DataSource bizDataSource, RouterSelector routerSelector, SqlStatementProvider sqlStatementProvider) {
+        this.store = new DefaultMessageStore(bizDataSource, routerSelector, sqlStatementProvider);
     }
 
     @Override
