@@ -1,20 +1,14 @@
-sudo: required
-
 language: java
 jdk:
-  - oraclejdk8
+- oraclejdk8
 before_install:
-  - pip install --user codecov
+- pip install --user codecov
 install: mvn install -DskipTests=true -Dmaven.javadoc.skip=true
 
 after_success:
-  - codecov
+- codecov
 
 branches:
   only:
   - master
-services:
-  - mysql
 
-script:
-  - mvn clean org.jacoco:jacoco-maven-plugin:prepare-agent package sonar:sonar -Dsonar.projectKey=Devonmusa_qmq -Dsonar.organization=devonmusa-github -Dsonar.host.url=https://sonarcloud.io   -Dsonar.login=f7789c52fb352719cd8500730b314d1147dc7bae
