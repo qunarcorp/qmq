@@ -64,3 +64,14 @@ qmq的客户端已经发布到maven中央仓库，可以通过下面的方式获
 
 ### QQ群
 ![QQ](docs/images/support1.png)
+
+# 开源协议
+[Apache 2 license](https://github.com/ctripcorp/apollo/blob/master/LICENSE)
+
+# 用户(已经在生产使用)
+
+欢迎在[这里](https://github.com/qunarcorp/qmq/issues/19)，以方便我们提供更好的技术支持
+
+![去哪儿](docs/images/logo/qunar.png)
+![携程](docs/images/logo/ctrip.png)
+![IYMedia](docs/images/logo/iymedia.png)
