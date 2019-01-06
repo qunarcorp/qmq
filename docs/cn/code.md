@@ -31,6 +31,12 @@
 ### qmq-metrics-prometheus
 提供的prometheus监控接入
 
+### qmq-watchdog
+提供消息补偿服务，从客户端消息库扫描出发送失败的消息进行补偿
+
+### qmq-gateway
+提供其他协议转换，目前提供HTTP接入
+
 [上一页](arch.md)
 [回目录](../../README.md)
 [下一页](ha.md)
