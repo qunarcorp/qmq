@@ -39,6 +39,9 @@ public class UnMarkBrokerReadonlyCommand implements Runnable {
     @Option(names = {"--brokerGroup"}, required = true)
     private String brokerGroup;
 
+    @Option(names = {"--subject"}, required = false, defaultValue = "*")
+    private String subject;
+
 
     public UnMarkBrokerReadonlyCommand(final MetaManagementService service) {
         this.service = service;
@@ -48,6 +51,7 @@ public class UnMarkBrokerReadonlyCommand implements Runnable {
     public void run() {
         final HashMap<String, String> params = new HashMap<>();
         params.put("action", "MarkReadonlyBrokerGroup");
+        params.put("subject", subject);
         params.put("brokerGroup", brokerGroup);
 
         System.out.println(service.post(metaserver, apiToken, params));
