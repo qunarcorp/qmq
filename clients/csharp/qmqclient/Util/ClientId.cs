@@ -2,7 +2,6 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
-using System.Web.Hosting;
 using NLog;
 
 namespace Qunar.TC.Qmq.Client.Util
@@ -34,16 +33,17 @@ namespace Qunar.TC.Qmq.Client.Util
 
         private static string GetAppPoolName()
         {
-            var siteName = HostingEnvironment.SiteName;
-            var virtualPath = HostingEnvironment.ApplicationVirtualPath;
-            if (string.IsNullOrEmpty(siteName) || string.IsNullOrEmpty(virtualPath))
-            {
-                return "";
-            }
-            else
-            {
-                return $"{siteName}/{virtualPath}";
-            }
+            //var siteName = HostingEnvironment.
+            //var virtualPath = HostingEnvironment.ApplicationVirtualPath;
+            //if (string.IsNullOrEmpty(siteName) || string.IsNullOrEmpty(virtualPath))
+            //{
+            //    return "";
+            //}
+            //else
+            //{
+            //    return $"{siteName}/{virtualPath}";
+            //}
+            return "";
         }
 
         private static string GetMd5Hash(MD5 md5Hash, string input)
