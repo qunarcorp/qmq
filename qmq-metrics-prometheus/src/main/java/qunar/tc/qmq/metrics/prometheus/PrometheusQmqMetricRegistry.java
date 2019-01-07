@@ -99,9 +99,9 @@ public class PrometheusQmqMetricRegistry implements QmqMetricRegistry {
 
     @Override
     public void remove(final String name, final String[] tags, final String[] values) {
-        // TODO(keli.wang): only remove child collectors for now, may we should remove whole metric in the future
-        final SimpleCollector collector = cacheFor(new SimpleCollectorKey(name, tags));
-        collector.remove(values);
+        final Collector collector = CACHE.getIfPresent(new SimpleCollectorKey(name, tags));
+        if (collector == null) return;
+        CollectorRegistry.defaultRegistry.unregister(collector);
     }
 
     private static abstract class Key<M extends Collector> {
@@ -145,7 +145,7 @@ public class PrometheusQmqMetricRegistry implements QmqMetricRegistry {
 
         @Override
         public SimpleCollector create() {
-            throw new UnsupportedOperationException("cannot create simple collector");
+            return null;
         }
     }
 
