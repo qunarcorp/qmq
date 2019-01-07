@@ -40,7 +40,7 @@ import java.util.concurrent.TimeUnit;
 public class BrokerRegisterService implements Disposable {
     private static final Logger LOG = LoggerFactory.getLogger(BrokerRegisterService.class);
 
-    private static final long TIMEOUT_MS = TimeUnit.SECONDS.toMillis(5);
+    private static final long TIMEOUT_MS = TimeUnit.SECONDS.toMillis(2);
     private static final int HEARTBEAT_DELAY_SECONDS = 10;
 
     private final ScheduledExecutorService heartbeatScheduler;

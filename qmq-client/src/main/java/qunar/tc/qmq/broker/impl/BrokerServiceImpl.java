@@ -106,6 +106,8 @@ public class BrokerServiceImpl implements BrokerService {
 
     private boolean isEquals(BrokerClusterInfo oldClusterInfo, BrokerClusterInfo clusterInfo) {
         List<BrokerGroupInfo> groups = clusterInfo.getGroups();
+        if (groups.size() != oldClusterInfo.getGroups().size()) return false;
+
         for (BrokerGroupInfo group : groups) {
             BrokerGroupInfo oldGroup = oldClusterInfo.getGroupByName(group.getGroupName());
             if (oldGroup == null) return false;
