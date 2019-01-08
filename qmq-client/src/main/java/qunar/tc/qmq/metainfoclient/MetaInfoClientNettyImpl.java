@@ -24,6 +24,7 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
+import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.concurrent.DefaultEventExecutorGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,6 +84,7 @@ class MetaInfoClientNettyImpl extends AbstractNettyClient implements MetaInfoCli
                 ch.pipeline().addLast(eventExecutors,
                         new EncodeHandler(),
                         new DecodeHandler(false),
+                        new IdleStateHandler(0, 0, config.getClientChannelMaxIdleTimeSeconds()),
                         connectManager,
                         clientHandler);
             }

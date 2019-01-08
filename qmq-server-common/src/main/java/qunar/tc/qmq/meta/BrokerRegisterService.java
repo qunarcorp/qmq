@@ -56,7 +56,10 @@ public class BrokerRegisterService implements Disposable {
         this.heartbeatScheduler = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("broker-register-heartbeat"));
         this.locator = locator;
         this.client = NettyClient.getClient();
-        this.client.start(new NettyClientConfig());
+        NettyClientConfig config = new NettyClientConfig();
+        config.setClientChannelMaxIdleTimeSeconds(HEARTBEAT_DELAY_SECONDS * 2);
+        config.setClientWorkerThreads(1);
+        this.client.start(config);
         this.port = port;
         this.brokerAddress = BrokerConfig.getBrokerAddress() + ":" + port;
         this.brokerState = BrokerState.NRW.getCode();
