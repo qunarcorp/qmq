@@ -89,16 +89,20 @@ public class BrokerRegisterService implements Disposable {
     }
 
     private void heartbeat() {
-        Datagram datagram = null;
         try {
-            datagram = client.sendSync(endpoint, buildRegisterDatagram(BrokerRequestType.HEARTBEAT), TIMEOUT_MS);
-        } catch (Exception e) {
-            LOG.error("Send HEARTBEAT message to meta server failed", e);
-            repickEndpoint();
-        } finally {
-            if (datagram != null) {
-                datagram.release();
+            Datagram datagram = null;
+            try {
+                datagram = client.sendSync(endpoint, buildRegisterDatagram(BrokerRequestType.HEARTBEAT), TIMEOUT_MS);
+            } catch (Exception e) {
+                LOG.error("Send HEARTBEAT message to meta server failed", e);
+                repickEndpoint();
+            } finally {
+                if (datagram != null) {
+                    datagram.release();
+                }
             }
+        }catch (Exception e){
+            LOG.error("Heartbeat error", e);
         }
     }
 
