@@ -58,6 +58,7 @@ public class BrokerRegisterService implements Disposable {
         this.client = NettyClient.getClient();
         NettyClientConfig config = new NettyClientConfig();
         config.setClientChannelMaxIdleTimeSeconds(HEARTBEAT_DELAY_SECONDS * 2);
+        config.setClientWorkerThreads(1);
         this.client.start(config);
         this.port = port;
         this.brokerAddress = BrokerConfig.getBrokerAddress() + ":" + port;
