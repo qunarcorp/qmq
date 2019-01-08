@@ -69,7 +69,7 @@ public class MetaServerLocator {
             }
             return content.trim();
         } catch (IOException e) {
-            if (connection == null) {
+            if (connection == null || connection.getErrorStream() == null) {
                 return null;
             }
             InputStreamReader errIn = null;
