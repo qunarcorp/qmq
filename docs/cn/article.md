@@ -5,3 +5,5 @@
 * [消息消费模式](pattern.md)
 
 * [消息消费隔离](actor.md)
+
+* [防雪崩设计](circuitbreaker.md)
