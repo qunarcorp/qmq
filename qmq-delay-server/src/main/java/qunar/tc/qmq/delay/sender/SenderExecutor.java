@@ -50,7 +50,7 @@ class SenderExecutor implements Disposable {
     SenderExecutor(final Sender sender, DelayLogFacade store, DynamicConfig sendConfig) {
         this.sender = sender;
         this.store = store;
-        this.balancer = new InSendingNumWeightLoadBalancer();
+        this.balancer = new InSendingNumWeightLoadBalancer(sendConfig);
         this.sendThreads = sendConfig.getInt("delay.send.threads", DEFAULT_SEND_THREAD);
     }
 
@@ -62,7 +62,7 @@ class SenderExecutor implements Disposable {
     }
 
     private void doExecute(final SenderGroup group, final List<ScheduleIndex> list, final SenderGroup.ResultHandler handler) {
-        group.send(list, sender, handler,balancer);
+        group.send(list, sender, handler, balancer);
     }
 
     private Map<SenderGroup, List<ScheduleIndex>> groupByBroker(final List<ScheduleIndex> indexList, final BrokerService brokerService) {

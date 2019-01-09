@@ -7,9 +7,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
+import qunar.tc.qmq.configuration.DynamicConfig;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import static qunar.tc.qmq.delay.config.DefaultStoreConfiguration.BROKER_WEIGHT_TASK_TIMER_INTERVAL;
+import static qunar.tc.qmq.delay.config.DefaultStoreConfiguration.DEFAULT_BROKER_WEIGHT_TASK_TIMER_INTERVAL;
 
 /**
  * @author xufeng.deng dennisdxf@gmail.com
@@ -30,14 +34,14 @@ public class InSendingNumWeightLoadBalancer extends RandomLoadBalancer {
 
     private final Random random = new Random();
 
-    public InSendingNumWeightLoadBalancer() {
+    public InSendingNumWeightLoadBalancer(final DynamicConfig config) {
         stats = new LoadBalanceStats();
         brokerWeightTimer = new Timer("brokerWeightTimer", true);
-        scheduleBrokerWeight();
+        scheduleBrokerWeight(config);
     }
 
-    private void scheduleBrokerWeight() {
-        brokerWeightTimer.schedule(new DynamicBrokerGroupWeightTask(), 0, 1000);
+    private void scheduleBrokerWeight(final DynamicConfig config) {
+        brokerWeightTimer.schedule(new DynamicBrokerGroupWeightTask(), 0, config.getInt(BROKER_WEIGHT_TASK_TIMER_INTERVAL, DEFAULT_BROKER_WEIGHT_TASK_TIMER_INTERVAL));
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             LOG.info("Stopping brokerWeightTimer.");
             brokerWeightTimer.cancel();
@@ -49,12 +53,13 @@ public class InSendingNumWeightLoadBalancer extends RandomLoadBalancer {
         List<BrokerGroupInfo> arrivalGroups = clusterInfo.getGroups();
         if (arrivalGroups == null || arrivalGroups.isEmpty()) return null;
 
+        List<Long> currentWeights = getAccumulatedWeights();
         List<BrokerGroupInfo> stayGroupInfos = getBrokerGroups();
+
         int groupsSize = arrivalGroups.size();
         refreshBrokerGroups(arrivalGroups, stayGroupInfos);
 
         BrokerGroupInfo brokerGroupInfo = null;
-        List<Long> currentWeights = getAccumulatedWeights();
         int cyclicCount = 0;
         while (brokerGroupInfo == null && cyclicCount++ < groupsSize * 3) {
             int brokerIndex = 0;
@@ -97,7 +102,7 @@ public class InSendingNumWeightLoadBalancer extends RandomLoadBalancer {
         Set<BrokerGroupInfo> removals = Sets.difference(oldSet, newSet);
         Set<BrokerGroupInfo> adds = Sets.difference(newSet, oldSet);
         if (!removals.isEmpty() || !adds.isEmpty()) {
-            List<BrokerGroupInfo> attached = ImmutableList.copyOf(stayBrokerGroups);
+            List<BrokerGroupInfo> attached = Lists.newArrayList(stayBrokerGroups);
             attached.removeAll(removals);
             attached.addAll(adds);
             setBrokerGroups(attached);
@@ -124,7 +129,6 @@ public class InSendingNumWeightLoadBalancer extends RandomLoadBalancer {
             }
 
             try {
-                LOG.info("weight adjusting job started.");
                 doMaintain();
             } catch (Exception e) {
                 LOG.error("Error calculating broker weights.");
@@ -167,11 +171,11 @@ public class InSendingNumWeightLoadBalancer extends RandomLoadBalancer {
     }
 
     private List<BrokerGroupInfo> getBrokerGroups() {
-        return Collections.unmodifiableList(brokerGroups);
+        return ImmutableList.copyOf(brokerGroups);
     }
 
     private List<Long> getAccumulatedWeights() {
-        return Collections.unmodifiableList(accumulatedWeights);
+        return ImmutableList.copyOf(accumulatedWeights);
     }
 
 }
