@@ -59,7 +59,7 @@ qmq的客户端已经发布到maven中央仓库，可以通过下面的方式获
 * [支持其他DB](docs/cn/db.md)
 * [开源协议](docs/cn/opensource.md)
 * [技术支持](docs/cn/support.md)
-* [文章分享](docs/cn/article.md)
+* [分享](docs/cn/share.md)
 
 # 技术支持
 
