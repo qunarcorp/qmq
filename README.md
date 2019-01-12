@@ -1,5 +1,9 @@
 # QMQ
 
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.qunar.qmq/qmq/badge.svg)](http://search.maven.org/#search%7Cga%7C1%7Ccom.qunar.qmq)
+[![GitHub release](https://img.shields.io/badge/release-download-orange.svg)](https://github.com/qunarcorp/qmq/releases)
+[![License](https://img.shields.io/badge/license-Apache%202-4EB1BA.svg)](https://www.apache.org/licenses/LICENSE-2.0.html)
+
 QMQ是去哪儿网内部广泛使用的消息中间件，自2012年诞生以来在去哪儿网所有业务场景中广泛的应用，包括跟交易息息相关的订单场景；
 也包括报价搜索等高吞吐量场景。目前在公司内部日常消息qps在60W左右，生产上承载将近4W+消息topic，消息的端到端延迟可以控制在10ms以内。
 
@@ -31,7 +35,7 @@ qmq的客户端已经发布到maven中央仓库，可以通过下面的方式获
 <dependency>
     <groupId>com.qunar.qmq</groupId>
     <artifactId>qmq</artifactId>
-    <version>1.1.2</version>
+    <version>1.1.3</version>
 </dependency>
 ```
 
