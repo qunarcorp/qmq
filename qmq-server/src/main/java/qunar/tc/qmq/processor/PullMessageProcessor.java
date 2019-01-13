@@ -19,6 +19,7 @@ package qunar.tc.qmq.processor;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Strings;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timeout;
@@ -39,7 +40,6 @@ import qunar.tc.qmq.store.SegmentBuffer;
 import qunar.tc.qmq.store.event.FixedExecOrderEventBus;
 import qunar.tc.qmq.util.RemotingBuilder;
 import qunar.tc.qmq.utils.ConsumerGroupUtils;
-import qunar.tc.qmq.utils.Flags;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
 
 import java.nio.ByteBuffer;
@@ -239,6 +239,11 @@ public class PullMessageProcessor extends AbstractRequestProcessor implements Fi
             return deadline - System.currentTimeMillis() < DEFAULT_MAX_LOAD_TIME;
         }
 
+        boolean isInValid() {
+            Channel channel = ctx.channel();
+            return channel == null || !channel.isActive();
+        }
+
         boolean isPullOnce() {
             return pullRequest.getTimeoutMillis() < 0;
         }
@@ -290,23 +295,7 @@ public class PullMessageProcessor extends AbstractRequestProcessor implements Fi
                 final List<SegmentBuffer> buffers = result.getBuffers();
                 for (final SegmentBuffer buffer : buffers) {
                     try {
-                        ByteBuffer message = buffer.getBuffer();
-                        //新客户端拉取消息
-                        if (requestHeader.getVersion() >= VERSION_8) {
-                            output.put(message);
-                        } else {
-                            //老客户端拉取消息
-                            message.mark();
-                            byte flag = message.get();
-                            //老客户端拉取消息，但是没有tag
-                            if (!Flags.hasTags(flag)) {
-                                message.reset();
-                                output.put(message);
-                            } else {
-                                //老客户端拉取有tag的消息
-                                removeTags(output, message);
-                            }
-                        }
+                        output.put(buffer.getBuffer());
                     } finally {
                         buffer.release();
                     }
@@ -322,38 +311,6 @@ public class PullMessageProcessor extends AbstractRequestProcessor implements Fi
             }
         }
 
-        private void removeTags(ByteBuffer payloadBuffer, ByteBuffer message) {
-            skip(message, 8 + 8);
-            short subjectLen = message.getShort();
-            skip(message, subjectLen);
-
-            short messageIdLen = message.getShort();
-            skip(message, messageIdLen);
-
-            int current = message.position();
-            message.reset();
-            int originalLimit = message.limit();
-            message.limit(current);
-            payloadBuffer.put(message);
-
-            message.limit(originalLimit);
-            message.position(current);
-
-            skipTags(message);
-            payloadBuffer.put(message);
-        }
-
-        private void skipTags(ByteBuffer message) {
-            byte tagSize = message.get();
-            for (int i = 0; i < tagSize; i++) {
-                short tagLen = message.getShort();
-                skip(message, tagLen);
-            }
-        }
-
-        private void skip(ByteBuffer buffer, int bytes) {
-            buffer.position(buffer.position() + bytes);
-        }
     }
 
     class PullMessageResultPayloadHolder implements PayloadHolder {

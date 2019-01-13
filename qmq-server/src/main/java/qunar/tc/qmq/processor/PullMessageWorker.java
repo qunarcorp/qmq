@@ -60,6 +60,11 @@ class PullMessageWorker implements ActorSystem.Processor<PullMessageProcessor.Pu
             return true;
         }
 
+        if (entry.isInValid()) {
+            QMon.pullInValidCountInc(entry.subject, entry.group);
+            return true;
+        }
+
         final PullMessageResult pullMessageResult = store.findMessages(entry.pullRequest);
 
         if (pullMessageResult == PullMessageResult.FILTER_EMPTY ||

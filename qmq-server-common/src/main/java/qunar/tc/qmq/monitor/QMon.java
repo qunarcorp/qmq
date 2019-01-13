@@ -111,6 +111,10 @@ public final class QMon {
         subjectAndGroupCountInc("pullExpiredCount", subject, group);
     }
 
+    public static void pullInValidCountInc(String subject, String group) {
+        subjectAndGroupCountInc("pullInValidCount", subject, group);
+    }
+
     public static void getMessageErrorCountInc(String subject, String group) {
         subjectAndGroupCountInc("getMessageErrorCount", subject, group);
     }
