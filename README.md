@@ -67,6 +67,9 @@ qmq的客户端已经发布到maven中央仓库，可以通过下面的方式获
 
 # 技术支持
 
+### WeChat
+因为微信群超过100人就只能邀请加入，你可以加微信号yuyijq，注明 QMQ，邀请入群
+
 ### QQ群
 ![QQ](docs/images/support1.png)
 
