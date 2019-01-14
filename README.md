@@ -83,3 +83,4 @@ qmq的客户端已经发布到maven中央仓库，可以通过下面的方式获
 ![去哪儿](docs/images/logo/qunar.png)
 ![携程](docs/images/logo/ctrip.png)
 ![IYMedia](docs/images/logo/iymedia.png)
+![便利蜂](docs/images/logo/bianlifeng.png)
