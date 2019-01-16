@@ -7,20 +7,6 @@
 ## 下载
 我们推荐你直接下载编译好的文件来运行应用。在github上可以[下载](https://github.com/qunarcorp/qmq/releases)
 
-## 从源码安装
-进入代码目录运行下面的命令:
-```
-mvn clean package -am -pl qmq-dist -Pdist
-```
-在qmq-dist/target目录下即可得到编译输出，包含以下部分:
-
-```
-conf -- 配置文件目录
-bin  -- 启动脚本目录
-lib  -- jar包所在目录
-sql  -- 初始化db的目录
-```
-
 ## Linux配置
 ### 修改文件句柄
 QMQ需要打开大量的文件用于持久化消息等数据，如果你的集群需要承载大量消息主题请修改该参数
@@ -338,6 +324,22 @@ watchdog.sh stop
 ```
 Ctrl + C
 ```
+
+## 从源码安装
+我们建议大家直接下载我们编译好的包进行安装，但是你也可以进入代码目录运行下面的命令:
+```
+mvn clean package -am -pl qmq-dist -Pdist
+```
+在qmq-dist/target目录下即可得到编译输出，包含以下部分:
+
+```
+conf -- 配置文件目录
+bin  -- 启动脚本目录
+lib  -- jar包所在目录
+sql  -- 初始化db的目录
+```
+
+注意，运行的时候请进入target目录下编译输出里的bin下运行，而不是在源代码目录的qmq-dist/bin下运行
 
 
 [上一页](quickstart.md)
