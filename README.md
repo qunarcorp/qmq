@@ -14,6 +14,7 @@ QMQ是去哪儿网内部广泛使用的消息中间件，自2012年诞生以来�
 * 基于Tag的服务端过滤
 * Consumer端幂等处理支持
 * Consumer端filter
+* 消费端支持按条ack消息
 * 死信消息
 * 结合Spring annotation使用的简单API
 * 提供丰富的监控指标

@@ -298,6 +298,48 @@ delay.sh stop
 Ctrl + C
 ```
 
+## Watchdog
+Watchdog是在使用事务消息时的补偿服务，用于监控事务消息表中的未发送消息进行补偿，确保所有消息都发送成功。
+
+### 最低配置
+JDK 1.8
+
+-Xmx2G -Xms2G
+
+### 配置文件
+*watchdog.properties*
+```
+# 必须 给watchdog分配唯一的应用标识
+appCode=watchdog
+
+# 必须 meta server address
+meta.server.endpoint=http://<meta server host>:<port>/meta/address
+
+# 可选，可以部署多个watchdog集群，namespace即集群名称，该名称需要与db注册时候的room参数相同
+namespace=default
+```
+
+## 启动
+使用bin目录的watchdog.sh(windows平台上请使用watchdog.cmd)启动
+### Linux
+```
+$ watchdog.sh start
+```
+### Windows
+```
+> watchdog.cmd
+```
+## 停止
+### Linux
+```
+watchdog.sh stop
+```
+### Windows
+```
+Ctrl + C
+```
+
+
 [上一页](quickstart.md)
 [回目录](../../README.md)
 [下一页](design.md)
