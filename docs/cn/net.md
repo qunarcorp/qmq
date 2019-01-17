@@ -1,4 +1,4 @@
-[上一页](cosumer.md)
+[上一页](exactlyonce.md)
 [回目录](../../README.md)
 [下一页](delay.md)
 
@@ -28,6 +28,6 @@ subscriber.Received += (m) => {
 subscriber.Start();
 ```
 
-[上一页](consumer.md)
+[上一页](exactlyonce.md)
 [回目录](../../README.md)
 [下一页](delay.md)

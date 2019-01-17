@@ -56,6 +56,7 @@ qmq的客户端已经发布到maven中央仓库，可以通过下面的方式获
 * [发送消息](docs/cn/producer.md)
 * [事务消息](docs/cn/transaction.md)
 * [消费消息](docs/cn/consumer.md)
+* [幂等Exactly once消费](docs/cn/exactlyonce.md)
 * [.NET客户端](docs/cn/net.md)
 * [延时/定时消息](docs/cn/delay.md)
 * [服务端tag过滤](docs/cn/tag.md)
