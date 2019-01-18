@@ -155,7 +155,7 @@ sync.batch.size=100000
 message.sync.timeout.ms=10
 ```
 ## 启动
-在启动broker之前，请先将其在metaserver里注册，broker启动时候需要从metaserver获取元数据信息。运行bin目录的tools.sh(windows平台使用tools.cmd\，执行以下命令:
+在启动broker之前，请先将其在metaserver里注册，broker启动时候需要从metaserver获取元数据信息。运行bin目录的tools.sh(windows平台使用tools.cmd)，执行以下命令:
 
 ```
 # 注册实时server的master节点
@@ -171,7 +171,7 @@ $ tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerG
 * token即metaserver的配置valid-api-tokens.properties里任何一项
 * brokerGroup 这一组的名字，每一组分为一主一从(默认可以不配置slave，但是在生产环境强烈建议配置slave，brokerGroup必须全局唯一，主从两个节点的brokerGroup相同)
 * role 角色 0 - master, 1 - slave, 5 - delay master, 6 - delay slave
-* hostname 机器的主机名，注意必须是真实有效的主机名。linux/mac使用hostname命令查看
+* hostname 机器的主机名，注意必须是真实有效的主机名，可以使用hostname命令查看主机名
 * ip 机器的ip地址
 * servePort 接收消息的端口
 * syncPort 主从同步端口
@@ -259,7 +259,7 @@ $ tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerG
 * token即metaserver的配置valid-api-tokens.properties里任何一项
 * brokerGroup 这一组的名字，每一组分为一主一从(默认可以不配置slave，但是在生产环境强烈建议配置slave，brokerGroup必须全局唯一，主从两个节点的brokerGroup相同)
 * role 角色 0 - master, 1 - slave, 5 - delay master, 6 - delay slave
-* hostname 机器的主机名，注意必须是真实有效的主机名。linux/mac使用hostname命令查看
+* hostname 机器的主机名，注意必须是真实有效的主机名，可以使用hostname命令查看主机名
 * ip 机器的ip地址
 * servePort 接收消息的端口
 * syncPort 主从同步端口
