@@ -13,7 +13,7 @@ clone仓库代码后，.NET Client的代码位于clients/csharp目录下，目�
 ```csharp
 var producer = new MessageProducerProvider("app code", "http://<meta server address>/meta/address");
 var message = producer.GenerateMessage("your subject");
-message.setProperty("key", value);
+message.SetProperty("key", value);
 
 producer.Send(message, onSuccess: (m) =>{}, onFailed: (m) => { });
 ```
