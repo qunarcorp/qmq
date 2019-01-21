@@ -59,13 +59,13 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
     ClientRegisterWorker(final SubjectRouter subjectRouter, final CachedOfflineStateManager offlineStateManager, final Store store, ReadonlyBrokerGroupManager readonlyBrokerGroupManager) {
         this.subjectRouter = subjectRouter;
         this.readonlyBrokerGroupManager = readonlyBrokerGroupManager;
-        this.actorSystem = new ActorSystem("qmq-meta");
+        this.actorSystem = new ActorSystem("qmq_meta");
         this.offlineStateManager = offlineStateManager;
         this.store = store;
     }
 
     void register(ClientRegisterProcessor.ClientRegisterMessage message) {
-        actorSystem.dispatch("client-register-" + message.getMetaInfoRequest().getSubject(), message, this);
+        actorSystem.dispatch("client_register_" + message.getMetaInfoRequest().getSubject(), message, this);
     }
 
     @Override
