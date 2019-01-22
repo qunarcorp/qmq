@@ -305,14 +305,12 @@ public class MessageSegmentContainer implements SegmentContainer<AppendMessageRe
                 if (recordSize > config.getSingleMessageLimitSize()) {
                     return new AppendMessageResult<>(AppendMessageStatus.MESSAGE_SIZE_EXCEEDED, startWroteOffset, freeSpace, null);
                 }
-
-                workingBuffer.flip();
                 if (recordSize != freeSpace && recordSize + MIN_RECORD_BYTES > freeSpace) {
                     workingBuffer.limit(MIN_RECORD_BYTES);
                     workingBuffer.putInt(MESSAGE_LOG_MAGIC_V1);
                     workingBuffer.put(MessageLogAttrEnum.ATTR_EMPTY_RECORD.getCode());
                     workingBuffer.putLong(System.currentTimeMillis());
-                    targetBuffer.put(workingBuffer);
+                    targetBuffer.put(workingBuffer.array(), 0, MIN_RECORD_BYTES);
                     int fillZeroLen = freeSpace - MIN_RECORD_BYTES;
                     if (fillZeroLen > 0) {
                         targetBuffer.put(fillZero(fillZeroLen));
@@ -332,7 +330,7 @@ public class MessageSegmentContainer implements SegmentContainer<AppendMessageRe
                     workingBuffer.put(subjectBytes);
                     workingBuffer.putLong(message.getHeader().getBodyCrc());
                     workingBuffer.putInt(message.getBodySize());
-                    targetBuffer.put(workingBuffer.array());
+                    targetBuffer.put(workingBuffer.array(), 0, headerSize);
                     targetBuffer.put(message.getBody().nioBuffer());
 
                     final long payloadOffset = startWroteOffset + headerSize;

@@ -252,11 +252,11 @@ public class MessageLog implements AutoCloseable {
             final int recordSize = recordSize(subjectBytes.length, message.getBodySize());
 
             if (recordSize != freeSpace && recordSize + MIN_RECORD_BYTES > freeSpace) {
-                workingBuffer.limit(freeSpace);
+                workingBuffer.limit(MIN_RECORD_BYTES);
                 workingBuffer.putInt(MagicCode.MESSAGE_LOG_MAGIC_V3);
                 workingBuffer.put(ATTR_EMPTY_RECORD);
                 workingBuffer.putLong(System.currentTimeMillis());
-                targetBuffer.put(workingBuffer);
+                targetBuffer.put(workingBuffer.array(), 0, MIN_RECORD_BYTES);
                 int fillZeroLen = freeSpace - MIN_RECORD_BYTES;
                 if (fillZeroLen > 0) {
                     targetBuffer.put(fillZero(fillZeroLen));
@@ -275,7 +275,7 @@ public class MessageLog implements AutoCloseable {
                 workingBuffer.put(subjectBytes);
                 workingBuffer.putLong(message.getHeader().getBodyCrc());
                 workingBuffer.putInt(message.getBodySize());
-                targetBuffer.put(workingBuffer);
+                targetBuffer.put(workingBuffer.array(), 0, headerSize);
                 targetBuffer.put(message.getBody().nioBuffer());
 
                 consumerLogManager.incOffset(subject);
