@@ -30,6 +30,7 @@ import qunar.tc.qmq.store.*;
 import java.io.File;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -307,11 +308,15 @@ public class MessageSegmentContainer implements SegmentContainer<AppendMessageRe
 
                 workingBuffer.flip();
                 if (recordSize != freeSpace && recordSize + MIN_RECORD_BYTES > freeSpace) {
-                    workingBuffer.limit(freeSpace);
+                    workingBuffer.limit(MIN_RECORD_BYTES);
                     workingBuffer.putInt(MESSAGE_LOG_MAGIC_V1);
                     workingBuffer.put(MessageLogAttrEnum.ATTR_EMPTY_RECORD.getCode());
                     workingBuffer.putLong(System.currentTimeMillis());
-                    targetBuffer.put(workingBuffer.array(), 0, freeSpace);
+                    targetBuffer.put(workingBuffer);
+                    int fillZeroLen = freeSpace - MIN_RECORD_BYTES;
+                    if (fillZeroLen > 0) {
+                        targetBuffer.put(fillZero(fillZeroLen));
+                    }
                     return new AppendMessageResult<>(AppendMessageStatus.END_OF_FILE, startWroteOffset, freeSpace, null);
                 } else {
                     int headerSize = recordSize - message.getBodySize();
@@ -327,7 +332,7 @@ public class MessageSegmentContainer implements SegmentContainer<AppendMessageRe
                     workingBuffer.put(subjectBytes);
                     workingBuffer.putLong(message.getHeader().getBodyCrc());
                     workingBuffer.putInt(message.getBodySize());
-                    targetBuffer.put(workingBuffer.array(), 0, headerSize);
+                    targetBuffer.put(workingBuffer.array());
                     targetBuffer.put(message.getBody().nioBuffer());
 
                     final long payloadOffset = startWroteOffset + headerSize;
@@ -336,6 +341,12 @@ public class MessageSegmentContainer implements SegmentContainer<AppendMessageRe
             } finally {
                 lock.unlock();
             }
+        }
+
+        private byte[] fillZero(int len) {
+            byte[] zero = new byte[len];
+            Arrays.fill(zero, (byte) 0);
+            return zero;
         }
     }
 
