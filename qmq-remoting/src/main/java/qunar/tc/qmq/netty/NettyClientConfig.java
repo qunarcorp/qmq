@@ -26,6 +26,7 @@ public class NettyClientConfig {
     private int clientChannelMaxIdleTimeSeconds = 120;
     private int clientSocketSndBufSize = Integer.getInteger("qmq.remoting.socket.sndbuf.size", 65535);
     private int clientSocketRcvBufSize = Integer.getInteger("qmq.remoting.socket.rcvbuf.size", 65535);
+    private boolean isServer = false;
 
     public int getClientWorkerThreads() {
         return clientWorkerThreads;
@@ -73,5 +74,13 @@ public class NettyClientConfig {
 
     public void setClientSocketRcvBufSize(int clientSocketRcvBufSize) {
         this.clientSocketRcvBufSize = clientSocketRcvBufSize;
+    }
+
+    public boolean isServer() {
+        return isServer;
+    }
+
+    public void setServer(boolean server) {
+        isServer = server;
     }
 }

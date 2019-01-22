@@ -72,7 +72,7 @@ public class NettyClient extends AbstractNettyClient {
             protected void initChannel(SocketChannel ch) throws Exception {
                 ch.pipeline().addLast(eventExecutors,
                         new EncodeHandler(),
-                        new DecodeHandler(false),
+                        new DecodeHandler(config.isServer()),
                         new IdleStateHandler(0, 0, config.getClientChannelMaxIdleTimeSeconds()),
                         connectManager,
                         clientHandler);

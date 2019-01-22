@@ -38,7 +38,9 @@ public class SlaveSyncClient {
 
     public SlaveSyncClient(DynamicConfig config) {
         this.client = NettyClient.getClient();
-        this.client.start(new NettyClientConfig());
+        NettyClientConfig clientConfig = new NettyClientConfig();
+        clientConfig.setServer(true);
+        this.client.start(clientConfig);
         this.master = BrokerConfig.getMasterAddress();
 
         config.addListener(conf -> timeout = conf.getLong("slave.sync.timeout", 3000L));
