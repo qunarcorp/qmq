@@ -218,3 +218,7 @@ public void onMessage(final Message message){
    }
 }
 ```
+
+## Listener over Pull
+
+QMQ提供了两种消费消息的方式：Listener(@QmqConsumer也是Listener)和Pull的方式，从用户API上来看Listener类似Push的方式，但是不管是Listener还是Pull，底层都是Pull。底层的逻辑都相当于一个拉取循环，拉取到消息后丢给用户线程处理，但是Listener提供更好的封装方式，我们更推荐使用Listener的消费方式。使用Listener消费的时候请注意两点：1. 我们更推荐使用@QmqConsumer这种方式来消费，而不是直接使用API 2. Listener的逻辑是在你配置的线程池里运行的，你不需要在消费代码里再开线程来处理
