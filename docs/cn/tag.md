@@ -22,7 +22,7 @@ producer.sendMessage(message);
 
 ```java
 //不同的消费方关注不同的类别，现在这是一个出票应用，关注支付和取消
-@QmqConsumer(topic = "order.changed", group="ticket", tags = {"pay", "cancel"}, tagType = TagType.OR)
+@QmqConsumer(topic = "order.changed", consumerGroup = "ticket", tags = {"pay", "cancel"}, tagType = TagType.OR, executor = "your executor")
 public void onMessage(Message message){
     //只会收到pay或者cancel的消息
 }
