@@ -73,6 +73,7 @@
         <module>qmq-dist</module>
         <module>qmq-watchdog</module>
         <module>qmq-gateway</module>
+        <module>qmq-demo</module>
     </modules>
 
     <properties>
