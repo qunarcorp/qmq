@@ -28,7 +28,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 @Configuration
-@EnableQmq(appCode = "qmq_test", metaServer = "http://127.0.0.1:8080/meta/address")
+@EnableQmq(appCode = "${appCode}", metaServer = "${metaServer}")
 public class BeanConfig {
 
     @Bean
