@@ -20,6 +20,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import qunar.tc.qmq.MessageProducer;
+import qunar.tc.qmq.consumer.annotation.EnableQmq;
 import qunar.tc.qmq.producer.MessageProducerProvider;
 
 import java.util.concurrent.LinkedBlockingQueue;
@@ -27,6 +28,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 @Configuration
+@EnableQmq(appCode = "qmq_test", metaServer = "http://127.0.0.1:8080/meta/address")
 public class BeanConfig {
 
     @Bean
