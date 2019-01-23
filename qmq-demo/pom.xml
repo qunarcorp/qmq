@@ -12,6 +12,8 @@
     <artifactId>qmq-demo</artifactId>
 
     <properties>
+        <maven_deploy_skip>true</maven_deploy_skip>
+
         <spring-boot.version>1.5.10.RELEASE</spring-boot.version>
     </properties>
 
