@@ -22,6 +22,9 @@ import qunar.tc.qmq.meta.model.BrokerMeta;
 import qunar.tc.qmq.meta.store.BrokerStore;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -29,6 +32,16 @@ import java.util.Optional;
  * @since 2018-12-03
  */
 public class AddBrokerAction implements MetaManagementAction {
+
+    private static final Map<BrokerRole, BrokerRole> MATCHED_ROLES = new HashMap<>();
+
+    static {
+        MATCHED_ROLES.put(BrokerRole.MASTER, BrokerRole.SLAVE);
+        MATCHED_ROLES.put(BrokerRole.SLAVE, BrokerRole.MASTER);
+        MATCHED_ROLES.put(BrokerRole.DELAY_MASTER, BrokerRole.DELAY_SLAVE);
+        MATCHED_ROLES.put(BrokerRole.DELAY_SLAVE, BrokerRole.DELAY_MASTER);
+    }
+
     private final BrokerStore store;
 
     public AddBrokerAction(final BrokerStore store) {
@@ -66,7 +79,7 @@ public class AddBrokerAction implements MetaManagementAction {
         if (Strings.isNullOrEmpty(broker.getGroup())) {
             return Optional.of("please provide broker group name");
         }
-        if (broker.getRole() == BrokerRole.STANDBY || broker.getRole() == BrokerRole.DELAY) {
+        if (!MATCHED_ROLES.containsKey(broker.getRole())) {
             return Optional.of("invalid broker role code " + broker.getRole().getCode());
         }
         if (Strings.isNullOrEmpty(broker.getHostname())) {
@@ -80,6 +93,18 @@ public class AddBrokerAction implements MetaManagementAction {
         final int syncPort = broker.getSyncPort();
         if (servePort <= 0 || syncPort <= 0 || servePort == syncPort) {
             return Optional.of("serve port and sync port should valid and should be different port");
+        }
+
+        List<BrokerMeta> brokers = store.queryBrokers(broker.getGroup());
+        if (brokers == null || brokers.isEmpty()) return Optional.empty();
+
+        if (brokers.size() >= 2) {
+            return Optional.of("The brokerGroup: " + broker.getGroup() + " already exists");
+        }
+
+        BrokerMeta exsits = brokers.get(0);
+        if (broker.getRole() != MATCHED_ROLES.get(exsits.getRole())) {
+            return Optional.of("The brokerGroup: " + broker.getGroup() + " with role: " + exsits.getRole() + " already exists, you need use other brokerGroup name");
         }
 
         return Optional.empty();
