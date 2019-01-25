@@ -68,6 +68,7 @@ qmq的客户端已经发布到maven中央仓库，可以通过下面的方式获
 * [开源协议](docs/cn/opensource.md)
 * [技术支持](docs/cn/support.md)
 * [分享](docs/cn/share.md)
+* [FAQ](docs/cn/faq.md)
 
 # 技术支持
 
