@@ -40,7 +40,6 @@ public class OrderService {
 
     @Transactional
     public void placeOrder(Order order) {
-        orderRepository.save(order);
         final Message message = producer.generateMessage("order.changed");
         message.setProperty("orderId", order.getOrderId());
         message.setProperty("name", order.getName());
@@ -55,5 +54,7 @@ public class OrderService {
                 LOG.error("send message failed: {}", message.getMessageId());
             }
         });
+
+        orderRepository.save(order);
     }
 }

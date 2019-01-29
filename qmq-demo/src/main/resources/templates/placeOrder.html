@@ -1,0 +1,28 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+    <title>Order</title>
+    <style>
+        body{TEXT-ALIGN: center;}
+        #center{ MARGIN-RIGHT: auto;
+            MARGIN-LEFT: auto;
+            height:200px;
+            width:400px;
+            vertical-align:middle;
+            line-height:200px;
+        }
+    </style>
+</head>
+<body>
+<div id="center">
+QMQ Demo Test Page
+    OrderId必须输入数字，如果输入字母会提交失败，消息也不会发送出去
+
+<form action="/order/placeOrder" method="post">
+    <label>OrderId(数字):</label><input name="orderId" type="text" title="orderId" />
+    <label>Name:</label><input name="name" type="text" title="name" />
+    <input type="submit" value="Order" />
+</form>
+</div>
+</body>
+</html>

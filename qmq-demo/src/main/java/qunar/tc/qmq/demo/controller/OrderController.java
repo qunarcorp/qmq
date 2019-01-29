@@ -16,9 +16,11 @@
 
 package qunar.tc.qmq.demo.controller;
 
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.ModelAndView;
 import qunar.tc.qmq.demo.model.Order;
 import qunar.tc.qmq.demo.service.OrderService;
 
@@ -29,6 +31,11 @@ import javax.annotation.Resource;
 public class OrderController {
     @Resource
     private OrderService orderService;
+
+    @GetMapping("placeOrder")
+    public ModelAndView placeOrder(){
+        return new ModelAndView("placeOrder");
+    }
 
     @PostMapping("/placeOrder")
     public void placeOrder(long orderId, String name) {
