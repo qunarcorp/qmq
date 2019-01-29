@@ -20,7 +20,7 @@ producer.sendMessage(message);
 ## 消费消息
 
 ```java
-@QmqConsumer(subject = "your subject", consumerGroup = "group" executor = "your executor")
+@QmqConsumer(subject = "your subject", consumerGroup = "group", executor = "your executor")
 public void onMessage(Message message){
     //process your message
     String value = message.getStringProperty("key");
