@@ -14,35 +14,12 @@
  * limitations under the License.
  */
 
-package qunar.tc.qmq.demo.model;
+package qunar.tc.qmq.demo.dao;
 
-import javax.persistence.*;
-import java.io.Serializable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+import qunar.tc.qmq.demo.model.Order;
 
-@Entity
-@Table(name = "orders")
-public class Order implements Serializable {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private long id;
-
-    private long orderId;
-
-    private String name;
-
-    public long getOrderId() {
-        return orderId;
-    }
-
-    public void setOrderId(long orderId) {
-        this.orderId = orderId;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
+@Repository
+public interface OrderRepository extends JpaRepository<Order, Long> {
 }

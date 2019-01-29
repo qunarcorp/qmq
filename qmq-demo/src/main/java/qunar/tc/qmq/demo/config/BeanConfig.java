@@ -16,13 +16,16 @@
 
 package qunar.tc.qmq.demo.config;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import qunar.tc.qmq.MessageProducer;
 import qunar.tc.qmq.consumer.annotation.EnableQmq;
 import qunar.tc.qmq.producer.MessageProducerProvider;
+import qunar.tc.qmq.producer.tx.spring.SpringTransactionProvider;
 
+import javax.sql.DataSource;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -32,10 +35,14 @@ import java.util.concurrent.TimeUnit;
 public class BeanConfig {
 
     @Bean
-    public MessageProducer producer(@Value("${appCode}") String appCode, @Value("${metaServer}") String metaServer) {
+    public MessageProducer producer(@Value("${appCode}") String appCode,
+                                    @Value("${metaServer}") String metaServer,
+                                    @Autowired DataSource dataSource) {
+        SpringTransactionProvider transactionProvider = new SpringTransactionProvider(dataSource);
         final MessageProducerProvider producer = new MessageProducerProvider();
         producer.setAppCode(appCode);
         producer.setMetaServer(metaServer);
+        producer.setTransactionProvider(transactionProvider);
         return producer;
     }
 

@@ -22,9 +22,11 @@ import org.springframework.stereotype.Service;
 import qunar.tc.qmq.Message;
 import qunar.tc.qmq.MessageProducer;
 import qunar.tc.qmq.MessageSendStateListener;
+import qunar.tc.qmq.demo.dao.OrderRepository;
 import qunar.tc.qmq.demo.model.Order;
 
 import javax.annotation.Resource;
+import javax.transaction.Transactional;
 
 @Service
 public class OrderService {
@@ -33,7 +35,12 @@ public class OrderService {
     @Resource
     private MessageProducer producer;
 
+    @Resource
+    private OrderRepository orderRepository;
+
+    @Transactional
     public void placeOrder(Order order) {
+        orderRepository.save(order);
         final Message message = producer.generateMessage("order.changed");
         message.setProperty("orderId", order.getOrderId());
         message.setProperty("name", order.getName());

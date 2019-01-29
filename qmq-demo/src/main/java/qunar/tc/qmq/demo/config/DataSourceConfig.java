@@ -14,35 +14,22 @@
  * limitations under the License.
  */
 
-package qunar.tc.qmq.demo.model;
+package qunar.tc.qmq.demo.config;
 
-import javax.persistence.*;
-import java.io.Serializable;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceBuilder;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
-@Entity
-@Table(name = "orders")
-public class Order implements Serializable {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private long id;
+import javax.sql.DataSource;
 
-    private long orderId;
+@Configuration
+public class DataSourceConfig {
 
-    private String name;
-
-    public long getOrderId() {
-        return orderId;
-    }
-
-    public void setOrderId(long orderId) {
-        this.orderId = orderId;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
+    @Bean(name = "dataSource")
+    @ConfigurationProperties(prefix = "spring.datasource")
+    public DataSource dataSource() {
+        DataSource dataSource = DataSourceBuilder.create().build();
+        return dataSource;
     }
 }
