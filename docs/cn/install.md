@@ -169,7 +169,7 @@ $ tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerG
 
 * metaserver address指的是ip:port,port默认是8080
 * token即metaserver的配置valid-api-tokens.properties里任何一项
-* brokerGroup 这一组的名字，每一组分为一主一从(默认可以不配置slave，但是在生产环境强烈建议配置slave，brokerGroup必须全局唯一，主从两个节点的brokerGroup相同)
+* brokerGroup 这一组的名字，每一组分为一主一从(默认可以不配置slave，但是在生产环境强烈建议配置slave，brokerGroup必须全局唯一，主从两个节点的brokerGroup必须相同，实时Server和延时Server的brokerGroup必须不能相同)
 * role 角色 0 - master, 1 - slave, 5 - delay master, 6 - delay slave
 * hostname 机器的主机名，注意必须是真实有效的主机名，可以使用hostname命令查看主机名
 * ip 机器的ip地址
@@ -257,7 +257,7 @@ $ tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerG
 
 * metaserver address指的是ip:port,port默认是8080
 * token即metaserver的配置valid-api-tokens.properties里任何一项
-* brokerGroup 这一组的名字，每一组分为一主一从(默认可以不配置slave，但是在生产环境强烈建议配置slave，brokerGroup必须全局唯一，主从两个节点的brokerGroup相同)
+* brokerGroup 这一组的名字，每一组分为一主一从(默认可以不配置slave，但是在生产环境强烈建议配置slave，brokerGroup必须全局唯一，主从两个节点的brokerGroup必须相同，实时Server和延时Server的brokerGroup必须不能相同)
 * role 角色 0 - master, 1 - slave, 5 - delay master, 6 - delay slave
 * hostname 机器的主机名，注意必须是真实有效的主机名，可以使用hostname命令查看主机名
 * ip 机器的ip地址
