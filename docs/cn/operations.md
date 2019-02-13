@@ -25,6 +25,12 @@ $ tools.sh MarkReadonly --metaserver=<metaserver address> --token=<token> --brok
 $ tools.sh UnMarkReadonly --metaserver=<metaserver address> --token=<token> --brokerGroup=<groupName>
 ```
 
+## reset offset
+调整指定消费组的消费进度
+
+```
+$ tools.sh ResetOffset --metaserver=<metaserver address> --token=<token> --subject=<subject> --group=<consumer group> --action=<
+```
 
 [上一页](debug.md)
 [回目录](../../README.md)
