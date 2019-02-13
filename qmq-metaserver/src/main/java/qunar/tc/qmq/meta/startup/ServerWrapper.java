@@ -99,6 +99,7 @@ public class ServerWrapper implements Disposable {
         actions.register("AddDb", new TokenVerificationAction(new RegisterClientDbAction(clientDbConfigurationStore)));
         actions.register("MarkReadonlyBrokerGroup", new TokenVerificationAction(new MarkReadonlyBrokerGroupAction(readonlyBrokerGroupSettingService)));
         actions.register("UnMarkReadonlyBrokerGroup", new TokenVerificationAction(new UnMarkReadonlyBrokerGroupAction(readonlyBrokerGroupSettingService)));
+        actions.register("ResetOffset", new TokenVerificationAction(new ResetOffsetAction(store)));
 
 
         resources.add(cachedMetaInfoManager);

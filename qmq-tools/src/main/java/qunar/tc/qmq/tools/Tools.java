@@ -42,6 +42,7 @@ public class Tools implements Runnable {
         cmd.addSubcommand("ExtendSubjectRoute", new ExtendSubjectRouteCommand(service));
         cmd.addSubcommand("MarkReadonly", new MarkBrokerReadonlyCommand(service));
         cmd.addSubcommand("UnMarkReadonly", new UnMarkBrokerReadonlyCommand(service));
+        cmd.addSubcommand("ResetOffset", new ResetOffsetCommand(service));
 
         cmd.parseWithHandler(new CommandLine.RunLast(), args);
     }
