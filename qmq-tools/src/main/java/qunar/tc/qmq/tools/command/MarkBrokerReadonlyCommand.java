@@ -50,7 +50,7 @@ public class MarkBrokerReadonlyCommand implements Runnable {
     @Override
     public void run() {
         final HashMap<String, String> params = new HashMap<>();
-        params.put("action", "UnMarkReadonlyBrokerGroup");
+        params.put("action", "MarkReadonlyBrokerGroup");
         params.put("subject", subject);
         params.put("brokerGroup", brokerGroup);
 
