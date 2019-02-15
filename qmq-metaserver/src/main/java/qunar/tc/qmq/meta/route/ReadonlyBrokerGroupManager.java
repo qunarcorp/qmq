@@ -21,7 +21,7 @@ public class ReadonlyBrokerGroupManager {
 
     public List<BrokerGroup> disableReadonlyBrokerGroup(String realSubject, int clientTypeCode, List<BrokerGroup> brokerGroups) {
         if (clientTypeCode != ClientType.PRODUCER.getCode()
-                || clientTypeCode != ClientType.DELAY_PRODUCER.getCode()) {
+                && clientTypeCode != ClientType.DELAY_PRODUCER.getCode()) {
             return brokerGroups;
         }
 
