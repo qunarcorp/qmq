@@ -344,6 +344,28 @@ public class DefaultStorage implements Storage {
     }
 
     @Override
+    public void updateConsumeQueue(String subject, String group, int consumeFromWhereCode) {
+        final ConsumerLog consumerLog = consumerLogManager.getConsumerLog(subject);
+        if (consumerLog == null) {
+            LOG.warn("没有对应的consumerLog, subject:{}", subject);
+            return;
+        }
+        final ConsumeFromWhere consumeFromWhere = ConsumeFromWhere.codeOf(consumeFromWhereCode);
+        final OffsetBound bound = consumerLog.getOffsetBound();
+        switch (consumeFromWhere) {
+            case UNKNOWN:
+                LOG.info("UNKNOWN consumeFromWhere code, {}", consumeFromWhereCode);
+                break;
+            case EARLIEST:
+                consumeQueueManager.update(subject, group, bound.getMinOffset());
+                break;
+            case LATEST:
+                consumeQueueManager.update(subject, group, bound.getMaxOffset());
+                break;
+        }
+    }
+
+    @Override
     public void disableLagMonitor(String subject, String group) {
         consumeQueueManager.disableLagMonitor(subject, group);
     }

@@ -70,6 +70,8 @@ public interface Storage extends Disposable {
 
     long getMessageSequenceByPullLog(final String subject, final String group, final String consumerId, final long pullLogSequence);
 
+    void updateConsumeQueue(String subject, String group, int consumeFromWhereCode);
+
     ConsumeQueue locateConsumeQueue(final String subject, final String group);
 
     Map<String, ConsumeQueue> locateSubjectConsumeQueues(final String subject);

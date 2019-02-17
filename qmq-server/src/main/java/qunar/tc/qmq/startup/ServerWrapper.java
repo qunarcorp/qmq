@@ -210,11 +210,13 @@ public class ServerWrapper implements Disposable {
         this.storage.registerEventListener(ConsumerLogWroteEvent.class, pullMessageProcessor);
         final SendMessageProcessor sendMessageProcessor = new SendMessageProcessor(sendMessageWorker);
         final AckMessageProcessor ackMessageProcessor = new AckMessageProcessor(actorSystem, consumerSequenceManager, subscriberStatusChecker);
+        final ConsumerManageProcessor consumerManageProcessor = new ConsumerManageProcessor(storage);
 
         this.nettyServer = new NettyServer("broker", Runtime.getRuntime().availableProcessors(), listenPort, new BrokerConnectionEventHandler());
         this.nettyServer.registerProcessor(CommandCode.SEND_MESSAGE, sendMessageProcessor, sendMessageExecutorService);
         this.nettyServer.registerProcessor(CommandCode.PULL_MESSAGE, pullMessageProcessor);
         this.nettyServer.registerProcessor(CommandCode.ACK_REQUEST, ackMessageProcessor);
+        this.nettyServer.registerProcessor(CommandCode.CONSUME_MANAGE, consumerManageProcessor);
         this.nettyServer.start();
     }
 

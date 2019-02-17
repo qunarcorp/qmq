@@ -26,8 +26,8 @@ import java.util.HashMap;
  * @author keli.wang
  * @since 2018-12-05
  */
-@Command(name = "UnMarkReadonly", mixinStandardHelpOptions = true, sortOptions = false)
-public class UnMarkBrokerReadonlyCommand implements Runnable {
+@Command(name = "ResetOffset", mixinStandardHelpOptions = true, sortOptions = false)
+public class ResetOffsetCommand implements Runnable {
     private final MetaManagementService service;
 
     @Option(names = {"--metaserver"}, required = true, description = {"meta server address, format: <host> or <host>:<port>"})
@@ -36,23 +36,26 @@ public class UnMarkBrokerReadonlyCommand implements Runnable {
     @Option(names = {"--token"}, required = true)
     private String apiToken;
 
-    @Option(names = {"--brokerGroup"}, required = true)
-    private String brokerGroup;
-
-    @Option(names = {"--subject"}, required = false, defaultValue = "*")
+    @Option(names = {"--subject"}, required = true)
     private String subject;
 
+    @Option(names = {"--group"}, required = true)
+    private String group;
 
-    public UnMarkBrokerReadonlyCommand(final MetaManagementService service) {
+    @Option(names = {"--action"}, required = true, defaultValue = "LATEST=1, EARLIEST=2")
+    private int action;
+
+    public ResetOffsetCommand(final MetaManagementService service) {
         this.service = service;
     }
 
     @Override
     public void run() {
         final HashMap<String, String> params = new HashMap<>();
-        params.put("action", "UnMarkReadonlyBrokerGroup");
+        params.put("action", "ResetOffset");
         params.put("subject", subject);
-        params.put("brokerGroup", brokerGroup);
+        params.put("group", group);
+        params.put("code", Integer.toString(action));
 
         System.out.println(service.post(metaserver, apiToken, params));
     }

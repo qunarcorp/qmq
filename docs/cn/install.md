@@ -68,7 +68,7 @@ min.group.num=2
 *valid-api-tokens.properties*
 ```
 # metaserver的管理工具token列表，用于控制权限。下面的tools.sh工具使用时需要该token
-# 每行一个token
+# 每行一个token，等号左边是token，在命令中使用；等号右边是描述，只起提示作用，无实际用途
 <token 1>=<token 1 desc>
 <token 2>=<token 2 desc>
 ```
