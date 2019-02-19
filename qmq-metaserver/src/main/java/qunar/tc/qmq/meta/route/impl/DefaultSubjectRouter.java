@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.meta.BrokerGroup;
+import qunar.tc.qmq.meta.BrokerState;
 import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 import qunar.tc.qmq.meta.loadbalance.LoadBalance;
 import qunar.tc.qmq.meta.loadbalance.RandomLoadBalance;
@@ -69,6 +70,22 @@ public class DefaultSubjectRouter implements SubjectRouter {
     }
 
     private List<BrokerGroup> doRoute(String subject, int clientTypeCode) {
+        SubjectInfo subjectInfo = getOrCreateSubjectInfo(subject);
+
+        //query assigned brokers
+        final List<String> assignedBrokers = cachedMetaInfoManager.getGroups(subject);
+
+        List<String> newAssignedBrokers;
+        if (assignedBrokers == null || assignedBrokers.size() == 0) {
+            newAssignedBrokers = assignNewBrokers(subjectInfo, clientTypeCode);
+        } else {
+            newAssignedBrokers = reAssignBrokers(subjectInfo, assignedBrokers, clientTypeCode);
+        }
+
+        return selectExistedBrokerGroups(newAssignedBrokers);
+    }
+
+    private SubjectInfo getOrCreateSubjectInfo(String subject) {
         SubjectInfo subjectInfo = cachedMetaInfoManager.getSubjectInfo(subject);
         if (subjectInfo == null) {
             // just add monitor event, will use broker_groups with default tag
@@ -76,18 +93,7 @@ public class DefaultSubjectRouter implements SubjectRouter {
             subjectInfo = new SubjectInfo();
             subjectInfo.setName(subject);
         }
-
-        //query assigned brokers
-        final List<String> cachedGroupNames = cachedMetaInfoManager.getGroups(subject);
-
-        List<String> routeBrokerGroupNames;
-        if (cachedGroupNames == null || cachedGroupNames.size() == 0) {
-            routeBrokerGroupNames = assignNewBrokers(subjectInfo, clientTypeCode);
-        } else {
-            routeBrokerGroupNames = reQueryAssignedBrokers(subjectInfo, cachedGroupNames, clientTypeCode);
-        }
-
-        return selectExistedBrokerGroups(routeBrokerGroupNames);
+        return subjectInfo;
     }
 
     private List<String> assignNewBrokers(SubjectInfo subjectInfo, int clientTypeCode) {
@@ -96,7 +102,7 @@ public class DefaultSubjectRouter implements SubjectRouter {
         }
 
         String subject = subjectInfo.getName();
-        final List<String> brokerGroupNames = findBrokerGroupNamesFromCache(subjectInfo.getTag());
+        final List<String> brokerGroupNames = findAvailableBrokerGroupNames(subjectInfo.getTag());
         final List<String> loadBalanceSelect = loadBalance.select(subject, brokerGroupNames, minGroupNum);
         final int affected = store.insertSubjectRoute(subject, MIN_SUBJECT_ROUTE_VERSION, loadBalanceSelect);
         if (affected == 1) {
@@ -106,13 +112,13 @@ public class DefaultSubjectRouter implements SubjectRouter {
         return findOrUpdateInStore(subjectInfo);
     }
 
-    private List<String> reQueryAssignedBrokers(SubjectInfo subjectInfo, List<String> cachedGroupNames, int clientTypeCode) {
+    private List<String> reAssignBrokers(SubjectInfo subjectInfo, List<String> assignedBrokers, int clientTypeCode) {
         if (clientTypeCode == ClientType.CONSUMER.getCode()) {
-            return cachedGroupNames;
+            return assignedBrokers;
         }
 
-        if (cachedGroupNames.size() >= minGroupNum) {
-            return cachedGroupNames;
+        if (assignedBrokers.size() >= minGroupNum) {
+            return assignedBrokers;
         }
 
         return findOrUpdateInStore(subjectInfo);
@@ -124,25 +130,34 @@ public class DefaultSubjectRouter implements SubjectRouter {
         int tries = 0;
 
         while (tries++ < MAX_UPDATE_RETRY_TIMES) {
-            final SubjectRoute subjectRoute = findSubjectRouteInStore(subject);
-            final List<String> oldBrokerGroupNames = subjectRoute.getBrokerGroups();
-            if (oldBrokerGroupNames.size() >= minGroupNum) {
-                return oldBrokerGroupNames;
-            }
+            final SubjectRoute subjectRoute = loadSubjectRoute(subject);
+            List<String> assignedBrokers = subjectRoute.getBrokerGroups();
+            if (assignedBrokers == null) assignedBrokers = new ArrayList<>();
 
-            final List<String> brokerGroupNames = findBrokerGroupNamesFromCache(subjectInfo.getTag());
-            if (brokerGroupNames.size() < minGroupNum) {
-                return oldBrokerGroupNames;
-            }
+            if (assignedBrokers.size() >= minGroupNum) return assignedBrokers;
 
-            final List<String> select = loadBalance.select(subject, brokerGroupNames, minGroupNum);
-            final List<String> merge = merge(oldBrokerGroupNames, select);
+            final List<String> brokerGroupNames = findAvailableBrokerGroupNames(subjectInfo.getTag());
+            final List<String> idleBrokers = removeAssignedBrokers(brokerGroupNames, assignedBrokers);
+            if (idleBrokers.isEmpty()) return assignedBrokers;
+
+            final List<String> newAssigned = loadBalance.select(subject, idleBrokers, minGroupNum - assignedBrokers.size());
+            final List<String> merge = merge(assignedBrokers, newAssigned);
             final int affected = store.updateSubjectRoute(subject, subjectRoute.getVersion(), merge);
             if (affected == 1) {
-                return select;
+                return merge;
             }
         }
         throw new RuntimeException("find same room subject route error");
+    }
+
+    private List<String> removeAssignedBrokers(List<String> brokerGroupNames, List<String> assignedBrokers) {
+        List<String> result = new ArrayList<>();
+        for (String name : brokerGroupNames) {
+            if (assignedBrokers.contains(name)) continue;
+
+            result.add(name);
+        }
+        return result;
     }
 
     private List<String> merge(List<String> oldBrokerGroupNames, List<String> select) {
@@ -152,11 +167,11 @@ public class DefaultSubjectRouter implements SubjectRouter {
         return new ArrayList<>(merge);
     }
 
-    private SubjectRoute findSubjectRouteInStore(String subject) {
+    private SubjectRoute loadSubjectRoute(String subject) {
         return store.selectSubjectRoute(subject);
     }
 
-    private List<String> findBrokerGroupNamesFromCache(String tag) {
+    private List<String> findAvailableBrokerGroupNames(String tag) {
         List<String> brokerGroupNames = cachedMetaInfoManager.getAllBrokerGroupNamesByTag(tag);
         if (brokerGroupNames == null || brokerGroupNames.isEmpty()) {
             brokerGroupNames = cachedMetaInfoManager.getAllDefaultTagBrokerGroupNames();
@@ -165,20 +180,27 @@ public class DefaultSubjectRouter implements SubjectRouter {
         if (brokerGroupNames == null || brokerGroupNames.isEmpty()) {
             throw new RuntimeException("no broker groups");
         }
-        return brokerGroupNames;
+
+        List<String> result = new ArrayList<>();
+        for (String name : brokerGroupNames) {
+            BrokerGroup brokerGroup = cachedMetaInfoManager.getBrokerGroup(name);
+            if (brokerGroup == null || brokerGroup.getBrokerState() == BrokerState.NRW) continue;
+            result.add(name);
+        }
+        return result;
     }
 
-    private List<BrokerGroup> selectExistedBrokerGroups(final List<String> cachedGroupNames) {
-        if (cachedGroupNames == null || cachedGroupNames.isEmpty()) {
+    private List<BrokerGroup> selectExistedBrokerGroups(final List<String> brokerGroupNames) {
+        if (brokerGroupNames == null || brokerGroupNames.isEmpty()) {
             return Collections.emptyList();
         }
-        final List<BrokerGroup> cachedBrokerGroups = new ArrayList<>();
-        for (String groupName : cachedGroupNames) {
-            final BrokerGroup brokerGroup = cachedMetaInfoManager.getBrokerGroup(groupName);
+        final List<BrokerGroup> result = new ArrayList<>();
+        for (String name : brokerGroupNames) {
+            final BrokerGroup brokerGroup = cachedMetaInfoManager.getBrokerGroup(name);
             if (brokerGroup != null) {
-                cachedBrokerGroups.add(brokerGroup);
+                result.add(brokerGroup);
             }
         }
-        return cachedBrokerGroups;
+        return result;
     }
 }
