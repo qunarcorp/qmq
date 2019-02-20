@@ -100,16 +100,16 @@ class MetaInfoClientNettyImpl extends AbstractNettyClient implements MetaInfoCli
             final Datagram datagram = RemotingBuilder.buildRequestDatagram(CommandCode.CLIENT_REGISTER, new MetaInfoRequestPayloadHolder(request));
             channel.writeAndFlush(datagram).addListener(new ChannelFutureListener() {
                 @Override
-                public void operationComplete(ChannelFuture future) throws Exception {
+                public void operationComplete(ChannelFuture future) {
                     if (future.isSuccess()) {
-                        LOGGER.debug("MetaInfoClientNettyImpl", "request meta info send success. {}", request);
+                        LOGGER.debug("request meta info send success. {}", request);
                     } else {
-                        LOGGER.debug("MetaInfoClientNettyImpl", "request meta info send fail. {}", request);
+                        LOGGER.debug("request meta info send fail. {}", request);
                     }
                 }
             });
         } catch (Exception e) {
-            LOGGER.debug("MetaInfoClientNettyImpl", "request meta info exception. {}", request, e);
+            LOGGER.debug("request meta info exception. {}", request, e);
         }
     }
 

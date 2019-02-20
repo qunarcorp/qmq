@@ -102,7 +102,7 @@ public class NettyConnectManageHandler extends ChannelDuplexHandler {
 
             if (needCreateChannel) {
                 ChannelFuture cf = bootstrap.connect(RemoteHelper.string2SocketAddress(remoteAddr));
-                LOGGER.debug("NettyConnectManageHandler", "begin to connect remote host: {}", remoteAddr);
+                LOGGER.debug("begin to connect remote host: {}", remoteAddr);
                 cw = new ChannelWrapper(cf);
                 channelTables.put(remoteAddr, cw);
             }
@@ -116,7 +116,7 @@ public class NettyConnectManageHandler extends ChannelDuplexHandler {
             ChannelFuture cf = cw.getChannelFuture();
             if (cf.awaitUninterruptibly(connectTimeout)) {
                 if (cw.isOK()) {
-                    LOGGER.debug("NettyConnectManageHandler", "connect remote host success: {}", remoteAddr);
+                    LOGGER.debug("connect remote host success: {}", remoteAddr);
                     return cw.getChannel();
                 } else {
                     if (connectFailLogLimit.tryAcquire()) {
@@ -136,14 +136,14 @@ public class NettyConnectManageHandler extends ChannelDuplexHandler {
     public void connect(ChannelHandlerContext ctx, SocketAddress remoteAddress, SocketAddress localAddress, ChannelPromise promise) throws Exception {
         final String local = localAddress == null ? "UNKNOWN" : RemoteHelper.parseSocketAddressAddress(localAddress);
         final String remote = remoteAddress == null ? "UNKNOWN" : RemoteHelper.parseSocketAddressAddress(remoteAddress);
-        LOGGER.debug("NettyConnectManageHandler", "NETTY CLIENT PIPELINE: CONNECT {} => {}", local, remote);
+        LOGGER.debug("NETTY CLIENT PIPELINE: CONNECT {} => {}", local, remote);
         super.connect(ctx, remoteAddress, localAddress, promise);
     }
 
     @Override
     public void disconnect(ChannelHandlerContext ctx, ChannelPromise promise) throws Exception {
         final String remoteAddress = RemoteHelper.parseChannelRemoteAddress(ctx.channel());
-        LOGGER.debug("NettyConnectManageHandler", "NETTY CLIENT PIPELINE: DISCONNECT {}", remoteAddress);
+        LOGGER.debug("NETTY CLIENT PIPELINE: DISCONNECT {}", remoteAddress);
         closeChannel(ctx.channel());
         super.disconnect(ctx, promise);
     }
@@ -151,7 +151,7 @@ public class NettyConnectManageHandler extends ChannelDuplexHandler {
     @Override
     public void close(ChannelHandlerContext ctx, ChannelPromise promise) throws Exception {
         final String remoteAddress = RemoteHelper.parseChannelRemoteAddress(ctx.channel());
-        LOGGER.debug("NettyConnectManageHandler", "NETTY CLIENT PIPELINE: CLOSE {}", remoteAddress);
+        LOGGER.debug("NETTY CLIENT PIPELINE: CLOSE {}", remoteAddress);
         closeChannel(ctx.channel());
         super.close(ctx, promise);
     }
@@ -194,7 +194,7 @@ public class NettyConnectManageHandler extends ChannelDuplexHandler {
                 }
             }
             if (oldCw == null) {
-                LOGGER.debug("NettyConnectManageHandler", "close channel but not found in channelTable");
+                LOGGER.debug("close channel but not found in channelTable");
                 return;
             }
 
