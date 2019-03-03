@@ -18,6 +18,7 @@ package qunar.tc.qmq.consumer.annotation;
 
 import qunar.tc.qmq.*;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
 
@@ -43,6 +44,12 @@ class GeneratedListener implements MessageListener, FilterAttachable, Idempotent
     public void onMessage(Message msg) {
         try {
             this.method.invoke(bean, msg);
+        } catch (InvocationTargetException e) {
+            Throwable innerException = e.getTargetException();
+            if (innerException instanceof NeedRetryException) {
+                throw (NeedRetryException) innerException;
+            }
+            throw new RuntimeException("processor message error", innerException);
         } catch (Exception e) {
             throw new RuntimeException("processor message error", e);
         }
