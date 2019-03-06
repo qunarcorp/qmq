@@ -23,8 +23,6 @@ import java.util.Set;
  * @author yiqun.fan create on 17-11-2.
  */
 public class SubscribeParam {
-    public static final SubscribeParam DEFAULT = new SubscribeParam(false, false, TagType.NO_TAG, Collections.<String>emptySet());
-
     private final boolean consumeMostOnce;
     private final TagType tagType;
     private boolean isBroadcast;
@@ -61,7 +59,7 @@ public class SubscribeParam {
         private boolean consumeMostOnce = false;
         private Set<String> tags = Collections.emptySet();
         private TagType tagType = TagType.NO_TAG;
-        private boolean isBroadcast;
+        private boolean isBroadcast = false;
 
         public SubscribeParam create() {
             return new SubscribeParam(consumeMostOnce, isBroadcast, tagType, tags);

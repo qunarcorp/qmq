@@ -86,7 +86,7 @@ public class MessageConsumerProvider implements MessageConsumer {
 
     @Override
     public ListenerHolder addListener(String subject, String consumerGroup, MessageListener listener, Executor executor) {
-        return addListener(subject, consumerGroup, listener, executor, SubscribeParam.DEFAULT);
+        return addListener(subject, consumerGroup, listener, executor, new SubscribeParam.SubscribeParamBuilder().create());
     }
 
     @Override
