@@ -4,6 +4,24 @@
 
 # 安装
 
+
+目前根据反馈，对QMQ的安装有几个疑问，下面做一下解答：
+
+## 安装失败情况
+* 未按照安装文档进行，没有手动执行AddBroker命令注册
+* 执行了AddBroker命令，但是提供了错误的参数
+    
+    * 错误的hostname 首先请在broker机器上执行hostname命令，找到你的机器名，如果使用该hostname仍然失败，则可以观察metaserver的日志，应该会出现 broker request BROKER_ACQUIRE_META:hostname/port 这样的日志，则这里的hostname即程序里获取你的真实的hostname，如果和hostname命令获取的不同，可能是/etc/hosts文件里进行配置。这个时候要么调整/etc/hosts文件，要么将AddBroker里的hostname调整为metaserver日志里的hostname
+    * 端口号错误 AddBroker命令里的servePort对应配置里的roker.port，syncPort对应配置文件里的sync.port
+    * brokerGroup错误 brokerGroup是每一组的名字，一主一从为一组，不同组的名称不能重复
+    * ip地址错误 如果metaserver和broker部署在同一台机器上，不要使用127.0.0.1 这样的ip地址
+
+## 手工注册过程麻烦
+很多人反应QMQ初次使用时手工注册太麻烦，为什么不能自动进行。这里做一下说明：
+```
+qmq的生产推荐配置是一主一从成为一个group，每个group需要配置一个group name(全局唯一)，所以运维时我们需要提供：group name和主从关系。当然这些也可以放在配置文件里然后server启动后自动向metaserver注册，但是我们生产上一般不会只启动一台server，如果要启动多台server的时候每台server的配置文件里都要提供这些信息，导致每台server的配置文件都不相同。不同server配置不同并不利于自动化部署，qmq的手动注册过程相当于将这些不同的配置外置，这样所有server的配置文件都是一样的了。这主要是从运维qmq集群来考虑的。
+```
+
 ## 下载
 我们推荐你直接下载编译好的文件来运行应用。在github上可以[下载](https://github.com/qunarcorp/qmq/releases)
 
