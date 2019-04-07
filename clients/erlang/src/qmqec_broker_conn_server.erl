@@ -26,8 +26,15 @@
                                            %%   1. 检查是不是很久没发request了,如果是,就关闭连接
                                            %%   2. 重置id_acc
                , request_id_counter = 0    %% request_id的计数器
-               , last_timme
+               , last_time
                }).
+% {ReqId, ReqHeader, ReqArg, Action, _Time}
+-record(request, { request_id
+                 , header
+                 , arg
+                 , action
+                 , time
+                 }).
 
 -include("qmqec.hrl").
 
@@ -59,7 +66,7 @@ init({ Broker = #broker{ server_ip   = Ip
                                   , {packet, 4}
                                   ]
                                 ),
-    RequestTab = ets:new(request_tab, [set]),
+    RequestTab = ets:new(request_tab, [set, private, {keypos, 2}]),
     %% local ip
     LocalIp = qmqec_utils:local_ip_bin(),
     %% pid
@@ -75,7 +82,7 @@ init({ Broker = #broker{ server_ip   = Ip
                , local_ip     = LocalIp
                , process_id   = ProcId
                , tref         = TRef
-               , last_timme   = qmqec_utils:timestamp()
+               , last_time   = qmqec_utils:timestamp()
                }}.
 
 
@@ -95,6 +102,10 @@ handle_call( { publish
                            }
            ) ->
     %% check message
+
+    %% 需要考虑到请求的数据如果服务一直不相应,会造成客户端内存泄漏的问题,
+    %% 所以需要给每个请求加上时间戳属性, 定时扫描超时时使用.
+    CreateTime = qmqec_utils:timestamp(),
     Fun =
         fun( Msg, {MsgList, IdAcc} ) ->
             Default = #producer_message{ begin_ts = qmqec_utils:timestamp()
@@ -103,7 +114,6 @@ handle_call( { publish
                                        },
             %% 根据余昭辉的要求, 需要在每个msg的kv_list中加入qmq_appCode和
             %% qmq_createTIme这两个k来兼容历史问题.
-            CreateTime = qmqec_utils:timestamp(),
             NewMsgKVList = [ {<<"qmq_appCode">>, AppCode}
                            , {<<"qmq_createTIme">>, integer_to_binary(CreateTime)}
                            | Msg#producer_message.kv_list
@@ -120,10 +130,16 @@ handle_call( { publish
                     },
     SendData = qmqec_protocol:build_producer_request(Header, NewMessageList),
     ok = gen_tcp:send(Sock, SendData),
-    ets:insert(RequestTab, {RequestId, Header, NewMessageList, {reply, _From}}),
+    ets:insert(RequestTab, #request{ request_id = RequestId
+                                   , header     = Header
+                                   , arg        = NewMessageList
+                                   , action     = {reply, _From}
+                                   , time       = CreateTime
+                                   }),
+    % ets:insert(RequestTab, {RequestId, Header, NewMessageList, {reply, _From}, CreateTime}),
     {noreply, State#state{ id_acc             = NewId
                          , request_id_counter = RequestId + 1
-                         , last_timme         = qmqec_utils:timestamp()
+                         , last_time         = qmqec_utils:timestamp()
                          }}.
 
 handle_cast(_Msg, State) ->
@@ -138,8 +154,22 @@ handle_info( {tcp, Sock, Data}
     {ok, Header, Body} = qmqec_protocol:parse_data(Data),
     handle_resp({Header, Body}, State);
 
-handle_info(tick, State = #state{ last_timme = Last }) ->
+handle_info(tick, State = #state{ request_tab = Tab
+                                , last_time = Last 
+                                }) ->
     Now = qmqec_utils:timestamp(),
+    %% 检查是否有超时请求需要清理
+    N = ets:info(Tab, size),
+    case N of
+        N when N > 1000 ->
+            %% 因为绝大部份情况,请求都会有响应, 所以没有必要每次都扫描请求超时,
+            %% 拍了一个数, 当积压的请求上下文超过1000时, 才进行扫描
+            %% 删除10秒之前的请求
+            delete_timeout(Tab, Now - 10000);
+        _ ->
+            pass
+    end,
+    %% 检查是否长时间空闲
     case (Now - Last) of
         N when N >= 180000 ->
             %% 暂时设置3分钟为超时, 如果3分钟内没有任何操作, 就主动关闭连接
@@ -220,7 +250,13 @@ handle_resp( { RespHeader = #header{ code       = _RespCode
         [] ->
             %% 查不到对应的request, 也不知道能干什么, 忽略吧
             pass;
-        [{ReqId, ReqHeader, ReqArg, Action}] ->
+        [ #request{ request_id = _RequestId
+                  , header     = ReqHeader
+                  , arg        = ReqArg
+                  , action     = Action
+                  , time       = _CreateTime
+                  } ] ->
+        % [{ReqId, ReqHeader, ReqArg, Action, _Time}] ->
             ets:delete(ReqTab, ReqId),
             handle_resp_body(ReqHeader, ReqArg, RespHeader, Body, Action)
     end,
@@ -278,3 +314,16 @@ handle_resp_body( #header{ code = send_message}
           } || ReqMsg = #producer_message{id = ReqMsgId} <- ReqMsgList
         ],
     gen_server:reply(From, {ok, FailedMsgList}).
+
+
+delete_timeout(Tab, Timeout) ->
+    ets:select_delete(
+        Tab,
+        [{ #request{ time = '$1'
+                   , _ = '_'
+                   }
+         , [{'<', '$1', Timeout}]
+         , [true]
+        }]
+    ).
+    

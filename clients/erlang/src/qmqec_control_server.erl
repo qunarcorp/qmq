@@ -69,7 +69,8 @@ init({MetaHttpUrl, Options}) ->
     Option = deal_options(Options, #option{}),
     Me = self(),
     BrokerListTab = ets:new( broker_list_tab, [ set, public ] ),
-    BrokerConnTab = ets:new( broker_conn_tab, [ set, public ] ),
+    %% BrokerConnTab由于存在并发lookup的操作, 所以设置可以并发读取
+    BrokerConnTab = ets:new( broker_conn_tab, [ set, public, {read_concurrency, true} ] ),
     {ok, MetaHttpPid} = qmqec_meta_http_server:start_link(MetaHttpUrl, Me),
     {ok, {MetaTcpIp, MetaTcpPort}} = qmqec_meta_http_server:get_addr(MetaHttpPid),
     {ok, MetaTcpPid} = qmqec_meta_tcp_server:start(MetaTcpIp, MetaTcpPort, Me, BrokerListTab),
