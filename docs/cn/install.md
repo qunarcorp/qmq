@@ -15,6 +15,7 @@
     * 端口号错误 AddBroker命令里的servePort对应配置里的roker.port，syncPort对应配置文件里的sync.port
     * brokerGroup错误 brokerGroup是每一组的名字，一主一从为一组，不同组的名称不能重复
     * ip地址错误 如果metaserver和broker部署在同一台机器上，不要使用127.0.0.1 这样的ip地址
+    * 配置错了metaserver的地址，外部配置里使用的metaserver的地址都是指metaserver管理端口地址，管理端口默认为8080
 
 ## 手工注册过程麻烦
 很多人反应QMQ初次使用时手工注册太麻烦，为什么不能自动进行。这里做一下说明：
