@@ -12,8 +12,8 @@
 * 执行了AddBroker命令，但是提供了错误的参数
     
     * 错误的hostname 首先请在broker机器上执行hostname命令，找到你的机器名，如果使用该hostname仍然失败，则可以观察metaserver的日志，应该会出现 broker request BROKER_ACQUIRE_META:hostname/port 这样的日志，则这里的hostname即程序里获取你的真实的hostname，如果和hostname命令获取的不同，可能是/etc/hosts文件里进行配置。这个时候要么调整/etc/hosts文件，要么将AddBroker里的hostname调整为metaserver日志里的hostname
-    * 端口号错误 AddBroker命令里的servePort对应配置里的roker.port，syncPort对应配置文件里的sync.port
-    * brokerGroup错误 brokerGroup是每一组的名字，一主一从为一组，不同组的名称不能重复
+    * 端口号错误 AddBroker命令里的servePort对应配置里的broker.port，syncPort对应配置文件里的sync.port
+    * brokerGroup错误 brokerGroup是每一组的名字，一主一从为一组，不同组的名称不能重复，delay与broker的brokerGroup也不能重复
     * ip地址错误 如果metaserver和broker部署在同一台机器上，不要使用127.0.0.1 这样的ip地址
     * 配置错了metaserver的地址，外部配置里使用的metaserver的地址都是指metaserver管理端口地址，管理端口默认为8080
 
