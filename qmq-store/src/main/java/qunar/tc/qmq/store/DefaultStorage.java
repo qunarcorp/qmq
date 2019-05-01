@@ -288,6 +288,7 @@ public class DefaultStorage implements Storage {
         return actionLog.getMaxOffset();
     }
 
+    @Override
     public long getMinActionLogOffset() {
         return actionLog.getMinOffset();
     }
