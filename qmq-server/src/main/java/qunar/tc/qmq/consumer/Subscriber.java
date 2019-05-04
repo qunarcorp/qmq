@@ -30,7 +30,7 @@ class Subscriber {
     private static final long OFFLINE_LEASE_MILLIS = TimeUnit.MINUTES.toMillis(3);
 
     //2天都没有心跳则认为该consumer永久离线
-    private static final long FOREVER_LEASE_MILLIS = TimeUnit.MINUTES.toMillis(10);
+    private static final long FOREVER_LEASE_MILLIS = TimeUnit.DAYS.toMillis(2);
 
     private final SubscriberStatusChecker checker;
     private final String name;
