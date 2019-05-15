@@ -202,7 +202,7 @@ $ broker.sh start
 ```
 ### Windows
 ```
-> metaserver.cmd
+> broker.cmd
 ```
 ## 停止
 ### Linux
