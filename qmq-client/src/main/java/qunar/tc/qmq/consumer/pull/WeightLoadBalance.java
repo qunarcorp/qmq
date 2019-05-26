@@ -32,6 +32,8 @@ class WeightLoadBalance {
 
     private static final int MIN_WEIGHT = 5;
 
+    private static final int MIDDLE_WEIGHT = 25;
+
     private static final int MAX_WEIGHT = 150;
 
     private static final int DEFAULT_WEIGHT = 100;
@@ -91,7 +93,7 @@ class WeightLoadBalance {
 
     void fetchedMessages(BrokerGroupInfo group) {
         int current = currentWeight(group);
-        if (current > MIN_WEIGHT) {
+        if (current > MIDDLE_WEIGHT) {
             update(group, 0.75, DEFAULT_WEIGHT);
         } else {
             update(group, 1.25, DEFAULT_WEIGHT);
