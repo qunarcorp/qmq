@@ -48,7 +48,7 @@ class ConsumeParam {
     public ConsumeParam(String subject, String group, boolean isBroadcast, boolean isConsumeMostOnce, TagType tagType, Set<String> tags, String clientId) {
         this.subject = subject;
         this.group = group;
-        this.originSubject = RetrySubjectUtils.isRetrySubject(subject) ? RetrySubjectUtils.getRealSubject(subject) : subject;
+        this.originSubject =  RetrySubjectUtils.getRealSubject(subject);
         this.retrySubject = RetrySubjectUtils.buildRetrySubject(originSubject, group);
         this.consumerId = clientId;
         this.isBroadcast = isBroadcast;

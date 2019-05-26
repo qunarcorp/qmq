@@ -27,6 +27,7 @@ import qunar.tc.qmq.common.SwitchWaiter;
 import qunar.tc.qmq.config.PullSubjectsConfig;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.QmqCounter;
+import qunar.tc.qmq.utils.RetrySubjectUtils;
 
 import java.util.HashSet;
 import java.util.List;
@@ -89,9 +90,10 @@ class PullEntry extends AbstractPullEntry implements Runnable {
         String subject = pushConsumer.subject();
         String group = pushConsumer.group();
         this.pushConsumer = pushConsumer;
-        this.pullBatchSize = PullSubjectsConfig.get().getPullBatchSize(subject);
-        this.pullTimeout = PullSubjectsConfig.get().getPullTimeout(subject);
-        this.ackNosendLimit = PullSubjectsConfig.get().getAckNosendLimit(subject);
+        String realSubject = RetrySubjectUtils.getRealSubject(subject);
+        this.pullBatchSize = PullSubjectsConfig.get().getPullBatchSize(realSubject);
+        this.pullTimeout = PullSubjectsConfig.get().getPullTimeout(realSubject);
+        this.ackNosendLimit = PullSubjectsConfig.get().getAckNosendLimit(realSubject);
         this.pullStrategy = pullStrategy;
 
         String[] values = new String[]{subject, group};

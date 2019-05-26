@@ -104,10 +104,10 @@ class AckSendQueue implements TimerTask {
         this.sendMessageBack = sendMessageBack;
         this.isBroadcast = isBroadcast;
 
-        String realSubject = RetrySubjectUtils.isRetrySubject(subject) ? RetrySubjectUtils.getRealSubject(subject) : subject;
+        String realSubject = RetrySubjectUtils.getRealSubject(subject);
         this.retrySubject = RetrySubjectUtils.buildRetrySubject(realSubject, group);
         this.deadRetrySubject = RetrySubjectUtils.buildDeadRetrySubject(realSubject, group);
-        this.pullBatchSize = PullSubjectsConfig.get().getPullBatchSize(subject);
+        this.pullBatchSize = PullSubjectsConfig.get().getPullBatchSize(realSubject);
     }
 
     void append(final List<AckEntry> batch) {
