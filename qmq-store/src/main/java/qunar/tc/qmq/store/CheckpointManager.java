@@ -571,6 +571,27 @@ public class CheckpointManager implements AutoCloseable {
         syncActionCheckpointStore.saveSnapshot(new Snapshot<>(actionCheckpoint, actionCheckpoint));
     }
 
+    Snapshot<IndexCheckpoint> createIndexCheckpoint() {
+        IndexCheckpoint indexCheckpoint = duplicateIndexCheckpoint();
+        return new Snapshot<>(indexCheckpoint.getMsgOffset(), indexCheckpoint);
+    }
+
+    private IndexCheckpoint duplicateIndexCheckpoint() {
+        indexCheckpointGuard.lock();
+        try {
+            return new IndexCheckpoint(indexCheckpoint.getMsgOffset(), indexCheckpoint.getIndexOffset());
+        } finally {
+            indexCheckpointGuard.unlock();
+        }
+    }
+
+    void saveIndexCheckpointSnapshot(final Snapshot<IndexCheckpoint> snapshot) {
+        if (snapshot.getVersion() < 0) {
+            return;
+        }
+        indexCheckpointStore.saveSnapshot(snapshot);
+    }
+
     private static class LongSerde implements Serde<Long> {
 
         @Override

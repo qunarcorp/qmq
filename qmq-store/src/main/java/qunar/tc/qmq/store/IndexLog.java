@@ -3,9 +3,11 @@ package qunar.tc.qmq.store;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.util.ReferenceCountUtil;
+import qunar.tc.qmq.metrics.Metrics;
 
 import java.io.File;
 import java.nio.ByteBuffer;
+import java.util.concurrent.TimeUnit;
 
 import static qunar.tc.qmq.store.AppendMessageStatus.END_OF_FILE;
 import static qunar.tc.qmq.store.AppendMessageStatus.SUCCESS;
@@ -96,28 +98,26 @@ public class IndexLog implements AutoCloseable {
             }
             to.writeLong(src.getLong());
 
-            short len = src.getShort();
-            if (!to.isWritable(Short.BYTES + len)) {
-                src.reset();
-                to.resetWriterIndex();
-                break;
-            }
-            byte[] subject = new byte[len];
-            src.get(subject);
-            to.writeShort(len);
-            to.writeBytes(subject);
+            // subject
+            if (!writeString(src, to)) break;
 
-            len = src.getShort();
-            if (!to.isWritable(Short.BYTES + len)) {
-                src.reset();
-                to.resetWriterIndex();
-                break;
-            }
-            byte[] messageId = new byte[len];
-            src.get(messageId);
-            to.writeShort(len);
-            to.writeBytes(messageId);
+            // msgId
+            if (!writeString(src, to)) break;
         }
+    }
+
+    private boolean writeString(ByteBuffer src, ByteBuf to) {
+        short len = src.getShort();
+        if (!to.isWritable(Short.BYTES + len)) {
+            src.reset();
+            to.resetWriterIndex();
+            return false;
+        }
+        byte[] subject = new byte[len];
+        src.get(subject);
+        to.writeShort(len);
+        to.writeBytes(subject);
+        return true;
     }
 
     public IndexLogVisitor newVisitor(final long start) {
@@ -142,6 +142,17 @@ public class IndexLog implements AutoCloseable {
 
     public long minOffset() {
         return logManager.getMinOffset();
+    }
+
+    public void flush() {
+        long currentTime = System.currentTimeMillis();
+        final Snapshot<IndexCheckpoint> snapshot = checkpointManager.createIndexCheckpoint();
+        try {
+            logManager.flush();
+        } finally {
+            Metrics.timer("Store.IndexLog.FlushTimer").update(System.currentTimeMillis() - currentTime, TimeUnit.MILLISECONDS);
+        }
+        checkpointManager.saveIndexCheckpointSnapshot(snapshot);
     }
 
     @Override

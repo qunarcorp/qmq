@@ -2,8 +2,7 @@ package qunar.tc.qmq.backup.config;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.Map;
+import qunar.tc.qmq.configuration.DynamicConfig;
 
 public class DefaultBackupConfig implements BackupConfig {
     private static final Logger LOG = LoggerFactory.getLogger(DefaultBackupConfig.class);
@@ -59,5 +58,24 @@ public class DefaultBackupConfig implements BackupConfig {
     private volatile boolean uploadEnable;
     private volatile int maxDiscardReadBytesTimes;
 
-    private volatile Map<String, String> configProperties;
+    private final DynamicConfig config;
+
+    public DefaultBackupConfig(DynamicConfig config) {
+        this.config = config;
+    }
+
+    @Override
+    public String getBrokerGroup() {
+        return brokerGroup;
+    }
+
+    @Override
+    public void setBrokerGroup(String name) {
+        this.brokerGroup = name;
+    }
+
+    @Override
+    public DynamicConfig getDynamicConfig() {
+        return config;
+    }
 }

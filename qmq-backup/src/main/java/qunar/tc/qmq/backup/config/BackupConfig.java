@@ -1,5 +1,11 @@
 package qunar.tc.qmq.backup.config;
 
-public interface BackupConfig {
+import qunar.tc.qmq.configuration.DynamicConfig;
 
+public interface BackupConfig {
+    String getBrokerGroup();
+
+    void setBrokerGroup(String name);
+
+    DynamicConfig getDynamicConfig();
 }
