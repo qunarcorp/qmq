@@ -36,6 +36,10 @@ public class MessageLog implements AutoCloseable {
 
     private static final int PER_SEGMENT_FILE_SIZE = 1024 * 1024 * 1024;
 
+    static final byte ATTR_BLANK_RECORD = 2;
+    static final byte ATTR_EMPTY_RECORD = 1;
+    static final byte ATTR_MESSAGE_RECORD = 0;
+
     //4 bytes magic code + 1 byte attribute + 8 bytes timestamp
     public static final int MIN_RECORD_BYTES = 13;
 
@@ -177,6 +181,10 @@ public class MessageLog implements AutoCloseable {
         return new MessageLogMetaVisitor(logManager, iterateFrom);
     }
 
+    public MessageLogRecordVisitor newLogRecordVisitor(long iterateFrom) {
+        return new MessageLogRecordVisitor(logManager, iterateFrom);
+    }
+
     private static class MessageLogSegmentValidator implements LogSegmentValidator {
         @Override
         public ValidateResult validate(LogSegment segment) {
@@ -208,11 +216,11 @@ public class MessageLog implements AutoCloseable {
 
             final byte attributes = buffer.get();
             buffer.getLong();
-            if (attributes == 2) {
+            if (attributes == ATTR_BLANK_RECORD) {
                 return buffer.getInt();
-            } else if (attributes == 1) {
+            } else if (attributes == ATTR_EMPTY_RECORD) {
                 return 0;
-            } else if (attributes == 0) {
+            } else if (attributes == ATTR_MESSAGE_RECORD) {
                 buffer.getLong();
                 final short subjectSize = buffer.getShort();
                 buffer.position(buffer.position() + subjectSize);

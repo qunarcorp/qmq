@@ -418,6 +418,11 @@ public class DefaultStorage implements Storage {
         return actionLog.appendData(startOffset, data);
     }
 
+    @Override
+    public MessageLogRecordVisitor newMessageLogVisitor(long startOffset) {
+        return messageLog.newLogRecordVisitor(startOffset);
+    }
+
     private class BuildConsumerLogEventListener implements FixedExecOrderEventBus.Listener<MessageLogMeta> {
         private final ConsumerLogManager consumerLogManager;
         private final Map<String, Long> offsets;

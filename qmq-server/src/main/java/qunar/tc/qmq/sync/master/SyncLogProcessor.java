@@ -56,6 +56,7 @@ class SyncLogProcessor implements NettyRequestProcessor, Disposable {
         final ActionLogSyncWorker actionLogSyncWorker = new ActionLogSyncWorker(storage, config);
         final HeartbeatSyncWorker heartBeatSyncWorker = new HeartbeatSyncWorker(storage);
         processorMap.put(SyncType.message.getCode(), messageLogSyncWorker);
+        processorMap.put(SyncType.index.getCode(), new MessageIndexSyncWorker(storage, config));
         processorMap.put(SyncType.action.getCode(), actionLogSyncWorker);
         processorMap.put(SyncType.heartbeat.getCode(), heartBeatSyncWorker);
     }

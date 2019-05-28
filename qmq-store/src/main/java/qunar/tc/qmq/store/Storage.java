@@ -86,6 +86,8 @@ public interface Storage extends Disposable {
 
     boolean appendActionLogData(final long startOffset, final ByteBuffer data);
 
+    MessageLogRecordVisitor newMessageLogVisitor(final long startOffset);
+
     void disableLagMonitor(String subject, String group);
 
     Table<String, String, PullLog> allPullLogs();

@@ -29,8 +29,15 @@ import java.nio.ByteBuffer;
  * @since 2017/8/20
  */
 public class ActionLog {
-    public static final int PER_SEGMENT_FILE_SIZE = 100 * 1024 * 1024;
     private static final Logger LOG = LoggerFactory.getLogger(ActionLog.class);
+
+    public static final int PER_SEGMENT_FILE_SIZE = 100 * 1024 * 1024;
+    public static final int MIN_RECORD_BYTES = 5; // 4 bytes magic + 1 byte record type
+
+    public static final byte ATTR_BLANK_RECORD = 2;
+    public static final byte ATTR_EMPTY_RECORD = 1;
+    public static final byte ATTR_ACTION_RECORD = 0;
+
     private final StorageConfig config;
     private final LogManager logManager;
     private final MessageAppender<Action, MessageSequence> actionAppender = new ActionAppender();

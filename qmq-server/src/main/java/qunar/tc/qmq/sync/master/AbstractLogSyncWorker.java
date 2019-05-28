@@ -61,7 +61,7 @@ abstract class AbstractLogSyncWorker implements SyncProcessor {
     public void process(SyncRequestEntry entry) {
         final SyncRequest syncRequest = entry.getSyncRequest();
         final SegmentBuffer result = getSyncLog(syncRequest);
-        if (result == null || result.getSize() <= 0) {
+        if (result == null || (result.getSize() <= 0 && syncRequest.getSyncType() != SyncType.index.getCode())) {
             final long timeout = config.getLong("message.sync.timeout.ms", 10L);
             ServerTimerUtil.newTimeout(new SyncRequestTimeoutTask(entry, this), timeout, TimeUnit.MILLISECONDS);
             return;
@@ -75,8 +75,9 @@ abstract class AbstractLogSyncWorker implements SyncProcessor {
         final SyncRequest syncRequest = entry.getSyncRequest();
         final SegmentBuffer result = getSyncLog(syncRequest);
 
-        if (result == null || result.getSize() <= 0) {
-            long offset = syncRequest.getSyncType() == SyncType.message.getCode() ? syncRequest.getMessageLogOffset() : syncRequest.getActionLogOffset();
+        int syncType = syncRequest.getSyncType();
+        if (result == null || (result.getSize() <= 0 && syncType != SyncType.index.getCode())) {
+            long offset = syncType == SyncType.message.getCode() ? syncRequest.getMessageLogOffset() : syncRequest.getActionLogOffset();
             writeEmpty(entry, offset);
             return;
         }

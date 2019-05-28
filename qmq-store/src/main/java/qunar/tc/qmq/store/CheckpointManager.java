@@ -16,6 +16,7 @@
 
 package qunar.tc.qmq.store;
 
+import com.google.common.base.Charsets;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
 import io.netty.buffer.ByteBuf;
@@ -29,6 +30,7 @@ import qunar.tc.qmq.store.action.RangeAckAction;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -43,11 +45,18 @@ public class CheckpointManager implements AutoCloseable {
     private final ActionCheckpointSerde actionCheckpointSerde;
     private final SnapshotStore<MessageCheckpoint> messageCheckpointStore;
     private final SnapshotStore<ActionCheckpoint> actionCheckpointStore;
+    private final SnapshotStore<IndexCheckpoint> indexCheckpointStore;
+    private final SnapshotStore<Long> indexIterateCheckpointStore;
+    private final SnapshotStore<Long> syncActionCheckpointStore;
 
     private final Lock messageCheckpointGuard;
     private final Lock actionCheckpointGuard;
+    private final Lock indexCheckpointGuard;
     private final MessageCheckpoint messageCheckpoint;
     private final ActionCheckpoint actionCheckpoint;
+    private final IndexCheckpoint indexCheckpoint;
+    private final long indexIterateCheckpoint;
+    private final AtomicLong syncActionCheckpoint;
 
     CheckpointManager(final BrokerRole role, final StorageConfig config, final CheckpointLoader loader) {
         this.messageCheckpointSerde = new MessageCheckpointSerde();
@@ -55,12 +64,19 @@ public class CheckpointManager implements AutoCloseable {
 
         this.messageCheckpointStore = new SnapshotStore<>("message-checkpoint", config, messageCheckpointSerde);
         this.actionCheckpointStore = new SnapshotStore<>("action-checkpoint", config, actionCheckpointSerde);
+        this.indexCheckpointStore = new SnapshotStore<>("index-checkpoint", config, new IndexCheckpointSerde());
+        this.indexIterateCheckpointStore = new SnapshotStore<>("index-iterate-checkpoint", config, new LongSerde());
+        this.syncActionCheckpointStore = new SnapshotStore<>("sync-action-checkpoint", config, new LongSerde());
 
         this.messageCheckpointGuard = new ReentrantLock();
         this.actionCheckpointGuard = new ReentrantLock();
+        this.indexCheckpointGuard = new ReentrantLock();
 
         final MessageCheckpoint messageCheckpoint = loadMessageCheckpoint();
         final ActionCheckpoint actionCheckpoint = loadActionCheckpoint();
+        this.indexCheckpoint = loadIndexCheckpoint();
+        this.indexIterateCheckpoint = loadIndexIterateCheckpoint();
+        this.syncActionCheckpoint = new AtomicLong(loadSyncActionCheckpoint());
         if (needSyncCheckpoint(role, messageCheckpoint, actionCheckpoint)) {
             // TODO(keli.wang): must try to cleanup this messy...
             final ByteBuf buf = loader.loadCheckpoint();
@@ -106,6 +122,28 @@ public class CheckpointManager implements AutoCloseable {
             return checkpoint;
         }
     }
+
+    private IndexCheckpoint loadIndexCheckpoint() {
+        Snapshot<IndexCheckpoint> snapshot = indexCheckpointStore.latestSnapshot();
+        if (snapshot == null) {
+            LOG.info("no index checkpoint snapshot,return empty state.");
+            return new IndexCheckpoint(-1L, -1L);
+        }
+        return snapshot.getData();
+    }
+
+    private long loadIndexIterateCheckpoint() {
+        Snapshot<Long> snapshot = indexIterateCheckpointStore.latestSnapshot();
+        if (snapshot == null) return 0;
+        return snapshot.getData();
+    }
+
+    private long loadSyncActionCheckpoint() {
+        Snapshot<Long> snapshot = syncActionCheckpointStore.latestSnapshot();
+        if (snapshot == null) return 0;
+        return snapshot.getData();
+    }
+
 
     private boolean needSyncCheckpoint(final BrokerRole role, final MessageCheckpoint messageCheckpoint, final ActionCheckpoint actionCheckpoint) {
         if (role != BrokerRole.SLAVE) {
@@ -456,5 +494,97 @@ public class CheckpointManager implements AutoCloseable {
     public void close() {
         messageCheckpointStore.close();
         actionCheckpointStore.close();
+    }
+
+    long getIndexCheckpointIndexOffset() {
+        indexCheckpointGuard.lock();
+        try {
+            return indexCheckpoint.getIndexOffset();
+        } finally {
+            indexCheckpointGuard.unlock();
+        }
+    }
+
+    void updateMessageIndexCheckpoint(final long messageIndexOffset) {
+        indexCheckpointGuard.lock();
+        try {
+            if (messageIndexOffset <= indexCheckpoint.getMsgOffset()) return;
+            indexCheckpoint.setMsgOffset(messageIndexOffset);
+        } finally {
+            indexCheckpointGuard.unlock();
+        }
+    }
+
+    void updateIndexCheckpoint(final long msgOffset, final long indexOffset) {
+        indexCheckpointGuard.lock();
+        try {
+            if (msgOffset <= indexCheckpoint.getMsgOffset()) return;
+            indexCheckpoint.setMsgOffset(msgOffset);
+            indexCheckpoint.setIndexOffset(indexOffset);
+        } finally {
+            indexCheckpointGuard.unlock();
+        }
+    }
+
+    void updateIndexLogCheckpoint(final long indexOffset) {
+        indexCheckpointGuard.lock();
+        try {
+            indexCheckpoint.setIndexOffset(indexOffset);
+        } finally {
+            indexCheckpointGuard.unlock();
+        }
+    }
+
+    long getIndexCheckpointMessageOffset() {
+        indexCheckpointGuard.lock();
+        try {
+            return indexCheckpoint.getMsgOffset();
+        } finally {
+            indexCheckpointGuard.unlock();
+        }
+    }
+
+    public long getIndexIterateCheckpoint() {
+        return indexIterateCheckpoint;
+    }
+
+    public void saveIndexIterateCheckpointSnapshot(final Snapshot<Long> snapshot) {
+        if (snapshot.getVersion() <= 0) return;
+        indexIterateCheckpointStore.saveSnapshot(snapshot);
+    }
+
+    private static class LongSerde implements Serde<Long> {
+
+        @Override
+        public byte[] toBytes(Long value) {
+            return value.toString().getBytes();
+        }
+
+        @Override
+        public Long fromBytes(byte[] data) {
+            return Long.valueOf(new String(data));
+        }
+    }
+
+    private static class IndexCheckpointSerde implements Serde<IndexCheckpoint> {
+        private static final String SLASH = "/";
+
+        @Override
+        public byte[] toBytes(IndexCheckpoint value) {
+            return (String.valueOf(value.getMsgOffset()) + SLASH + value.getIndexOffset()).getBytes(Charsets.UTF_8);
+        }
+
+        @Override
+        public IndexCheckpoint fromBytes(byte[] data) {
+            try {
+                final String checkpoint = new String(data, Charsets.UTF_8);
+                int pos = checkpoint.indexOf(SLASH);
+                long smtOffset = Long.parseLong(checkpoint.substring(0, pos));
+                long indexOffset = Long.parseLong(checkpoint.substring(pos + 1));
+                return new IndexCheckpoint(smtOffset, indexOffset);
+            } catch (NumberFormatException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 }

@@ -30,6 +30,10 @@ public class AppendMessageResult<T> {
         this(status, 0, 0, null);
     }
 
+    public AppendMessageResult(AppendMessageStatus status, long wroteOffset) {
+        this(status, wroteOffset, 0, null);
+    }
+
     public AppendMessageResult(AppendMessageStatus status, long wroteOffset, int wroteBytes) {
         this(status, wroteOffset, wroteBytes, null);
     }
