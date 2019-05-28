@@ -121,7 +121,7 @@ public class MessageIndexSyncWorker extends AbstractLogSyncWorker {
         private final ByteBuf byteBuf;
 
         public ByteBufSegmentBuffer(long startOffset) {
-            super(startOffset, null, 0, null);
+            super(startOffset, null, -1, null);
             this.byteBuf = null;
         }
 

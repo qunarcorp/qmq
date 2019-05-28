@@ -107,16 +107,17 @@ abstract class AbstractLogSyncWorker implements SyncProcessor {
             final int batchSize = config.getInt("sync.batch.size", 100000);
             final ByteBuffer buffer = result.getBuffer();
             int size = result.getSize();
-            if (size > batchSize) {
+            int payloadSize = size < 0 ? 0 : size;
+            if (payloadSize > batchSize) {
                 buffer.limit(batchSize);
-                size = batchSize;
+                payloadSize = batchSize;
             }
             final RemotingHeader header = RemotingBuilder.buildResponseHeader(CommandCode.SUCCESS, entry.getRequestHeader());
-            ByteBuffer headerBuffer = HeaderSerializer.serialize(header, SYNC_HEADER_LEN + size, SYNC_HEADER_LEN);
-            headerBuffer.putInt(size);
+            ByteBuffer headerBuffer = HeaderSerializer.serialize(header, SYNC_HEADER_LEN + payloadSize, SYNC_HEADER_LEN);
+            headerBuffer.putInt(payloadSize == 0 ? size : payloadSize);
             headerBuffer.putLong(result.getStartOffset());
             headerBuffer.flip();
-            entry.getCtx().writeAndFlush(new DataTransfer(headerBuffer, result, size));
+            entry.getCtx().writeAndFlush(new DataTransfer(headerBuffer, result, payloadSize));
         } catch (Exception e) {
             result.release();
         }

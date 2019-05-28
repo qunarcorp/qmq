@@ -553,6 +553,24 @@ public class CheckpointManager implements AutoCloseable {
         indexIterateCheckpointStore.saveSnapshot(snapshot);
     }
 
+    public void setSyncActionLogOffset(long offset) {
+        this.syncActionCheckpoint.set(offset);
+    }
+
+    public long getSyncActionLogOffset() {
+        return this.syncActionCheckpoint.longValue();
+    }
+
+    public void addSyncActionLogOffset(int delta) {
+        this.syncActionCheckpoint.getAndAdd(delta);
+    }
+
+    public void saveSyncActionCheckpointSnapshot() {
+        long actionCheckpoint = syncActionCheckpoint.longValue();
+        if (actionCheckpoint <= 0) return;
+        syncActionCheckpointStore.saveSnapshot(new Snapshot<>(actionCheckpoint, actionCheckpoint));
+    }
+
     private static class LongSerde implements Serde<Long> {
 
         @Override
@@ -571,7 +589,7 @@ public class CheckpointManager implements AutoCloseable {
 
         @Override
         public byte[] toBytes(IndexCheckpoint value) {
-            return (String.valueOf(value.getMsgOffset()) + SLASH + value.getIndexOffset()).getBytes(Charsets.UTF_8);
+            return (value.getMsgOffset() + SLASH + value.getIndexOffset()).getBytes(Charsets.UTF_8);
         }
 
         @Override
