@@ -87,7 +87,7 @@ public class ServerWrapper implements Disposable {
 
     private void register(final DynamicConfig config) {
         final KvStore.StoreFactory factory = new FactoryStoreImpl().createStoreFactory(config);
-        SlaveSyncClient slaveSyncClient = new SlaveSyncClient(config);
+        final SlaveSyncClient slaveSyncClient = new SlaveSyncClient(config);
         final MasterSlaveSyncManager masterSlaveSyncManager = new MasterSlaveSyncManager(slaveSyncClient);
 
         final File indexLogDir = new File(config.getString(INDEX_LOG_DIR_PATH_CONFIG_KEY));

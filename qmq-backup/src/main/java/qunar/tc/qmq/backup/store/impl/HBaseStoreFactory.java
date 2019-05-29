@@ -4,6 +4,7 @@ import org.hbase.async.Config;
 import org.hbase.async.HBaseClient;
 import qunar.tc.qmq.backup.store.KvStore;
 import qunar.tc.qmq.configuration.DynamicConfig;
+import qunar.tc.qmq.configuration.DynamicConfigLoader;
 import qunar.tc.qmq.utils.CharsetUtils;
 
 import java.util.Map;
@@ -28,7 +29,9 @@ public class HBaseStoreFactory implements KvStore.StoreFactory {
     private final String deadTable;
 
     HBaseStoreFactory(DynamicConfig config) {
-        final Config HBaseConfig = from(config);
+        final String hbaseConfigFile = config.getString(HBASE_CONFIG_FILE_CONFIG_KEY, DEFAULT_HBASE_CONFIG_FILE);
+        final DynamicConfig hbaseConfig = DynamicConfigLoader.load(hbaseConfigFile, true);
+        final Config HBaseConfig = from(hbaseConfig);
         this.client = new HBaseClient(HBaseConfig);
         this.client.setFlushInterval(CLIENT_FLUSH_INTERVAL);
         this.client.setIncrementBufferSize(CLIENT_BUFFER_SIZE);
