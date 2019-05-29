@@ -65,7 +65,7 @@ public class HBaseStoreFactory implements KvStore.StoreFactory {
     }
 
     @Override
-    public DeadMessageStore createDeadMessageStore() {
+    public MessageStore createDeadMessageStore() {
         byte[] table = CharsetUtils.toUTF8Bytes(deadTable);
         return new HBaseDeadMessageStore(table, B_FAMILY, B_MESSAGE_QUALIFIERS, client);
     }

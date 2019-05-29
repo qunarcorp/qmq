@@ -14,7 +14,7 @@ public interface KvStore extends AutoCloseable {
 
         RecordStore createRecordStore();
 
-        DeadMessageStore createDeadMessageStore();
+        MessageStore createDeadMessageStore();
     }
 
     interface FactoryStore {
