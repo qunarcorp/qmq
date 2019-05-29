@@ -8,6 +8,6 @@ import qunar.tc.qmq.backup.base.ResultIterable;
  * @author xufeng.deng dennisdxf@gmail.com
  * @since 2019/5/29
  */
-public interface DeadMessageStore extends KvStore {
-    ResultIterable<BackupMessage> findDeadMessages(BackupQuery query);
+public interface MessageStore extends KvStore {
+    ResultIterable<BackupMessage> findMessages(BackupQuery query);
 }

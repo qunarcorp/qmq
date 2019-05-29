@@ -2,9 +2,8 @@ package qunar.tc.qmq.backup.store.impl;
 
 import org.hbase.async.Config;
 import org.hbase.async.HBaseClient;
-import qunar.tc.qmq.backup.store.DeadMessageStore;
-import qunar.tc.qmq.backup.store.IndexStore;
 import qunar.tc.qmq.backup.store.KvStore;
+import qunar.tc.qmq.backup.store.MessageStore;
 import qunar.tc.qmq.backup.store.RecordStore;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.configuration.DynamicConfigLoader;
@@ -54,7 +53,7 @@ public class HBaseStoreFactory implements KvStore.StoreFactory {
     }
 
     @Override
-    public IndexStore createMessageIndexStore() {
+    public MessageStore createMessageIndexStore() {
         byte[] table = CharsetUtils.toUTF8Bytes(this.table);
         return new HBaseIndexStore(table, B_FAMILY, B_MESSAGE_QUALIFIERS, client);
     }
