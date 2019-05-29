@@ -52,17 +52,17 @@ public class IndexFileStore implements FileStore {
     }
 
     @Override
-    public void close() {
+    public void flush() {
+        log.flush();
+    }
+
+    @Override
+    public void destroy() {
         this.flushService.close();
         try {
             logCleanerScheduler.awaitTermination(5, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             LOG.error("Shutdown log cleaner scheduler interrupted.", e);
         }
-    }
-
-    @Override
-    public void flush() {
-        log.flush();
     }
 }

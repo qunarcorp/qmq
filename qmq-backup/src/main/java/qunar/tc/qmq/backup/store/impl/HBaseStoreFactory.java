@@ -9,6 +9,7 @@ import qunar.tc.qmq.utils.CharsetUtils;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import static qunar.tc.qmq.backup.config.DefaultBackupConfig.*;
 import static qunar.tc.qmq.backup.store.impl.AbstractHBaseStore.*;
 
 /**
@@ -21,11 +22,20 @@ public class HBaseStoreFactory implements KvStore.StoreFactory {
 
     private final HBaseClient client;
 
+    private final String table;
+    private final String delayTable;
+    private final String recordTable;
+    private final String deadTable;
+
     HBaseStoreFactory(DynamicConfig config) {
         final Config HBaseConfig = from(config);
         this.client = new HBaseClient(HBaseConfig);
         this.client.setFlushInterval(CLIENT_FLUSH_INTERVAL);
         this.client.setIncrementBufferSize(CLIENT_BUFFER_SIZE);
+        this.table = config.getString(HBASE_MESSAGE_INDEX_CONFIG_KEY, DEFAULT_HBASE_MESSAGE_INDEX_TABLE);
+        this.delayTable = config.getString(HBASE_DELAY_MESSAGE_INDEX_CONFIG_KEY, DEFAULT_HBASE_DELAY_MESSAGE_INDEX_TABLE);
+        this.recordTable = config.getString(HBASE_RECORD_CONFIG_KEY, DEFAULT_HBASE_RECORD_TABLE);
+        this.deadTable = config.getString(HBASE_DEAD_CONFIG_KEY, DEFAULT_HBASE_DEAD_TABLE);
     }
 
     private static Config from(DynamicConfig config) {
@@ -38,20 +48,20 @@ public class HBaseStoreFactory implements KvStore.StoreFactory {
     }
 
     @Override
-    public KvStore createMessageIndexStore(String workTable) {
-        byte[] table = CharsetUtils.toUTF8Bytes(workTable);
+    public KvStore createMessageIndexStore() {
+        byte[] table = CharsetUtils.toUTF8Bytes(this.table);
         return new DefaultHBaseStore(table, B_FAMILY, B_MESSAGE_QUALIFIERS, client);
     }
 
     @Override
-    public KvStore createRecordStore(String workTable) {
-        byte[] table = CharsetUtils.toUTF8Bytes(workTable);
+    public KvStore createRecordStore() {
+        byte[] table = CharsetUtils.toUTF8Bytes(recordTable);
         return new DefaultHBaseStore(table, R_FAMILY, B_RECORD_QUALIFIERS, client);
     }
 
     @Override
-    public KvStore createDeadMessageStore(String workTable) {
-        byte[] table = CharsetUtils.toUTF8Bytes(workTable);
+    public KvStore createDeadMessageStore() {
+        byte[] table = CharsetUtils.toUTF8Bytes(deadTable);
         return new DefaultHBaseStore(table, B_FAMILY, B_MESSAGE_QUALIFIERS, client);
     }
 }

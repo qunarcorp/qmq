@@ -16,8 +16,8 @@ public class DefaultBackupConfig implements BackupConfig {
     public static final String DEFAULT_HBASE_DELAY_MESSAGE_INDEX_TABLE = "QMQ_BACKUP_DELAY";
     public static final String DEFAULT_HBASE_RECORD_TABLE = "QMQ_BACKUP_RECORD";
     public static final String DEFAULT_HBASE_DEAD_TABLE = "QMQ_BACKUP_DEAD";
-    public static final String DEFAULT_DIC_TABLE = "qmq_dic";
-    public static final String DEFAULT_DELAY_DIC_TABLE = "qmq_delay_dic";
+    public static final String DEFAULT_DB_DIC_TABLE = "qmq_dic";
+    public static final String DEFAULT_DELAY_DB_DIC_TABLE = "qmq_delay_dic";
     public static final String DEFAULT_HDFS_PARENT_PATH = "/qmq/message/";
     public static final String DEFAULT_STORE_FACTORY_TYPE = "hbase";
     public static final int DEFAULT_ROCKS_DB_TTL = 7200;
@@ -42,8 +42,8 @@ public class DefaultBackupConfig implements BackupConfig {
     public static final String HBASE_DELAY_MESSAGE_INDEX_CONFIG_KEY = "table.qmq.delay.backup";
     public static final String HBASE_RECORD_CONFIG_KEY = "table.qmq.backup.record";
     public static final String HBASE_DEAD_CONFIG_KEY = "table.qmq.backup.dead";
-    public static final String DIC_TABLE_NAME_CONFIG_KEY = "dic_table_name";
-    public static final String DELAY_DIC_TABLE_NAME_CONFIG_KEY = "delay_dic_table_name";
+    public static final String DB_DIC_TABLE_NAME_CONFIG_KEY = "db_dic_table_name";
+    public static final String DELAY_DB_DIC_TABLE_NAME_CONFIG_KEY = "delay_dic_table_name";
     public static final String INDEX_LOG_DIR_PATH_CONFIG_KEY = "index.log.dir.path";
     public static final String DEAD_MESSAGE_BACKUP_THREAD_SIZE_CONFIG_KEY = "dead.message.backup.thread.size";
     public static final String DEAD_RECORD_BACKUP_THREAD_SIZE_CONFIG_KEY = "dead.record.backup.thread.size";

@@ -76,11 +76,6 @@ public class BackupActionLogSyncProcessor extends AbstractSyncLogProcessor imple
     }
 
     @Override
-    public void close() {
-        flushService.close();
-    }
-
-    @Override
     public void flush() {
         checkpointManager.saveSyncActionCheckpointSnapshot();
     }
@@ -89,5 +84,10 @@ public class BackupActionLogSyncProcessor extends AbstractSyncLogProcessor imple
     public SyncRequest getRequest() {
         final long actionLogOffset = checkpointManager.getSyncActionLogOffset();
         return new SyncRequest(SyncType.action.getCode(), actionLogOffset, actionLogOffset);
+    }
+
+    @Override
+    public void destroy() {
+        flushService.close();
     }
 }

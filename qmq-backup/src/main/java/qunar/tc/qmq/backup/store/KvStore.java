@@ -10,11 +10,11 @@ public interface KvStore extends AutoCloseable {
     void batchSave(byte[][] key, byte[][][] value);
 
     interface StoreFactory {
-        KvStore createMessageIndexStore(String workTable);
+        KvStore createMessageIndexStore();
 
-        KvStore createRecordStore(String workTable);
+        KvStore createRecordStore();
 
-        KvStore createDeadMessageStore(String workTable);
+        KvStore createDeadMessageStore();
     }
 
     interface FactoryStore {

@@ -3,7 +3,7 @@ package qunar.tc.qmq.backup.service;
 import com.google.common.base.CharMatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.backup.config.BackupConfig;
+import qunar.tc.qmq.common.Disposable;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.store.*;
@@ -19,7 +19,7 @@ import static qunar.tc.qmq.backup.config.DefaultBackupConfig.SYNC_OFFSET_FLUSH_I
  * @author xufeng.deng dennisdxf@gmail.com
  * @since 2019-03-14 13:06
  */
-public class IndexLogIterateService implements AutoCloseable {
+public class IndexLogIterateService implements Disposable {
     private static final Logger LOG = LoggerFactory.getLogger(IndexLogIterateService.class);
 
     private final IndexLog log;
@@ -63,7 +63,7 @@ public class IndexLogIterateService implements AutoCloseable {
     }
 
     @Override
-    public void close() {
+    public void destroy() {
         this.stop = true;
         try {
             dispatcherThread.join();

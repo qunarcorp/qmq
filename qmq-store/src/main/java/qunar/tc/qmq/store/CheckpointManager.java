@@ -58,7 +58,7 @@ public class CheckpointManager implements AutoCloseable {
     private final long indexIterateCheckpoint;
     private final AtomicLong syncActionCheckpoint;
 
-    CheckpointManager(final BrokerRole role, final StorageConfig config, final CheckpointLoader loader) {
+    public CheckpointManager(final BrokerRole role, final StorageConfig config, final CheckpointLoader loader) {
         this.messageCheckpointSerde = new MessageCheckpointSerde();
         this.actionCheckpointSerde = new ActionCheckpointSerde();
 
@@ -535,7 +535,7 @@ public class CheckpointManager implements AutoCloseable {
         }
     }
 
-    long getIndexCheckpointMessageOffset() {
+    public long getIndexCheckpointMessageOffset() {
         indexCheckpointGuard.lock();
         try {
             return indexCheckpoint.getMsgOffset();
