@@ -17,9 +17,6 @@ public class ScheduleFlushManager implements ScheduleFlushable {
 
     private List<ScheduleFlushable> flushables = Lists.newArrayList();
 
-    public ScheduleFlushManager() {
-    }
-
     public void register(ScheduleFlushable flushable) {
         flushables.add(flushable);
     }

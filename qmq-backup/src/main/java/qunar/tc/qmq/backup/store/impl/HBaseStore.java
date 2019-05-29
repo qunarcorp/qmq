@@ -5,13 +5,13 @@ import org.hbase.async.PutRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class DefaultHBaseStore extends AbstractHBaseStore {
-    private static final Logger LOG = LoggerFactory.getLogger(DefaultHBaseStore.class);
+public class HBaseStore extends AbstractHBaseStore {
+    private static final Logger LOG = LoggerFactory.getLogger(HBaseStore.class);
 
     private volatile boolean isClosed = false;
     private final HBaseClient client;
 
-    public DefaultHBaseStore(byte[] table, byte[] family, byte[][] qualifiers, HBaseClient client) {
+    public HBaseStore(byte[] table, byte[] family, byte[][] qualifiers, HBaseClient client) {
         super(table, family, qualifiers);
         this.client = client;
     }

@@ -63,7 +63,6 @@ public class ServerWrapper implements Disposable {
         this.scheduleFlushManager = new ScheduleFlushManager();
         DicStore dicStore = new DbDicDao(config, false);
         this.dicService = new DbDicService(dicStore, SIX_DIGIT_FORMAT_PATTERN);
-
     }
 
     public void start() {
@@ -74,8 +73,8 @@ public class ServerWrapper implements Disposable {
             BrokerRegisterService brokerRegisterService = new BrokerRegisterService(listenPort, metaServerLocator);
             brokerRegisterService.start();
             if (BrokerConfig.getBrokerRole() != BrokerRole.BACKUP) {
-                LOG.error("配置中心参数配置错误，当前机器({})对应的角色不是backup。请检查配置。", NetworkUtils.getLocalHostname());
-                throw new IllegalArgumentException("配置中心参数配置错误，当前机器对应的角色不是backup");
+                LOG.error("Config error,({})'s role is not backup.", NetworkUtils.getLocalHostname());
+                throw new IllegalArgumentException("Config error, the role is not backup");
             }
             config.setBrokerGroup(BrokerConfig.getBrokerName());
             register(localConfig);
@@ -123,7 +122,6 @@ public class ServerWrapper implements Disposable {
             scheduleFlushManager.register(actionLogSyncProcessor);
 
             masterSlaveSyncManager.registerProcessor(SyncType.heartbeat, new HeartBeatProcessor(checkpointManager));
-
         } else if (role == BrokerRole.DELAY_BACKUP) {
             throw new RuntimeException("check the role is correct, only backup is allowed.");
         } else {

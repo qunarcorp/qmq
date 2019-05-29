@@ -2,7 +2,10 @@ package qunar.tc.qmq.backup.store.impl;
 
 import org.hbase.async.Config;
 import org.hbase.async.HBaseClient;
+import qunar.tc.qmq.backup.store.DeadMessageStore;
+import qunar.tc.qmq.backup.store.IndexStore;
 import qunar.tc.qmq.backup.store.KvStore;
+import qunar.tc.qmq.backup.store.RecordStore;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.configuration.DynamicConfigLoader;
 import qunar.tc.qmq.utils.CharsetUtils;
@@ -51,20 +54,20 @@ public class HBaseStoreFactory implements KvStore.StoreFactory {
     }
 
     @Override
-    public KvStore createMessageIndexStore() {
+    public IndexStore createMessageIndexStore() {
         byte[] table = CharsetUtils.toUTF8Bytes(this.table);
-        return new DefaultHBaseStore(table, B_FAMILY, B_MESSAGE_QUALIFIERS, client);
+        return new HBaseIndexStore(table, B_FAMILY, B_MESSAGE_QUALIFIERS, client);
     }
 
     @Override
-    public KvStore createRecordStore() {
+    public RecordStore createRecordStore() {
         byte[] table = CharsetUtils.toUTF8Bytes(recordTable);
-        return new DefaultHBaseStore(table, R_FAMILY, B_RECORD_QUALIFIERS, client);
+        return new HBaseRecordStore(table, R_FAMILY, B_RECORD_QUALIFIERS, client);
     }
 
     @Override
-    public KvStore createDeadMessageStore() {
+    public DeadMessageStore createDeadMessageStore() {
         byte[] table = CharsetUtils.toUTF8Bytes(deadTable);
-        return new DefaultHBaseStore(table, B_FAMILY, B_MESSAGE_QUALIFIERS, client);
+        return new HBaseDeadMessageStore(table, B_FAMILY, B_MESSAGE_QUALIFIERS, client);
     }
 }

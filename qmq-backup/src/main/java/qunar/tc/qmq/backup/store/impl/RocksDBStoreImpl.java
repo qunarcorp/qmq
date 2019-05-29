@@ -33,7 +33,9 @@ public class RocksDBStoreImpl implements RocksDBStore {
 
         File file = new File(path);
         if (!file.exists() || !file.isDirectory()) {
-            file.mkdirs();
+            if (!file.mkdirs()) {
+                throw new RuntimeException("Failed to create RocksDB dir.");
+            }
         }
 
         try {

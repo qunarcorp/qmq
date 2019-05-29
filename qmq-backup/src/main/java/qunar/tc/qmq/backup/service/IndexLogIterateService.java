@@ -89,35 +89,36 @@ public class IndexLogIterateService implements Disposable {
 
         private void processLog() {
             final long startOffset = iterateFrom.longValue();
-            final IndexLogVisitor visitor = log.newVisitor(startOffset);
-            if (startOffset != visitor.getStartOffset()) {
-                LOG.info("reset iterate from offset from {} to {}", startOffset, visitor.getStartOffset());
-                iterateFrom.reset();
-                iterateFrom.add(visitor.getStartOffset());
-            }
-
-            while (true) {
-                final LogVisitorRecord<MessageQueryIndex> record = visitor.nextRecord();
-                if (record.isNoMore()) {
-                    break;
+            try (IndexLogVisitor visitor = log.newVisitor(startOffset)) {
+                if (startOffset != visitor.getStartOffset()) {
+                    LOG.info("reset iterate from offset from {} to {}", startOffset, visitor.getStartOffset());
+                    iterateFrom.reset();
+                    iterateFrom.add(visitor.getStartOffset());
                 }
 
-                if (record.hasData()) {
-                    final MessageQueryIndex data = record.getData();
-                    if (CharMatcher.INVISIBLE.matchesAnyOf(data.getSubject())) {
-                        LOG.error("hit illegal subject during iterate message log, skip this message. subject: {}", data.getSubject());
-                    } else {
-                        data.setCurrentOffset(visitor.getStartOffset() + visitor.visitedBufferSize());
-                        dispatcher.post(data);
+                while (true) {
+                    final LogVisitorRecord<MessageQueryIndex> record = visitor.nextRecord();
+                    if (record.isNoMore()) {
+                        break;
+                    }
+
+                    if (record.hasData()) {
+                        final MessageQueryIndex data = record.getData();
+                        if (CharMatcher.INVISIBLE.matchesAnyOf(data.getSubject())) {
+                            LOG.error("hit illegal subject during iterate message log, skip this message. subject: {}", data.getSubject());
+                        } else {
+                            data.setCurrentOffset(visitor.getStartOffset() + visitor.visitedBufferSize());
+                            dispatcher.post(data);
+                        }
                     }
                 }
-            }
-            iterateFrom.add(visitor.visitedBufferSize());
+                iterateFrom.add(visitor.visitedBufferSize());
 
-            try {
-                TimeUnit.MILLISECONDS.sleep(5);
-            } catch (InterruptedException e) {
-                LOG.warn("action log dispatcher sleep interrupted");
+                try {
+                    TimeUnit.MILLISECONDS.sleep(5);
+                } catch (InterruptedException e) {
+                    LOG.warn("action log dispatcher sleep interrupted");
+                }
             }
         }
     }

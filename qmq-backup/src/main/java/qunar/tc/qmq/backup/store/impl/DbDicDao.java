@@ -23,7 +23,6 @@ public class DbDicDao implements DicStore {
     private final String insertNameSql;
 
     public DbDicDao(DynamicConfig config, boolean isDelay) {
-
         String table = isDelay ? config.getString(DB_DIC_TABLE_NAME_CONFIG_KEY, DEFAULT_DB_DIC_TABLE) : config.getString(DELAY_DB_DIC_TABLE_NAME_CONFIG_KEY, DEFAULT_DELAY_DB_DIC_TABLE);
         getIdSql = String.format("SELECT id FROM %s WHERE name =?", table);
         getNameSql = String.format("SELECT name FROM %s WHERE id=?", table);
