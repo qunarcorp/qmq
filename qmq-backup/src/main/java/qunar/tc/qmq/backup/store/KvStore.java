@@ -1,5 +1,7 @@
 package qunar.tc.qmq.backup.store;
 
+import qunar.tc.qmq.backup.service.BackupKeyGenerator;
+import qunar.tc.qmq.backup.service.DicService;
 import qunar.tc.qmq.configuration.DynamicConfig;
 
 /**
@@ -18,6 +20,6 @@ public interface KvStore extends AutoCloseable {
     }
 
     interface FactoryStore {
-        StoreFactory createStoreFactory(DynamicConfig config);
+        StoreFactory createStoreFactory(DynamicConfig config, DicService dicService, BackupKeyGenerator keyGenerator);
     }
 }

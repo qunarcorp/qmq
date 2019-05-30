@@ -85,7 +85,6 @@ public class ServerWrapper implements Disposable {
     }
 
     private void register(final DynamicConfig config) {
-        final KvStore.StoreFactory factory = new FactoryStoreImpl().createStoreFactory(config);
         final SlaveSyncClient slaveSyncClient = new SlaveSyncClient(config);
         final MasterSlaveSyncManager masterSlaveSyncManager = new MasterSlaveSyncManager(slaveSyncClient);
 
@@ -101,6 +100,7 @@ public class ServerWrapper implements Disposable {
         IndexLog log;
         if (role == BrokerRole.BACKUP) {
             final BackupKeyGenerator keyGenerator = new BackupKeyGenerator(dicService);
+            final KvStore.StoreFactory factory = new FactoryStoreImpl().createStoreFactory(config, dicService, keyGenerator);
             this.indexStore = factory.createMessageIndexStore();
             this.recordStore = factory.createRecordStore();
             this.deadMessageStore = factory.createDeadMessageStore();

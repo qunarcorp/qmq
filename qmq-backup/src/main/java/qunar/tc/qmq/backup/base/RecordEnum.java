@@ -5,9 +5,9 @@ package qunar.tc.qmq.backup.base;
  * @since 2019/5/29
  */
 public enum RecordEnum {
-    REAL((byte) 0),
-    RETRY((byte) 1),
-    DEAD_RETRY((byte) 2),
+    RECORD((byte) 0),
+    RETRY_RECORD((byte) 1),
+    DEAD_RECORD((byte) 2),
     OTHER((byte) -1);
 
     private byte code;

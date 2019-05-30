@@ -15,22 +15,16 @@ import java.util.Date;
  * @author xufeng.deng dennisdxf@gmail.com
  * @since 2019/5/29
  */
-public class HBaseDeadMessageStore extends HBaseMessageStore implements MessageStore {
-    private byte[] TABLE;
+public class HBaseDeadMessageStore extends AbstractHBaseMessageStore implements MessageStore {
     private DicService dicService;
 
-    public HBaseDeadMessageStore(byte[] table, byte[] family, byte[][] qualifiers, HBaseClient client) {
+    public HBaseDeadMessageStore(byte[] table, byte[] family, byte[][] qualifiers, HBaseClient client, DicService dicService) {
         super(table, family, qualifiers, client);
+        this.dicService = dicService;
     }
 
     @Override
-    public ResultIterable<BackupMessage> findMessages(BackupQuery query) {
-        if (isInvalidate(query)) return EMPTY_RESULT;
-        makeUp(query);
-        return null;
-    }
-
-    private ResultIterable<BackupMessage> findDeadMessagesInternal(BackupQuery query) {
+    protected ResultIterable<BackupMessage> findMessagesInternal(BackupQuery query) {
         final String subject = query.getSubject();
         final Date msgCreateTimeBegin = query.getMsgCreateTimeBegin();
         final Date msgCreateTimeEnd = query.getMsgCreateTimeEnd();
@@ -46,7 +40,7 @@ public class HBaseDeadMessageStore extends HBaseMessageStore implements MessageS
         final String endKey = BackupMessageKeyRangeBuilder.buildDeadEndKey(subjectId, consumerGroupId, msgCreateTimeBegin);
 
         final ResultIterable<BackupMessage> resultIterable = new ResultIterable<>();
-        getMessageFromHBase(subject, TABLE, resultIterable, keyRegexp, startKey, endKey, len);
+        getMessageFromHBase(subject, table, resultIterable, keyRegexp, startKey, endKey, len);
         return resultIterable;
     }
 }

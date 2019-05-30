@@ -2,6 +2,8 @@ package qunar.tc.qmq.backup.store.impl;
 
 import org.hbase.async.Config;
 import org.hbase.async.HBaseClient;
+import qunar.tc.qmq.backup.service.BackupKeyGenerator;
+import qunar.tc.qmq.backup.service.DicService;
 import qunar.tc.qmq.backup.store.KvStore;
 import qunar.tc.qmq.backup.store.MessageStore;
 import qunar.tc.qmq.backup.store.RecordStore;
@@ -30,7 +32,10 @@ public class HBaseStoreFactory implements KvStore.StoreFactory {
     private final String recordTable;
     private final String deadTable;
 
-    HBaseStoreFactory(DynamicConfig config) {
+    private final DicService dicService;
+    private final BackupKeyGenerator keyGenerator;
+
+    HBaseStoreFactory(DynamicConfig config, DicService dicService, BackupKeyGenerator keyGenerator) {
         final String hbaseConfigFile = config.getString(HBASE_CONFIG_FILE_CONFIG_KEY, DEFAULT_HBASE_CONFIG_FILE);
         final DynamicConfig hbaseConfig = DynamicConfigLoader.load(hbaseConfigFile, true);
         final Config HBaseConfig = from(hbaseConfig);
@@ -41,6 +46,9 @@ public class HBaseStoreFactory implements KvStore.StoreFactory {
         this.delayTable = config.getString(HBASE_DELAY_MESSAGE_INDEX_CONFIG_KEY, DEFAULT_HBASE_DELAY_MESSAGE_INDEX_TABLE);
         this.recordTable = config.getString(HBASE_RECORD_CONFIG_KEY, DEFAULT_HBASE_RECORD_TABLE);
         this.deadTable = config.getString(HBASE_DEAD_CONFIG_KEY, DEFAULT_HBASE_DEAD_TABLE);
+
+        this.dicService = dicService;
+        this.keyGenerator = keyGenerator;
     }
 
     private static Config from(DynamicConfig config) {
@@ -55,18 +63,19 @@ public class HBaseStoreFactory implements KvStore.StoreFactory {
     @Override
     public MessageStore createMessageIndexStore() {
         byte[] table = CharsetUtils.toUTF8Bytes(this.table);
-        return new HBaseIndexStore(table, B_FAMILY, B_MESSAGE_QUALIFIERS, client);
+        return new HBaseIndexStore(table, B_FAMILY, B_MESSAGE_QUALIFIERS, client, dicService);
     }
 
     @Override
     public RecordStore createRecordStore() {
         byte[] table = CharsetUtils.toUTF8Bytes(recordTable);
-        return new HBaseRecordStore(table, R_FAMILY, B_RECORD_QUALIFIERS, client);
+        byte[] indexTable = CharsetUtils.toUTF8Bytes(this.table);
+        return new HBaseRecordStore(table, indexTable, R_FAMILY, B_RECORD_QUALIFIERS, client, dicService, keyGenerator);
     }
 
     @Override
     public MessageStore createDeadMessageStore() {
         byte[] table = CharsetUtils.toUTF8Bytes(deadTable);
-        return new HBaseDeadMessageStore(table, B_FAMILY, B_MESSAGE_QUALIFIERS, client);
+        return new HBaseDeadMessageStore(table, B_FAMILY, B_MESSAGE_QUALIFIERS, client, dicService);
     }
 }

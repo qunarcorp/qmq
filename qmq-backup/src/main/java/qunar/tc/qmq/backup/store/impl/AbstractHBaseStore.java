@@ -1,9 +1,11 @@
 package qunar.tc.qmq.backup.store.impl;
 
 import org.hbase.async.Bytes;
+import org.hbase.async.KeyValue;
 import qunar.tc.qmq.backup.store.KvStore;
 import qunar.tc.qmq.metrics.Metrics;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -29,7 +31,7 @@ public abstract class AbstractHBaseStore implements KvStore {
     public static final byte[][] B_MESSAGE_QUALIFIERS = new byte[][]{B_CONTENT};
     public static final byte[][] B_RECORD_QUALIFIERS = new byte[][]{B_RECORDS};
 
-    private final byte[] table;
+    protected final byte[] table;
     private final byte[] family;
     private final byte[][] qualifiers;
 
@@ -51,4 +53,11 @@ public abstract class AbstractHBaseStore implements KvStore {
 
     protected abstract void doBatchSave(final byte[] table, final byte[][] keys, final byte[] family, byte[][] qualifiers, byte[][][] values);
 
+    protected abstract <T, V> List<T> scan(byte[] table, String keyRegexp, String startKey, String stopKey, int maxNumRows, int maxVersions, byte[] family, byte[][] qualifiers, RowExtractor<T> rowExtractor) throws Exception;
+
+    protected abstract <T> T get(byte[] table, byte[] key, byte[] family, byte[][] qualifiers, RowExtractor<T> rowExtractor) throws Exception;
+}
+
+interface RowExtractor<T> {
+    T extractData(List<KeyValue> kvs);
 }

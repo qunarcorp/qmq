@@ -5,7 +5,6 @@ import qunar.tc.qmq.backup.base.BackupMessage;
 import qunar.tc.qmq.backup.base.BackupQuery;
 import qunar.tc.qmq.backup.base.ResultIterable;
 import qunar.tc.qmq.backup.service.DicService;
-import qunar.tc.qmq.backup.store.MessageStore;
 import qunar.tc.qmq.backup.util.BackupMessageKeyRangeBuilder;
 import qunar.tc.qmq.backup.util.BackupMessageKeyRegexpBuilder;
 
@@ -15,23 +14,16 @@ import java.util.Date;
  * @author xufeng.deng dennisdxf@gmail.com
  * @since 2019/5/29
  */
-public class HBaseIndexStore extends HBaseMessageStore implements MessageStore {
-    private byte[] TABLE;
+public class HBaseIndexStore extends AbstractHBaseMessageStore {
     private DicService dicService;
-    private DicService delayDicService;
 
-    public HBaseIndexStore(byte[] table, byte[] family, byte[][] qualifiers, HBaseClient client) {
+    public HBaseIndexStore(byte[] table, byte[] family, byte[][] qualifiers, HBaseClient client, DicService dicService) {
         super(table, family, qualifiers, client);
+        this.dicService = dicService;
     }
 
     @Override
-    public ResultIterable<BackupMessage> findMessages(BackupQuery query) {
-        if (isInvalidate(query)) return EMPTY_RESULT;
-        makeUp(query);
-        return findMessagesInternal(query);
-    }
-
-    private ResultIterable<BackupMessage> findMessagesInternal(final BackupQuery query) {
+    protected ResultIterable<BackupMessage> findMessagesInternal(final BackupQuery query) {
         final String subject = query.getSubject();
         final Date msgCreateTimeBegin = query.getMsgCreateTimeBegin();
         final Date msgCreateTimeEnd = query.getMsgCreateTimeEnd();
@@ -42,7 +34,7 @@ public class HBaseIndexStore extends HBaseMessageStore implements MessageStore {
         byte[] table;
         if (!query.isDelay()) {
             subjectId = dicService.name2Id(subject);
-            table = TABLE;
+            table = this.table;
         } else {
             return EMPTY_RESULT;
         }

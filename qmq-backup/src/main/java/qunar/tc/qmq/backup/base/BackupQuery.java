@@ -143,4 +143,21 @@ public class BackupQuery implements Serializable {
         this.len = len;
     }
 
+    @Override
+    public String toString() {
+        return "BackupQuery{" +
+                "msgCreateTimeBegin=" + msgCreateTimeBegin +
+                ", msgCreateTimeEnd=" + msgCreateTimeEnd +
+                ", subject='" + subject + '\'' +
+                ", messageId='" + messageId + '\'' +
+                ", isDelay=" + isDelay +
+                ", brokerGroup='" + brokerGroup + '\'' +
+                ", startOffset=" + startOffset +
+                ", size=" + size +
+                ", consumerGroup='" + consumerGroup + '\'' +
+                ", sequence=" + sequence +
+                ", start=" + start +
+                ", len=" + len +
+                '}';
+    }
 }

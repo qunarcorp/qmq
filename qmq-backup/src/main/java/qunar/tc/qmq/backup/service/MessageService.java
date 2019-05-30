@@ -1,9 +1,6 @@
 package qunar.tc.qmq.backup.service;
 
-import qunar.tc.qmq.backup.base.BackupMessage;
-import qunar.tc.qmq.backup.base.BackupQuery;
-import qunar.tc.qmq.backup.base.RecordResult;
-import qunar.tc.qmq.backup.base.ResultIterable;
+import qunar.tc.qmq.backup.base.*;
 
 /**
  * @author xufeng.deng dennisdxf@gmail.com
@@ -17,5 +14,5 @@ public interface MessageService {
 
     BackupMessage findMessage(BackupQuery query);
 
-    RecordResult findRecords(BackupQuery query);
+    RecordResult findRecords(RecordQuery query);
 }

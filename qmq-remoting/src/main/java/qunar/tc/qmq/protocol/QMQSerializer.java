@@ -19,22 +19,25 @@ package qunar.tc.qmq.protocol;
 import com.google.common.collect.Maps;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.base.MessageHeader;
 import qunar.tc.qmq.base.RawMessage;
 import qunar.tc.qmq.protocol.producer.SendResult;
+import qunar.tc.qmq.utils.CharsetUtils;
 import qunar.tc.qmq.utils.Crc32;
 import qunar.tc.qmq.utils.Flags;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
 
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.nio.ByteBuffer;
+import java.util.*;
 
 /**
  * @author yunfeng.yang
  * @since 2017/7/14
  */
 public class QMQSerializer {
+
+    private static final int VALUE_SIZE_NEGATIVE_COMPENSATE = 1 << 16;
 
     public static RawMessage deserializeRawMessage(ByteBuf body) {
         int headerStart = body.readerIndex();
@@ -85,6 +88,35 @@ public class QMQSerializer {
             result.put(messageId, new SendResult(code, remark));
         }
         return result;
+    }
+
+
+    public static HashMap<String, Object> deserializeMap(byte[] bytes) {
+        if (bytes == null || bytes.length <= 0) return null;
+
+        HashMap<String, Object> map = new HashMap<>();
+        ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
+        try {
+            while (byteBuffer.hasRemaining()) {
+                short keySize = byteBuffer.getShort();
+                byte[] keyBs = new byte[keySize];
+                byteBuffer.get(keyBs);
+
+                int valSize = byteBuffer.getShort();
+                if (valSize < 0) {
+                    valSize += VALUE_SIZE_NEGATIVE_COMPENSATE;
+                }
+                byte[] valBs = new byte[valSize];
+                byteBuffer.get(valBs);
+                map.put(CharsetUtils.toUTF8String(keyBs), CharsetUtils.toUTF8String(valBs));
+            }
+            return map;
+        } catch (Exception e) {
+            HashMap<String, Object> result = new HashMap<>();
+            result.put(BaseMessage.keys.qmq_corruptData.name(), "true");
+            result.put(BaseMessage.keys.qmq_createTime.name(), new Date().getTime());
+            return result;
+        }
     }
 
 }
