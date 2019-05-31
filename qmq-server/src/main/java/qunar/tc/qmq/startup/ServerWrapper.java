@@ -95,6 +95,16 @@ public class ServerWrapper implements Disposable {
         LOG.info("qmq server init done");
     }
 
+    public Storage getStorage() {
+        return storage;
+    }
+
+    public boolean isSlave() {
+        // assert BrokerConfig.getBrokerRole() == BrokerRole.STANDBY
+        return BrokerConfig.getBrokerRole() == BrokerRole.SLAVE
+                || BrokerConfig.getBrokerRole() == BrokerRole.DELAY_SLAVE;
+    }
+
     private void register() {
         this.listenPort = config.getInt(PORT_CONFIG, DEFAULT_PORT);
 

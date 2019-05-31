@@ -4,22 +4,19 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.io.Serializable;
-import java.util.Collections;
 import java.util.List;
 
 /**
  * @author xufeng.deng dennisdxf@gmail.com
  * @since 2019-03-05 15:25
  */
-public class RecordResult implements Serializable {
+public class RecordQueryResult implements Serializable {
     private static final long serialVersionUID = -6489077654100402117L;
 
     private final List<Record> records;
 
-    public static final RecordResult EMPTY_RECORD = new RecordResult(Collections.emptyList());
-
     @JsonCreator
-    public RecordResult(@JsonProperty("records") List<Record> records) {
+    public RecordQueryResult(@JsonProperty("records") List<Record> records) {
         this.records = records;
     }
 

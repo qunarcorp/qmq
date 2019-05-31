@@ -3,7 +3,7 @@ package qunar.tc.qmq.backup.api;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.backup.base.RecordQuery;
-import qunar.tc.qmq.backup.base.RecordResult;
+import qunar.tc.qmq.backup.base.RecordQueryResult;
 import qunar.tc.qmq.backup.service.MessageService;
 import qunar.tc.qmq.backup.util.Serializer;
 
@@ -37,7 +37,7 @@ public class MessageRecordsServlet extends HttpServlet {
         }
 
         try {
-            RecordResult result = messageService.findRecords(query);
+            RecordQueryResult result = messageService.findRecords(query);
             response(resp, HttpServletResponse.SC_OK, serializer.serialize(result));
         } catch (Exception e) {
             LOG.error("Failed to find message records.", e);
@@ -47,7 +47,7 @@ public class MessageRecordsServlet extends HttpServlet {
 
     private void response(HttpServletResponse resp) throws IOException {
         resp.setStatus(HttpServletResponse.SC_OK);
-        RecordResult result = new RecordResult(Collections.emptyList());
+        RecordQueryResult result = new RecordQueryResult(Collections.emptyList());
         resp.getWriter().println(serializer.serialize(result));
     }
 

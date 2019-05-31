@@ -16,16 +16,36 @@
 
 package qunar.tc.qmq.container;
 
+import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.servlet.ServletContextHandler;
+import org.eclipse.jetty.servlet.ServletHolder;
+import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.configuration.DynamicConfigLoader;
 import qunar.tc.qmq.startup.ServerWrapper;
+import qunar.tc.qmq.web.QueryMessageServlet;
 
 public class Bootstrap {
-    public static void main(String[] args) {
-        ServerWrapper wrapper = new ServerWrapper(DynamicConfigLoader.load("broker.properties"));
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            wrapper.destroy();
-        }));
-
+    public static void main(String[] args) throws Exception {
+        DynamicConfig config = DynamicConfigLoader.load("broker.properties");
+        ServerWrapper wrapper = new ServerWrapper(config);
+        Runtime.getRuntime().addShutdownHook(new Thread(wrapper::destroy));
         wrapper.start();
+
+        if (wrapper.isSlave()) {
+            final ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
+            context.setContextPath("/");
+            context.setResourceBase(System.getProperty("java.io.tmpdir"));
+            final QueryMessageServlet servlet = new QueryMessageServlet(config, wrapper.getStorage());
+
+            ServletHolder servletHolder = new ServletHolder(servlet);
+            servletHolder.setAsyncSupported(true);
+            context.addServlet(servletHolder, "/api/broker/message");
+
+            final int port = config.getInt("slave.server.http.port", 8080);
+            final Server server = new Server(port);
+            server.setHandler(context);
+            server.start();
+            server.join();
+        }
     }
 }

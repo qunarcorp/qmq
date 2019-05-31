@@ -8,11 +8,11 @@ import qunar.tc.qmq.backup.base.*;
  */
 public interface MessageService {
 
-    ResultIterable<BackupMessage> findMessages(BackupQuery query);
+    MessageQueryResult findMessages(BackupQuery query);
 
-    ResultIterable<BackupMessage> findDeadMessages(BackupQuery query);
+    MessageQueryResult findDeadMessages(BackupQuery query);
 
     BackupMessage findMessage(BackupQuery query);
 
-    RecordResult findRecords(RecordQuery query);
+    RecordQueryResult findRecords(RecordQuery query);
 }

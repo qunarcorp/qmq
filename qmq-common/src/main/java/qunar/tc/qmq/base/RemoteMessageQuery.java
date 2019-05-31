@@ -34,6 +34,14 @@ public class RemoteMessageQuery implements Serializable {
         this.keys = keys;
     }
 
+    @Override
+    public String toString() {
+        return "RemoteMessageQuery{" +
+                "subject='" + subject + '\'' +
+                ", keys=" + keys +
+                '}';
+    }
+
     public static class MessageKey {
         private long sequence;
 
@@ -49,5 +57,11 @@ public class RemoteMessageQuery implements Serializable {
             return sequence;
         }
 
+        @Override
+        public String toString() {
+            return "MessageKey{" +
+                    "sequence=" + sequence +
+                    '}';
+        }
     }
 }

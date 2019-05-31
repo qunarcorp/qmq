@@ -1,9 +1,8 @@
 package qunar.tc.qmq.backup.store.impl;
 
 import org.hbase.async.HBaseClient;
-import qunar.tc.qmq.backup.base.BackupMessage;
 import qunar.tc.qmq.backup.base.BackupQuery;
-import qunar.tc.qmq.backup.base.ResultIterable;
+import qunar.tc.qmq.backup.base.MessageQueryResult;
 import qunar.tc.qmq.backup.service.DicService;
 import qunar.tc.qmq.backup.store.MessageStore;
 import qunar.tc.qmq.backup.util.BackupMessageKeyRangeBuilder;
@@ -18,13 +17,13 @@ import java.util.Date;
 public class HBaseDeadMessageStore extends AbstractHBaseMessageStore implements MessageStore {
     private DicService dicService;
 
-    public HBaseDeadMessageStore(byte[] table, byte[] family, byte[][] qualifiers, HBaseClient client, DicService dicService) {
+    HBaseDeadMessageStore(byte[] table, byte[] family, byte[][] qualifiers, HBaseClient client, DicService dicService) {
         super(table, family, qualifiers, client);
         this.dicService = dicService;
     }
 
     @Override
-    protected ResultIterable<BackupMessage> findMessagesInternal(BackupQuery query) {
+    protected MessageQueryResult findMessagesInternal(BackupQuery query) {
         final String subject = query.getSubject();
         final Date msgCreateTimeBegin = query.getMsgCreateTimeBegin();
         final Date msgCreateTimeEnd = query.getMsgCreateTimeEnd();
@@ -39,8 +38,8 @@ public class HBaseDeadMessageStore extends AbstractHBaseMessageStore implements 
         final String startKey = BackupMessageKeyRangeBuilder.buildDeadStartKey(start, subjectId, consumerGroupId, msgCreateTimeEnd);
         final String endKey = BackupMessageKeyRangeBuilder.buildDeadEndKey(subjectId, consumerGroupId, msgCreateTimeBegin);
 
-        final ResultIterable<BackupMessage> resultIterable = new ResultIterable<>();
-        getMessageFromHBase(subject, table, resultIterable, keyRegexp, startKey, endKey, len);
-        return resultIterable;
+        final MessageQueryResult messageQueryResult = new MessageQueryResult();
+        getMessageFromHBase(subject, table, messageQueryResult, keyRegexp, startKey, endKey, len);
+        return messageQueryResult;
     }
 }

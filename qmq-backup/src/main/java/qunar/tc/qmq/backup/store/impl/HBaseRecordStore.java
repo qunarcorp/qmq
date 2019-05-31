@@ -36,14 +36,14 @@ import static qunar.tc.qmq.backup.util.KeyTools.generateDecimalFormatKey19;
 public class HBaseRecordStore extends HBaseStore implements RecordStore {
     private static final Logger LOG = LoggerFactory.getLogger(HBaseRecordStore.class);
 
-    private static final RecordResult EMPTY_RECORD_RESULT = new RecordResult(Collections.emptyList());
+    private static final RecordQueryResult EMPTY_RECORD_RESULT = new RecordQueryResult(Collections.emptyList());
     private static final int CONSUMER_GROUP_INDEX_IN_RETRY_MESSAGE = MESSAGE_SUBJECT_LENGTH + MESSAGE_ID_LENGTH + CREATE_TIME_LENGTH + BROKER_GROUP_LENGTH;
 
     private byte[] indexTable;
     private DicService dicService;
     private BackupKeyGenerator keyGenerator;
 
-    public HBaseRecordStore(byte[] table, byte[] indexTable, byte[] family, byte[][] qualifiers, HBaseClient client
+    HBaseRecordStore(byte[] table, byte[] indexTable, byte[] family, byte[][] qualifiers, HBaseClient client
             , DicService dicService, BackupKeyGenerator keyGenerator) {
         super(table, family, qualifiers, client);
         this.indexTable = indexTable;
@@ -52,7 +52,7 @@ public class HBaseRecordStore extends HBaseStore implements RecordStore {
     }
 
     @Override
-    public RecordResult findRecords(RecordQuery query) {
+    public RecordQueryResult findRecords(RecordQuery query) {
         final String subject = query.getSubject();
         if (Strings.isNullOrEmpty(subject)) return EMPTY_RECORD_RESULT;
 
@@ -60,7 +60,7 @@ public class HBaseRecordStore extends HBaseStore implements RecordStore {
         if (recordCode == RecordEnum.RECORD.getCode()) {
             final String brokerGroup = query.getBrokerGroup();
             if (Strings.isNullOrEmpty(brokerGroup)) return EMPTY_RECORD_RESULT;
-            List<RecordResult.Record> records = findRecords(subject, new BackupMessageMeta(query.getSequence(), query.getBrokerGroup()), RecordEnum.RECORD.getCode());
+            List<RecordQueryResult.Record> records = findRecords(subject, new BackupMessageMeta(query.getSequence(), query.getBrokerGroup()), RecordEnum.RECORD.getCode());
             return retResult(records);
         } else if (recordCode == RecordEnum.RETRY_RECORD.getCode()) {
             String messageId = query.getMessageId();
@@ -71,18 +71,18 @@ public class HBaseRecordStore extends HBaseStore implements RecordStore {
         return null;
     }
 
-    private RecordResult findRetryRecord(final String subject, final String messageId) {
+    private RecordQueryResult findRetryRecord(final String subject, final String messageId) {
         List<BackupMessageMeta> metas = scanMessageMeta(subject, messageId);
-        List<RecordResult.Record> records = Lists.newArrayListWithCapacity(metas.size());
+        List<RecordQueryResult.Record> records = Lists.newArrayListWithCapacity(metas.size());
         for (BackupMessageMeta meta : metas) {
-            List<RecordResult.Record> retryRecords = findRetryRecords(subject, meta, RecordEnum.RETRY_RECORD.getCode());
+            List<RecordQueryResult.Record> retryRecords = findRetryRecords(subject, meta, RecordEnum.RETRY_RECORD.getCode());
             if (!CollectionUtils.isEmpty(retryRecords)) records.addAll(retryRecords);
         }
 
-        return new RecordResult(records);
+        return new RecordQueryResult(records);
     }
 
-    private List<RecordResult.Record> findRetryRecords(String subject, BackupMessageMeta meta, byte type) {
+    private List<RecordQueryResult.Record> findRetryRecords(String subject, BackupMessageMeta meta, byte type) {
         final long sequence = meta.getSequence();
         final String sequenceId = generateDecimalFormatKey19(sequence);
         final String brokerGroup = meta.getBrokerGroup();
@@ -92,7 +92,7 @@ public class HBaseRecordStore extends HBaseStore implements RecordStore {
         final String pullAction = Byte.toString(ActionEnum.PULL.getCode());
         final String ackAction = Byte.toString(ActionEnum.ACK.getCode());
 
-        List<RecordResult.Record> records = Lists.newArrayList();
+        List<RecordQueryResult.Record> records = Lists.newArrayList();
         byte[] subjectBytes = toUtf8(subjectId);
         byte[] sequenceBytes = toUtf8(sequenceId);
         byte[] brokerGroupBytes = toUtf8(brokerGroupId);
@@ -101,9 +101,9 @@ public class HBaseRecordStore extends HBaseStore implements RecordStore {
         final byte[] pullKey = keyGenerator.generateRecordKey(subjectBytes, sequenceBytes, brokerGroupBytes, consumerGroupBytes, toUtf8(pullAction));
         final byte[] ackKey = keyGenerator.generateRecordKey(subjectBytes, sequenceBytes, brokerGroupBytes, consumerGroupBytes, toUtf8(ackAction));
         try {
-            RecordResult.Record pullRecord = get(table, pullKey, R_FAMILY, B_RECORD_QUALIFIERS, kvs -> getRecord(kvs, type));
+            RecordQueryResult.Record pullRecord = get(table, pullKey, R_FAMILY, B_RECORD_QUALIFIERS, kvs -> getRecord(kvs, type));
             if (pullRecord != null) records.add(pullRecord);
-            RecordResult.Record ackRecord = get(table, ackKey, R_FAMILY, B_RECORD_QUALIFIERS, kvs -> getRecord(kvs, type));
+            RecordQueryResult.Record ackRecord = get(table, ackKey, R_FAMILY, B_RECORD_QUALIFIERS, kvs -> getRecord(kvs, type));
             if (ackRecord != null) records.add(ackRecord);
         } catch (Exception e) {
             LOG.error("find retry records with meta: {} failed.", meta, e);
@@ -141,13 +141,13 @@ public class HBaseRecordStore extends HBaseStore implements RecordStore {
         }
     }
 
-    private RecordResult retResult(List<RecordResult.Record> records) {
-        if (records != null && records.size() > 0) return new RecordResult(records);
-        return new RecordResult(Collections.emptyList());
+    private RecordQueryResult retResult(List<RecordQueryResult.Record> records) {
+        if (records != null && records.size() > 0) return new RecordQueryResult(records);
+        return new RecordQueryResult(Collections.emptyList());
     }
 
     // record && retry record && (resend record not included)
-    private List<RecordResult.Record> findRecords(String subject, BackupMessageMeta meta, byte type) {
+    private List<RecordQueryResult.Record> findRecords(String subject, BackupMessageMeta meta, byte type) {
         final long sequence = meta.getSequence();
         final String brokerGroup = meta.getBrokerGroup();
         final String subjectId = dicService.name2Id(subject);

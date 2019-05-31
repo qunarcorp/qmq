@@ -4,7 +4,7 @@ import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
 import org.jboss.netty.util.CharsetUtil;
 import qunar.tc.qmq.backup.base.BackupMessageMeta;
-import qunar.tc.qmq.backup.base.RecordResult;
+import qunar.tc.qmq.backup.base.RecordQueryResult;
 import qunar.tc.qmq.utils.CharsetUtils;
 
 import java.util.List;
@@ -38,7 +38,7 @@ public class HBaseValueDecoder {
         return null;
     }
 
-    public static RecordResult.Record getRecord(List<KeyValue> kvs, byte type) {
+    public static RecordQueryResult.Record getRecord(List<KeyValue> kvs, byte type) {
         KeyValueList<KeyValue> kvl = new KeyValueListImpl(kvs);
         byte[] rowKey = kvl.getKey();
         String row = CharsetUtils.toUTF8String(rowKey);
@@ -55,7 +55,7 @@ public class HBaseValueDecoder {
         byte[] consumerGroupBytes = new byte[consumerGroupLength];
         System.arraycopy(value, 12 + consumerIdLength, consumerGroupBytes, 0, consumerGroupLength);
         String consumerGroup = CharsetUtils.toUTF8String(consumerGroupBytes);
-        return new RecordResult.Record(consumerGroup, action, type, timestamp, consumerId, sequence);
+        return new RecordQueryResult.Record(consumerGroup, action, type, timestamp, consumerId, sequence);
     }
 
 }

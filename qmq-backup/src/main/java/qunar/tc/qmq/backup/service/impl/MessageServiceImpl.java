@@ -57,12 +57,12 @@ public class MessageServiceImpl implements MessageService {
     }
 
     @Override
-    public ResultIterable<BackupMessage> findMessages(BackupQuery query) {
+    public MessageQueryResult findMessages(BackupQuery query) {
         return indexStore.findMessages(query);
     }
 
     @Override
-    public ResultIterable<BackupMessage> findDeadMessages(BackupQuery query) {
+    public MessageQueryResult findDeadMessages(BackupQuery query) {
         return deadStore.findMessages(query);
     }
 
@@ -73,7 +73,9 @@ public class MessageServiceImpl implements MessageService {
             String brokerGroup = query.getBrokerGroup();
             long sequence = query.getSequence();
             BackupMessageMeta meta = new BackupMessageMeta(sequence, brokerGroup, "");
-            return retrieveMessageWithMeta(brokerGroup, subject, Lists.newArrayList(meta)).get(0);
+            List<BackupMessage> messages = retrieveMessageWithMeta(brokerGroup, subject, Lists.newArrayList(meta));
+            if (messages.isEmpty()) return null;
+            return messages.get(0);
         } catch (Exception e) {
             LOG.error("Failed to find message details. {} ", query, e);
             return null;
@@ -159,7 +161,7 @@ public class MessageServiceImpl implements MessageService {
     }
 
     @Override
-    public RecordResult findRecords(RecordQuery query) {
+    public RecordQueryResult findRecords(RecordQuery query) {
         return recordStore.findRecords(query);
     }
 }
