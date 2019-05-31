@@ -44,21 +44,12 @@ public class MessageServiceImpl implements MessageService {
 
     private final Gson serializer = new GsonBuilder().setLongSerializationPolicy(LongSerializationPolicy.STRING).create();
 
-    private static final MessageService MESSAGE_SERVICE = new MessageServiceImpl();
-
     private MessageStore indexStore;
     private MessageStore deadStore;
     private RecordStore recordStore;
     private SlaveMetaSupplier metaSupplier;
 
-    private MessageServiceImpl() {
-    }
-
-    public static MessageService getInstance() {
-        return MESSAGE_SERVICE;
-    }
-
-    public void init(DynamicConfig config, MessageStore indexStore, MessageStore deadStore, RecordStore recordStore) {
+    public MessageServiceImpl(DynamicConfig config, MessageStore indexStore, MessageStore deadStore, RecordStore recordStore) {
         this.indexStore = indexStore;
         this.deadStore = deadStore;
         this.recordStore = recordStore;

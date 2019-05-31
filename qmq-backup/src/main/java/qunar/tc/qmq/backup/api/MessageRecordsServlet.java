@@ -5,7 +5,6 @@ import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.backup.base.RecordQuery;
 import qunar.tc.qmq.backup.base.RecordResult;
 import qunar.tc.qmq.backup.service.MessageService;
-import qunar.tc.qmq.backup.service.impl.MessageServiceImpl;
 import qunar.tc.qmq.backup.util.Serializer;
 
 import javax.servlet.http.HttpServlet;
@@ -21,9 +20,13 @@ import java.util.Collections;
 public class MessageRecordsServlet extends HttpServlet {
     private static final Logger LOG = LoggerFactory.getLogger(MessageRecordsServlet.class);
 
-    private final Serializer serializer = Serializer.getSerializer();
+    private static final Serializer serializer = Serializer.getSerializer();
 
-    private static final MessageService messageService = MessageServiceImpl.getInstance();
+    private final MessageService messageService;
+
+    public MessageRecordsServlet(MessageService messageService) {
+        this.messageService = messageService;
+    }
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {

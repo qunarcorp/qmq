@@ -4,7 +4,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.backup.base.BackupQuery;
 import qunar.tc.qmq.backup.service.MessageService;
-import qunar.tc.qmq.backup.service.impl.MessageServiceImpl;
 import qunar.tc.qmq.backup.util.Serializer;
 
 import javax.servlet.http.HttpServlet;
@@ -22,7 +21,11 @@ public abstract class AbstractGetServlet extends HttpServlet {
 
     final Serializer serializer = Serializer.getSerializer();
 
-    static MessageService messageService = MessageServiceImpl.getInstance();
+    protected final MessageService messageService;
+
+    public AbstractGetServlet(MessageService messageService) {
+        this.messageService = messageService;
+    }
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {

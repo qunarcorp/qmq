@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.backup.base.BackupMessage;
 import qunar.tc.qmq.backup.base.BackupQuery;
 import qunar.tc.qmq.backup.base.ResultIterable;
+import qunar.tc.qmq.backup.service.MessageService;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -17,6 +18,10 @@ import java.util.Collections;
  */
 public class MessageApiServlet extends AbstractGetServlet {
     private static final Logger LOG = LoggerFactory.getLogger(MessageApiServlet.class);
+
+    public MessageApiServlet(MessageService messageService) {
+        super(messageService);
+    }
 
     @Override
     protected void query(HttpServletRequest req, HttpServletResponse resp, BackupQuery query) throws IOException {

@@ -10,9 +10,7 @@ import qunar.tc.qmq.backup.config.BackupConfig;
 import qunar.tc.qmq.backup.config.DefaultBackupConfig;
 import qunar.tc.qmq.backup.service.*;
 import qunar.tc.qmq.backup.service.impl.*;
-import qunar.tc.qmq.backup.store.DicStore;
-import qunar.tc.qmq.backup.store.KvStore;
-import qunar.tc.qmq.backup.store.RocksDBStore;
+import qunar.tc.qmq.backup.store.*;
 import qunar.tc.qmq.backup.store.impl.DbDicDao;
 import qunar.tc.qmq.backup.store.impl.FactoryStoreImpl;
 import qunar.tc.qmq.backup.store.impl.RocksDBStoreImpl;
@@ -52,9 +50,11 @@ public class ServerWrapper implements Disposable {
     private final BatchBackupManager backupManager;
     private final ScheduleFlushManager scheduleFlushManager;
 
-    private KvStore recordStore;
-    private KvStore indexStore;
-    private KvStore deadMessageStore;
+    private RecordStore recordStore;
+    private MessageStore indexStore;
+    private MessageStore deadMessageStore;
+
+    private MessageService messageService;
 
     public ServerWrapper(DynamicConfig config) {
         this.config = new DefaultBackupConfig(config);
@@ -132,11 +132,17 @@ public class ServerWrapper implements Disposable {
         IndexFileStore indexFileStore = new IndexFileStore(log, config);
         scheduleFlushManager.register(indexFileStore);
 
+        messageService = new MessageServiceImpl(config, indexStore, deadMessageStore, recordStore);
+
         scheduleFlushManager.scheduleFlush();
         backupManager.start();
         iterateService.start();
         masterSlaveSyncManager.startSync();
         addResourcesInOrder(scheduleFlushManager, backupManager, iterateService, masterSlaveSyncManager);
+    }
+
+    public MessageService getMessageService() {
+        return messageService;
     }
 
     private StorageConfig dummyConfig(String indexDir, String checkpointDir) {
