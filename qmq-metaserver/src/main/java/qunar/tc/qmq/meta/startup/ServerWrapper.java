@@ -20,6 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.common.Disposable;
 import qunar.tc.qmq.configuration.DynamicConfig;
+import qunar.tc.qmq.meta.cache.BrokerMetaManager;
 import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 import qunar.tc.qmq.meta.cache.CachedOfflineStateManager;
 import qunar.tc.qmq.meta.management.*;
@@ -68,6 +69,9 @@ public class ServerWrapper implements Disposable {
 
         final Store store = new DatabaseStore();
         final BrokerStore brokerStore = new BrokerStoreImpl(JdbcTemplateHolder.getOrCreate());
+        final BrokerMetaManager brokerMetaManager = BrokerMetaManager.getInstance();
+        brokerMetaManager.init(brokerStore);
+
         final ReadonlyBrokerGroupSettingStore readonlyBrokerGroupSettingStore = new ReadonlyBrokerGroupSettingStoreImpl(JdbcTemplateHolder.getOrCreate());
         final CachedMetaInfoManager cachedMetaInfoManager = new CachedMetaInfoManager(config, store, readonlyBrokerGroupSettingStore);
 
@@ -101,8 +105,8 @@ public class ServerWrapper implements Disposable {
         actions.register("UnMarkReadonlyBrokerGroup", new TokenVerificationAction(new UnMarkReadonlyBrokerGroupAction(readonlyBrokerGroupSettingService)));
         actions.register("ResetOffset", new TokenVerificationAction(new ResetOffsetAction(store)));
 
-
         resources.add(cachedMetaInfoManager);
+        resources.add(brokerMetaManager);
         resources.add(metaNettyServer);
     }
 

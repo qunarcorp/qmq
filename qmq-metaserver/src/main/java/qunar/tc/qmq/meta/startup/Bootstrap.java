@@ -20,10 +20,7 @@ import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.configuration.DynamicConfigLoader;
-import qunar.tc.qmq.meta.web.MetaManagementServlet;
-import qunar.tc.qmq.meta.web.MetaServerAddressSupplierServlet;
-import qunar.tc.qmq.meta.web.OnOfflineServlet;
-import qunar.tc.qmq.meta.web.SubjectConsumerServlet;
+import qunar.tc.qmq.meta.web.*;
 
 /**
  * @author keli.wang
@@ -42,6 +39,7 @@ public class Bootstrap {
         context.addServlet(MetaManagementServlet.class, "/management");
         context.addServlet(SubjectConsumerServlet.class, "/subject/consumers");
         context.addServlet(OnOfflineServlet.class, "/onoffline");
+        context.addServlet(SlaveServerAddressSupplierServlet.class, "/slave/meta");
 
         // TODO(keli.wang): allow set port use env
         int port = config.getInt("meta.server.discover.port", 8080);
