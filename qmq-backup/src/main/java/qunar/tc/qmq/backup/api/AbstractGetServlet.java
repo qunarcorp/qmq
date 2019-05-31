@@ -21,9 +21,9 @@ public abstract class AbstractGetServlet extends HttpServlet {
 
     final Serializer serializer = Serializer.getSerializer();
 
-    protected final MessageService messageService;
+    final MessageService messageService;
 
-    public AbstractGetServlet(MessageService messageService) {
+    AbstractGetServlet(MessageService messageService) {
         this.messageService = messageService;
     }
 
