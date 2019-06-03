@@ -31,13 +31,10 @@ import qunar.tc.qmq.sync.SlaveSyncClient;
 import qunar.tc.qmq.sync.SyncType;
 import qunar.tc.qmq.utils.NetworkUtils;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
-import static qunar.tc.qmq.backup.config.DefaultBackupConfig.INDEX_LOG_DIR_PATH_CONFIG_KEY;
-import static qunar.tc.qmq.backup.config.DefaultBackupConfig.OFFSET_FILE_PATH_CONFIG_KEY;
 import static qunar.tc.qmq.backup.service.DicService.SIX_DIGIT_FORMAT_PATTERN;
 import static qunar.tc.qmq.constants.BrokerConstants.*;
 
@@ -88,12 +85,7 @@ public class ServerWrapper implements Disposable {
         final SlaveSyncClient slaveSyncClient = new SlaveSyncClient(config);
         final MasterSlaveSyncManager masterSlaveSyncManager = new MasterSlaveSyncManager(slaveSyncClient);
 
-        final File indexLogDir = new File(config.getString(INDEX_LOG_DIR_PATH_CONFIG_KEY));
-        ensureDir(indexLogDir);
-        final File checkpointDir = new File(config.getString(OFFSET_FILE_PATH_CONFIG_KEY));
-        ensureDir(checkpointDir);
-
-        StorageConfig storageConfig = dummyConfig(indexLogDir.getAbsolutePath(), checkpointDir.getAbsolutePath());
+        StorageConfig storageConfig = dummyConfig(config);
         final CheckpointManager checkpointManager = new CheckpointManager(BrokerConfig.getBrokerRole(), storageConfig, null);
         final FixedExecOrderEventBus bus = new FixedExecOrderEventBus();
         BrokerRole role = BrokerConfig.getBrokerRole();
@@ -145,98 +137,14 @@ public class ServerWrapper implements Disposable {
         return messageService;
     }
 
-    private StorageConfig dummyConfig(String indexDir, String checkpointDir) {
-        return new StorageConfig() {
-            @Override
-            public String getCheckpointStorePath() {
-                return checkpointDir;
-            }
+    private StorageConfig dummyConfig(DynamicConfig config) {
+        class BackupStorageConfig extends StorageConfigImpl {
 
-            @Override
-            public String getMessageLogStorePath() {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public long getMessageLogRetentionMs() {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public String getConsumerLogStorePath() {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public long getConsumerLogRetentionMs() {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public int getLogRetentionCheckIntervalSeconds() {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public String getPullLogStorePath() {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public long getPullLogRetentionMs() {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public String getActionLogStorePath() {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public String getIndexLogStorePath() {
-                return indexDir;
-            }
-
-            @Override
-            public boolean isDeleteExpiredLogsEnable() {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public long getLogRetentionMs() {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public int getRetryDelaySeconds() {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public int getCheckpointRetainCount() {
-                return 3;
-            }
-
-            @Override
-            public long getActionCheckpointInterval() {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public long getMessageCheckpointInterval() {
-                throw new UnsupportedOperationException();
-            }
-        };
-    }
-
-    private void ensureDir(final File file) {
-        if (!file.exists()) {
-            if (file.mkdirs()) {
-                LOG.info("create dir {}", file.getAbsolutePath());
-            } else {
-                LOG.error("create dir {} error.", file.getAbsolutePath());
+            private BackupStorageConfig(DynamicConfig config) {
+                super(config);
             }
         }
+        return new BackupStorageConfig(config);
     }
 
     private FixedExecOrderEventBus.Listener<MessageQueryIndex> getConstructIndexListener(final BackupKeyGenerator keyGenerator, Consumer<MessageQueryIndex> consumer) {

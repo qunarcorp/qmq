@@ -1,5 +1,6 @@
 package qunar.tc.qmq.backup.service;
 
+import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -38,10 +39,13 @@ public class SlaveMetaSupplier {
         try {
             Response response = HTTP_CLIENT.prepareGet(serverMetaAcquiredUrl).addQueryParam("groupName", groupName).execute().get();
             if (response.getStatusCode() == HttpResponseStatus.OK.code()) {
-                return response.getResponseBody();
+                String address = response.getResponseBody();
+                if (!Strings.isNullOrEmpty(address)) {
+                    return address;
+                }
             }
         } catch (Exception e) {
-            LOG.error("backup meta supplier refresh error.", e);
+            LOG.error("Get server address error.", e);
         }
         return null;
     }
