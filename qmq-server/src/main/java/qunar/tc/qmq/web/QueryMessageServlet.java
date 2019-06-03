@@ -42,11 +42,11 @@ public class QueryMessageServlet extends HttpServlet {
     public QueryMessageServlet(DynamicConfig config, Storage store) {
         this.store = store;
         this.threadPoolExecutor = new ThreadPoolExecutor(1, config.getInt("query.max.threads", 5)
-                , 1, TimeUnit.MINUTES, new LinkedBlockingQueue<>(), new NamedThreadFactory("query-msg"));
+                , 1, TimeUnit.MINUTES, new LinkedBlockingQueue<>(1000), new NamedThreadFactory("query-msg"));
     }
 
     @Override
-    protected void doGet(final HttpServletRequest req, final HttpServletResponse resp) throws IOException {
+    protected void doGet(final HttpServletRequest req, final HttpServletResponse resp) {
         resp.setStatus(HttpServletResponse.SC_OK);
         String queryJson = req.getParameter("backupQuery");
         if (Strings.isNullOrEmpty(queryJson)) return;

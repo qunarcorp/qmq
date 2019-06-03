@@ -36,8 +36,7 @@ public class HBaseStoreFactory implements KvStore.StoreFactory {
     private final BackupKeyGenerator keyGenerator;
 
     HBaseStoreFactory(DynamicConfig config, DicService dicService, BackupKeyGenerator keyGenerator) {
-        final String hbaseConfigFile = config.getString(HBASE_CONFIG_FILE_CONFIG_KEY, DEFAULT_HBASE_CONFIG_FILE);
-        final DynamicConfig hbaseConfig = DynamicConfigLoader.load(hbaseConfigFile, true);
+        final DynamicConfig hbaseConfig = DynamicConfigLoader.load(DEFAULT_HBASE_CONFIG_FILE, true);
         final Config HBaseConfig = from(hbaseConfig);
         this.client = new HBaseClient(HBaseConfig);
         this.client.setFlushInterval(CLIENT_FLUSH_INTERVAL);
