@@ -39,6 +39,8 @@ public interface StorageConfig {
 
     String getActionLogStorePath();
 
+    String getIndexLogStorePath();
+
     boolean isDeleteExpiredLogsEnable();
 
     long getLogRetentionMs();

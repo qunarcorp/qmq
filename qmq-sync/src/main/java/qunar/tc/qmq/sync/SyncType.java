@@ -21,7 +21,7 @@ package qunar.tc.qmq.sync;
  * @since 2017/8/18
  */
 public enum SyncType {
-    action(1), message(2), heartbeat(3), dispatch(4);
+    action(1), message(2), heartbeat(3), dispatch(4), index(5);
 
     private int code;
 

@@ -46,8 +46,19 @@ public final class PayloadHolderUtils {
         out.put(bs);
     }
 
+    public static void writeString(byte[] s, ByteBuf out) {
+        out.writeShort((short) s.length);
+        out.writeBytes(s);
+    }
+
     public static String readString(ByteBuffer in) {
         int len = in.getShort();
+        byte[] bs = new byte[len];
+        in.get(bs);
+        return CharsetUtils.toUTF8String(bs);
+    }
+
+    public static String readString(short len, ByteBuffer in) {
         byte[] bs = new byte[len];
         in.get(bs);
         return CharsetUtils.toUTF8String(bs);

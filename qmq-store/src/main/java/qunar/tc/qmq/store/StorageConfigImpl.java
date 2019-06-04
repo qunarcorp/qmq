@@ -32,6 +32,7 @@ public class StorageConfigImpl implements StorageConfig {
     private static final String CONSUMER_LOG = "consumerlog";
     private static final String PULL_LOG = "pulllog";
     private static final String ACTION_LOG = "actionlog";
+    private static final String INDEX_LOG = "indexlog";
 
     private static final long MS_PER_HOUR = TimeUnit.HOURS.toMillis(1);
 
@@ -87,6 +88,11 @@ public class StorageConfigImpl implements StorageConfig {
     @Override
     public String getActionLogStorePath() {
         return buildStorePath(ACTION_LOG);
+    }
+
+    @Override
+    public String getIndexLogStorePath() {
+        return buildStorePath(INDEX_LOG);
     }
 
     private String buildStorePath(final String name) {

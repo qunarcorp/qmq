@@ -21,10 +21,10 @@ import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.meta.BrokerRole;
 import qunar.tc.qmq.base.SyncRequest;
 import qunar.tc.qmq.configuration.BrokerConfig;
 import qunar.tc.qmq.configuration.DynamicConfig;
+import qunar.tc.qmq.meta.BrokerRole;
 import qunar.tc.qmq.protocol.CommandCode;
 import qunar.tc.qmq.protocol.Datagram;
 import qunar.tc.qmq.protocol.PayloadHolder;
@@ -75,8 +75,9 @@ abstract class AbstractLogSyncWorker implements SyncProcessor {
         final SyncRequest syncRequest = entry.getSyncRequest();
         final SegmentBuffer result = getSyncLog(syncRequest);
 
+        int syncType = syncRequest.getSyncType();
         if (result == null || result.getSize() <= 0) {
-            long offset = syncRequest.getSyncType() == SyncType.message.getCode() ? syncRequest.getMessageLogOffset() : syncRequest.getActionLogOffset();
+            long offset = syncType == SyncType.message.getCode() ? syncRequest.getMessageLogOffset() : syncRequest.getActionLogOffset();
             writeEmpty(entry, offset);
             return;
         }

@@ -88,4 +88,19 @@ public final class RetrySubjectUtils {
             return new String[]{parts.get(1), parts.get(2)};
         }
     }
+
+    public static String getConsumerGroup(final String subject) {
+        if (!isDeadRetrySubject(subject) && !isRetrySubject(subject)) return "";
+        final List<String> parts = RETRY_SUBJECT_SPLITTER.splitToList(subject);
+        if (parts.size() != 3) return "";
+        else return parts.get(2);
+    }
+
+    public static String buildRetrySubject(final String subject) {
+        return RETRY_SUBJECT_JOINER.join(RETRY_SUBJECT_PREFIX, subject);
+    }
+
+    public static String buildDeadRetrySubject(final String subject) {
+        return RETRY_SUBJECT_JOINER.join(DEAD_RETRY_SUBJECT_PREFIX, subject);
+    }
 }

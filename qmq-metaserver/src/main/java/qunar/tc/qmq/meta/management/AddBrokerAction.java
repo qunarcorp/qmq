@@ -56,7 +56,11 @@ public class AddBrokerAction implements MetaManagementAction {
             final String hostname = req.getParameter("hostname");
             final String ip = req.getParameter("ip");
             final int servePort = Integer.parseInt(req.getParameter("servePort"));
-            final int syncPort = Integer.parseInt(req.getParameter("syncPort"));
+            int syncPort = -1;
+            if (role != BrokerRole.BACKUP
+                    && role != BrokerRole.DELAY_BACKUP) {
+                syncPort = Integer.parseInt(req.getParameter("syncPort"));
+            }
             final BrokerMeta broker = new BrokerMeta(brokerGroup, role, hostname, ip, servePort, syncPort);
 
             final Optional<String> validateResult = validateBroker(broker);

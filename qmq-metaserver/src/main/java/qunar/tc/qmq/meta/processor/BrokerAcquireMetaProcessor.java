@@ -67,10 +67,16 @@ public class BrokerAcquireMetaProcessor implements NettyRequestProcessor {
     private BrokerAcquireMetaResponse createResponse(final String hostname, final int servePort) {
         final BrokerMeta broker = store.queryBroker(hostname, servePort).orElseThrow(() -> new RuntimeException("cannot find broker meta for " + hostname + ":" + servePort));
         final BrokerAcquireMetaResponse resp = new BrokerAcquireMetaResponse();
+
+        final BrokerRole role = broker.getRole();
+
         resp.setName(broker.getGroup());
-        resp.setRole(broker.getRole());
+        resp.setRole(role);
         if (needSync(broker)) {
-            resp.setMaster(loadSyncAddress(broker));
+            if (role == BrokerRole.SLAVE || role == BrokerRole.DELAY_SLAVE)
+                resp.setMaster(loadSlaveSyncAddress(broker));
+            else if (role == BrokerRole.BACKUP || role == BrokerRole.DELAY_BACKUP)
+                resp.setMaster(loadBackupSyncAddress(broker));
         } else {
             resp.setMaster("");
         }
@@ -86,7 +92,7 @@ public class BrokerAcquireMetaProcessor implements NettyRequestProcessor {
 
     }
 
-    private String loadSyncAddress(final BrokerMeta broker) {
+    private String loadSlaveSyncAddress(final BrokerMeta broker) {
         final List<BrokerMeta> brokers = store.queryBrokers(broker.getGroup());
         for (final BrokerMeta b : brokers) {
             if (isMaster(b)) {
@@ -97,10 +103,27 @@ public class BrokerAcquireMetaProcessor implements NettyRequestProcessor {
         throw new RuntimeException("cannot find master in broker group " + broker.getGroup());
     }
 
+    private String loadBackupSyncAddress(final BrokerMeta broker) {
+        final List<BrokerMeta> brokers = store.queryBrokers(broker.getGroup());
+        for (final BrokerMeta b : brokers) {
+            if (isSlave(b)) {
+                return b.getIp() + ":" + b.getSyncPort();
+            }
+        }
+
+        throw new RuntimeException("cannot find slave in broker group " + broker.getGroup());
+    }
+
     private boolean isMaster(final BrokerMeta broker) {
         final BrokerRole role = broker.getRole();
         return role == BrokerRole.MASTER
                 || role == BrokerRole.DELAY_MASTER;
+    }
+
+    private boolean isSlave(final BrokerMeta brokerMeta) {
+        final BrokerRole role = brokerMeta.getRole();
+        return role == BrokerRole.SLAVE
+                || role == BrokerRole.DELAY_SLAVE;
     }
 
     @Override

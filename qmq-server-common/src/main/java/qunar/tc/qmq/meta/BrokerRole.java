@@ -24,11 +24,10 @@ public enum BrokerRole {
     MASTER(BrokerGroupKind.NORMAL, 0),
     SLAVE(BrokerGroupKind.NORMAL, 1),
     STANDBY(BrokerGroupKind.NORMAL, 2),
-    DELAY(BrokerGroupKind.DELAY, 3),
-    BACKUP(BrokerGroupKind.NORMAL, 4),
-    DELAY_MASTER(BrokerGroupKind.DELAY, 5),
-    DELAY_SLAVE(BrokerGroupKind.DELAY, 6),
-    DELAY_BACKUP(BrokerGroupKind.DELAY, 7);
+    BACKUP(BrokerGroupKind.NORMAL, 3),
+    DELAY_MASTER(BrokerGroupKind.DELAY, 4),
+    DELAY_SLAVE(BrokerGroupKind.DELAY, 5),
+    DELAY_BACKUP(BrokerGroupKind.DELAY, 6);
 
     private final BrokerGroupKind kind;
     private final int code;
