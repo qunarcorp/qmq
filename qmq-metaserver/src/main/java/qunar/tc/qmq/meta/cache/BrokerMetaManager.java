@@ -29,10 +29,11 @@ public final class BrokerMetaManager implements Disposable {
     private static final long DEFAULT_REFRESH_PERIOD_SECONDS = 5L;
     private static final int DEFAULT_PORT = 8080;
     private static final String SLASH = "/";
-
-    private volatile Map<String, BrokerMeta> groupNameToSlaveMap = Maps.newHashMap();
+    private static final String EMPTY = "";
 
     private static final BrokerMetaManager INSTANCE = new BrokerMetaManager();
+
+    private volatile Map<String, BrokerMeta> groupNameToSlaveMap = Maps.newHashMap();
 
     private ScheduledExecutorService scheduledExecutorService;
     private BrokerStore brokerStore;
@@ -47,7 +48,7 @@ public final class BrokerMetaManager implements Disposable {
 
     public void init(BrokerStore brokerStore) {
         this.brokerStore = brokerStore;
-        this.httpPortMapConfig = DynamicConfigLoader.load("broker_http_port_map.properties", false);
+        this.httpPortMapConfig = DynamicConfigLoader.load("broker-http-port-map.properties", false);
         refresh();
         scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder().setNameFormat("broker-meta-refresh-%d").build());
         scheduledExecutorService.scheduleAtFixedRate(this::refresh, DEFAULT_REFRESH_PERIOD_SECONDS, DEFAULT_REFRESH_PERIOD_SECONDS, TimeUnit.SECONDS);
@@ -67,10 +68,10 @@ public final class BrokerMetaManager implements Disposable {
 
     public String getSlaveHttpAddress(String groupName) {
         final BrokerMeta meta = groupNameToSlaveMap.get(groupName);
-        if (meta == null) return "";
+        if (meta == null) return EMPTY;
         String httpPort = slaveHttpPort(meta.getHostname(), meta.getServePort());
-        if (Strings.isNullOrEmpty(httpPort)) return "";
-        return meta.getIp() + httpPort;
+        if (Strings.isNullOrEmpty(httpPort)) return EMPTY;
+        return meta.getIp() + ":" + httpPort;
     }
 
     private String slaveHttpPort(String host, int serverPort) {
@@ -78,7 +79,7 @@ public final class BrokerMetaManager implements Disposable {
             return String.valueOf(httpPortMapConfig.getInt(host + SLASH + serverPort, DEFAULT_PORT));
         } catch (Exception e) {
             LOG.error("Failed to get slave http port.", e);
-            return "";
+            return EMPTY;
         }
     }
 

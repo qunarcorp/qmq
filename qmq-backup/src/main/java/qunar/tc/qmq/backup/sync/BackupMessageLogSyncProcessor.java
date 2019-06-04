@@ -22,6 +22,6 @@ public class BackupMessageLogSyncProcessor extends AbstractSyncLogProcessor {
 
     @Override
     public SyncRequest getRequest() {
-        return new SyncRequest(dispatcher.getSyncType().getCode(), dispatcher.getSyncLogOffset(), -1L);
+        return new SyncRequest(dispatcher.getSyncType().getCode(), dispatcher.getSyncLogOffset(), dispatcher.getSyncLogOffset());
     }
 }
