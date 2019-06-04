@@ -1,11 +1,14 @@
 package qunar.tc.qmq.backup.api;
 
+import com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.backup.base.BackupQuery;
+import qunar.tc.qmq.backup.base.MessageQueryResult;
 import qunar.tc.qmq.backup.service.MessageService;
 import qunar.tc.qmq.backup.util.Serializer;
 
+import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -23,34 +26,41 @@ public abstract class AbstractGetServlet extends HttpServlet {
 
     final MessageService messageService;
 
+    protected static final MessageQueryResult EMPTY_MESSAGE_QUERY_RESULT = new MessageQueryResult();
+
     AbstractGetServlet(MessageService messageService) {
         this.messageService = messageService;
     }
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-        final BackupQuery query = getQuery(req);
+        resp.setStatus(HttpServletResponse.SC_OK);
+        final String queryStr = req.getParameter("backupQuery");
+        if (Strings.isNullOrEmpty(queryStr)) return;
+        final BackupQuery query = deserialize(queryStr);
         if (query == null) {
-            response(resp, HttpServletResponse.SC_OK, serializer.serialize(Collections.emptyList()));
+            response(resp, serializer.serialize(Collections.emptyList()));
             return;
         }
 
         query(req, resp, query);
     }
 
-    void response(HttpServletResponse resp, int code, Object data) throws IOException {
-        resp.setHeader("Content-type", "text/html;charset=UTF-8");
+    void response(ServletResponse resp, Object data) {
+        resp.setContentType("application/json");
         resp.setCharacterEncoding("UTF-8");
-        resp.setStatus(code);
-        resp.getWriter().println(data);
+        try {
+            resp.getWriter().println(data);
+        } catch (IOException e) {
+            LOG.error("An IOException occurred.", e);
+        }
     }
 
     protected abstract void query(final HttpServletRequest req, final HttpServletResponse resp, final BackupQuery query) throws IOException;
 
-    private BackupQuery getQuery(final HttpServletRequest request) {
+    private BackupQuery deserialize(final String json) {
         try {
-            final String queryStr = request.getParameter("backupQuery");
-            return serializer.deSerialize(queryStr, BackupQuery.class);
+            return serializer.deSerialize(json, BackupQuery.class);
         } catch (Exception e) {
             LOG.error("Get backup query error.", e);
             return null;

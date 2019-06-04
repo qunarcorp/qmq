@@ -32,13 +32,13 @@ import static qunar.tc.qmq.backup.util.HBaseValueDecoder.getMessageMeta;
 public abstract class AbstractHBaseMessageStore extends HBaseStore implements MessageStore {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractHBaseMessageStore.class);
 
-    protected static final MessageQueryResult EMPTY_RESULT = new MessageQueryResult();
+    static final MessageQueryResult EMPTY_RESULT = new MessageQueryResult();
 
-    public AbstractHBaseMessageStore(byte[] table, byte[] family, byte[][] qualifiers, HBaseClient client) {
+    AbstractHBaseMessageStore(byte[] table, byte[] family, byte[][] qualifiers, HBaseClient client) {
         super(table, family, qualifiers, client);
     }
 
-    protected void getMessageFromHBase(final String subject, final byte[] table, final MessageQueryResult messageQueryResult, final String keyRegexp, final String startKey, final String endKey
+    void getMessageFromHBase(final String subject, final byte[] table, final MessageQueryResult messageQueryResult, final String keyRegexp, final String startKey, final String endKey
             , final int maxResults) {
         List<BackupMessageMeta> metas;
         try {

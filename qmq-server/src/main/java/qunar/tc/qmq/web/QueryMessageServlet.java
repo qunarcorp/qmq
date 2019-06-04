@@ -4,6 +4,7 @@ package qunar.tc.qmq.web;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonSyntaxException;
 import com.google.gson.LongSerializationPolicy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,21 +49,30 @@ public class QueryMessageServlet extends HttpServlet {
     @Override
     protected void doGet(final HttpServletRequest req, final HttpServletResponse resp) {
         resp.setStatus(HttpServletResponse.SC_OK);
-        String queryJson = req.getParameter("backupQuery");
+        final String queryJson = req.getParameter("backupQuery");
         if (Strings.isNullOrEmpty(queryJson)) return;
-        AsyncContext context = req.startAsync();
-        RemoteMessageQuery query = serializer.fromJson(queryJson, RemoteMessageQuery.class);
+        final AsyncContext context = req.startAsync();
+        RemoteMessageQuery query = deserialize(queryJson);
         if (query == null) {
             context.complete();
             return;
         }
 
-        ServletResponse response = context.getResponse();
-        CompletableFuture<Boolean> future = query(query, response);
+        final ServletResponse response = context.getResponse();
+        final CompletableFuture<Boolean> future = query(query, response);
         future.exceptionally(throwable -> {
             LOG.error("Failed to query messages. {}", query, throwable);
             return true;
         }).thenAccept(aBoolean -> context.complete());
+    }
+
+    private RemoteMessageQuery deserialize(String json) {
+        try {
+            return serializer.fromJson(json, RemoteMessageQuery.class);
+        } catch (JsonSyntaxException e) {
+            LOG.error("Deserialize query json error.", e);
+            return null;
+        }
     }
 
     private CompletableFuture<Boolean> query(RemoteMessageQuery query, ServletResponse response) {
@@ -73,7 +83,7 @@ public class QueryMessageServlet extends HttpServlet {
                     final String subject = query.getSubject();
                     final List<RemoteMessageQuery.MessageKey> keys = query.getKeys();
 
-                    ServletOutputStream os = response.getOutputStream();
+                    final ServletOutputStream os = response.getOutputStream();
                     for (RemoteMessageQuery.MessageKey key : keys) {
                         long sequence = key.getSequence();
                         GetMessageResult result = store.getMessage(subject, sequence);

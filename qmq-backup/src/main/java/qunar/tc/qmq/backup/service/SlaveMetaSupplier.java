@@ -9,6 +9,7 @@ import com.ning.http.client.Response;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.common.Disposable;
 import qunar.tc.qmq.configuration.DynamicConfig;
 
 import java.util.concurrent.ExecutionException;
@@ -20,7 +21,7 @@ import static qunar.tc.qmq.backup.config.DefaultBackupConfig.ACQUIRE_BACKUP_META
  * @author xufeng.deng dennisdxf@gmail.com
  * @since 2019-02-26 16:57
  */
-public class SlaveMetaSupplier {
+public class SlaveMetaSupplier implements Disposable {
     private static final Logger LOG = LoggerFactory.getLogger(SlaveMetaSupplier.class);
 
     private final String serverMetaAcquiredUrl;
@@ -33,7 +34,6 @@ public class SlaveMetaSupplier {
             return getServerAddress(key);
         }
     });
-
 
     private String getServerAddress(String groupName) {
         try {
@@ -61,5 +61,10 @@ public class SlaveMetaSupplier {
         } catch (ExecutionException e) {
             return null;
         }
+    }
+
+    @Override
+    public void destroy() {
+        HTTP_CLIENT.close();
     }
 }
