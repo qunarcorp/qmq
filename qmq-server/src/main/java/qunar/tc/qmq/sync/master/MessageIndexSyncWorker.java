@@ -120,12 +120,12 @@ public class MessageIndexSyncWorker extends AbstractLogSyncWorker {
     private static class ByteBufSegmentBuffer extends SegmentBuffer {
         private final ByteBuf byteBuf;
 
-        public ByteBufSegmentBuffer(long startOffset) {
-            super(startOffset, null, -1, null);
+        ByteBufSegmentBuffer(long startOffset) {
+            super(startOffset, null, 0, null);
             this.byteBuf = null;
         }
 
-        public ByteBufSegmentBuffer(long startOffset, LogSegment segment, ByteBuf buffer, int size) {
+        ByteBufSegmentBuffer(long startOffset, LogSegment segment, ByteBuf buffer, int size) {
             super(startOffset, buffer.nioBuffer(), size, segment);
             this.byteBuf = buffer;
         }

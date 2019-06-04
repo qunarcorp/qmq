@@ -21,10 +21,10 @@ import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.meta.BrokerRole;
 import qunar.tc.qmq.base.SyncRequest;
 import qunar.tc.qmq.configuration.BrokerConfig;
 import qunar.tc.qmq.configuration.DynamicConfig;
+import qunar.tc.qmq.meta.BrokerRole;
 import qunar.tc.qmq.protocol.CommandCode;
 import qunar.tc.qmq.protocol.Datagram;
 import qunar.tc.qmq.protocol.PayloadHolder;
@@ -61,7 +61,7 @@ abstract class AbstractLogSyncWorker implements SyncProcessor {
     public void process(SyncRequestEntry entry) {
         final SyncRequest syncRequest = entry.getSyncRequest();
         final SegmentBuffer result = getSyncLog(syncRequest);
-        if (result == null || (result.getSize() <= 0 && syncRequest.getSyncType() != SyncType.index.getCode())) {
+        if (result == null || result.getSize() <= 0) {
             final long timeout = config.getLong("message.sync.timeout.ms", 10L);
             ServerTimerUtil.newTimeout(new SyncRequestTimeoutTask(entry, this), timeout, TimeUnit.MILLISECONDS);
             return;
@@ -76,7 +76,7 @@ abstract class AbstractLogSyncWorker implements SyncProcessor {
         final SegmentBuffer result = getSyncLog(syncRequest);
 
         int syncType = syncRequest.getSyncType();
-        if (result == null || (result.getSize() <= 0 && syncType != SyncType.index.getCode())) {
+        if (result == null || result.getSize() <= 0) {
             long offset = syncType == SyncType.message.getCode() ? syncRequest.getMessageLogOffset() : syncRequest.getActionLogOffset();
             writeEmpty(entry, offset);
             return;
@@ -107,17 +107,16 @@ abstract class AbstractLogSyncWorker implements SyncProcessor {
             final int batchSize = config.getInt("sync.batch.size", 100000);
             final ByteBuffer buffer = result.getBuffer();
             int size = result.getSize();
-            int payloadSize = size < 0 ? 0 : size;
-            if (payloadSize > batchSize) {
+            if (size > batchSize) {
                 buffer.limit(batchSize);
-                payloadSize = batchSize;
+                size = batchSize;
             }
             final RemotingHeader header = RemotingBuilder.buildResponseHeader(CommandCode.SUCCESS, entry.getRequestHeader());
-            ByteBuffer headerBuffer = HeaderSerializer.serialize(header, SYNC_HEADER_LEN + payloadSize, SYNC_HEADER_LEN);
-            headerBuffer.putInt(payloadSize == 0 ? size : payloadSize);
+            ByteBuffer headerBuffer = HeaderSerializer.serialize(header, SYNC_HEADER_LEN + size, SYNC_HEADER_LEN);
+            headerBuffer.putInt(size);
             headerBuffer.putLong(result.getStartOffset());
             headerBuffer.flip();
-            entry.getCtx().writeAndFlush(new DataTransfer(headerBuffer, result, payloadSize));
+            entry.getCtx().writeAndFlush(new DataTransfer(headerBuffer, result, size));
         } catch (Exception e) {
             result.release();
         }

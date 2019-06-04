@@ -46,7 +46,7 @@ public class MessageLogRecordVisitor extends AbstractLogVisitor<MessageLogRecord
                 return LogVisitorRecord.noMore();
             }
             final long sequence = buffer.getLong();
-            final int subjectSize = buffer.getInt();
+            final int subjectSize = buffer.getShort();
             if (buffer.remaining() < subjectSize) {
                 return LogVisitorRecord.noMore();
             }

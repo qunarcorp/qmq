@@ -17,6 +17,9 @@ import qunar.tc.qmq.backup.util.BackupMessageKeyRangeBuilder;
 import qunar.tc.qmq.backup.util.BackupMessageKeyRegexpBuilder;
 import qunar.tc.qmq.backup.util.KeyValueList;
 import qunar.tc.qmq.backup.util.KeyValueListImpl;
+import qunar.tc.qmq.utils.Bytes;
+import qunar.tc.qmq.utils.CharsetUtils;
+import qunar.tc.qmq.utils.RetrySubjectUtils;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -60,16 +63,47 @@ public class HBaseRecordStore extends HBaseStore implements RecordStore {
         if (recordCode == RecordEnum.RECORD.getCode()) {
             final String brokerGroup = query.getBrokerGroup();
             if (Strings.isNullOrEmpty(brokerGroup)) return EMPTY_RECORD_RESULT;
-            List<RecordQueryResult.Record> records = findRecords(subject, new BackupMessageMeta(query.getSequence(), query.getBrokerGroup()), RecordEnum.RECORD.getCode());
+            List<RecordQueryResult.Record> records = findRecords(subject, new BackupMessageMeta(query.getSequence(), query.getBrokerGroup()), recordCode);
             return retResult(records);
         } else if (recordCode == RecordEnum.RETRY_RECORD.getCode()) {
             String messageId = query.getMessageId();
             if (Strings.isNullOrEmpty(messageId)) return EMPTY_RECORD_RESULT;
-            return findRetryRecord(subject, messageId);
+            return findRetryRecord(RetrySubjectUtils.buildRetrySubject(subject), messageId);
+        } else if (recordCode == RecordEnum.DEAD_RECORD.getCode()) {
+            String messageId = query.getMessageId();
+            if (Strings.isNullOrEmpty(messageId)) return EMPTY_RECORD_RESULT;
+            List<RecordQueryResult.Record> deads = findDeadRecord(subject, messageId);
+            if (CollectionUtils.isEmpty(deads)) return EMPTY_RECORD_RESULT;
+            return retResult(deads);
         }
 
         return null;
     }
+
+    private List<RecordQueryResult.Record> findDeadRecord(final String subject, final String messageId) {
+        final String subjectId = dicService.name2Id(subject);
+        final String keyRegexp = BackupMessageKeyRegexpBuilder.buildDeadRecordRegexp(subjectId, messageId);
+        final String startKey = BackupMessageKeyRangeBuilder.buildDeadRecordStartKey(subjectId, messageId);
+        final String endKey = BackupMessageKeyRangeBuilder.buildDeadRecordEndKey(subjectId, messageId);
+
+        try {
+            return scan(table, keyRegexp, startKey, endKey, 100, 0, R_FAMILY, B_RECORD_QUALIFIERS, kvs -> {
+                KeyValueList<KeyValue> kvl = new KeyValueListImpl(kvs);
+                byte[] value = kvl.getValue(RECORDS);
+                long sequence = Bytes.getLong(value, 0);
+                long timestamp = Bytes.getLong(value, 8);
+                int consumerGroupLength = value.length - 16;
+                byte[] consumerGroupBytes = new byte[consumerGroupLength];
+                System.arraycopy(value, 16, consumerGroupBytes, 0, consumerGroupLength);
+                final String consumerGroup = CharsetUtils.toUTF8String(consumerGroupBytes);
+                return new RecordQueryResult.Record(consumerGroup, ActionEnum.OMIT.getCode(), RecordEnum.DEAD_RECORD.getCode(), timestamp, "", sequence);
+            });
+        } catch (Exception e) {
+            LOG.error("Failed to find dead records.", e);
+            return Collections.emptyList();
+        }
+    }
+
 
     private RecordQueryResult findRetryRecord(final String subject, final String messageId) {
         List<BackupMessageMeta> metas = scanMessageMeta(subject, messageId);
