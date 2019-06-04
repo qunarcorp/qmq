@@ -394,7 +394,6 @@ hbase.zookeeper.znode.parent=
 ```
 
 ### 配置文件
-
 *backup.properties*  
 ```
 # 必填 meta server address
@@ -428,7 +427,6 @@ store.type=hbase
 # 可选 web端口
 backup.server.http.port=8080
 ```
-**
 ## 启动
 在启动backup server之前，请先将其在metaserver里注册，backup启动时候需要从metaserver获取元数据信息。
 
