@@ -5,13 +5,13 @@ import org.springframework.jdbc.core.PreparedStatementCreator;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import qunar.tc.qmq.backup.store.DicStore;
-import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
 
 import java.sql.PreparedStatement;
 import java.sql.Statement;
 
-import static qunar.tc.qmq.backup.config.DefaultBackupConfig.*;
+import static qunar.tc.qmq.backup.config.DefaultBackupConfig.DEFAULT_DB_DIC_TABLE;
+import static qunar.tc.qmq.backup.config.DefaultBackupConfig.DEFAULT_DELAY_DB_DIC_TABLE;
 
 /**
  * @author yiqun.fan create on 17-10-31.
@@ -22,8 +22,8 @@ public class DbDicDao implements DicStore {
     private final String getNameSql;
     private final String insertNameSql;
 
-    public DbDicDao(DynamicConfig config, boolean isDelay) {
-        String table = !isDelay ? config.getString(DB_DIC_TABLE_NAME_CONFIG_KEY, DEFAULT_DB_DIC_TABLE) : config.getString(DELAY_DB_DIC_TABLE_NAME_CONFIG_KEY, DEFAULT_DELAY_DB_DIC_TABLE);
+    public DbDicDao(boolean isDelay) {
+        String table = !isDelay ? DEFAULT_DB_DIC_TABLE : DEFAULT_DELAY_DB_DIC_TABLE;
         getIdSql = String.format("SELECT id FROM %s WHERE name =?", table);
         getNameSql = String.format("SELECT name FROM %s WHERE id=?", table);
         insertNameSql = String.format("INSERT INTO %s(name) VALUES(?)", table);

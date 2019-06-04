@@ -62,6 +62,7 @@ qmq的客户端已经发布到maven中央仓库，可以通过下面的方式获
 * [.NET客户端](docs/cn/net.md)
 * [延时/定时消息](docs/cn/delay.md)
 * [服务端tag过滤](docs/cn/tag.md)
+* [消息备份](docs/cn/backup.md)
 * [在IDE里运行代码](docs/cn/debug.md)
 * [运维](docs/cn/operations.md)
 * [支持其他DB](docs/cn/db.md)

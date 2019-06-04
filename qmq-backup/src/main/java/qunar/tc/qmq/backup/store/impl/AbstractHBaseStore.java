@@ -15,19 +15,13 @@ import java.util.concurrent.TimeUnit;
 public abstract class AbstractHBaseStore implements KvStore {
     public static final String CONTENT = "c";
     public static final String RECORDS = "r";
-    public static final String TAG = "t";
-    public static final String INDEX = "i";
 
     public static final byte[] B_CONTENT = Bytes.UTF8(CONTENT);
     public static final byte[] B_RECORDS = Bytes.UTF8(RECORDS);
-    public static final byte[] B_TAG = Bytes.UTF8(TAG);
-    public static final byte[] I_INDEX = Bytes.UTF8(INDEX);
 
     public static final byte[] B_FAMILY = Bytes.UTF8("m");
     public static final byte[] R_FAMILY = Bytes.UTF8("i");
-    public static final byte[] I_FAMILY = Bytes.UTF8("i");
 
-    public static final byte[][] I_MESSAGE_QUALIFIERS = new byte[][]{I_INDEX};
     public static final byte[][] B_MESSAGE_QUALIFIERS = new byte[][]{B_CONTENT};
     public static final byte[][] B_RECORD_QUALIFIERS = new byte[][]{B_RECORDS};
 
