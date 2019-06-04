@@ -76,6 +76,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
     @Override
     public synchronized void regist(String subject, String group, RegistParam param) {
         registPullEntry(subject, group, param, new AlwaysPullStrategy());
+        if (RetrySubjectUtils.isDeadRetrySubject(subject)) return;
         registPullEntry(RetrySubjectUtils.buildRetrySubject(subject, group), group, param, new WeightPullStrategy());
     }
 

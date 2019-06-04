@@ -43,8 +43,8 @@ public final class QMon {
         countInc(name, SUBJECT_ARRAY, new String[]{subject});
     }
 
-    private static void subjectAndGroupCountInc(String name, String subjectPrefix, String consumerGroup) {
-        countInc(name, SUBJECT_GROUP_ARRAY, new String[]{subjectPrefix, consumerGroup});
+    private static void subjectAndGroupCountInc(String name, String subject, String consumerGroup) {
+        countInc(name, SUBJECT_GROUP_ARRAY, new String[]{subject, consumerGroup});
     }
 
     private static void subjectAndGroupCountInc(String name, String[] values, long num) {

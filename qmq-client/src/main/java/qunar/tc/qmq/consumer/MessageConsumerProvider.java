@@ -92,7 +92,7 @@ public class MessageConsumerProvider implements MessageConsumer {
     @Override
     public ListenerHolder addListener(String subject, String consumerGroup, MessageListener listener, Executor executor, SubscribeParam subscribeParam) {
         init();
-        Preconditions.checkArgument(subject != null && subject.length() <= MAX_PREFIX_LEN, "subjectPrefix长度不允许超过" + MAX_PREFIX_LEN + "个字符");
+        Preconditions.checkArgument(subject != null && subject.length() <= MAX_PREFIX_LEN, "subject长度不允许超过" + MAX_PREFIX_LEN + "个字符");
         Preconditions.checkArgument(consumerGroup == null || consumerGroup.length() <= MAX_CONSUMER_GROUP_LEN, "consumerGroup长度不允许超过" + MAX_CONSUMER_GROUP_LEN + "个字符");
 
         Preconditions.checkArgument(!subject.contains("${"), "请确保subject已经正确解析: " + subject);

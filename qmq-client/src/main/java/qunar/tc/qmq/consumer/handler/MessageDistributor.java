@@ -40,23 +40,23 @@ public class MessageDistributor {
         this.register = register;
     }
 
-    public ListenerHolder addListener(final String subjectPrefix, final String consumerGroup, MessageListener listener, Executor executor, SubscribeParam subscribeParam) {
+    public ListenerHolder addListener(final String subject, final String consumerGroup, MessageListener listener, Executor executor, SubscribeParam subscribeParam) {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(consumerGroup));
 
         final RegistParam registParam = new RegistParam(executor, listener, subscribeParam, clientId);
         registParam.setBroadcast(subscribeParam.isBroadcast());
-        register.regist(subjectPrefix, consumerGroup, registParam);
+        register.regist(subject, consumerGroup, registParam);
         return new ListenerHolder() {
 
             @Override
             public void stopListen() {
-                register.unregist(subjectPrefix, consumerGroup);
+                register.unregist(subject, consumerGroup);
             }
 
             @Override
             public void resumeListen() {
                 registParam.setActionSrc(CODE);
-                register.regist(subjectPrefix, consumerGroup, registParam);
+                register.regist(subject, consumerGroup, registParam);
             }
         };
     }
