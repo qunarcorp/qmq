@@ -1,7 +1,6 @@
 package qunar.tc.qmq.backup.base;
 
 import com.google.common.collect.Lists;
-import qunar.tc.qmq.backup.util.Serializer;
 
 import java.io.Serializable;
 import java.util.List;
@@ -69,16 +68,6 @@ public class MessageQueryResult implements Serializable {
         public String getBrokerGroup() {
             return brokerGroup;
         }
-    }
-
-    public static void main(String[] args) {
-        Serializer serializer = Serializer.getSerializer();
-        MessageQueryResult result = new MessageQueryResult();
-        List<MessageMeta> messageMetas = Lists.newArrayList();
-        MessageMeta meta = new MessageMeta("subject", "msgId", 0, 0, "brokerGroup");
-        messageMetas.add(meta);
-        result.setList(messageMetas);
-        System.out.println(serializer.serialize(result));
     }
 
 }
