@@ -40,7 +40,8 @@ backup server主要工作是消息索引（包括死信消息）、消费轨迹�
     "start": $start   // string 可选
 }
 ```
-**METHOD** GET
+**METHOD** GET  
+
 **响应**
 ```
 {
@@ -57,7 +58,8 @@ backup server主要工作是消息索引（包括死信消息）、消费轨迹�
     "next": $next   // string 下一页的start
 }
 ```
-**示例**
+**示例**  
+
 ```
 # request
 GET http://local.qunar.com:8080/api/message?backupQuery={"subject":"qmq.test","isDelay":false,"len":3}
@@ -94,9 +96,12 @@ Content-Type: application/json
 ```
 
 ### 死信消息列表
-**URL** /api/message/dead?backupQuery=$query    query参数同消息列表参数
-**METHOD** GET
-**响应**
+**URL** /api/message/dead?backupQuery=$query    query参数同消息列表参数  
+
+**METHOD** GET  
+
+**响应**  
+
 ```
 {
     "list":[
@@ -122,7 +127,8 @@ Content-Type: application/json
     "sequence": $sequence   // long 消息seq
 }
 ```
-**METHOD** GET
+**METHOD** GET  
+
 **响应**
 ```
 {
@@ -170,7 +176,8 @@ Content-Type: application/json
     "recordCode": $code     // byte 消费记录类型 0-正常消费记录，1-重试消费记录，2-死信消费记录
 }
 ```
-**METHOD** GET
+**METHOD** GET  
+
 **响应**
 ```
 {
