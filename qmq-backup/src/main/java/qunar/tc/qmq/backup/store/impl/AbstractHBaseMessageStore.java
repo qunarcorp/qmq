@@ -7,14 +7,12 @@ import org.hbase.async.KeyValue;
 import org.jboss.netty.util.CharsetUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.backup.base.BackupMessage;
 import qunar.tc.qmq.backup.base.BackupMessageMeta;
 import qunar.tc.qmq.backup.base.BackupQuery;
 import qunar.tc.qmq.backup.base.MessageQueryResult;
 import qunar.tc.qmq.backup.store.MessageStore;
 import qunar.tc.qmq.backup.util.KeyValueList;
 import qunar.tc.qmq.backup.util.KeyValueListImpl;
-import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.metrics.Metrics;
 
 import java.time.LocalDateTime;
@@ -62,7 +60,7 @@ public abstract class AbstractHBaseMessageStore extends HBaseStore implements Me
         LOG.info("Found {} metas from HBase.", size);
         slim(metas, messageQueryResult, maxResults);
 
-        List<BackupMessage> messages = getMessagesWithMeta(subject, metas);
+        List<MessageQueryResult.MessageMeta> messages = getMessagesWithMeta(subject, metas);
         messageQueryResult.setList(messages);
     }
 
@@ -78,16 +76,13 @@ public abstract class AbstractHBaseMessageStore extends HBaseStore implements Me
         }
     }
 
-    private List<BackupMessage> getMessagesWithMeta(final String subject, final List<BackupMessageMeta> metaList) {
-        final List<BackupMessage> messages = Lists.newArrayListWithCapacity(metaList.size());
+    private List<MessageQueryResult.MessageMeta> getMessagesWithMeta(final String subject, final List<BackupMessageMeta> metaList) {
+        final List<MessageQueryResult.MessageMeta> messages = Lists.newArrayListWithCapacity(metaList.size());
         for (BackupMessageMeta meta : metaList) {
             final String brokerGroup = meta.getBrokerGroup();
             final long sequence = meta.getSequence();
             final String messageId = meta.getMessageId();
-            final BackupMessage message = new BackupMessage(messageId, subject);
-            message.setSequence(sequence);
-            message.setBrokerGroup(brokerGroup);
-            message.setProperty(BaseMessage.keys.qmq_createTime, meta.getCreateTime());
+            final MessageQueryResult.MessageMeta message = new MessageQueryResult.MessageMeta(subject, messageId, sequence, meta.getCreateTime(), brokerGroup);
             messages.add(message);
         }
 
