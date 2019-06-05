@@ -16,7 +16,7 @@ public class BackupMessage extends BaseMessage {
      */
     private transient long timestamp;
 
-    private byte action;
+    private transient byte action;
 
     private long sequence;
 
