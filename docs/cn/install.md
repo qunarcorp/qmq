@@ -38,7 +38,7 @@ sysctl -w vm.max_map_count=262144
 ```
 
 ## JVM基本配置
-请分别在metaserver-env.sh, broker-env.sh, delay-env.sh, watchdog-env.sh里的JAVA_OPTS里配置JVM相关参数，GC日志相关参数已经配置。
+请分别在metaserver-env.sh, broker-env.sh, delay-env.sh, watchdog-env.sh, backup-env.sh里的JAVA_OPTS里配置JVM相关参数，GC日志相关参数已经配置。
 
 ## 运行MetaServer
 
@@ -256,6 +256,8 @@ dispatch.log.keep.hour=72
 messagelog.retention.hours=72
 # 可选，一旦设置后该参数就不允许修改，如果必须修改则需要将消息数据全部清理。该参数用于控制多久生成一个刻度的schedule log（默认一个小时一个刻度），因为QMQ会预先加载一个刻度的消息索引，每条索引32 bytes，如果延时消息量极大，则默认一个小时一个刻度过大。举例：假设延时消息每秒10000 qps，则1个小时的索引大小为: 10000 * 60 * 60 * 32 / 1024 / 1024 = 1098MB。如果比qps比这个数据更高将占用更高的内存，那么如果你的延时消息的最大延时时间不是一两年之久，则可以将这个刻度调小，比如10分钟一个刻度，则10000 qps的内存占用为： 10000 * 60 * 10 * 32 / 1024 / 1024 = 5MB，这个内存占用就小多了
 segment.scale.minute=60
+# 可选，slave web端口，用于backup查询
+slave.server.http.port=8080
 ```
 
 ## 启动
@@ -337,6 +339,130 @@ $ watchdog.sh start
 ### Linux
 ```
 watchdog.sh stop
+```
+### Windows
+```
+Ctrl + C
+```
+
+## Backup Server
+负责消息内容、消费轨迹、死信消息的备份及查询功能。
+
+### 最低配置
+JDK 1.8
+
+-Xmx2G -Xms2G
+
+### 字典配置
+备份需要用到一个字典表。目前仅支持基于db的字典表。
+
+#### 基于DB的字典
+运行下载的压缩包sql目录里的init_backup.sql，初始化backup需要用到的字典表数据库。
+*datasource*
+````
+# 可选，MySQL驱动类
+jdbc.driverClassName=com.mysql.jdbc.Driver
+# 必填，MySQL数据库连接地址
+jdbc.url=jdbc:mysql://<address>:<port>/<db>?<params>
+# 必填，MySQL数据库用户名
+jdbc.username=
+# 必填，MySQL数据库密码
+jdbc.password=
+# 可选，连接池最大连接数
+pool.size.max=10
+````
+
+### 数据存储配置
+存储配置，目前仅支持HBase。
+#### 基于HBase的存储
+运行下载的压缩包sql目录里的init_backup_hbase.sql，初始化backup需要用到的hbase表。
+
+### 【可选】 server web端口配置
+消息内容的查询是在slave上完成，所以如果slave web端口如果不是默认值（slave配置项slave.server.http.port），需要在backup端配置一下。  
+*broker-http-port-map.properties*
+```
+<host>[/<serverport>]=<httpport>
+<host>[/<serverport>]=<httpport>
+# multi-lines
+```
+
+HBase配置文件 *hbase.properties*
+```
+hbase.zookeeper.quorum=
+hbase.zookeeper.znode.parent=
+# Also Other Settings About HBase 
+```
+
+### 配置文件
+*backup.properties*  
+```
+# 必填 meta server address
+meta.server.endpoint=http://<host>[:<port>]/meta/address
+# 必填 从metaserver上获取groupname->slave的地址
+acquire.server.meta.url=http://<host>[:<port>]/slave/meta
+# 必填 数据存放目录
+store.root=/data
+# 必填 backup会用到rocksdb作为中间层临时存储
+rocks.db.path=/data/rocksdb
+# 可选
+rocks.db.ttl=7200
+# 可选 动态生效
+message.backup.batch.size=10
+# 可选 动态生效
+message.backup.max.retry.num=5
+# 可选 动态生效
+record.backup.batch.size=10
+# 可选 动态生效
+message.backup.max.retry.num=5
+# 可选 
+dead.message.backup.thread.size=1
+# 可选 
+dead.record.backup.thread.size=1
+# 可选 动态生效
+enable.record=false
+# 可选 broker服务端口
+broker.port=20881
+# 可选 存储类型，目前仅支持hbase
+store.type=hbase
+# 可选 web端口
+backup.server.http.port=8080
+```
+## 启动
+在启动backup server之前，请先将其在metaserver里注册，backup启动时候需要从metaserver获取元数据信息。
+
+运行bin目录的tools.sh(windows平台使用tools.cmd)，执行以下命令:
+
+```
+# 注册实时backup server 节点  
+$ tools.sh AddBroker --metaserver=<metaserver address> --token=<token> --brokerGroup=<groupName> --role=4 --hostname=<hostname> --ip=<ip> --servePort=<server port>  
+```
+
+```
+# 注册延迟backup server节点(暂不支持)
+```
+
+* metaserver address指的是ip:port,port默认是8080
+* token即metaserver的配置valid-api-tokens.properties里任何一项
+* brokerGroup 这一组的名字，每一组分为一主一从(默认可以不配置slave，但是在生产环境强烈建议配置slave，brokerGroup必须全局唯一，主从两个节点的brokerGroup必须相同，实时Server和延时Server的brokerGroup必须不能相同)
+* role 角色 0 - master, 1 - slave, 4 - backup, 5 - delay master, 6 - delay slave, 7 - delay backup(暂不支持)
+* hostname 机器的主机名，注意必须是真实有效的主机名，可以使用hostname命令查看主机名
+* ip 机器的ip地址
+* servePort 接收消息的端口
+
+## 启动
+使用bin目录的backup.sh(windows平台上请使用backup.cmd)启动
+### Linux
+```
+$ backup.sh start
+```
+### Windows
+```
+> backup.cmd
+```
+## 停止
+### Linux
+```
+backup.sh stop
 ```
 ### Windows
 ```

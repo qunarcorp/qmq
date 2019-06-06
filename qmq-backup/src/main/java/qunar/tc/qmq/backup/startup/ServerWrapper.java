@@ -58,7 +58,7 @@ public class ServerWrapper implements Disposable {
         this.resources = new ArrayList<>();
         this.backupManager = new BatchBackupManager();
         this.scheduleFlushManager = new ScheduleFlushManager();
-        DicStore dicStore = new DbDicDao(config, false);
+        DicStore dicStore = new DbDicDao(false);
         this.dicService = new DbDicService(dicStore, SIX_DIGIT_FORMAT_PATTERN);
     }
 

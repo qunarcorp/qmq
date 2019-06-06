@@ -11,18 +11,18 @@ import java.util.List;
 public class MessageQueryResult implements Serializable {
     private static final long serialVersionUID = -6106414829068194397L;
 
-    private List<BackupMessage> list = Lists.newArrayList();
+    private List<MessageMeta> list = Lists.newArrayList();
     private Serializable next;
 
     public MessageQueryResult() {
         super();
     }
 
-    public void setList(List<BackupMessage> list) {
+    public void setList(List<MessageMeta> list) {
         this.list = list;
     }
 
-    public List<BackupMessage> getList() {
+    public List<MessageMeta> getList() {
         return list;
     }
 
@@ -32,6 +32,42 @@ public class MessageQueryResult implements Serializable {
 
     public Serializable getNext() {
         return next;
+    }
+
+    public static class MessageMeta {
+        private final String subejct;
+        private final String messageId;
+        private final long sequence;
+        private final long createTime;
+        private final String brokerGroup;
+
+        public MessageMeta(String subject, String messageId, long sequence, long createTime, String brokerGroup) {
+            this.subejct = subject;
+            this.messageId = messageId;
+            this.sequence = sequence;
+            this.createTime = createTime;
+            this.brokerGroup = brokerGroup;
+        }
+
+        public String getSubejct() {
+            return subejct;
+        }
+
+        public String getMessageId() {
+            return messageId;
+        }
+
+        public long getSequence() {
+            return sequence;
+        }
+
+        public long getCreateTime() {
+            return createTime;
+        }
+
+        public String getBrokerGroup() {
+            return brokerGroup;
+        }
     }
 
 }
