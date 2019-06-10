@@ -21,8 +21,8 @@ public class IndexLog implements AutoCloseable {
     private volatile long deleteTo;
 
     public IndexLog(StorageConfig config, CheckpointManager checkpointManager) {
-        this.logManager = new LogManager(new File(config.getIndexLogStorePath()), PER_SEGMENT_FILE_SIZE, config
-                , new MaxSequenceLogSegmentValidator(checkpointManager.getIndexCheckpointIndexOffset()));
+        this.logManager = new LogManager(new File(config.getIndexLogStorePath()), PER_SEGMENT_FILE_SIZE,
+                new MaxSequenceLogSegmentValidator(checkpointManager.getIndexCheckpointIndexOffset()));
         this.checkpointManager = checkpointManager;
     }
 

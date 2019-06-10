@@ -52,7 +52,7 @@ public class MessageLog implements AutoCloseable {
     public MessageLog(final StorageConfig config, final ConsumerLogManager consumerLogManager) {
         this.config = config;
         this.consumerLogManager = consumerLogManager;
-        this.logManager = new LogManager(new File(config.getMessageLogStorePath()), PER_SEGMENT_FILE_SIZE, config, new MessageLogSegmentValidator());
+        this.logManager = new LogManager(new File(config.getMessageLogStorePath()), PER_SEGMENT_FILE_SIZE, new MessageLogSegmentValidator());
         consumerLogManager.adjustConsumerLogMinOffset(logManager.firstSegment());
     }
 

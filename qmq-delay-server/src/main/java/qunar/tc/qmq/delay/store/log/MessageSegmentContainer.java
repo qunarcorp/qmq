@@ -58,7 +58,6 @@ public class MessageSegmentContainer implements SegmentContainer<AppendMessageRe
         this.messageAppender = new MessageSegmentContainer.DelayRawMessageAppender();
         this.logManager = new LogManager(new File(config.getMessageLogStorePath())
                 , config.getMessageLogSegmentFileSize()
-                , new StorageConfigImpl(config.getConfig())
                 , new MessageLogSegmentValidator());
         recoverSequence();
     }

@@ -41,8 +41,6 @@ public interface StorageConfig {
 
     String getIndexLogStorePath();
 
-    boolean isDeleteExpiredLogsEnable();
-
     long getLogRetentionMs();
 
     int getRetryDelaySeconds();

@@ -101,11 +101,6 @@ public class StorageConfigImpl implements StorageConfig {
     }
 
     @Override
-    public boolean isDeleteExpiredLogsEnable() {
-        return config.getBoolean(BrokerConstants.ENABLE_DELETE_EXPIRED_LOGS, false);
-    }
-
-    @Override
     public long getLogRetentionMs() {
         final int retentionHours = config.getInt(BrokerConstants.PULL_LOG_RETENTION_HOURS, BrokerConstants.DEFAULT_PULL_LOG_RETENTION_HOURS);
         return retentionHours * MS_PER_HOUR;

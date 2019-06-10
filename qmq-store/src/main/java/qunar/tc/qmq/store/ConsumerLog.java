@@ -47,7 +47,7 @@ public class ConsumerLog {
     public ConsumerLog(final StorageConfig config, final String subject) {
         this.config = config;
         this.subject = subject;
-        this.logManager = new LogManager(new File(config.getConsumerLogStorePath(), subject), CONSUMER_LOG_SIZE, config, new ConsumerLogSegmentValidator());
+        this.logManager = new LogManager(new File(config.getConsumerLogStorePath(), subject), CONSUMER_LOG_SIZE, new ConsumerLogSegmentValidator());
     }
 
     // TODO(keli.wang): handle write fail and retry

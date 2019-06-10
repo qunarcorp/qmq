@@ -41,17 +41,14 @@ public class LogManager {
     private final File logDir;
     private final int fileSize;
 
-    private final StorageConfig config;
-
     private final LogSegmentValidator segmentValidator;
     private final ConcurrentSkipListMap<Long, LogSegment> segments = new ConcurrentSkipListMap<>();
 
     private long flushedOffset = 0;
 
-    public LogManager(final File dir, final int fileSize, final StorageConfig config, final LogSegmentValidator segmentValidator) {
+    public LogManager(final File dir, final int fileSize, final LogSegmentValidator segmentValidator) {
         this.logDir = dir;
         this.fileSize = fileSize;
-        this.config = config;
         this.segmentValidator = segmentValidator;
         createAndValidateLogDir();
         loadLogs();
@@ -260,13 +257,7 @@ public class LogManager {
         final long deleteUntil = System.currentTimeMillis() - retentionMs;
         Preconditions.checkState(deleteUntil > 0, "retentionMs不应该超过当前时间");
 
-        Predicate<LogSegment> predicate = segment -> {
-            if (!config.isDeleteExpiredLogsEnable()) {
-                LOG.info("should delete expired segment {}, but delete expired logs is disabled for now", segment);
-                return false;
-            }
-            return segment.getLastModifiedTime() < deleteUntil;
-        };
+        Predicate<LogSegment> predicate = segment -> segment.getLastModifiedTime() < deleteUntil;
         deleteSegments(predicate, afterDeleted);
     }
 
