@@ -52,4 +52,8 @@ public interface StorageConfig {
     long getActionCheckpointInterval();
 
     long getMessageCheckpointInterval();
+
+    int getMaxReservedMemTable();
+
+    int getMaxActiveMemTable();
 }

@@ -131,4 +131,14 @@ public class StorageConfigImpl implements StorageConfig {
     public long getMessageCheckpointInterval() {
         return config.getLong(BrokerConstants.MESSAGE_CHECKPOINT_INTERVAL, BrokerConstants.DEFAULT_MESSAGE_CHECKPOINT_INTERVAL);
     }
+
+    @Override
+    public int getMaxReservedMemTable() {
+        return config.getInt(BrokerConstants.MAX_RESERVED_MEMTABLE, BrokerConstants.DEFAULT_MAX_RESERVED_MEMTABLE);
+    }
+
+    @Override
+    public int getMaxActiveMemTable() {
+        return config.getInt(BrokerConstants.MAX_ACTIVE_MEMTABLE, BrokerConstants.DEFAULT_MAX_ACTIVE_MEMTABLE);
+    }
 }

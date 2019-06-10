@@ -43,6 +43,13 @@ public class BrokerConstants {
     public static final int DEFAULT_LOG_RETENTION_CHECK_INTERVAL_SECONDS = 60;
     public static final String ENABLE_DELETE_EXPIRED_LOGS = "log.expired.delete.enable";
 
+    // for messages mem table
+    public static final String MAX_RESERVED_MEMTABLE = "memtable.max_reserved";
+    public static final int DEFAULT_MAX_RESERVED_MEMTABLE = 2;
+
+    public static final String MAX_ACTIVE_MEMTABLE = "memtable.max_active";
+    public static final int DEFAULT_MAX_ACTIVE_MEMTABLE = 4;
+
     // slave
     public static final long DEFAULT_HEARTBEAT_SLEEP_TIMEOUT_MS = 1000L;
 
