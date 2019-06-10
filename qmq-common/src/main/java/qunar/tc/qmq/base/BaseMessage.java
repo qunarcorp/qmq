@@ -56,7 +56,9 @@ public class BaseMessage implements Message, Serializable {
         qmq_maxRetryNum,
         qmq_appCode,
         qmq_pullOffset,
-        qmq_corruptData
+        qmq_corruptData,
+        qmq_env,
+        qmq_subEnv
     }
 
     private static final Set<String> keyNames = Sets.newHashSet();
