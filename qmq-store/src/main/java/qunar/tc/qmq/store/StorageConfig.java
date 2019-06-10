@@ -43,6 +43,8 @@ public interface StorageConfig {
 
     long getLogRetentionMs();
 
+    long getSMTRetentionMs();
+
     int getRetryDelaySeconds();
 
     int getCheckpointRetainCount();

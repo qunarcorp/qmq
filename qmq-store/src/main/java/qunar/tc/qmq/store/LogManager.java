@@ -24,10 +24,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.function.Predicate;
 
@@ -185,6 +182,19 @@ public class LogManager {
             LOG.error("Failed create new segment file. file: {}", nextSegmentFile.getAbsolutePath());
         }
         return null;
+    }
+
+    public Optional<LogSegment> getOrAllocSegment(final long baseOffset) {
+        if (!isBaseOffset(baseOffset)) {
+            return Optional.empty();
+        }
+
+        final LogSegment segment = segments.get(baseOffset);
+        if (segment != null) {
+            return Optional.of(segment);
+        }
+
+        return Optional.ofNullable(allocSegment(baseOffset));
     }
 
     public LogSegment allocOrResetSegments(final long expectedOffset) {

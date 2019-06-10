@@ -107,6 +107,12 @@ public class StorageConfigImpl implements StorageConfig {
     }
 
     @Override
+    public long getSMTRetentionMs() {
+        final int retentionHours = config.getInt(BrokerConstants.SMT_RETENTION_HOURS, BrokerConstants.DEFAULT_SMT_RETENTION_HOURS);
+        return retentionHours * MS_PER_HOUR;
+    }
+
+    @Override
     public int getRetryDelaySeconds() {
         return config.getInt(BrokerConstants.RETRY_DELAY_SECONDS, BrokerConstants.DEFAULT_RETRY_DELAY_SECONDS);
     }

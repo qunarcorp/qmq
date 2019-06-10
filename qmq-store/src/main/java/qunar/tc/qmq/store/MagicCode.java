@@ -34,4 +34,6 @@ public final class MagicCode {
     public static final int PULL_LOG_MAGIC_V1 = 0xC1B2A300;
 
     public static final int ACTION_LOG_MAGIC_V1 = 0xC3B2A100;
+
+    public static final int SORTED_MESSAGES_TABLE_MAGIC_V1 = 0xA2B100;
 }

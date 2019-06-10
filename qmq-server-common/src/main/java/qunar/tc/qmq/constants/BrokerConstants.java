@@ -33,7 +33,10 @@ public class BrokerConstants {
 
     public static final String CONSUMER_LOG_RETENTION_HOURS = "consumerlog.retention.hours";
     public static final int DEFAULT_CONSUMER_LOG_RETENTION_HOURS = 72; // 3 days
-    
+
+    public static final String SMT_RETENTION_HOURS = "smt.retention.hours";
+    public static final int DEFAULT_SMT_RETENTION_HOURS = 72; // 3 days
+
     public static final String RETRY_DELAY_SECONDS = "message.retry.delay.seconds";
     public static final int DEFAULT_RETRY_DELAY_SECONDS = 5;
     public static final String LOG_RETENTION_CHECK_INTERVAL_SECONDS = "log.retention.check.interval.seconds";
