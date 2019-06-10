@@ -36,7 +36,7 @@ import qunar.tc.qmq.protocol.consumer.PullRequest;
 import qunar.tc.qmq.stats.BrokerStats;
 import qunar.tc.qmq.store.ConsumerLogWroteEvent;
 import qunar.tc.qmq.store.MessageStoreWrapper;
-import qunar.tc.qmq.store.SegmentBuffer;
+import qunar.tc.qmq.store.buffer.SegmentBuffer;
 import qunar.tc.qmq.store.event.FixedExecOrderEventBus;
 import qunar.tc.qmq.util.RemotingBuilder;
 import qunar.tc.qmq.utils.ConsumerGroupUtils;

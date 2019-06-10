@@ -17,7 +17,7 @@
 package qunar.tc.qmq.delay.base;
 
 import qunar.tc.qmq.store.LogSegment;
-import qunar.tc.qmq.store.SegmentBuffer;
+import qunar.tc.qmq.store.buffer.SegmentBuffer;
 
 import java.nio.ByteBuffer;
 

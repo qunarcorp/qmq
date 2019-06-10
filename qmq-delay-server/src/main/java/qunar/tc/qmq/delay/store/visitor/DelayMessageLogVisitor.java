@@ -22,6 +22,7 @@ import qunar.tc.qmq.delay.store.model.LogRecord;
 import qunar.tc.qmq.delay.store.model.LogRecordHeader;
 import qunar.tc.qmq.delay.store.model.MessageLogRecord;
 import qunar.tc.qmq.store.*;
+import qunar.tc.qmq.store.buffer.SegmentBuffer;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;

@@ -1,5 +1,7 @@
 package qunar.tc.qmq.store;
 
+import qunar.tc.qmq.store.buffer.SegmentBuffer;
+
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 

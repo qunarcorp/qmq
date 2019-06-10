@@ -2,6 +2,7 @@ package qunar.tc.qmq.store;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.store.buffer.SegmentBuffer;
 
 import java.util.concurrent.atomic.AtomicInteger;
 

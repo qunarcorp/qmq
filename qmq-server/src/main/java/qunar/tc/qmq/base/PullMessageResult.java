@@ -16,7 +16,7 @@
 
 package qunar.tc.qmq.base;
 
-import qunar.tc.qmq.store.SegmentBuffer;
+import qunar.tc.qmq.store.buffer.SegmentBuffer;
 
 import java.util.ArrayList;
 import java.util.List;

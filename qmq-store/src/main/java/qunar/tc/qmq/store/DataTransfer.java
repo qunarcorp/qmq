@@ -18,6 +18,7 @@ package qunar.tc.qmq.store;
 
 import io.netty.channel.FileRegion;
 import io.netty.util.ReferenceCounted;
+import qunar.tc.qmq.store.buffer.SegmentBuffer;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;

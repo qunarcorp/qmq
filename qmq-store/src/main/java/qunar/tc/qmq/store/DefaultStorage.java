@@ -26,6 +26,7 @@ import qunar.tc.qmq.monitor.QMon;
 import qunar.tc.qmq.store.action.ActionEvent;
 import qunar.tc.qmq.store.action.MaxSequencesUpdater;
 import qunar.tc.qmq.store.action.PullLogBuilder;
+import qunar.tc.qmq.store.buffer.SegmentBuffer;
 import qunar.tc.qmq.store.event.FixedExecOrderEventBus;
 
 import java.nio.ByteBuffer;

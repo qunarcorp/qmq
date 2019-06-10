@@ -20,6 +20,7 @@ import com.google.common.collect.Table;
 import qunar.tc.qmq.base.RawMessage;
 import qunar.tc.qmq.common.Disposable;
 import qunar.tc.qmq.store.action.ActionEvent;
+import qunar.tc.qmq.store.buffer.SegmentBuffer;
 import qunar.tc.qmq.store.event.FixedExecOrderEventBus;
 
 import java.nio.ByteBuffer;

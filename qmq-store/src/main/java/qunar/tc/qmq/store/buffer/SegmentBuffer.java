@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
-package qunar.tc.qmq.store;
+package qunar.tc.qmq.store.buffer;
+
+import qunar.tc.qmq.store.LogSegment;
 
 import java.nio.ByteBuffer;
 

@@ -1,5 +1,6 @@
 package qunar.tc.qmq.store;
 
+import qunar.tc.qmq.store.buffer.SegmentBuffer;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
 
 import java.nio.ByteBuffer;

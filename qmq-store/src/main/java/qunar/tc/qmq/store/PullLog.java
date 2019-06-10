@@ -17,6 +17,7 @@
 package qunar.tc.qmq.store;
 
 import qunar.tc.qmq.monitor.QMon;
+import qunar.tc.qmq.store.buffer.SegmentBuffer;
 
 import java.io.File;
 import java.nio.ByteBuffer;

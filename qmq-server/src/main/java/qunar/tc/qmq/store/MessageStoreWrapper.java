@@ -25,6 +25,7 @@ import qunar.tc.qmq.monitor.QMon;
 import qunar.tc.qmq.protocol.consumer.PullRequest;
 import qunar.tc.qmq.protocol.producer.MessageProducerCode;
 import qunar.tc.qmq.store.action.RangeAckAction;
+import qunar.tc.qmq.store.buffer.SegmentBuffer;
 
 import java.util.ArrayList;
 import java.util.List;

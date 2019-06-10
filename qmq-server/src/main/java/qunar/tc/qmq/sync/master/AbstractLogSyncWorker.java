@@ -31,7 +31,7 @@ import qunar.tc.qmq.protocol.PayloadHolder;
 import qunar.tc.qmq.protocol.RemotingHeader;
 import qunar.tc.qmq.store.DataTransfer;
 import qunar.tc.qmq.store.LogSegment;
-import qunar.tc.qmq.store.SegmentBuffer;
+import qunar.tc.qmq.store.buffer.SegmentBuffer;
 import qunar.tc.qmq.sync.SyncType;
 import qunar.tc.qmq.util.RemotingBuilder;
 import qunar.tc.qmq.utils.HeaderSerializer;

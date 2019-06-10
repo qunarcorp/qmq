@@ -20,6 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.base.RawMessage;
 import qunar.tc.qmq.monitor.QMon;
+import qunar.tc.qmq.store.buffer.SegmentBuffer;
 import qunar.tc.qmq.utils.Crc32;
 
 import java.io.File;

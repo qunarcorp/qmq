@@ -13,7 +13,7 @@ import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.store.GetMessageResult;
 import qunar.tc.qmq.store.GetMessageStatus;
-import qunar.tc.qmq.store.SegmentBuffer;
+import qunar.tc.qmq.store.buffer.SegmentBuffer;
 import qunar.tc.qmq.store.Storage;
 import qunar.tc.qmq.utils.Bytes;
 

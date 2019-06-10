@@ -17,6 +17,7 @@
 package qunar.tc.qmq.store;
 
 import qunar.tc.qmq.TagType;
+import qunar.tc.qmq.store.buffer.SegmentBuffer;
 import qunar.tc.qmq.utils.Flags;
 import qunar.tc.qmq.utils.ListUtils;
 
