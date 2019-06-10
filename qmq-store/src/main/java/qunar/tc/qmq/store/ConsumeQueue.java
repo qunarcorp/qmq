@@ -73,7 +73,7 @@ public class ConsumeQueue {
         }
     }
 
-    private boolean isDelayReached(ConsumerLogEntry entry) {
+    private boolean isDelayReached(MessageFilter.WithTimestamp entry) {
         final int delayMillis = storage.getStorageConfig().getRetryDelaySeconds() * 1000;
         return entry.getTimestamp() + delayMillis <= System.currentTimeMillis();
     }
