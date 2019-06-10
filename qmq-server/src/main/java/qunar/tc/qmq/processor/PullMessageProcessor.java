@@ -36,6 +36,7 @@ import qunar.tc.qmq.protocol.consumer.PullRequest;
 import qunar.tc.qmq.stats.BrokerStats;
 import qunar.tc.qmq.store.ConsumerLogWroteEvent;
 import qunar.tc.qmq.store.MessageStoreWrapper;
+import qunar.tc.qmq.store.buffer.Buffer;
 import qunar.tc.qmq.store.buffer.SegmentBuffer;
 import qunar.tc.qmq.store.event.FixedExecOrderEventBus;
 import qunar.tc.qmq.util.RemotingBuilder;
@@ -292,8 +293,8 @@ public class PullMessageProcessor extends AbstractRequestProcessor implements Fi
                 output.putLong(result.getPullLogOffset());
                 output.putLong(-1);
 
-                final List<SegmentBuffer> buffers = result.getBuffers();
-                for (final SegmentBuffer buffer : buffers) {
+                final List<Buffer> buffers = result.getBuffers();
+                for (final Buffer buffer : buffers) {
                     try {
                         output.put(buffer.getBuffer());
                     } finally {

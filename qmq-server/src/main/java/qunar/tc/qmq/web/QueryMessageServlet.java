@@ -13,7 +13,7 @@ import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.store.GetMessageResult;
 import qunar.tc.qmq.store.GetMessageStatus;
-import qunar.tc.qmq.store.buffer.SegmentBuffer;
+import qunar.tc.qmq.store.buffer.Buffer;
 import qunar.tc.qmq.store.Storage;
 import qunar.tc.qmq.utils.Bytes;
 
@@ -90,8 +90,8 @@ public class QueryMessageServlet extends HttpServlet {
                         if (result.getStatus() != GetMessageStatus.SUCCESS) continue;
                         try {
                             final byte[] sequenceBytes = Bytes.long2bytes(sequence);
-                            final List<SegmentBuffer> buffers = result.getSegmentBuffers();
-                            for (SegmentBuffer buffer : buffers) {
+                            final List<Buffer> buffers = result.getBuffers();
+                            for (Buffer buffer : buffers) {
                                 os.write(sequenceBytes);
                                 ByteBuffer byteBuffer = buffer.getBuffer();
                                 byte[] arr = new byte[byteBuffer.remaining()];

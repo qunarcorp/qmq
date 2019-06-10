@@ -16,7 +16,7 @@
 
 package qunar.tc.qmq.base;
 
-import qunar.tc.qmq.store.buffer.SegmentBuffer;
+import qunar.tc.qmq.store.buffer.Buffer;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,15 +27,14 @@ import java.util.List;
  */
 public class PullMessageResult {
     private final long pullLogOffset;
-    private final List<SegmentBuffer> buffers;
+    private final List<Buffer> buffers;
     private int bufferTotalSize;
     private int messageNum;
 
     public static final PullMessageResult EMPTY = new PullMessageResult(-1, new ArrayList<>(), 0, 0);
-
     public static final PullMessageResult FILTER_EMPTY = new PullMessageResult(-1, new ArrayList<>(), 0, 0);
 
-    public PullMessageResult(long pullLogOffset, List<SegmentBuffer> buffers, int bufferTotalSize, int messageNum) {
+    public PullMessageResult(long pullLogOffset, List<Buffer> buffers, int bufferTotalSize, int messageNum) {
         this.pullLogOffset = pullLogOffset;
         this.buffers = buffers;
         this.bufferTotalSize = bufferTotalSize;
@@ -46,7 +45,7 @@ public class PullMessageResult {
         return pullLogOffset;
     }
 
-    public List<SegmentBuffer> getBuffers() {
+    public List<Buffer> getBuffers() {
         return buffers;
     }
 

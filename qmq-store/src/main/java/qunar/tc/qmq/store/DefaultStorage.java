@@ -252,14 +252,14 @@ public class DefaultStorage implements Storage {
 
                 final SegmentBuffer messageBuffer = messageLog.getMessage(entry.getWroteOffset(), entry.getWroteBytes(), entry.getHeaderSize());
                 if (messageBuffer != null && messageBuffer.retain()) {
-                    result.addSegmentBuffer(messageBuffer);
+                    result.addBuffer(messageBuffer);
                 } else {
                     QMon.readMessageReturnNullCountInc(subject);
                     LOG.warn("read message log failed. consumerLogSequence: {}, wrote consumerLogSequence: {}, wrote bytes: {}, payload consumerLogSequence: {}",
                             nextBeginSequence, entry.getWroteOffset(), entry.getWroteBytes(), entry.getHeaderSize());
 
                     //如果前面已经获取到了消息，中间因为任何原因导致获取不到消息，则需要提前退出，避免consumer sequence中间出现空洞
-                    if (result.getSegmentBuffers().size() > 0) {
+                    if (result.getBuffers().size() > 0) {
                         break;
                     }
                 }

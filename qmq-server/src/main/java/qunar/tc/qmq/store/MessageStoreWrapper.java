@@ -25,6 +25,7 @@ import qunar.tc.qmq.monitor.QMon;
 import qunar.tc.qmq.protocol.consumer.PullRequest;
 import qunar.tc.qmq.protocol.producer.MessageProducerCode;
 import qunar.tc.qmq.store.action.RangeAckAction;
+import qunar.tc.qmq.store.buffer.Buffer;
 import qunar.tc.qmq.store.buffer.SegmentBuffer;
 
 import java.util.ArrayList;
@@ -109,7 +110,7 @@ public class MessageStoreWrapper {
                         final WritePutActionResult writeResult = consumerSequenceManager.putPullActions(subject, group, consumerId, isBroadcast, getMessageResult);
                         if (writeResult.isSuccess()) {
                             consumeQueue.setNextSequence(getMessageResult.getNextBeginOffset());
-                            return new PullMessageResult(writeResult.getPullLogOffset(), getMessageResult.getSegmentBuffers(), getMessageResult.getBufferTotalSize(), getMessageResult.getMessageNum());
+                            return new PullMessageResult(writeResult.getPullLogOffset(), getMessageResult.getBuffers(), getMessageResult.getBufferTotalSize(), getMessageResult.getMessageNum());
                         } else {
                             getMessageResult.release();
                             return PullMessageResult.EMPTY;
@@ -158,14 +159,14 @@ public class MessageStoreWrapper {
     private List<GetMessageResult> filter(GetMessageResult input, List<byte[]> tags, int tagType) {
         List<GetMessageResult> result = new ArrayList<>();
 
-        List<SegmentBuffer> messages = input.getSegmentBuffers();
+        List<Buffer> messages = input.getBuffers();
         OffsetRange offsetRange = input.getConsumerLogRange();
 
         GetMessageResult range = null;
         long begin = -1;
         long end = -1;
         for (int i = 0; i < messages.size(); ++i) {
-            SegmentBuffer message = messages.get(i);
+            final Buffer message = messages.get(i);
             if (match(message, tags, tagType)) {
                 if (range == null) {
                     range = new GetMessageResult();
@@ -173,7 +174,7 @@ public class MessageStoreWrapper {
                     begin = offsetRange.getBegin() + i;
                 }
                 end = offsetRange.getBegin() + i;
-                range.addSegmentBuffer(message);
+                range.addBuffer(message);
             } else {
                 message.release();
                 setOffsetRange(range, begin, end);
@@ -212,7 +213,7 @@ public class MessageStoreWrapper {
         final WritePutActionResult writeResult = consumerSequenceManager.putPullActions(subject, group, consumerId, isBroadcast, range);
         if (writeResult.isSuccess()) {
             consumeQueue.setNextSequence(range.getNextBeginOffset());
-            retList.add(new PullMessageResult(writeResult.getPullLogOffset(), range.getSegmentBuffers(), range.getBufferTotalSize(), range.getMessageNum()));
+            retList.add(new PullMessageResult(writeResult.getPullLogOffset(), range.getBuffers(), range.getBufferTotalSize(), range.getMessageNum()));
             return true;
         }
         return false;
@@ -222,7 +223,7 @@ public class MessageStoreWrapper {
         if (list.size() == 1) return list.get(0);
 
         long pullLogOffset = list.get(0).getPullLogOffset();
-        List<SegmentBuffer> buffers = new ArrayList<>();
+        List<Buffer> buffers = new ArrayList<>();
         int bufferTotalSize = 0;
         int messageNum = 0;
         for (PullMessageResult result : list) {
@@ -278,7 +279,7 @@ public class MessageStoreWrapper {
         LOG.warn("consumer need find lost ack messages, pullRequest: {}, consumerSequence: {}", pullRequest, consumerSequence);
 
         final int requestNum = pullRequest.getRequestNum();
-        final List<SegmentBuffer> buffers = new ArrayList<>(requestNum);
+        final List<Buffer> buffers = new ArrayList<>(requestNum);
         long firstValidSeq = -1;
         int totalSize = 0;
         final long firstLostAckPullLogSeq = pullLogSequenceInConsumer + 1;
@@ -307,8 +308,8 @@ public class MessageStoreWrapper {
                 }
 
                 //re-filter un-ack message
-                final SegmentBuffer segmentBuffer = getMessageResult.getSegmentBuffers().get(0);
-                if (!noRequestTag(pullRequest) && !match(segmentBuffer, pullRequest.getTags(), pullRequest.getTagTypeCode())) {
+                final Buffer buffer = getMessageResult.getBuffers().get(0);
+                if (!noRequestTag(pullRequest) && !match(buffer, pullRequest.getTags(), pullRequest.getTagTypeCode())) {
                     if (firstValidSeq != -1) {
                         break;
                     }
@@ -319,8 +320,8 @@ public class MessageStoreWrapper {
                 }
 
 
-                buffers.add(segmentBuffer);
-                totalSize += segmentBuffer.getSize();
+                buffers.add(buffer);
+                totalSize += buffer.getSize();
             } catch (Exception e) {
                 LOG.error("error occurs when find messages by pull log offset, request: {}, consumerSequence: {}", pullRequest, consumerSequence, e);
                 QMon.getMessageErrorCountInc(subject, group);

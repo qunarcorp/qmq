@@ -16,6 +16,7 @@
 
 package qunar.tc.qmq.store;
 
+import qunar.tc.qmq.store.buffer.Buffer;
 import qunar.tc.qmq.store.buffer.SegmentBuffer;
 
 import java.util.ArrayList;
@@ -26,7 +27,7 @@ import java.util.List;
  * @since 2017/7/6
  */
 public class GetMessageResult {
-    private final List<SegmentBuffer> segmentBuffers = new ArrayList<>(100);
+    private final List<Buffer> buffers = new ArrayList<>(100);
     private int bufferTotalSize = 0;
 
     private GetMessageStatus status;
@@ -67,17 +68,17 @@ public class GetMessageResult {
         this.maxOffset = maxOffset;
     }
 
-    public List<SegmentBuffer> getSegmentBuffers() {
-        return segmentBuffers;
+    public List<Buffer> getBuffers() {
+        return buffers;
     }
 
-    public void addSegmentBuffer(final SegmentBuffer segmentBuffer) {
-        segmentBuffers.add(segmentBuffer);
-        bufferTotalSize += segmentBuffer.getSize();
+    public void addBuffer(final Buffer buffer) {
+        buffers.add(buffer);
+        bufferTotalSize += buffer.getSize();
     }
 
     public int getMessageNum() {
-        return segmentBuffers.size();
+        return buffers.size();
     }
 
     public long getNextBeginOffset() {
@@ -101,7 +102,7 @@ public class GetMessageResult {
     }
 
     public void release() {
-        for (SegmentBuffer buffer : segmentBuffers) {
+        for (Buffer buffer : buffers) {
             buffer.release();
         }
     }
@@ -109,7 +110,7 @@ public class GetMessageResult {
     @Override
     public String toString() {
         return "GetMessageResult{" +
-                "segmentBuffers=" + segmentBuffers.size() +
+                "buffers=" + buffers.size() +
                 ", bufferTotalSize=" + bufferTotalSize +
                 ", status=" + status +
                 ", minOffset=" + minOffset +
