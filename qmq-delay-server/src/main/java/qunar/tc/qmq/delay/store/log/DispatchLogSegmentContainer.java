@@ -27,7 +27,7 @@ import qunar.tc.qmq.delay.store.model.LogRecord;
 import qunar.tc.qmq.delay.store.model.RecordResult;
 import qunar.tc.qmq.store.AppendMessageResult;
 import qunar.tc.qmq.store.PutMessageStatus;
-import qunar.tc.qmq.store.SegmentBuffer;
+import qunar.tc.qmq.store.buffer.SegmentBuffer;
 import qunar.tc.qmq.sync.DelaySyncRequest;
 
 import java.io.File;

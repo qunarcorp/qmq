@@ -32,6 +32,7 @@ import qunar.tc.qmq.store.*;
 import qunar.tc.qmq.store.action.ForeverOfflineAction;
 import qunar.tc.qmq.store.action.PullAction;
 import qunar.tc.qmq.store.action.RangeAckAction;
+import qunar.tc.qmq.store.buffer.Buffer;
 import qunar.tc.qmq.utils.ObjectUtils;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
 
@@ -196,7 +197,7 @@ public class ConsumerSequenceManager {
         if (noPullLog(subject, group, consumerId)) return;
 
         // get error msg
-        final List<SegmentBuffer> needRetryMessages = getNeedRetryMessages(subject, group, consumerId, firstNotAckedOffset, lastPullLogOffset);
+        final List<Buffer> needRetryMessages = getNeedRetryMessages(subject, group, consumerId, firstNotAckedOffset, lastPullLogOffset);
         // put error msg
         putNeedRetryMessages(subject, group, consumerId, needRetryMessages);
     }
@@ -218,9 +219,9 @@ public class ConsumerSequenceManager {
         }
     }
 
-    private List<SegmentBuffer> getNeedRetryMessages(String subject, String group, String consumerId, long firstNotAckedSequence, long lastPullSequence) {
+    private List<Buffer> getNeedRetryMessages(String subject, String group, String consumerId, long firstNotAckedSequence, long lastPullSequence) {
         final int actualNum = (int) (lastPullSequence - firstNotAckedSequence + 1);
-        final List<SegmentBuffer> needRetryMessages = new ArrayList<>(actualNum);
+        final List<Buffer> needRetryMessages = new ArrayList<>(actualNum);
         for (long sequence = firstNotAckedSequence; sequence <= lastPullSequence; sequence++) {
             final long consumerLogSequence = storage.getMessageSequenceByPullLog(subject, group, consumerId, sequence);
             if (consumerLogSequence < 0) {
@@ -230,16 +231,16 @@ public class ConsumerSequenceManager {
 
             final GetMessageResult getMessageResult = storage.getMessage(subject, consumerLogSequence);
             if (getMessageResult.getStatus() == GetMessageStatus.SUCCESS) {
-                final List<SegmentBuffer> segmentBuffers = getMessageResult.getSegmentBuffers();
-                needRetryMessages.addAll(segmentBuffers);
+                final List<Buffer> buffers = getMessageResult.getBuffers();
+                needRetryMessages.addAll(buffers);
             }
         }
         return needRetryMessages;
     }
 
-    private void putNeedRetryMessages(String subject, String group, String consumerId, List<SegmentBuffer> needRetryMessages) {
+    private void putNeedRetryMessages(String subject, String group, String consumerId, List<Buffer> needRetryMessages) {
         try {
-            for (SegmentBuffer buffer : needRetryMessages) {
+            for (Buffer buffer : needRetryMessages) {
                 final ByteBuf message = Unpooled.wrappedBuffer(buffer.getBuffer());
                 final RawMessage rawMessage = QMQSerializer.deserializeRawMessage(message);
                 if (!RetrySubjectUtils.isRetrySubject(subject)) {
@@ -254,7 +255,7 @@ public class ConsumerSequenceManager {
                 }
             }
         } finally {
-            needRetryMessages.forEach(SegmentBuffer::release);
+            needRetryMessages.forEach(Buffer::release);
         }
 
         QMon.putNeedRetryMessagesCountInc(subject, group, needRetryMessages.size());

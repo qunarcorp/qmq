@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.base.SyncRequest;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.store.*;
+import qunar.tc.qmq.store.buffer.SegmentBuffer;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
 
 import java.nio.ByteBuffer;

@@ -21,7 +21,7 @@ import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.base.SyncRequest;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.store.Storage;
-import qunar.tc.qmq.store.SegmentBuffer;
+import qunar.tc.qmq.store.buffer.SegmentBuffer;
 
 /**
  * @author yunfeng.yang

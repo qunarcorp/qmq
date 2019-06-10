@@ -21,7 +21,7 @@ import qunar.tc.qmq.delay.config.StoreConfiguration;
 import qunar.tc.qmq.delay.store.DefaultDelaySegmentValidator;
 import qunar.tc.qmq.delay.store.appender.DispatchLogAppender;
 import qunar.tc.qmq.store.PeriodicFlushService;
-import qunar.tc.qmq.store.SegmentBuffer;
+import qunar.tc.qmq.store.buffer.SegmentBuffer;
 import qunar.tc.qmq.sync.DelaySyncRequest;
 
 import java.io.File;
