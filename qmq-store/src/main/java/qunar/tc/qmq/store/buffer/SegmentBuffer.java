@@ -24,7 +24,7 @@ import java.nio.ByteBuffer;
  * @author keli.wang
  * @since 2017/7/6
  */
-public class SegmentBuffer {
+public class SegmentBuffer implements Buffer {
     private final long startOffset;
     private final int size;
 
