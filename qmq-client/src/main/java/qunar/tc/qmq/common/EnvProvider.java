@@ -21,7 +21,8 @@ package qunar.tc.qmq.common;
  * @since 2019/6/10
  */
 public interface EnvProvider {
-    String env();
 
-    String subEnv();
+    String env(String subject);
+
+    String subEnv(String subject);
 }
