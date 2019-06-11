@@ -94,6 +94,7 @@ public class MessageProducerProvider implements MessageProducer {
     }
 
     private void setupEnv(final BaseMessage message) {
+        if (envProvider == null) return;
         final String subject = message.getSubject();
         final String env = envProvider.env(subject);
         if (Strings.isNullOrEmpty(env)) {

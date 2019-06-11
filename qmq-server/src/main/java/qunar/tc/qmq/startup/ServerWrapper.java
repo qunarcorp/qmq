@@ -192,7 +192,7 @@ public class ServerWrapper implements Disposable {
         this.consumerSequenceManager = new ConsumerSequenceManager(storage);
         this.subscriberStatusChecker = new SubscriberStatusChecker(config, storage, consumerSequenceManager);
         this.subscriberStatusChecker.init();
-        this.messageStoreWrapper = new MessageStoreWrapper(storage, consumerSequenceManager);
+        this.messageStoreWrapper = new MessageStoreWrapper(config, storage, consumerSequenceManager);
         final OfflineActionHandler handler = new OfflineActionHandler(storage);
         this.storage.registerActionEventListener(handler);
         this.storage.start();
