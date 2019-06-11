@@ -24,5 +24,5 @@ public interface EnvProvider {
 
     String env(String subject);
 
-    String subEnv(String subject);
+    String subEnv(String env);
 }

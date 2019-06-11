@@ -94,11 +94,12 @@ public class MessageProducerProvider implements MessageProducer {
     }
 
     private void setupEnv(final BaseMessage message) {
-        final String env = envProvider.env();
-        final String subEnv = envProvider.subEnv();
+        final String subject = message.getSubject();
+        final String env = envProvider.env(subject);
         if (Strings.isNullOrEmpty(env)) {
             return;
         }
+        final String subEnv = envProvider.subEnv(env);
 
         message.setProperty(BaseMessage.keys.qmq_env, env);
         message.setProperty(BaseMessage.keys.qmq_subEnv, subEnv);

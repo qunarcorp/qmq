@@ -87,7 +87,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         String env;
         String subEnv;
         if (envProvider != null && !Strings.isNullOrEmpty(env = envProvider.env(subject))) {
-            subEnv = envProvider.subEnv(subject);
+            subEnv = envProvider.subEnv(env);
             final String realGroup = toSubEnvIsolationGroup(group, env, subEnv);
             LOG.info("enable subenv isolation for {}/{}, rename consumer group to {}", subject, group, realGroup);
             group = realGroup;
