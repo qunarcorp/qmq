@@ -74,7 +74,7 @@ public class DefaultStorage implements Storage {
         this.config = config;
         this.checkpointManager = new CheckpointManager(role, config, loader);
 
-        this.consumerLogManager = new ConsumerLogManager(config);
+        this.consumerLogManager = new ConsumerLogManager(config, checkpointManager.allMessageMaxSequences());
         this.messageLog = new MessageLog(config, consumerLogManager);
         this.pullLogManager = new PullLogManager(config, checkpointManager.allConsumerGroupProgresses());
         this.actionLog = new ActionLog(config);

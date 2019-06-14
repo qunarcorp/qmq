@@ -532,6 +532,15 @@ public class CheckpointManager implements AutoCloseable {
         indexCheckpointStore.saveSnapshot(snapshot);
     }
 
+    Map<String, Long> allMessageMaxSequences() {
+        messageCheckpointGuard.lock();
+        try {
+            return messageCheckpoint.getMaxSequences();
+        } finally {
+            messageCheckpointGuard.unlock();
+        }
+    }
+
     private static class LongSerde implements Serde<Long> {
 
         @Override

@@ -45,9 +45,15 @@ public class ConsumerLog {
     private volatile long minSequence;
 
     public ConsumerLog(final StorageConfig config, final String subject) {
+        this(config, subject, -1);
+    }
+
+    public ConsumerLog(final StorageConfig config, final String subject, final long maxSequence) {
         this.config = config;
         this.subject = subject;
-        this.logManager = new LogManager(new File(config.getConsumerLogStorePath(), subject), CONSUMER_LOG_SIZE, new ConsumerLogSegmentValidator());
+        this.logManager = new LogManager(new File(config.getConsumerLogStorePath(), subject),
+                CONSUMER_LOG_SIZE,
+                new MaxSequenceLogSegmentValidator(maxSequence, CONSUMER_LOG_UNIT_BYTES));
     }
 
     // TODO(keli.wang): handle write fail and retry
@@ -188,50 +194,6 @@ public class ConsumerLog {
             workingBuffer.putShort(message.getHeaderSize());
             targetBuffer.put(workingBuffer.array(), 0, CONSUMER_LOG_UNIT_BYTES);
             return new AppendMessageResult<>(AppendMessageStatus.SUCCESS, wroteOffset, CONSUMER_LOG_UNIT_BYTES);
-        }
-    }
-
-    private static class ConsumerLogSegmentValidator implements LogSegmentValidator {
-        @Override
-        public ValidateResult validate(LogSegment segment) {
-            final int fileSize = segment.getFileSize();
-            final ByteBuffer buffer = segment.sliceByteBuffer();
-
-            int position = 0;
-            while (true) {
-                if (position == fileSize) {
-                    return new ValidateResult(ValidateStatus.COMPLETE, fileSize);
-                }
-
-                final int result = consumeAndValidateMessage(buffer);
-                if (result == -1) {
-                    return new ValidateResult(ValidateStatus.PARTIAL, position);
-                } else {
-                    position += result;
-                }
-            }
-        }
-
-        private int consumeAndValidateMessage(final ByteBuffer buffer) {
-            final long timestamp = buffer.getLong();
-            final long offset = buffer.getLong();
-            final int size = buffer.getInt();
-            final short headerSize = buffer.getShort();
-            if (isBlankMessage(timestamp, offset, size, headerSize)) {
-                return CONSUMER_LOG_UNIT_BYTES;
-            } else if (isValidMessage(timestamp, offset, size, headerSize)) {
-                return CONSUMER_LOG_UNIT_BYTES;
-            } else {
-                return -1;
-            }
-        }
-
-        private boolean isBlankMessage(final long timestamp, final long offset, final int size, final short headerSize) {
-            return timestamp > 0 && offset == 0 && headerSize == 0 && size == Integer.MAX_VALUE;
-        }
-
-        private boolean isValidMessage(final long timestamp, final long offset, final int size, final short headerSize) {
-            return timestamp > 0 && offset >= 0 && size > 0 && headerSize <= size && headerSize >= MessageLog.MIN_RECORD_BYTES;
         }
     }
 }
