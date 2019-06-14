@@ -67,7 +67,7 @@ public class ConsumerSequenceManager {
     }
 
     private void loadFromConsumerGroupProgresses(final ConcurrentMap<String, ConcurrentMap<ConsumerGroup, ConsumerSequence>> result) {
-        final Collection<ConsumerGroupProgress> progresses = storage.allConsumerGroupProgresses();
+        final Collection<ConsumerGroupProgress> progresses = storage.allConsumerGroupProgresses().values();
         progresses.forEach(progress -> {
             final Map<String, ConsumerProgress> consumers = progress.getConsumers();
             if (consumers == null || consumers.isEmpty()) {

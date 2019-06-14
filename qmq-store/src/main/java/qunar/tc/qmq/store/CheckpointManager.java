@@ -145,10 +145,10 @@ public class CheckpointManager implements AutoCloseable {
         return messageCheckpoint.getOffset() < 0 && actionCheckpoint.getOffset() < 0;
     }
 
-    Collection<ConsumerGroupProgress> allConsumerGroupProgresses() {
+    Table<String, String, ConsumerGroupProgress> allConsumerGroupProgresses() {
         actionCheckpointGuard.lock();
         try {
-            return actionCheckpoint.getProgresses().values();
+            return actionCheckpoint.getProgresses();
         } finally {
             actionCheckpointGuard.unlock();
         }

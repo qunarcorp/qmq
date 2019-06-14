@@ -72,12 +72,13 @@ public class DefaultStorage implements Storage {
 
     public DefaultStorage(final BrokerRole role, final StorageConfig config, final CheckpointLoader loader) {
         this.config = config;
+        this.checkpointManager = new CheckpointManager(role, config, loader);
+
         this.consumerLogManager = new ConsumerLogManager(config);
         this.messageLog = new MessageLog(config, consumerLogManager);
-        this.pullLogManager = new PullLogManager(config);
+        this.pullLogManager = new PullLogManager(config, checkpointManager.allConsumerGroupProgresses());
         this.actionLog = new ActionLog(config);
 
-        this.checkpointManager = new CheckpointManager(role, config, loader);
         // must init after offset manager created
         this.consumeQueueManager = new ConsumeQueueManager(this);
 
@@ -323,7 +324,7 @@ public class DefaultStorage implements Storage {
     }
 
     @Override
-    public Collection<ConsumerGroupProgress> allConsumerGroupProgresses() {
+    public Table<String, String, ConsumerGroupProgress> allConsumerGroupProgresses() {
         return checkpointManager.allConsumerGroupProgresses();
     }
 
@@ -485,7 +486,7 @@ public class DefaultStorage implements Storage {
             try {
                 messageLog.clean();
                 consumerLogManager.clean();
-                pullLogManager.clean(allConsumerGroupProgresses());
+                pullLogManager.clean(allConsumerGroupProgresses().values());
                 actionLog.clean();
             } catch (Throwable e) {
                 LOG.error("log cleaner caught exception.", e);

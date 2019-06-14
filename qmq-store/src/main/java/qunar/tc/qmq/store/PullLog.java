@@ -37,8 +37,14 @@ public class PullLog {
     private final MessageAppender<PullLogMessage, MessageSequence> messageAppender = new PullLogMessageAppender();
 
     public PullLog(final StorageConfig config, final String consumerId, final String groupAndSubject) {
+        this(config, consumerId, groupAndSubject, -1);
+    }
+
+    public PullLog(final StorageConfig config, final String consumerId, final String groupAndSubject, final long maxSequence) {
         this.config = config;
-        this.logManager = new LogManager(buildPullLogPath(consumerId, groupAndSubject), PULL_LOG_SIZE, new PullLogSegmentValidator());
+        this.logManager = new LogManager(buildPullLogPath(consumerId, groupAndSubject),
+                PULL_LOG_SIZE,
+                new MaxSequenceLogSegmentValidator(maxSequence, PULL_LOG_UNIT_BYTES));
     }
 
     private File buildPullLogPath(final String consumerId, final String groupAndSubject) {
@@ -160,33 +166,6 @@ public class PullLog {
 
             final long messageIndex = wroteOffset / PULL_LOG_UNIT_BYTES;
             return new AppendMessageResult<>(AppendMessageStatus.SUCCESS, wroteOffset, PULL_LOG_UNIT_BYTES, new MessageSequence(messageIndex, wroteOffset));
-        }
-    }
-
-    private static class PullLogSegmentValidator implements LogSegmentValidator {
-        @Override
-        public ValidateResult validate(LogSegment segment) {
-            final int fileSize = segment.getFileSize();
-            final ByteBuffer buffer = segment.sliceByteBuffer();
-
-            int position = 0;
-            while (true) {
-                if (position == fileSize) {
-                    return new ValidateResult(ValidateStatus.COMPLETE, fileSize);
-                }
-
-                final int result = consumeAndValidateMessage(buffer);
-                if (result == -1) {
-                    return new ValidateResult(ValidateStatus.PARTIAL, position);
-                } else {
-                    position += result;
-                }
-            }
-        }
-
-        private int consumeAndValidateMessage(final ByteBuffer buffer) {
-            buffer.getLong();
-            return PULL_LOG_UNIT_BYTES;
         }
     }
 }
