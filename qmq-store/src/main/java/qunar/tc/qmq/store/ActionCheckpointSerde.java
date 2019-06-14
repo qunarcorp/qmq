@@ -42,7 +42,6 @@ public class ActionCheckpointSerde implements Serde<ActionCheckpoint> {
     private static final char NEWLINE = '\n';
     private static final Joiner SLASH_JOINER = Joiner.on('/');
     private static final Splitter SLASH_SPLITTER = Splitter.on('/');
-    private static final Splitter COMMA_SPLITTER = Splitter.on(',');
 
     @Override
     public byte[] toBytes(final ActionCheckpoint state) {
@@ -82,9 +81,9 @@ public class ActionCheckpointSerde implements Serde<ActionCheckpoint> {
             final int version = Integer.parseInt(reader.readLine());
             switch (version) {
                 case VERSION_V1:
-                    return parseBySplitter(reader, COMMA_SPLITTER);
+                    throw new RuntimeException("v1 checkpoint not support");
                 case VERSION_V2:
-                    return parseBySplitter(reader, SLASH_SPLITTER);
+                    throw new RuntimeException("v2 checkpoint not support");
                 case VERSION_V3:
                     return parseV3(reader);
                 default:
@@ -96,43 +95,6 @@ public class ActionCheckpointSerde implements Serde<ActionCheckpoint> {
         }
     }
 
-
-    private ActionCheckpoint parseBySplitter(final LineReader reader, final Splitter splitter) throws IOException {
-        final Table<String, String, ConsumerGroupProgress> progresses = HashBasedTable.create();
-
-        while (true) {
-            final String subjectLine = reader.readLine();
-            if (Strings.isNullOrEmpty(subjectLine)) {
-                break;
-            }
-
-            final List<String> subjectParts = splitter.splitToList(subjectLine);
-            final String subject = subjectParts.get(0);
-            final int groupCount = Integer.parseInt(subjectParts.get(1));
-            for (int i = 0; i < groupCount; i++) {
-                final String groupLine = reader.readLine();
-                final List<String> groupParts = splitter.splitToList(groupLine);
-                final String group = groupParts.get(0);
-                final long maxPulledMessageSequence = Long.parseLong(groupParts.get(1));
-                final int consumerCount = Integer.parseInt(groupParts.get(2));
-
-                final ConsumerGroupProgress progress = new ConsumerGroupProgress(subject, group, false, maxPulledMessageSequence, new HashMap<>(consumerCount));
-                progresses.put(subject, group, progress);
-
-                final Map<String, ConsumerProgress> consumers = progress.getConsumers();
-                for (int j = 0; j < consumerCount; j++) {
-                    final String consumerLine = reader.readLine();
-                    final List<String> consumerParts = splitter.splitToList(consumerLine);
-                    final String consumerId = consumerParts.get(0);
-                    final long maxAckedPullLogSequence = Long.parseLong(consumerParts.get(1));
-
-                    consumers.put(consumerId, new ConsumerProgress(subject, group, consumerId, -1, maxAckedPullLogSequence));
-                }
-            }
-        }
-
-        return new ActionCheckpoint(true, -1, progresses);
-    }
 
     private ActionCheckpoint parseV3(LineReader reader) throws IOException {
         final long offset = Long.parseLong(reader.readLine());

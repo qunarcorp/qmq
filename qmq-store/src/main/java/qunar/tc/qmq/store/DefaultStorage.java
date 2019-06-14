@@ -78,7 +78,6 @@ public class DefaultStorage implements Storage {
         this.actionLog = new ActionLog(config);
 
         this.checkpointManager = new CheckpointManager(role, config, loader);
-        this.checkpointManager.fixOldVersionCheckpointIfShould(consumerLogManager, pullLogManager);
         // must init after offset manager created
         this.consumeQueueManager = new ConsumeQueueManager(this);
 
