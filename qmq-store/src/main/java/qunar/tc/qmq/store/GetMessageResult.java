@@ -17,7 +17,6 @@
 package qunar.tc.qmq.store;
 
 import qunar.tc.qmq.store.buffer.Buffer;
-import qunar.tc.qmq.store.buffer.SegmentBuffer;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,9 +30,7 @@ public class GetMessageResult {
     private int bufferTotalSize = 0;
 
     private GetMessageStatus status;
-    private long minOffset;
-    private long maxOffset;
-    private long nextBeginOffset;
+    private long nextBeginSequence;
 
     private OffsetRange consumerLogRange;
 
@@ -52,22 +49,6 @@ public class GetMessageResult {
         this.status = status;
     }
 
-    public long getMinOffset() {
-        return minOffset;
-    }
-
-    public void setMinOffset(long minOffset) {
-        this.minOffset = minOffset;
-    }
-
-    public long getMaxOffset() {
-        return maxOffset;
-    }
-
-    public void setMaxOffset(long maxOffset) {
-        this.maxOffset = maxOffset;
-    }
-
     public List<Buffer> getBuffers() {
         return buffers;
     }
@@ -81,12 +62,12 @@ public class GetMessageResult {
         return buffers.size();
     }
 
-    public long getNextBeginOffset() {
-        return nextBeginOffset;
+    public long getNextBeginSequence() {
+        return nextBeginSequence;
     }
 
-    public void setNextBeginOffset(long nextBeginOffset) {
-        this.nextBeginOffset = nextBeginOffset;
+    public void setNextBeginSequence(long nextBeginSequence) {
+        this.nextBeginSequence = nextBeginSequence;
     }
 
     public int getBufferTotalSize() {
@@ -113,9 +94,7 @@ public class GetMessageResult {
                 "buffers=" + buffers.size() +
                 ", bufferTotalSize=" + bufferTotalSize +
                 ", status=" + status +
-                ", minOffset=" + minOffset +
-                ", maxOffset=" + maxOffset +
-                ", nextBeginOffset=" + nextBeginOffset +
+                ", nextBeginSequence=" + nextBeginSequence +
                 ", consumerLogRange=" + consumerLogRange +
                 '}';
     }

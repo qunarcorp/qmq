@@ -1,3 +1,19 @@
+/*
+ * Copyright 2018 Qunar, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package qunar.tc.qmq.backup.service.impl;
 
 import io.netty.buffer.ByteBuf;
@@ -7,12 +23,8 @@ import qunar.tc.qmq.store.Action;
 import qunar.tc.qmq.store.ActionType;
 import qunar.tc.qmq.store.LogVisitorRecord;
 import qunar.tc.qmq.store.MagicCode;
-import qunar.tc.qmq.store.action.ActionEvent;
-
-import java.util.Optional;
 
 import static qunar.tc.qmq.store.ActionLog.*;
-import static qunar.tc.qmq.store.ActionLog.ATTR_ACTION_RECORD;
 
 public class ActionSyncLogIterator implements SyncLogIterator<Action, ByteBuf> {
 
@@ -67,23 +79,23 @@ public class ActionSyncLogIterator implements SyncLogIterator<Action, ByteBuf> {
             buf.readerIndex(buf.readerIndex() + buf.readableBytes());
             return LogVisitorRecord.empty();
         } else if (attributes == ATTR_ACTION_RECORD) {
-                if (buf.readableBytes() < Integer.BYTES + Byte.BYTES) {
-                    return LogVisitorRecord.noMore();
-                }
-                final ActionType payloadType = ActionType.fromCode(buf.readByte());
-                final int payloadSize = buf.readInt();
-                if (buf.readableBytes() < payloadSize) {
-                    return LogVisitorRecord.noMore();
-                }
+            if (buf.readableBytes() < Integer.BYTES + Byte.BYTES) {
+                return LogVisitorRecord.noMore();
+            }
+            final ActionType payloadType = ActionType.fromCode(buf.readByte());
+            final int payloadSize = buf.readInt();
+            if (buf.readableBytes() < payloadSize) {
+                return LogVisitorRecord.noMore();
+            }
 
-                if (buf.nioBufferCount() > 0) {
-                    final int payloadIndex = buf.readerIndex();
-                    final Action action = payloadType.getReaderWriter().read(buf.nioBuffer(payloadIndex, payloadSize));
-                    buf.readerIndex(buf.readerIndex() + payloadSize);
-                    return LogVisitorRecord.data(action);
-                } else {
-                    return LogVisitorRecord.data(BLANK_ACTION);
-                }
+            if (buf.nioBufferCount() > 0) {
+                final int payloadIndex = buf.readerIndex();
+                final Action action = payloadType.getReaderWriter().read(buf.nioBuffer(payloadIndex, payloadSize));
+                buf.readerIndex(buf.readerIndex() + payloadSize);
+                return LogVisitorRecord.data(action);
+            } else {
+                return LogVisitorRecord.data(BLANK_ACTION);
+            }
         } else {
             throw new RuntimeException("Unknown record type");
         }

@@ -31,8 +31,6 @@ public class SegmentBuffer implements Buffer {
     private final ByteBuffer buffer;
     private final LogSegment logSegment;
 
-    private long wroteOffset;
-
     public SegmentBuffer(long startOffset, ByteBuffer buffer, int size, LogSegment logSegment) {
         this.startOffset = startOffset;
         this.size = size;
@@ -44,10 +42,12 @@ public class SegmentBuffer implements Buffer {
         return startOffset;
     }
 
+    @Override
     public ByteBuffer getBuffer() {
         return buffer;
     }
 
+    @Override
     public int getSize() {
         return size;
     }
@@ -56,18 +56,12 @@ public class SegmentBuffer implements Buffer {
         return logSegment;
     }
 
-    public long getWroteOffset() {
-        return wroteOffset;
-    }
-
-    public void setWroteOffset(long wroteOffset) {
-        this.wroteOffset = wroteOffset;
-    }
-
+    @Override
     public boolean release() {
         return logSegment.release();
     }
 
+    @Override
     public boolean retain() {
         return logSegment.retain();
     }

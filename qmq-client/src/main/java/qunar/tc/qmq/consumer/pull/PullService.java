@@ -37,7 +37,10 @@ import qunar.tc.qmq.utils.Flags;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -85,12 +88,7 @@ class PullService {
         request.setPullOffsetLast(pullParam.getMaxPullOffset());
         request.setConsumerId(pullParam.getConsumerId());
         request.setBroadcast(pullParam.isBroadcast());
-        request.setTagTypeCode(pullParam.getTagType().getCode());
-        List<byte[]> tags = new ArrayList<>(pullParam.getTags().size());
-        for (String tag : pullParam.getTags()) {
-            tags.add(tag.getBytes());
-        }
-        request.setTags(tags);
+        request.setFilters(pullParam.getFilters());
         return request;
     }
 

@@ -20,8 +20,8 @@ import com.google.common.collect.Table;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.meta.BrokerRole;
 import qunar.tc.qmq.base.RawMessage;
+import qunar.tc.qmq.meta.BrokerRole;
 import qunar.tc.qmq.monitor.QMon;
 import qunar.tc.qmq.store.action.ActionEvent;
 import qunar.tc.qmq.store.action.MaxSequencesUpdater;
@@ -175,14 +175,14 @@ public class DefaultStorage implements Storage {
         final GetMessageResult result = new GetMessageResult();
 
         if (maxMessages <= 0) {
-            result.setNextBeginOffset(consumerLogSequence);
+            result.setNextBeginSequence(consumerLogSequence);
             result.setStatus(GetMessageStatus.NO_MESSAGE);
             return result;
         }
 
         final ConsumerLog consumerLog = consumerLogManager.getConsumerLog(subject);
         if (consumerLog == null) {
-            result.setNextBeginOffset(0);
+            result.setNextBeginSequence(0);
             result.setStatus(GetMessageStatus.SUBJECT_NOT_FOUND);
             return result;
         }
@@ -190,30 +190,28 @@ public class DefaultStorage implements Storage {
         final OffsetBound bound = consumerLog.getOffsetBound();
         final long minSequence = bound.getMinOffset();
         final long maxSequence = bound.getMaxOffset();
-        result.setMinOffset(minSequence);
-        result.setMaxOffset(maxSequence);
 
         if (maxSequence == 0) {
-            result.setNextBeginOffset(maxSequence);
+            result.setNextBeginSequence(maxSequence);
             result.setStatus(GetMessageStatus.NO_MESSAGE);
             return result;
         }
 
         if (consumerLogSequence < 0) {
             result.setConsumerLogRange(new OffsetRange(maxSequence, maxSequence));
-            result.setNextBeginOffset(maxSequence);
+            result.setNextBeginSequence(maxSequence);
             result.setStatus(GetMessageStatus.SUCCESS);
             return result;
         }
 
         if (consumerLogSequence > maxSequence) {
-            result.setNextBeginOffset(maxSequence);
+            result.setNextBeginSequence(maxSequence);
             result.setStatus(GetMessageStatus.OFFSET_OVERFLOW);
             return result;
         }
 
         if (strictly && consumerLogSequence < minSequence) {
-            result.setNextBeginOffset(consumerLogSequence);
+            result.setNextBeginSequence(consumerLogSequence);
             result.setStatus(GetMessageStatus.EMPTY_CONSUMER_LOG);
             return result;
         }
@@ -221,13 +219,13 @@ public class DefaultStorage implements Storage {
         final long start = consumerLogSequence < minSequence ? minSequence : consumerLogSequence;
         final SegmentBuffer consumerLogBuffer = consumerLog.selectIndexBuffer(start);
         if (consumerLogBuffer == null) {
-            result.setNextBeginOffset(start);
+            result.setNextBeginSequence(start);
             result.setStatus(GetMessageStatus.EMPTY_CONSUMER_LOG);
             return result;
         }
 
         if (!consumerLogBuffer.retain()) {
-            result.setNextBeginOffset(start);
+            result.setNextBeginSequence(start);
             result.setStatus(GetMessageStatus.EMPTY_CONSUMER_LOG);
             return result;
         }
@@ -267,7 +265,7 @@ public class DefaultStorage implements Storage {
         } finally {
             consumerLogBuffer.release();
         }
-        result.setNextBeginOffset(nextBeginSequence);
+        result.setNextBeginSequence(nextBeginSequence);
         result.setConsumerLogRange(new OffsetRange(start, nextBeginSequence - 1));
         result.setStatus(GetMessageStatus.SUCCESS);
         return result;

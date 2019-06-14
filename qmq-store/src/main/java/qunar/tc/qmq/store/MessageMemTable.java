@@ -141,13 +141,13 @@ public class MessageMemTable implements Iterable<MessageMemTable.Entry>, AutoClo
 
             final Long firstSequence = firstSequences.get(subject);
             if (firstSequence == null) {
-                result.setNextBeginOffset(0);
+                result.setNextBeginSequence(0);
                 result.setStatus(GetMessageStatus.SUBJECT_NOT_FOUND);
                 return result;
             }
 
             if (beginSequence < firstSequence) {
-                result.setNextBeginOffset(0);
+                result.setNextBeginSequence(0);
                 result.setStatus(GetMessageStatus.SEQUENCE_TOO_SMALL);
                 return result;
             }
@@ -155,13 +155,13 @@ public class MessageMemTable implements Iterable<MessageMemTable.Entry>, AutoClo
             final int beginRelativeIndex = (int) (beginSequence - firstSequence);
             final ArrayList<MessageIndex> subjectIndexes = indexes.get(subject);
             if (beginRelativeIndex < 0 || subjectIndexes == null || beginRelativeIndex > subjectIndexes.size()) {
-                result.setNextBeginOffset(beginSequence);
+                result.setNextBeginSequence(beginSequence);
                 result.setStatus(GetMessageStatus.SEQUENCE_TOO_LARGE);
                 return result;
             }
 
             if (beginRelativeIndex == subjectIndexes.size()) {
-                result.setNextBeginOffset(beginSequence);
+                result.setNextBeginSequence(beginSequence);
                 result.setStatus(GetMessageStatus.NO_MESSAGE);
                 return result;
             }
@@ -174,7 +174,7 @@ public class MessageMemTable implements Iterable<MessageMemTable.Entry>, AutoClo
                 }
                 final MemTableBuffer buffer = selectMessageBuffer(index);
                 if (!buffer.retain()) {
-                    result.setNextBeginOffset(firstSequence + relativeIndex);
+                    result.setNextBeginSequence(firstSequence + relativeIndex);
                     result.setStatus(GetMessageStatus.TABLE_ALREADY_EVICTED);
                     return result;
                 }
@@ -183,7 +183,7 @@ public class MessageMemTable implements Iterable<MessageMemTable.Entry>, AutoClo
             }
 
             final long nextBeginSequence = firstSequence + relativeIndex;
-            result.setNextBeginOffset(nextBeginSequence);
+            result.setNextBeginSequence(nextBeginSequence);
             result.setConsumerLogRange(new OffsetRange(beginSequence, nextBeginSequence - 1));
             result.setStatus(GetMessageStatus.SUCCESS);
             return result;

@@ -33,7 +33,6 @@ import qunar.tc.qmq.store.action.ForeverOfflineAction;
 import qunar.tc.qmq.store.action.PullAction;
 import qunar.tc.qmq.store.action.RangeAckAction;
 import qunar.tc.qmq.store.buffer.Buffer;
-import qunar.tc.qmq.store.buffer.SegmentBuffer;
 import qunar.tc.qmq.utils.ObjectUtils;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
 

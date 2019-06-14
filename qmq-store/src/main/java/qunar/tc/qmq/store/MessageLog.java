@@ -113,11 +113,8 @@ public class MessageLog implements AutoCloseable {
 
         final int payloadSize = wroteBytes - headerSize;
         final int pos = (int) (payloadOffset % PER_SEGMENT_FILE_SIZE);
-        final SegmentBuffer result = segment.selectSegmentBuffer(pos, payloadSize);
-        if (result == null) return null;
 
-        result.setWroteOffset(wroteOffset);
-        return result;
+        return segment.selectSegmentBuffer(pos, payloadSize);
     }
 
     public SegmentBuffer getMessageData(final long offset) {

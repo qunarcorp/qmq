@@ -20,6 +20,7 @@ import com.google.common.base.Strings;
 import qunar.tc.qmq.*;
 import qunar.tc.qmq.common.ClientIdProvider;
 import qunar.tc.qmq.common.ClientIdProviderFactory;
+import qunar.tc.qmq.common.EnvProvider;
 import qunar.tc.qmq.config.NettyClientConfigManager;
 import qunar.tc.qmq.consumer.handler.MessageDistributor;
 import qunar.tc.qmq.consumer.pull.PullConsumerFactory;
@@ -46,6 +47,7 @@ public class MessageConsumerProvider implements MessageConsumer {
     private volatile boolean inited = false;
 
     private ClientIdProvider clientIdProvider;
+    private EnvProvider envProvider;
 
     private final PullRegister pullRegister;
     private String appCode;
@@ -73,6 +75,7 @@ public class MessageConsumerProvider implements MessageConsumer {
             String clientId = this.clientIdProvider.get();
             this.pullRegister.setDestroyWaitInSeconds(destroyWaitInSeconds);
             this.pullRegister.setMetaServer(metaServer);
+            this.pullRegister.setEnvProvider(envProvider);
             this.pullRegister.setClientId(clientId);
             this.pullRegister.init();
 
@@ -133,6 +136,16 @@ public class MessageConsumerProvider implements MessageConsumer {
      */
     public void setClientIdProvider(ClientIdProvider clientIdProvider) {
         this.clientIdProvider = clientIdProvider;
+    }
+
+    /**
+     * QMQ提供环境隔离的功能，允许将producer的环境P和consumer的环境C绑定到一起，绑定之后，C环境的consumer只会收到P环境的producer发出的消息。
+     *
+     * @param envProvider 当前client环境provider
+     * @see qunar.tc.qmq.common.EnvProvider
+     */
+    public void setEnvProvider(EnvProvider envProvider) {
+        this.envProvider = envProvider;
     }
 
     /**
