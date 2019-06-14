@@ -17,6 +17,7 @@
 package qunar.tc.qmq.store;
 
 import qunar.tc.qmq.TagType;
+import qunar.tc.qmq.store.buffer.Buffer;
 import qunar.tc.qmq.utils.Flags;
 import qunar.tc.qmq.utils.ListUtils;
 
@@ -25,7 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 class Tags {
-    static boolean match(SegmentBuffer result, List<byte[]> requestTags, int tagTypeCode) {
+    static boolean match(Buffer result, List<byte[]> requestTags, int tagTypeCode) {
         ByteBuffer message = result.getBuffer();
         message.mark();
         byte flag = message.get();

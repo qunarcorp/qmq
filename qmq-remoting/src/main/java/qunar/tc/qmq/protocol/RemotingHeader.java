@@ -33,6 +33,11 @@ public class RemotingHeader {
      */
     public static final short VERSION_8 = 8;
 
+    /**
+     * add pull request filters
+     */
+    public static final short VERSION_9 = 9;
+
     public static final short MIN_HEADER_SIZE = 18;  // magic code(4) + code(2) + version(2) + opaque(4) + flag(4) + request code(2)
     public static final short HEADER_SIZE_LEN = 2;
     public static final short TOTAL_SIZE_LEN = 4;

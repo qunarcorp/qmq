@@ -20,6 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.base.RawMessage;
 import qunar.tc.qmq.monitor.QMon;
+import qunar.tc.qmq.store.buffer.SegmentBuffer;
 import qunar.tc.qmq.utils.Crc32;
 
 import java.io.File;
@@ -112,11 +113,8 @@ public class MessageLog implements AutoCloseable {
 
         final int payloadSize = wroteBytes - headerSize;
         final int pos = (int) (payloadOffset % PER_SEGMENT_FILE_SIZE);
-        final SegmentBuffer result = segment.selectSegmentBuffer(pos, payloadSize);
-        if (result == null) return null;
 
-        result.setWroteOffset(wroteOffset);
-        return result;
+        return segment.selectSegmentBuffer(pos, payloadSize);
     }
 
     public SegmentBuffer getMessageData(final long offset) {

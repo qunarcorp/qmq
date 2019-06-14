@@ -19,7 +19,11 @@ package qunar.tc.qmq.consumer.register;
 import qunar.tc.qmq.MessageListener;
 import qunar.tc.qmq.SubscribeParam;
 import qunar.tc.qmq.common.StatusSource;
+import qunar.tc.qmq.protocol.consumer.PullFilter;
+import qunar.tc.qmq.protocol.consumer.TagPullFilter;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Executor;
 
 /**
@@ -28,17 +32,21 @@ import java.util.concurrent.Executor;
 public class RegistParam {
     private final Executor executor;
     private final MessageListener messageListener;
-    private final SubscribeParam subscribeParam;
+    private final boolean isConsumeMostOnce;
     private boolean isBroadcast = false;
     private final String clientId;
+    private final List<PullFilter> filters;
 
     private volatile StatusSource actionSrc = StatusSource.HEALTHCHECKER;
 
     public RegistParam(Executor executor, MessageListener messageListener, SubscribeParam subscribeParam, String clientId) {
         this.executor = executor;
         this.messageListener = messageListener;
-        this.subscribeParam = subscribeParam;
+        this.isConsumeMostOnce = subscribeParam.isConsumeMostOnce();
         this.clientId = clientId;
+        final ArrayList<PullFilter> filters = new ArrayList<>();
+        filters.add(new TagPullFilter(subscribeParam.getTagType(), subscribeParam.getTags()));
+        this.filters = filters;
     }
 
     public Executor getExecutor() {
@@ -49,12 +57,12 @@ public class RegistParam {
         return messageListener;
     }
 
-    public SubscribeParam getSubscribeParam() {
-        return subscribeParam;
-    }
-
     public String getClientId() {
         return this.clientId;
+    }
+
+    public boolean isConsumeMostOnce() {
+        return isConsumeMostOnce;
     }
 
     public boolean isBroadcast() {
@@ -63,6 +71,14 @@ public class RegistParam {
 
     public void setBroadcast(boolean broadcast) {
         isBroadcast = broadcast;
+    }
+
+    public List<PullFilter> getFilters() {
+        return filters;
+    }
+
+    public void addFilter(final PullFilter filter) {
+        filters.add(filter);
     }
 
     public void setActionSrc(StatusSource actionSrc) {

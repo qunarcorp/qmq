@@ -16,10 +16,10 @@
 
 package qunar.tc.qmq.consumer.pull;
 
-import qunar.tc.qmq.TagType;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
+import qunar.tc.qmq.protocol.consumer.PullFilter;
 
-import java.util.Set;
+import java.util.List;
 
 /**
  * @author yiqun.fan create on 17-8-18.
@@ -99,15 +99,9 @@ class PullParam {
         return consumeParam.isConsumeMostOnce();
     }
 
-
-    public Set<String> getTags() {
-        return consumeParam.getTags();
+    public List<PullFilter> getFilters() {
+        return consumeParam.getFilters();
     }
-
-    public TagType getTagType() {
-        return consumeParam.getTagType();
-    }
-
 
     @Override
     public String toString() {

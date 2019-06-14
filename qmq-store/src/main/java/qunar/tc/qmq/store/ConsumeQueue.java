@@ -63,7 +63,7 @@ public class ConsumeQueue {
             return storage.pollMessages(subject, currentSequence, maxMessages, this::isDelayReached);
         } else {
             final GetMessageResult result = storage.pollMessages(subject, currentSequence, maxMessages);
-            long actualSequence = result.getNextBeginOffset() - result.getSegmentBuffers().size();
+            long actualSequence = result.getNextBeginSequence() - result.getBuffers().size();
             long delta = actualSequence - currentSequence;
             if (delta > 0) {
                 QMon.expiredMessagesCountInc(subject, group, delta);

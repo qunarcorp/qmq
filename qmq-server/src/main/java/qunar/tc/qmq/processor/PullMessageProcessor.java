@@ -19,9 +19,12 @@ package qunar.tc.qmq.processor;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Strings;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.FileRegion;
 import io.netty.util.HashedWheelTimer;
+import io.netty.util.ReferenceCounted;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import org.slf4j.Logger;
@@ -31,25 +34,32 @@ import qunar.tc.qmq.concurrent.ActorSystem;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.consumer.SubscriberStatusChecker;
 import qunar.tc.qmq.monitor.QMon;
-import qunar.tc.qmq.protocol.*;
+import qunar.tc.qmq.protocol.CommandCode;
+import qunar.tc.qmq.protocol.Datagram;
+import qunar.tc.qmq.protocol.RemotingCommand;
+import qunar.tc.qmq.protocol.RemotingHeader;
 import qunar.tc.qmq.protocol.consumer.PullRequest;
+import qunar.tc.qmq.protocol.consumer.PullRequestSerde;
 import qunar.tc.qmq.stats.BrokerStats;
 import qunar.tc.qmq.store.ConsumerLogWroteEvent;
 import qunar.tc.qmq.store.MessageStoreWrapper;
-import qunar.tc.qmq.store.SegmentBuffer;
+import qunar.tc.qmq.store.buffer.Buffer;
 import qunar.tc.qmq.store.event.FixedExecOrderEventBus;
 import qunar.tc.qmq.util.RemotingBuilder;
 import qunar.tc.qmq.utils.ConsumerGroupUtils;
-import qunar.tc.qmq.utils.PayloadHolderUtils;
+import qunar.tc.qmq.utils.Flags;
+import qunar.tc.qmq.utils.HeaderSerializer;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
+import java.nio.channels.GatheringByteChannel;
+import java.nio.channels.WritableByteChannel;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static qunar.tc.qmq.protocol.RemotingHeader.VERSION_8;
+import static qunar.tc.qmq.util.RemotingBuilder.buildResponseHeader;
 
 /**
  * @author yunfeng.yang
@@ -68,6 +78,7 @@ public class PullMessageProcessor extends AbstractRequestProcessor implements Fi
     private final ActorSystem actorSystem;
     private final SubscriberStatusChecker subscriberStatusChecker;
     private final PullMessageWorker pullMessageWorker;
+    private final PullRequestSerde pullRequestSerde;
 
     public PullMessageProcessor(final DynamicConfig config,
                                 final ActorSystem actorSystem,
@@ -77,12 +88,13 @@ public class PullMessageProcessor extends AbstractRequestProcessor implements Fi
         this.actorSystem = actorSystem;
         this.subscriberStatusChecker = subscriberStatusChecker;
         this.pullMessageWorker = new PullMessageWorker(messageStoreWrapper, actorSystem);
+        this.pullRequestSerde = new PullRequestSerde();
         this.timer.start();
     }
 
     @Override
     public CompletableFuture<Datagram> processRequest(final ChannelHandlerContext ctx, final RemotingCommand command) {
-        final PullRequest pullRequest = deserializePullRequest(command.getHeader().getVersion(), command.getBody());
+        final PullRequest pullRequest = pullRequestSerde.read(command.getHeader().getVersion(), command.getBody());
 
         BrokerStats.getInstance().getLastMinutePullRequestCount().add(1);
         QMon.pullRequestCountInc(pullRequest.getSubject(), pullRequest.getGroup());
@@ -154,53 +166,86 @@ public class PullMessageProcessor extends AbstractRequestProcessor implements Fi
         return RemotingBuilder.buildEmptyResponseDatagram(CommandCode.NO_MESSAGE, command.getHeader());
     }
 
-    private PullRequest deserializePullRequest(final int version, ByteBuf input) {
-        String prefix = PayloadHolderUtils.readString(input);
-        String group = PayloadHolderUtils.readString(input);
-        String consumerId = PayloadHolderUtils.readString(input);
-        int requestNum = input.readInt();
-        long offset = input.readLong();
-        long pullOffsetBegin = input.readLong();
-        long pullOffsetLast = input.readLong();
-        long timeout = input.readLong();
-        byte broadcast = input.readByte();
-
-        PullRequest request = new PullRequest();
-        deserializeTags(request, version, input);
-        request.setSubject(prefix);
-        request.setGroup(group);
-        request.setConsumerId(consumerId);
-        request.setRequestNum(requestNum);
-        request.setOffset(offset);
-        request.setPullOffsetBegin(pullOffsetBegin);
-        request.setPullOffsetLast(pullOffsetLast);
-        request.setTimeoutMillis(timeout);
-        request.setBroadcast(broadcast != 0);
-        return request;
-    }
-
-    private void deserializeTags(PullRequest request, int version, ByteBuf input) {
-        if (version < VERSION_8) return;
-
-        int tagTypeCode = input.readShort();
-        final byte tagSize = input.readByte();
-        List<byte[]> tags = new ArrayList<>(tagSize);
-        for (int i = 0; i < tagSize; i++) {
-            int len = input.readShort();
-            byte[] bs = new byte[len];
-            input.readBytes(bs);
-            tags.add(bs);
-        }
-        request.setTagTypeCode(tagTypeCode);
-        request.setTags(tags);
-    }
-
     @Override
     public void onEvent(final ConsumerLogWroteEvent e) {
         if (!e.isSuccess() || Strings.isNullOrEmpty(e.getSubject())) {
             return;
         }
         pullMessageWorker.remindNewMessages(e.getSubject());
+    }
+
+    static class DataTransfer implements FileRegion {
+
+        private final ByteBuffer[] buffers;
+        private final ByteBuf header;
+        private final ByteBuf payload;
+        private final long count;
+        private long transferred;
+
+        public DataTransfer(RemotingHeader requestHeader, ByteBuf payload) {
+            this.payload = payload;
+            this.header = HeaderSerializer.serialize(requestHeader, payload.readableBytes(), 0);
+
+            this.buffers = new ByteBuffer[2];
+            this.buffers[0] = header.nioBuffer();
+            this.buffers[1] = payload.nioBuffer();
+
+            this.count = header.readableBytes() + payload.readableBytes();
+        }
+
+        @Override
+        public long position() {
+            long pos = 0;
+            for (ByteBuffer buffer : this.buffers) {
+                pos += buffer.position();
+            }
+            return pos;
+        }
+
+        @Override
+        public long transfered() {
+            return transferred;
+        }
+
+        @Override
+        public long count() {
+            return count;
+        }
+
+        @Override
+        public long transferTo(WritableByteChannel target, long position) throws IOException {
+            GatheringByteChannel channel = (GatheringByteChannel) target;
+            long write = channel.write(this.buffers);
+            transferred += write;
+            return write;
+        }
+
+        @Override
+        public int refCnt() {
+            return 0;
+        }
+
+        @Override
+        public ReferenceCounted retain() {
+            return null;
+        }
+
+        @Override
+        public ReferenceCounted retain(int increment) {
+            return null;
+        }
+
+        @Override
+        public boolean release() {
+            header.release();
+            return payload.release();
+        }
+
+        @Override
+        public boolean release(int decrement) {
+            header.release();
+            return payload.release(decrement);
+        }
     }
 
     class PullEntry implements TimerTask {
@@ -275,54 +320,88 @@ public class PullMessageProcessor extends AbstractRequestProcessor implements Fi
 
             QMon.pulledMessagesCountInc(subject, group, pullMessageResult.getMessageNum());
             QMon.pulledMessageBytesCountInc(subject, group, pullMessageResult.getBufferTotalSize());
-            final Datagram response = RemotingBuilder.buildResponseDatagram(CommandCode.SUCCESS, requestHeader, toPayloadHolder(pullMessageResult, requestHeader));
-            ctx.writeAndFlush(response).addListener(future -> monitorPullProcessTime());
+            final ByteBuf payload = toPayload(pullMessageResult, requestHeader);
+            ctx.writeAndFlush(new DataTransfer(buildResponseHeader(CommandCode.SUCCESS, requestHeader), payload)).addListener(future -> monitorPullProcessTime());
         }
 
         private void monitorPullProcessTime() {
             QMon.pullProcessTime(subject, group, System.currentTimeMillis() - pullBegin);
         }
 
-        private PullMessageResultPayloadHolder toPayloadHolder(final PullMessageResult result, final RemotingHeader requestHeader) {
+        private ByteBuf toPayload(final PullMessageResult result, final RemotingHeader requestHeader) {
             final long start = System.currentTimeMillis();
-
             try {
                 int payloadSize = 8 + 8 + result.getBufferTotalSize();
-                final ByteBuffer output = ByteBuffer.allocate(payloadSize);
-                output.putLong(result.getPullLogOffset());
-                output.putLong(-1);
+                final ByteBuf output = ByteBufAllocator.DEFAULT.ioBuffer(payloadSize);
+                output.writeLong(result.getPullLogOffset());
+                output.writeLong(-1);
 
-                final List<SegmentBuffer> buffers = result.getBuffers();
-                for (final SegmentBuffer buffer : buffers) {
-                    try {
-                        output.put(buffer.getBuffer());
-                    } finally {
-                        buffer.release();
+                final List<Buffer> buffers = result.getBuffers();
+                for (final Buffer buffer : buffers) {
+                    ByteBuffer message = buffer.getBuffer();
+                    //新客户端拉取消息
+                    if (requestHeader.getVersion() >= VERSION_8) {
+                        output.writeBytes(message);
+                    } else {
+                        //老客户端拉取消息
+                        message.mark();
+                        byte flag = message.get();
+                        //老客户端拉取消息，但是没有tag
+                        if (!Flags.hasTags(flag)) {
+                            message.reset();
+                            output.writeBytes(message);
+                        } else {
+                            //老客户端拉取有tag的消息
+                            removeTags(output, message);
+                        }
                     }
                 }
-                if (output.hasRemaining()) {
-                    //将流中原来tags所占的区间释放
-                    return new PullMessageResultPayloadHolder(Arrays.copyOf(output.array(), output.position()));
-                } else {
-                    return new PullMessageResultPayloadHolder(output.array());
-                }
+                return output;
             } finally {
+                release(result);
                 QMon.readPullResultAsBytesElapsed(subject, group, System.currentTimeMillis() - start);
             }
         }
 
-    }
-
-    class PullMessageResultPayloadHolder implements PayloadHolder {
-        private final byte[] data;
-
-        PullMessageResultPayloadHolder(final byte[] data) {
-            this.data = data;
+        private void release(PullMessageResult result) {
+            List<Buffer> buffers = result.getBuffers();
+            for (Buffer buffer : buffers) {
+                buffer.release();
+            }
         }
 
-        @Override
-        public void writeBody(ByteBuf out) {
-            out.writeBytes(data);
+        private void removeTags(ByteBuf payloadBuffer, ByteBuffer message) {
+            skip(message, 8 + 8);
+            short subjectLen = message.getShort();
+            skip(message, subjectLen);
+
+            short messageIdLen = message.getShort();
+            skip(message, messageIdLen);
+
+            int current = message.position();
+            message.reset();
+            int originalLimit = message.limit();
+            message.limit(current);
+            payloadBuffer.writeBytes(message);
+
+            message.limit(originalLimit);
+            message.position(current);
+
+            skipTags(message);
+            payloadBuffer.writeBytes(message);
         }
+
+        private void skipTags(ByteBuffer message) {
+            byte tagSize = message.get();
+            for (int i = 0; i < tagSize; i++) {
+                short tagLen = message.getShort();
+                skip(message, tagLen);
+            }
+        }
+
+        private void skip(ByteBuffer buffer, int bytes) {
+            buffer.position(buffer.position() + bytes);
+        }
+
     }
 }

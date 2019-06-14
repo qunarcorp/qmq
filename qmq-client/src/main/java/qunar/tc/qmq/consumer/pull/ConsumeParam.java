@@ -16,12 +16,12 @@
 
 package qunar.tc.qmq.consumer.pull;
 
-import qunar.tc.qmq.TagType;
 import qunar.tc.qmq.consumer.register.RegistParam;
+import qunar.tc.qmq.protocol.consumer.PullFilter;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
 
 import java.util.Collections;
-import java.util.Set;
+import java.util.List;
 
 /**
  * @author yiqun.fan create on 17-11-2.
@@ -34,27 +34,25 @@ class ConsumeParam {
     private final String consumerId;
     private final boolean isBroadcast;
     private volatile boolean isConsumeMostOnce;
-    private volatile TagType tagType;
-    private volatile Set<String> tags;
+    private final List<PullFilter> filters;
 
     public ConsumeParam(String subject, String group, RegistParam param) {
-        this(subject, group, param.isBroadcast(), param.getSubscribeParam().isConsumeMostOnce(), param.getSubscribeParam().getTagType(), param.getSubscribeParam().getTags(), param.getClientId());
+        this(subject, group, param.isBroadcast(), param.isConsumeMostOnce(), param.getClientId(), param.getFilters());
     }
 
     public ConsumeParam(String subject, String group, boolean isBroadcast, boolean isConsumeMostOnce, String clientId) {
-        this(subject, group, isBroadcast, isConsumeMostOnce, TagType.NO_TAG, Collections.EMPTY_SET, clientId);
+        this(subject, group, isBroadcast, isConsumeMostOnce, clientId, Collections.<PullFilter>emptyList());
     }
 
-    public ConsumeParam(String subject, String group, boolean isBroadcast, boolean isConsumeMostOnce, TagType tagType, Set<String> tags, String clientId) {
+    private ConsumeParam(String subject, String group, boolean isBroadcast, boolean isConsumeMostOnce, String clientId, List<PullFilter> filters) {
         this.subject = subject;
         this.group = group;
-        this.originSubject =  RetrySubjectUtils.getRealSubject(subject);
+        this.originSubject = RetrySubjectUtils.isRetrySubject(subject) ? RetrySubjectUtils.getRealSubject(subject) : subject;
         this.retrySubject = RetrySubjectUtils.buildRetrySubject(originSubject, group);
         this.consumerId = clientId;
         this.isBroadcast = isBroadcast;
+        this.filters = filters;
         this.isConsumeMostOnce = isConsumeMostOnce;
-        this.tagType = tagType;
-        this.tags = tags;
     }
 
     public String getSubject() {
@@ -81,6 +79,10 @@ class ConsumeParam {
         return isBroadcast;
     }
 
+    public List<PullFilter> getFilters() {
+        return filters;
+    }
+
     public boolean isConsumeMostOnce() {
         return isConsumeMostOnce;
     }
@@ -89,19 +91,4 @@ class ConsumeParam {
         isConsumeMostOnce = consumeMostOnce;
     }
 
-    public TagType getTagType() {
-        return tagType;
-    }
-
-    public void setTagType(TagType tagType) {
-        this.tagType = tagType;
-    }
-
-    public Set<String> getTags() {
-        return tags;
-    }
-
-    public void setTags(Set<String> tags) {
-        this.tags = tags;
-    }
 }

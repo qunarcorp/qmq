@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
-package qunar.tc.qmq.store;
+package qunar.tc.qmq.store.buffer;
+
+import qunar.tc.qmq.store.LogSegment;
 
 import java.nio.ByteBuffer;
 
@@ -22,14 +24,12 @@ import java.nio.ByteBuffer;
  * @author keli.wang
  * @since 2017/7/6
  */
-public class SegmentBuffer {
+public class SegmentBuffer implements Buffer {
     private final long startOffset;
     private final int size;
 
     private final ByteBuffer buffer;
     private final LogSegment logSegment;
-
-    private long wroteOffset;
 
     public SegmentBuffer(long startOffset, ByteBuffer buffer, int size, LogSegment logSegment) {
         this.startOffset = startOffset;
@@ -42,10 +42,12 @@ public class SegmentBuffer {
         return startOffset;
     }
 
+    @Override
     public ByteBuffer getBuffer() {
         return buffer;
     }
 
+    @Override
     public int getSize() {
         return size;
     }
@@ -54,18 +56,12 @@ public class SegmentBuffer {
         return logSegment;
     }
 
-    public long getWroteOffset() {
-        return wroteOffset;
-    }
-
-    public void setWroteOffset(long wroteOffset) {
-        this.wroteOffset = wroteOffset;
-    }
-
+    @Override
     public boolean release() {
         return logSegment.release();
     }
 
+    @Override
     public boolean retain() {
         return logSegment.retain();
     }
