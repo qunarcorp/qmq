@@ -27,7 +27,6 @@ import qunar.tc.qmq.monitor.QMon;
 import qunar.tc.qmq.store.action.PullAction;
 import qunar.tc.qmq.store.action.RangeAckAction;
 
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
@@ -493,12 +492,12 @@ public class CheckpointManager implements AutoCloseable {
         indexIterateCheckpointStore.saveSnapshot(snapshot);
     }
 
-    public void setSyncActionLogOffset(long offset) {
-        this.syncActionCheckpoint.set(offset);
-    }
-
     public long getSyncActionLogOffset() {
         return this.syncActionCheckpoint.longValue();
+    }
+
+    public void setSyncActionLogOffset(long offset) {
+        this.syncActionCheckpoint.set(offset);
     }
 
     public void addSyncActionLogOffset(int delta) {
@@ -536,6 +535,18 @@ public class CheckpointManager implements AutoCloseable {
         messageCheckpointGuard.lock();
         try {
             return messageCheckpoint.getMaxSequences();
+        } finally {
+            messageCheckpointGuard.unlock();
+        }
+    }
+
+    void updateMessageCheckpoint(final long offset, final Map<String, Long> currentMaxSequences) {
+        messageCheckpointGuard.lock();
+        try {
+            currentMaxSequences.forEach((subject, maxSequence) -> {
+                messageCheckpoint.getMaxSequences().merge(subject, maxSequence, Math::max);
+            });
+            messageCheckpoint.setOffset(offset);
         } finally {
             messageCheckpointGuard.unlock();
         }
