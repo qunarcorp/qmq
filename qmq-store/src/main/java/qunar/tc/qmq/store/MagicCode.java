@@ -21,7 +21,7 @@ package qunar.tc.qmq.store;
  * @since 2017/7/6
  */
 public final class MagicCode {
-    public static final int CONSUMER_LOG_MAGIC_V1 = 0xA3B2C100;
+    public static final short CONSUMER_LOG_MAGIC_V2 = (short) 0xA3B2;
 
     public static final int MESSAGE_LOG_MAGIC_V1 = 0xA1B2C300;
 

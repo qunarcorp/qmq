@@ -56,4 +56,6 @@ public interface StorageConfig {
     int getMaxReservedMemTable();
 
     int getMaxActiveMemTable();
+
+    boolean isConsumerLogV2Enable();
 }

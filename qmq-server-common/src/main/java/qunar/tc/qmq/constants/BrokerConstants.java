@@ -34,6 +34,8 @@ public class BrokerConstants {
     public static final String CONSUMER_LOG_RETENTION_HOURS = "consumerlog.retention.hours";
     public static final int DEFAULT_CONSUMER_LOG_RETENTION_HOURS = 72; // 3 days
 
+    public static final String CONSUMER_LOG_V2_ENABLE = "consumerlog.v2.enable";
+
     public static final String SMT_RETENTION_HOURS = "smt.retention.hours";
     public static final int DEFAULT_SMT_RETENTION_HOURS = 72; // 3 days
 
@@ -52,6 +54,7 @@ public class BrokerConstants {
 
     // slave
     public static final long DEFAULT_HEARTBEAT_SLEEP_TIMEOUT_MS = 1000L;
+
 
     public static String PULL_LOG_RETENTION_HOURS = "pulllog.retention.hours";
     public static int DEFAULT_PULL_LOG_RETENTION_HOURS = 72; // 3 days

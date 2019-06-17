@@ -30,7 +30,6 @@ import qunar.tc.qmq.store.buffer.SegmentBuffer;
 import qunar.tc.qmq.store.event.FixedExecOrderEventBus;
 
 import java.nio.ByteBuffer;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -233,8 +232,8 @@ public class DefaultStorage implements Storage {
 
         long nextBeginSequence = start;
         try {
-            final int maxMessagesInBytes = maxMessages * ConsumerLog.CONSUMER_LOG_UNIT_BYTES;
-            for (int i = 0; i < maxMessagesInBytes; i += ConsumerLog.CONSUMER_LOG_UNIT_BYTES) {
+            final int maxMessagesInBytes = maxMessages * consumerLog.getUnitBytes();
+            for (int i = 0; i < maxMessagesInBytes; i += consumerLog.getUnitBytes()) {
                 if (i >= consumerLogBuffer.getSize()) {
                     break;
                 }
@@ -447,7 +446,7 @@ public class DefaultStorage implements Storage {
                 LOG.error("next sequence not equals to max sequence. subject: {}, received seq: {}, received offset: {}, diff: {}",
                         event.getSubject(), event.getSequence(), event.getWroteOffset(), event.getSequence() - consumerLog.nextSequence());
             }
-            final boolean success = consumerLog.putMessageLogOffset(event.getSequence(), event.getWroteOffset(), event.getWroteBytes(), event.getHeaderSize());
+            final boolean success = consumerLog.writeMessageLogIndex(event.getSequence(), event.getWroteOffset(), event.getWroteBytes(), event.getHeaderSize());
             checkpointManager.updateMessageReplayState(event);
             messageEventBus.post(new ConsumerLogWroteEvent(event.getSubject(), success));
         }

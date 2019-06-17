@@ -141,4 +141,9 @@ public class StorageConfigImpl implements StorageConfig {
     public int getMaxActiveMemTable() {
         return config.getInt(BrokerConstants.MAX_ACTIVE_MEMTABLE, BrokerConstants.DEFAULT_MAX_ACTIVE_MEMTABLE);
     }
+
+    @Override
+    public boolean isConsumerLogV2Enable() {
+        return config.getBoolean(BrokerConstants.CONSUMER_LOG_V2_ENABLE, false);
+    }
 }
