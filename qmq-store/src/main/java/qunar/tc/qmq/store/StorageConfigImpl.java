@@ -33,6 +33,7 @@ public class StorageConfigImpl implements StorageConfig {
     private static final String PULL_LOG = "pulllog";
     private static final String ACTION_LOG = "actionlog";
     private static final String INDEX_LOG = "indexlog";
+    private static final String SMT = "smt";
 
     private static final long MS_PER_HOUR = TimeUnit.HOURS.toMillis(1);
 
@@ -104,6 +105,11 @@ public class StorageConfigImpl implements StorageConfig {
     public long getLogRetentionMs() {
         final int retentionHours = config.getInt(BrokerConstants.PULL_LOG_RETENTION_HOURS, BrokerConstants.DEFAULT_PULL_LOG_RETENTION_HOURS);
         return retentionHours * MS_PER_HOUR;
+    }
+
+    @Override
+    public String getSMTStorePath() {
+        return buildStorePath(SMT);
     }
 
     @Override

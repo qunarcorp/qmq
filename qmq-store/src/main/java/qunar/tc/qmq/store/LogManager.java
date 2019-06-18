@@ -302,7 +302,7 @@ public class LogManager {
     private void executeHook(DeleteHook hook, LogSegment segment) {
         if (hook == null) return;
 
-        hook.afterDeleted(segment);
+        hook.afterDeleted(this, segment);
     }
 
     private boolean deleteSegment(final long key, final LogSegment segment) {
@@ -318,7 +318,7 @@ public class LogManager {
     }
 
     public interface DeleteHook {
-        void afterDeleted(LogSegment segment);
+        void afterDeleted(final LogManager logManager, final LogSegment deletedSegment);
     }
 
     public boolean clean(Long key) {

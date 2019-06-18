@@ -35,7 +35,7 @@ import java.util.Arrays;
 public class MessageLog implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(MessageLog.class);
 
-    private static final int PER_SEGMENT_FILE_SIZE = 1024 * 1024 * 1024;
+    static final int PER_SEGMENT_FILE_SIZE = 1024 * 1024 * 1024;
 
     static final byte ATTR_BLANK_RECORD = 2;
     static final byte ATTR_EMPTY_RECORD = 1;
@@ -159,7 +159,7 @@ public class MessageLog implements AutoCloseable {
     }
 
     public void clean() {
-        logManager.deleteExpiredSegments(config.getMessageLogRetentionMs(), segment -> {
+        logManager.deleteExpiredSegments(config.getMessageLogRetentionMs(), (logManager, segment) -> {
             consumerLogManager.adjustConsumerLogMinOffset(logManager.firstSegment());
 
             final String fileName = StoreUtils.offsetFileNameForSegment(segment);

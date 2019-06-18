@@ -28,9 +28,12 @@ import qunar.tc.qmq.store.action.MaxSequencesUpdater;
 import qunar.tc.qmq.store.action.PullLogBuilder;
 import qunar.tc.qmq.store.buffer.SegmentBuffer;
 import qunar.tc.qmq.store.event.FixedExecOrderEventBus;
+import qunar.tc.qmq.store.result.Result;
 
+import java.io.File;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
@@ -48,14 +51,16 @@ public class DefaultStorage implements Storage {
     private static final int DEFAULT_FLUSH_INTERVAL = 500; // ms
 
     private final StorageConfig config;
+    private final CheckpointManager checkpointManager;
+
+    private final SortedMessagesTable sortedMessagesTable;
+    private final MessageMemTableManager memTableManager;
 
     private final MessageLog messageLog;
     private final ConsumerLogManager consumerLogManager;
     private final PullLogManager pullLogManager;
     private final ActionLog actionLog;
     private final ConsumeQueueManager consumeQueueManager;
-
-    private final CheckpointManager checkpointManager;
 
     private final PullLogFlusher pullLogFlusher;
     private final FixedExecOrderEventBus actionEventBus;
@@ -77,6 +82,11 @@ public class DefaultStorage implements Storage {
         this.messageLog = new MessageLog(config, consumerLogManager);
         this.pullLogManager = new PullLogManager(config, checkpointManager.allConsumerGroupProgresses());
         this.actionLog = new ActionLog(config);
+
+        final int tabletSize = MessageLog.PER_SEGMENT_FILE_SIZE / 4;
+        this.sortedMessagesTable = new SortedMessagesTable(new File(config.getSMTStorePath()), tabletSize);
+        final EvictedMemTableHandler evictedCallback = new EvictedMemTableHandler(sortedMessagesTable, consumerLogManager, checkpointManager);
+        this.memTableManager = new MessageMemTableManager(config, tabletSize - sortedMessagesTable.getTabletMetaSize(), evictedCallback);
 
         // must init after offset manager created
         this.consumeQueueManager = new ConsumeQueueManager(this);
@@ -109,11 +119,23 @@ public class DefaultStorage implements Storage {
 
         messageLogIterateService.blockUntilReplayDone();
         actionLogIterateService.blockUntilReplayDone();
+        blockUntilSMTWriteComplete();
         // must call this after message log replay done
-        consumerLogManager.initConsumerLogOffset();
+        consumerLogManager.initConsumerLogOffset(memTableManager.latestMemTable());
 
         logCleanerExecutor.scheduleAtFixedRate(
                 new LogCleaner(), 0, config.getLogRetentionCheckIntervalSeconds(), TimeUnit.SECONDS);
+    }
+
+    private void blockUntilSMTWriteComplete() {
+        while (memTableManager.hasPendingEvicted()) {
+            LOG.info("waiting all smt write complete");
+            try {
+                TimeUnit.SECONDS.sleep(1);
+            } catch (InterruptedException e) {
+                LOG.debug("sleep interrupted.", e);
+            }
+        }
     }
 
     @Override
@@ -123,6 +145,8 @@ public class DefaultStorage implements Storage {
 
     @Override
     public void destroy() {
+        shutdownLogCleaner();
+
         safeClose(actionLogIterateService);
         safeClose(messageLogIterateService);
         safeClose(messageLogFlushService);
@@ -133,6 +157,14 @@ public class DefaultStorage implements Storage {
         safeClose(messageLog);
         safeClose(consumerLogManager);
         safeClose(pullLogManager);
+    }
+
+    private void shutdownLogCleaner() {
+        logCleanerExecutor.shutdown();
+        try {
+            logCleanerExecutor.awaitTermination(1, TimeUnit.SECONDS);
+        } catch (InterruptedException ignore) {
+        }
     }
 
     private void safeClose(AutoCloseable closeable) {
@@ -171,7 +203,43 @@ public class DefaultStorage implements Storage {
         return pollMessages(subject, consumerLogSequence, maxMessages, filter, false);
     }
 
-    private GetMessageResult pollMessages(String subject, long consumerLogSequence, int maxMessages, MessageFilter filter, boolean strictly) {
+    private GetMessageResult pollMessages(String subject, long beginSequence, int maxMessages, MessageFilter filter, boolean strictly) {
+        // TODO(keli.wang): skip read from memtable when smt disabled
+        final GetMessageResult result = pollFromMemTable(subject, beginSequence, maxMessages, filter);
+        switch (result.getStatus()) {
+            case SUCCESS:
+                // Metrics.counter("memtable_hits_count").delta().get().inc(result.getMessageNum());
+                return result;
+            case NO_MESSAGE:
+                return result;
+            default:
+                break;
+        }
+
+        return pollFromConsumerLog(subject, beginSequence, maxMessages, filter, strictly);
+    }
+
+    private GetMessageResult pollFromMemTable(String subject, long beginSequence, int maxMessages, MessageFilter filter) {
+        final Iterator<MessageMemTable> iter = memTableManager.iterator();
+        while (iter.hasNext()) {
+            final MessageMemTable table = iter.next();
+            final GetMessageResult result = table.poll(subject, beginSequence, maxMessages, filter);
+            switch (result.getStatus()) {
+                case SUBJECT_NOT_FOUND:
+                case SEQUENCE_TOO_SMALL:
+                    break;
+                default:
+                    return result;
+            }
+        }
+
+        final GetMessageResult result = new GetMessageResult();
+        result.setNextBeginSequence(0);
+        result.setStatus(GetMessageStatus.SEQUENCE_TOO_SMALL);
+        return result;
+    }
+
+    private GetMessageResult pollFromConsumerLog(String subject, long consumerLogSequence, int maxMessages, MessageFilter filter, boolean strictly) {
         final GetMessageResult result = new GetMessageResult();
 
         if (maxMessages <= 0) {
@@ -238,28 +306,34 @@ public class DefaultStorage implements Storage {
                     break;
                 }
 
-                final ConsumerLogEntry entry = ConsumerLogEntry.Factory.create();
                 final ByteBuffer buffer = consumerLogBuffer.getBuffer();
-                entry.setTimestamp(buffer.getLong());
-                entry.setWroteOffset(buffer.getLong());
-                entry.setWroteBytes(buffer.getInt());
-                entry.setHeaderSize(buffer.getShort());
+                final ConsumerLog.Unit unit = consumerLog.readUnit(buffer);
+                if (unit.getType() == ConsumerLog.PayloadType.MESSAGE_LOG_INDEX) {
+                    final ConsumerLog.MessageLogIndex index = (ConsumerLog.MessageLogIndex) unit.getIndex();
 
-                if (!filter.filter(entry)) break;
+                    if (!filter.filter(index::getTimestamp)) break;
 
-                final SegmentBuffer messageBuffer = messageLog.getMessage(entry.getWroteOffset(), entry.getWroteBytes(), entry.getHeaderSize());
-                if (messageBuffer != null && messageBuffer.retain()) {
-                    result.addBuffer(messageBuffer);
-                } else {
-                    QMon.readMessageReturnNullCountInc(subject);
-                    LOG.warn("read message log failed. consumerLogSequence: {}, wrote consumerLogSequence: {}, wrote bytes: {}, payload consumerLogSequence: {}",
-                            nextBeginSequence, entry.getWroteOffset(), entry.getWroteBytes(), entry.getHeaderSize());
+                    if (!readFromMessageLog(subject, index, result)) {
+                        if (result.getMessageNum() > 0) {
+                            break;
+                        }
+                    }
+                } else if (unit.getType() == ConsumerLog.PayloadType.SMT_INDEX) {
+                    final ConsumerLog.SMTIndex index = (ConsumerLog.SMTIndex) unit.getIndex();
 
-                    //如果前面已经获取到了消息，中间因为任何原因导致获取不到消息，则需要提前退出，避免consumer sequence中间出现空洞
-                    if (result.getBuffers().size() > 0) {
+                    if (!filter.filter(index::getTimestamp)) {
                         break;
                     }
+
+                    if (!readFromSMT(index.getTabletId(), index.getPosition(), index.getSize(), result)) {
+                        if (result.getMessageNum() > 0) {
+                            break;
+                        }
+                    }
+                } else {
+                    throw new RuntimeException("unknown consumer log unit type " + unit.getType());
                 }
+
                 nextBeginSequence += 1;
             }
         } finally {
@@ -269,6 +343,32 @@ public class DefaultStorage implements Storage {
         result.setConsumerLogRange(new OffsetRange(start, nextBeginSequence - 1));
         result.setStatus(GetMessageStatus.SUCCESS);
         return result;
+    }
+
+    private boolean readFromMessageLog(final String subject, final ConsumerLog.MessageLogIndex index, final GetMessageResult result) {
+        final SegmentBuffer messageBuffer = messageLog.getMessage(index.getWroteOffset(), index.getWroteBytes(), index.getHeaderSize());
+        if (messageBuffer != null && messageBuffer.retain()) {
+            result.addBuffer(messageBuffer);
+            return true;
+        } else {
+            QMon.readMessageReturnNullCountInc(subject);
+            LOG.warn("read message log failed. wrote offset: {}, wrote bytes: {}, header size: {}",
+                    index.getWroteOffset(), index.getWroteBytes(), index.getHeaderSize());
+            return false;
+        }
+    }
+
+    private boolean readFromSMT(final long tabletId, final int position, final int size, final GetMessageResult result) {
+        final Result<SortedMessagesTable.GetMessageStatus, SegmentBuffer> getResult = sortedMessagesTable.getMessage(tabletId, position, size);
+        switch (getResult.getStatus()) {
+            case SUCCESS:
+                result.addBuffer(getResult.getData());
+                return true;
+            case TABLET_ID_INVALID:
+                LOG.error("found invalid tablet id. id: {}", tabletId);
+            default:
+                return false;
+        }
     }
 
     @Override
@@ -293,6 +393,11 @@ public class DefaultStorage implements Storage {
 
     @Override
     public long getMaxMessageSequence(String subject) {
+        final Long maxMessageSequence = memTableManager.getMaxMessageSequence(subject);
+        if (maxMessageSequence != null) {
+            return maxMessageSequence + 1;
+        }
+
         final ConsumerLog consumerLog = consumerLogManager.getConsumerLog(subject);
         if (consumerLog == null) {
             return 0;
@@ -487,6 +592,20 @@ public class DefaultStorage implements Storage {
                 consumerLogManager.clean();
                 pullLogManager.clean(allConsumerGroupProgresses().values());
                 actionLog.clean();
+                sortedMessagesTable.clean(config, (logManager, deletedSegment) -> {
+                    consumerLogManager.adjustConsumerLogMinOffsetForSMT(logManager.firstSegment());
+
+                    final String fileName = StoreUtils.offsetFileNameForSegment(deletedSegment);
+                    final String path = config.getSMTStorePath();
+                    final File file = new File(path, fileName);
+                    try {
+                        if (!file.delete()) {
+                            LOG.warn("delete offset file failed. file: {}", fileName);
+                        }
+                    } catch (Exception e) {
+                        LOG.warn("delete offset file failed.. file: {}", fileName, e);
+                    }
+                });
             } catch (Throwable e) {
                 LOG.error("log cleaner caught exception.", e);
             }

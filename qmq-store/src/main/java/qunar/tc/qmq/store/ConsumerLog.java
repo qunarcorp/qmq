@@ -83,8 +83,8 @@ public class ConsumerLog {
         return unitBytes;
     }
 
-    public boolean writeMessageLogIndex(final long sequence, final long offset, final int size, final short headerSize) {
-        final MessageLogIndex index = new MessageLogIndex(System.currentTimeMillis(), offset, size, headerSize);
+    public boolean writeMessageLogIndex(final long sequence, final long wroteOffset, final int wroteBytes, final short headerSize) {
+        final MessageLogIndex index = new MessageLogIndex(System.currentTimeMillis(), wroteOffset, wroteBytes, headerSize);
         if (consumerLogV2Enable) {
             return writeUnit(sequence, index, messageLogIndexV2Appender);
         } else {
@@ -239,14 +239,14 @@ public class ConsumerLog {
 
     public static class MessageLogIndex {
         private final long timestamp;
-        private final long offset;
-        private final int size;
+        private final long wroteOffset;
+        private final int wroteBytes;
         private final short headerSize;
 
-        private MessageLogIndex(long timestamp, long offset, int size, short headerSize) {
+        private MessageLogIndex(long timestamp, long wroteOffset, int wroteBytes, short headerSize) {
             this.timestamp = timestamp;
-            this.offset = offset;
-            this.size = size;
+            this.wroteOffset = wroteOffset;
+            this.wroteBytes = wroteBytes;
             this.headerSize = headerSize;
         }
 
@@ -254,12 +254,12 @@ public class ConsumerLog {
             return timestamp;
         }
 
-        public long getOffset() {
-            return offset;
+        public long getWroteOffset() {
+            return wroteOffset;
         }
 
-        public int getSize() {
-            return size;
+        public int getWroteBytes() {
+            return wroteBytes;
         }
 
         public short getHeaderSize() {
@@ -278,8 +278,8 @@ public class ConsumerLog {
             workingBuffer.flip();
             workingBuffer.limit(CONSUMER_LOG_UNIT_BYTES);
             workingBuffer.putLong(message.getTimestamp());
-            workingBuffer.putLong(message.getOffset());
-            workingBuffer.putInt(message.getSize());
+            workingBuffer.putLong(message.getWroteOffset());
+            workingBuffer.putInt(message.getWroteBytes());
             workingBuffer.putShort(message.getHeaderSize());
             targetBuffer.put(workingBuffer.array(), 0, CONSUMER_LOG_UNIT_BYTES);
             return new AppendMessageResult<>(AppendMessageStatus.SUCCESS, wroteOffset, CONSUMER_LOG_UNIT_BYTES);
@@ -298,8 +298,8 @@ public class ConsumerLog {
             workingBuffer.putShort(MagicCode.CONSUMER_LOG_MAGIC_V2);
             workingBuffer.putShort(PayloadType.MESSAGE_LOG_INDEX.getCode());
             workingBuffer.putLong(System.currentTimeMillis());
-            workingBuffer.putLong(message.getOffset());
-            workingBuffer.putInt(message.getSize());
+            workingBuffer.putLong(message.getWroteOffset());
+            workingBuffer.putInt(message.getWroteBytes());
             workingBuffer.putShort(message.getHeaderSize());
             workingBuffer.putShort((short) 0);
             workingBuffer.putInt(0);

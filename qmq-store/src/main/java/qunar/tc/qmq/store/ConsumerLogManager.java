@@ -84,10 +84,15 @@ public class ConsumerLogManager implements AutoCloseable {
         LOG.info("Load consumer logs done");
     }
 
-    void initConsumerLogOffset() {
+    void initConsumerLogOffset(final MessageMemTable table) {
         for (Map.Entry<String, ConsumerLog> entry : logs.entrySet()) {
             offsets.put(entry.getKey(), entry.getValue().nextSequence());
         }
+
+        if (table == null) {
+            return;
+        }
+        table.getNextSequences().forEach(offsets::put);
     }
 
     Map<String, Long> currentConsumerLogOffset() {
@@ -142,10 +147,18 @@ public class ConsumerLogManager implements AutoCloseable {
     }
 
     void adjustConsumerLogMinOffset(LogSegment firstSegment) {
+        adjustConsumerLogMinOffset(config.getMessageLogStorePath(), firstSegment);
+    }
+
+    void adjustConsumerLogMinOffsetForSMT(final LogSegment firstSegment) {
+        adjustConsumerLogMinOffset(config.getSMTStorePath(), firstSegment);
+    }
+
+    private void adjustConsumerLogMinOffset(final String path, final LogSegment firstSegment) {
         if (firstSegment == null) return;
 
         final String fileName = StoreUtils.offsetFileNameForSegment(firstSegment);
-        final CheckpointStore<Map<String, Long>> offsetStore = new CheckpointStore<>(config.getMessageLogStorePath(), fileName, new ConsumerLogMinOffsetSerde());
+        final CheckpointStore<Map<String, Long>> offsetStore = new CheckpointStore<>(path, fileName, new ConsumerLogMinOffsetSerde());
         final Map<String, Long> offsets = offsetStore.loadCheckpoint();
         if (offsets == null) return;
 
