@@ -60,4 +60,6 @@ public interface StorageConfig {
     int getMaxActiveMemTable();
 
     boolean isConsumerLogV2Enable();
+
+    boolean isSMTEnable();
 }

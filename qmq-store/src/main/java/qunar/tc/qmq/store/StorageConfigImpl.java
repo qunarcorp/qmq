@@ -152,4 +152,13 @@ public class StorageConfigImpl implements StorageConfig {
     public boolean isConsumerLogV2Enable() {
         return config.getBoolean(BrokerConstants.CONSUMER_LOG_V2_ENABLE, false);
     }
+
+    @Override
+    public boolean isSMTEnable() {
+        if (!isConsumerLogV2Enable()) {
+            return false;
+        }
+
+        return config.getBoolean(BrokerConstants.SMT_ENABLE, false);
+    }
 }
