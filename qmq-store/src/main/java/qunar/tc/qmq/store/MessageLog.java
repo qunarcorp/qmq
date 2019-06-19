@@ -32,7 +32,7 @@ import java.util.Arrays;
  * @author keli.wang
  * @since 2017/7/4
  */
-public class MessageLog implements AutoCloseable {
+public class MessageLog implements AutoCloseable, Visitable<MessageLogRecord> {
     private static final Logger LOG = LoggerFactory.getLogger(MessageLog.class);
 
     static final int PER_SEGMENT_FILE_SIZE = 1024 * 1024 * 1024;
@@ -68,10 +68,12 @@ public class MessageLog implements AutoCloseable {
                 + (payloadSize > 0 ? payloadSize : 0);
     }
 
+    @Override
     public long getMaxOffset() {
         return logManager.getMaxOffset();
     }
 
+    @Override
     public long getMinOffset() {
         return logManager.getMinOffset();
     }
@@ -175,11 +177,8 @@ public class MessageLog implements AutoCloseable {
         });
     }
 
-    public MessageLogMetaVisitor newVisitor(long iterateFrom) {
-        return new MessageLogMetaVisitor(logManager, iterateFrom);
-    }
-
-    public MessageLogRecordVisitor newLogRecordVisitor(long iterateFrom) {
+    @Override
+    public MessageLogRecordVisitor newVisitor(long iterateFrom) {
         return new MessageLogRecordVisitor(logManager, iterateFrom);
     }
 

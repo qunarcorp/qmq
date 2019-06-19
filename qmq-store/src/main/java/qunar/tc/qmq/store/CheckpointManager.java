@@ -324,7 +324,7 @@ public class CheckpointManager implements AutoCloseable {
         }
     }
 
-    void updateMessageReplayState(final MessageLogMeta meta) {
+    void updateMessageReplayState(final MessageLogRecord meta) {
         messageCheckpointGuard.lock();
         try {
             final String subject = meta.getSubject();

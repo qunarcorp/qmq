@@ -86,15 +86,16 @@ public class MessageLogRecordVisitor extends AbstractLogVisitor<MessageLogRecord
             if (buffer.remaining() < payloadSize) {
                 return LogVisitorRecord.noMore();
             }
+            final short headerSize = (short) (buffer.position() - startPos);
             final ByteBuffer payload = buffer.slice();
             payload.limit(payloadSize);
-            final long payloadOffset = getStartOffset() + buffer.position();
+
             buffer.position(buffer.position() + payloadSize);
 
             final int wroteBytes = buffer.position() - startPos;
             incrVisitedBufferSize(wroteBytes);
             final String subject = new String(subjectBytes, StandardCharsets.UTF_8);
-            return LogVisitorRecord.data(new MessageLogRecord(subject, sequence, wroteOffset, wroteBytes, payloadOffset, getBaseOffset(), payload, segmentBuffer.getLogSegment()));
+            return LogVisitorRecord.data(new MessageLogRecord(subject, sequence, wroteOffset, wroteBytes, headerSize, getBaseOffset(), payload, segmentBuffer.getLogSegment()));
         }
     }
 }

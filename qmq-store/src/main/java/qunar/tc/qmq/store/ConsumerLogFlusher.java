@@ -31,7 +31,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * @author keli.wang
  * @since 2018/9/12
  */
-public class ConsumerLogFlusher implements FixedExecOrderEventBus.Listener<MessageLogMeta>, AutoCloseable {
+public class ConsumerLogFlusher implements FixedExecOrderEventBus.Listener<MessageLogRecord>, AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(ConsumerLogFlusher.class);
 
     private final StorageConfig config;
@@ -66,7 +66,7 @@ public class ConsumerLogFlusher implements FixedExecOrderEventBus.Listener<Messa
     }
 
     @Override
-    public void onEvent(final MessageLogMeta event) {
+    public void onEvent(final MessageLogRecord event) {
         final long count = counter.incrementAndGet();
         if (count < config.getMessageCheckpointInterval()) {
             return;

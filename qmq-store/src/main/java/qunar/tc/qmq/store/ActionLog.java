@@ -20,6 +20,7 @@ import com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.monitor.QMon;
+import qunar.tc.qmq.store.action.ActionEvent;
 import qunar.tc.qmq.store.buffer.SegmentBuffer;
 
 import java.io.File;
@@ -29,7 +30,7 @@ import java.nio.ByteBuffer;
  * @author keli.wang
  * @since 2017/8/20
  */
-public class ActionLog {
+public class ActionLog implements Visitable<ActionEvent> {
     private static final Logger LOG = LoggerFactory.getLogger(ActionLog.class);
 
     public static final int PER_SEGMENT_FILE_SIZE = 100 * 1024 * 1024;
@@ -105,14 +106,17 @@ public class ActionLog {
         return segment.selectSegmentBuffer(pos);
     }
 
+    @Override
     public ActionLogVisitor newVisitor(final long start) {
         return new ActionLogVisitor(logManager, start);
     }
 
+    @Override
     public long getMaxOffset() {
         return logManager.getMaxOffset();
     }
 
+    @Override
     public long getMinOffset() {
         return logManager.getMinOffset();
     }

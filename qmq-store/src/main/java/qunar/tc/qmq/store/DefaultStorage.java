@@ -64,10 +64,11 @@ public class DefaultStorage implements Storage {
 
     private final PullLogFlusher pullLogFlusher;
     private final FixedExecOrderEventBus actionEventBus;
-    private final ActionLogIterateService actionLogIterateService;
+    private final LogIterateService<ActionEvent> actionLogIterateService;
+
     private final ConsumerLogFlusher consumerLogFlusher;
     private final FixedExecOrderEventBus messageEventBus;
-    private final MessageLogIterateService messageLogIterateService;
+    private final LogIterateService<MessageLogRecord> messageLogIterateService;
 
     private final ScheduledExecutorService logCleanerExecutor;
 
@@ -96,13 +97,13 @@ public class DefaultStorage implements Storage {
         this.actionEventBus.subscribe(ActionEvent.class, new PullLogBuilder(this));
         this.actionEventBus.subscribe(ActionEvent.class, new MaxSequencesUpdater(checkpointManager));
         this.actionEventBus.subscribe(ActionEvent.class, pullLogFlusher);
-        this.actionLogIterateService = new ActionLogIterateService(actionLog, checkpointManager, actionEventBus);
+        this.actionLogIterateService = new LogIterateService<>("ReplayActionLog", actionLog, checkpointManager.getActionCheckpointOffset(), actionEventBus);
 
         this.consumerLogFlusher = new ConsumerLogFlusher(config, checkpointManager, consumerLogManager);
         this.messageEventBus = new FixedExecOrderEventBus();
-        this.messageEventBus.subscribe(MessageLogMeta.class, new BuildConsumerLogEventListener(consumerLogManager));
-        this.messageEventBus.subscribe(MessageLogMeta.class, consumerLogFlusher);
-        this.messageLogIterateService = new MessageLogIterateService(messageLog, checkpointManager, messageEventBus);
+        this.messageEventBus.subscribe(MessageLogRecord.class, new BuildConsumerLogEventListener(consumerLogManager));
+        this.messageEventBus.subscribe(MessageLogRecord.class, consumerLogFlusher);
+        this.messageLogIterateService = new LogIterateService<>("ReplayMessageLog", messageLog, checkpointManager.getMessageCheckpointOffset(), messageEventBus);
 
         this.logCleanerExecutor = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder().setNameFormat("log-cleaner-%d").build());
 
@@ -523,10 +524,10 @@ public class DefaultStorage implements Storage {
 
     @Override
     public MessageLogRecordVisitor newMessageLogVisitor(long startOffset) {
-        return messageLog.newLogRecordVisitor(startOffset);
+        return messageLog.newVisitor(startOffset);
     }
 
-    private class BuildConsumerLogEventListener implements FixedExecOrderEventBus.Listener<MessageLogMeta> {
+    private class BuildConsumerLogEventListener implements FixedExecOrderEventBus.Listener<MessageLogRecord> {
         private final ConsumerLogManager consumerLogManager;
         private final Map<String, Long> offsets;
 
@@ -537,7 +538,7 @@ public class DefaultStorage implements Storage {
         }
 
         @Override
-        public void onEvent(final MessageLogMeta event) {
+        public void onEvent(final MessageLogRecord event) {
             if (isFirstEventOfLogSegment(event)) {
                 LOG.info("first event of log segment. event: {}", event);
                 // TODO(keli.wang): need catch all exception here?
@@ -556,11 +557,11 @@ public class DefaultStorage implements Storage {
             messageEventBus.post(new ConsumerLogWroteEvent(event.getSubject(), success));
         }
 
-        private boolean isFirstEventOfLogSegment(final MessageLogMeta event) {
+        private boolean isFirstEventOfLogSegment(final MessageLogRecord event) {
             return event.getWroteOffset() == event.getBaseOffset();
         }
 
-        private void updateOffset(final MessageLogMeta meta) {
+        private void updateOffset(final MessageLogRecord meta) {
             final String subject = meta.getSubject();
             final long sequence = meta.getSequence();
             if (offsets.containsKey(subject)) {
