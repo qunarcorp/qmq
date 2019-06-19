@@ -107,7 +107,6 @@ public class PullLog {
 
         try {
             final ByteBuffer buffer = result.getBuffer();
-            buffer.getInt();
             return buffer.getLong();
         } finally {
             result.release();
