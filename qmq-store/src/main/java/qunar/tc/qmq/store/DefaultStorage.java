@@ -101,8 +101,13 @@ public class DefaultStorage implements Storage {
 
         this.consumerLogFlusher = new ConsumerLogFlusher(config, checkpointManager, consumerLogManager);
         this.messageEventBus = new FixedExecOrderEventBus();
-        this.messageEventBus.subscribe(MessageLogRecord.class, new BuildConsumerLogEventListener(consumerLogManager));
-        this.messageEventBus.subscribe(MessageLogRecord.class, consumerLogFlusher);
+        if (config.isSMTEnable()) {
+            this.messageEventBus.subscribe(MessageLogRecord.class, new BuildMessageMemTableEventListener(config, memTableManager, sortedMessagesTable));
+            this.messageEventBus.subscribe(MessageLogRecord.class, event -> messageEventBus.post(new ConsumerLogWroteEvent(event.getSubject(), true)));
+        } else {
+            this.messageEventBus.subscribe(MessageLogRecord.class, new BuildConsumerLogEventListener(consumerLogManager));
+            this.messageEventBus.subscribe(MessageLogRecord.class, consumerLogFlusher);
+        }
         this.messageLogIterateService = new LogIterateService<>("ReplayMessageLog", messageLog, checkpointManager.getMessageCheckpointOffset(), messageEventBus);
 
         this.logCleanerExecutor = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder().setNameFormat("log-cleaner-%d").build());
