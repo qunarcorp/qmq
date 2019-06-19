@@ -392,4 +392,8 @@ public final class QMon {
     public static void actorProcessTime(String actor, long elapsedMillis) {
         Metrics.timer("actorProcessTime", ACTOR, new String[]{actor}).update(elapsedMillis, TimeUnit.MILLISECONDS);
     }
+
+    public static void memtableHitsCountInc(final int messageNum) {
+        countInc("memtable_hits_count", NONE, NONE, messageNum);
+    }
 }

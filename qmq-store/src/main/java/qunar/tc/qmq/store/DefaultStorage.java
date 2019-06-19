@@ -210,16 +210,17 @@ public class DefaultStorage implements Storage {
     }
 
     private GetMessageResult pollMessages(String subject, long beginSequence, int maxMessages, MessageFilter filter, boolean strictly) {
-        // TODO(keli.wang): skip read from memtable when smt disabled
-        final GetMessageResult result = pollFromMemTable(subject, beginSequence, maxMessages, filter);
-        switch (result.getStatus()) {
-            case SUCCESS:
-                // Metrics.counter("memtable_hits_count").delta().get().inc(result.getMessageNum());
-                return result;
-            case NO_MESSAGE:
-                return result;
-            default:
-                break;
+        if (config.isSMTEnable()) {
+            final GetMessageResult result = pollFromMemTable(subject, beginSequence, maxMessages, filter);
+            switch (result.getStatus()) {
+                case SUCCESS:
+                    QMon.memtableHitsCountInc(result.getMessageNum());
+                    return result;
+                case NO_MESSAGE:
+                    return result;
+                default:
+                    break;
+            }
         }
 
         return pollFromConsumerLog(subject, beginSequence, maxMessages, filter, strictly);
