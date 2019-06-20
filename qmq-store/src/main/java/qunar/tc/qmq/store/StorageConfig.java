@@ -62,4 +62,6 @@ public interface StorageConfig {
     boolean isConsumerLogV2Enable();
 
     boolean isSMTEnable();
+
+    long getLogDispatcherPauseMillis();
 }

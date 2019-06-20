@@ -32,6 +32,7 @@ public class LogIterateService<T> implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(LogIterateService.class);
 
     private final String name;
+    private final StorageConfig config;
     private final Visitable<T> visitable;
     private final FixedExecOrderEventBus dispatcher;
     private final Thread dispatcherThread;
@@ -39,8 +40,9 @@ public class LogIterateService<T> implements AutoCloseable {
     private final LongAdder iterateFrom;
     private volatile boolean stop = false;
 
-    LogIterateService(String name, final Visitable<T> visitable, final long checkpoint, final FixedExecOrderEventBus dispatcher) {
+    LogIterateService(final String name, final StorageConfig config, final Visitable<T> visitable, final long checkpoint, final FixedExecOrderEventBus dispatcher) {
         this.name = name;
+        this.config = config;
         this.visitable = visitable;
         this.dispatcher = dispatcher;
         this.dispatcherThread = new Thread(new Dispatcher());
@@ -129,7 +131,7 @@ public class LogIterateService<T> implements AutoCloseable {
             }
 
             try {
-                TimeUnit.MILLISECONDS.sleep(5);
+                TimeUnit.MILLISECONDS.sleep(config.getLogDispatcherPauseMillis());
             } catch (InterruptedException e) {
                 LOG.warn("log dispatcher sleep interrupted");
             }

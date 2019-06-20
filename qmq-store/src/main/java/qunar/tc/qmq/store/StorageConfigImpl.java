@@ -161,4 +161,9 @@ public class StorageConfigImpl implements StorageConfig {
 
         return config.getBoolean(BrokerConstants.SMT_ENABLE, false);
     }
+
+    @Override
+    public long getLogDispatcherPauseMillis() {
+        return config.getLong(BrokerConstants.LOG_DISPATCHER_PAUSE_MILLIS, 5);
+    }
 }
