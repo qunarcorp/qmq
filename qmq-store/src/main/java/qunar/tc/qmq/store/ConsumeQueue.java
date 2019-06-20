@@ -44,7 +44,7 @@ public class ConsumeQueue {
         this.storage = storage;
         this.subject = subject;
         this.group = group;
-        this.nextSequence = new AtomicLong(lastMaxSequence + 1);
+        this.nextSequence = new AtomicLong(lastMaxSequence);
     }
 
     public synchronized void setNextSequence(long nextSequence) {

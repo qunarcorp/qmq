@@ -54,6 +54,8 @@ public class BrokerConstants {
     public static final String MAX_ACTIVE_MEMTABLE = "memtable.max_active";
     public static final int DEFAULT_MAX_ACTIVE_MEMTABLE = 4;
 
+    public static final String LOG_DISPATCHER_PAUSE_MILLIS = "log_dispatcher.pause.millis";
+
     // slave
     public static final long DEFAULT_HEARTBEAT_SLEEP_TIMEOUT_MS = 1000L;
 
