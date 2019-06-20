@@ -22,6 +22,7 @@ import qunar.tc.qmq.utils.RetrySubjectUtils;
 
 import java.util.Date;
 
+import static java.lang.System.arraycopy;
 import static qunar.tc.qmq.backup.util.KeyTools.*;
 
 /**
@@ -41,45 +42,49 @@ public class BackupKeyGenerator {
         this.dicService = dicService;
     }
 
+    @SuppressWarnings({"SameParameterValue", "Duplicates"})
     private byte[] generateRowKey(int length0, int index0, int length1, int index1, int length2, int index2, int length3, int index3, int length4, int index4, int length5, int index5
             , byte[] value0, byte[] value1, byte[] value2, byte[] value3, byte[] value4, byte[] value5) {
         byte[] key = new byte[length0 + length1 + length2 + length3 + length4 + length5];
-        System.arraycopy(value0, 0, key, index0, value0.length);
-        System.arraycopy(value1, 0, key, index1, value1.length);
-        System.arraycopy(value2, 0, key, index2, value2.length);
-        System.arraycopy(value3, 0, key, index3, value3.length);
-        System.arraycopy(value4, 0, key, index4, value4.length);
-        System.arraycopy(value5, 0, key, index5, value5.length);
+        arraycopy(value0, 0, key, index0, value0.length);
+        arraycopy(value1, 0, key, index1, value1.length);
+        arraycopy(value2, 0, key, index2, value2.length);
+        arraycopy(value3, 0, key, index3, value3.length);
+        arraycopy(value4, 0, key, index4, value4.length);
+        arraycopy(value5, 0, key, index5, value5.length);
         return key;
     }
 
+    @SuppressWarnings({"SameParameterValue", "Duplicates"})
     private byte[] generateRowKey(int length0, int index0, int length1, int index1, int length2, int index2, int length3, int index3, int length4, int index4
             , byte[] value0, byte[] value1, byte[] value2, byte[] value3, byte[] value4) {
         byte[] key = new byte[length0 + length1 + length2 + length3 + length4];
-        System.arraycopy(value0, 0, key, index0, value0.length);
-        System.arraycopy(value1, 0, key, index1, value1.length);
-        System.arraycopy(value2, 0, key, index2, value2.length);
-        System.arraycopy(value3, 0, key, index3, value3.length);
-        System.arraycopy(value4, 0, key, index4, value4.length);
+        arraycopy(value0, 0, key, index0, value0.length);
+        arraycopy(value1, 0, key, index1, value1.length);
+        arraycopy(value2, 0, key, index2, value2.length);
+        arraycopy(value3, 0, key, index3, value3.length);
+        arraycopy(value4, 0, key, index4, value4.length);
         return key;
     }
 
+    @SuppressWarnings({"SameParameterValue", "Duplicates"})
     private byte[] generateRowKey(int length0, int index0, int length1, int index1, int length2, int index2, int length3, int index3
             , byte[] value0, byte[] value1, byte[] value2, byte[] value3) {
         byte[] key = new byte[length0 + length1 + length2 + length3];
-        System.arraycopy(value0, 0, key, index0, value0.length);
-        System.arraycopy(value1, 0, key, index1, value1.length);
-        System.arraycopy(value2, 0, key, index2, value2.length);
-        System.arraycopy(value3, 0, key, index3, value3.length);
+        arraycopy(value0, 0, key, index0, value0.length);
+        arraycopy(value1, 0, key, index1, value1.length);
+        arraycopy(value2, 0, key, index2, value2.length);
+        arraycopy(value3, 0, key, index3, value3.length);
         return key;
     }
 
+    @SuppressWarnings("SameParameterValue")
     private byte[] generateRowKey(int length0, int index0, int length1, int index1, int length2, int index2,
                                   byte[] value0, byte[] value1, byte[] value2) {
         byte[] key = new byte[length0 + length1 + length2];
-        System.arraycopy(value0, 0, key, index0, value0.length);
-        System.arraycopy(value1, 0, key, index1, value1.length);
-        System.arraycopy(value2, 0, key, index2, value2.length);
+        arraycopy(value0, 0, key, index0, value0.length);
+        arraycopy(value1, 0, key, index1, value1.length);
+        arraycopy(value2, 0, key, index2, value2.length);
         return key;
     }
 
