@@ -30,7 +30,7 @@ import qunar.tc.qmq.delay.store.visitor.LogVisitor;
 import qunar.tc.qmq.protocol.producer.MessageProducerCode;
 import qunar.tc.qmq.store.PeriodicFlushService;
 import qunar.tc.qmq.store.PutMessageStatus;
-import qunar.tc.qmq.store.SegmentBuffer;
+import qunar.tc.qmq.store.buffer.SegmentBuffer;
 
 import java.nio.ByteBuffer;
 

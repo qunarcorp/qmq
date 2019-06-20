@@ -16,6 +16,7 @@
 package qunar.tc.qmq.producer;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import io.opentracing.Scope;
 import io.opentracing.Tracer;
 import io.opentracing.util.GlobalTracer;
@@ -26,6 +27,7 @@ import qunar.tc.qmq.TransactionProvider;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.common.ClientIdProvider;
 import qunar.tc.qmq.common.ClientIdProviderFactory;
+import qunar.tc.qmq.common.EnvProvider;
 import qunar.tc.qmq.producer.idgenerator.IdGenerator;
 import qunar.tc.qmq.producer.idgenerator.TimestampAndHostIdGenerator;
 import qunar.tc.qmq.producer.sender.NettyRouterManager;
@@ -51,6 +53,7 @@ public class MessageProducerProvider implements MessageProducer {
     private final NettyRouterManager routerManager;
 
     private ClientIdProvider clientIdProvider;
+    private EnvProvider envProvider;
 
     private final Tracer tracer;
 
@@ -86,7 +89,21 @@ public class MessageProducerProvider implements MessageProducer {
         BaseMessage msg = new BaseMessage(idGenerator.getNext(), subject);
         msg.setExpiredDelay(configs.getMinExpiredTime(), TimeUnit.MINUTES);
         msg.setProperty(BaseMessage.keys.qmq_appCode, appCode);
+        setupEnv(msg);
         return msg;
+    }
+
+    private void setupEnv(final BaseMessage message) {
+        if (envProvider == null) return;
+        final String subject = message.getSubject();
+        final String env = envProvider.env(subject);
+        if (Strings.isNullOrEmpty(env)) {
+            return;
+        }
+        final String subEnv = envProvider.subEnv(env);
+
+        message.setProperty(BaseMessage.keys.qmq_env, env);
+        message.setProperty(BaseMessage.keys.qmq_subEnv, subEnv);
     }
 
     @Override
@@ -177,6 +194,10 @@ public class MessageProducerProvider implements MessageProducer {
 
     public void setClientIdProvider(ClientIdProvider clientIdProvider) {
         this.clientIdProvider = clientIdProvider;
+    }
+
+    public void setEnvProvider(EnvProvider envProvider) {
+        this.envProvider = envProvider;
     }
 
     /**

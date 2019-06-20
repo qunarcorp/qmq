@@ -21,7 +21,11 @@ import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.delay.store.model.LogRecord;
 import qunar.tc.qmq.delay.store.model.LogRecordHeader;
 import qunar.tc.qmq.delay.store.model.MessageLogRecord;
-import qunar.tc.qmq.store.*;
+import qunar.tc.qmq.store.LogManager;
+import qunar.tc.qmq.store.LogSegment;
+import qunar.tc.qmq.store.MagicCode;
+import qunar.tc.qmq.store.MagicCodeSupport;
+import qunar.tc.qmq.store.buffer.SegmentBuffer;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;

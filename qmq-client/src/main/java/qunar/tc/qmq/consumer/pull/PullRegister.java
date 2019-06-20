@@ -16,8 +16,12 @@
 
 package qunar.tc.qmq.consumer.pull;
 
+import com.google.common.base.Strings;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.broker.impl.BrokerServiceImpl;
+import qunar.tc.qmq.common.EnvProvider;
 import qunar.tc.qmq.common.MapKeyBuilder;
 import qunar.tc.qmq.common.StatusSource;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
@@ -26,6 +30,7 @@ import qunar.tc.qmq.consumer.register.ConsumerRegister;
 import qunar.tc.qmq.consumer.register.RegistParam;
 import qunar.tc.qmq.metainfoclient.ConsumerStateChangedListener;
 import qunar.tc.qmq.metainfoclient.MetaInfoService;
+import qunar.tc.qmq.protocol.consumer.SubEnvIsolationPullFilter;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
 
 import java.util.HashMap;
@@ -39,6 +44,8 @@ import static qunar.tc.qmq.common.StatusSource.*;
  * @author yiqun.fan create on 17-8-17.
  */
 public class PullRegister implements ConsumerRegister, ConsumerStateChangedListener {
+    private static final Logger LOG = LoggerFactory.getLogger(PullRegister.class);
+
     private volatile Boolean isOnline = false;
 
     private final Map<String, PullEntry> pullEntryMap = new HashMap<>();
@@ -55,6 +62,8 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
     private String clientId;
     private String metaServer;
     private int destroyWaitInSeconds;
+
+    private EnvProvider envProvider;
 
     public PullRegister() {
         this.metaInfoService = new MetaInfoService();
@@ -75,9 +84,23 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
 
     @Override
     public synchronized void regist(String subject, String group, RegistParam param) {
+        String env;
+        String subEnv;
+        if (envProvider != null && !Strings.isNullOrEmpty(env = envProvider.env(subject))) {
+            subEnv = envProvider.subEnv(env);
+            final String realGroup = toSubEnvIsolationGroup(group, env, subEnv);
+            LOG.info("enable subenv isolation for {}/{}, rename consumer group to {}", subject, group, realGroup);
+            group = realGroup;
+            param.addFilter(new SubEnvIsolationPullFilter(env, subEnv));
+        }
+
         registPullEntry(subject, group, param, new AlwaysPullStrategy());
         if (RetrySubjectUtils.isDeadRetrySubject(subject)) return;
         registPullEntry(RetrySubjectUtils.buildRetrySubject(subject, group), group, param, new WeightPullStrategy());
+    }
+
+    private String toSubEnvIsolationGroup(final String originGroup, final String env, final String subEnv) {
+        return originGroup + "_" + env + "_" + subEnv;
     }
 
     private void registPullEntry(String subject, String group, RegistParam param, PullStrategy pullStrategy) {
@@ -205,6 +228,10 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
 
     public void setMetaServer(String metaServer) {
         this.metaServer = metaServer;
+    }
+
+    public void setEnvProvider(EnvProvider envProvider) {
+        this.envProvider = envProvider;
     }
 
     @Override

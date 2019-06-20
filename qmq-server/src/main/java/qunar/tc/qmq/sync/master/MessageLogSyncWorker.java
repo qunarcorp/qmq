@@ -24,7 +24,7 @@ import qunar.tc.qmq.common.Disposable;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.store.Storage;
-import qunar.tc.qmq.store.SegmentBuffer;
+import qunar.tc.qmq.store.buffer.SegmentBuffer;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;

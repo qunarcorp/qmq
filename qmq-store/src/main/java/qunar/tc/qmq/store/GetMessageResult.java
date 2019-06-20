@@ -16,6 +16,8 @@
 
 package qunar.tc.qmq.store;
 
+import qunar.tc.qmq.store.buffer.Buffer;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -24,13 +26,11 @@ import java.util.List;
  * @since 2017/7/6
  */
 public class GetMessageResult {
-    private final List<SegmentBuffer> segmentBuffers = new ArrayList<>(100);
+    private final List<Buffer> buffers = new ArrayList<>(100);
     private int bufferTotalSize = 0;
 
     private GetMessageStatus status;
-    private long minOffset;
-    private long maxOffset;
-    private long nextBeginOffset;
+    private long nextBeginSequence;
 
     private OffsetRange consumerLogRange;
 
@@ -49,41 +49,25 @@ public class GetMessageResult {
         this.status = status;
     }
 
-    public long getMinOffset() {
-        return minOffset;
+    public List<Buffer> getBuffers() {
+        return buffers;
     }
 
-    public void setMinOffset(long minOffset) {
-        this.minOffset = minOffset;
-    }
-
-    public long getMaxOffset() {
-        return maxOffset;
-    }
-
-    public void setMaxOffset(long maxOffset) {
-        this.maxOffset = maxOffset;
-    }
-
-    public List<SegmentBuffer> getSegmentBuffers() {
-        return segmentBuffers;
-    }
-
-    public void addSegmentBuffer(final SegmentBuffer segmentBuffer) {
-        segmentBuffers.add(segmentBuffer);
-        bufferTotalSize += segmentBuffer.getSize();
+    public void addBuffer(final Buffer buffer) {
+        buffers.add(buffer);
+        bufferTotalSize += buffer.getSize();
     }
 
     public int getMessageNum() {
-        return segmentBuffers.size();
+        return buffers.size();
     }
 
-    public long getNextBeginOffset() {
-        return nextBeginOffset;
+    public long getNextBeginSequence() {
+        return nextBeginSequence;
     }
 
-    public void setNextBeginOffset(long nextBeginOffset) {
-        this.nextBeginOffset = nextBeginOffset;
+    public void setNextBeginSequence(long nextBeginSequence) {
+        this.nextBeginSequence = nextBeginSequence;
     }
 
     public int getBufferTotalSize() {
@@ -99,7 +83,7 @@ public class GetMessageResult {
     }
 
     public void release() {
-        for (SegmentBuffer buffer : segmentBuffers) {
+        for (Buffer buffer : buffers) {
             buffer.release();
         }
     }
@@ -107,12 +91,10 @@ public class GetMessageResult {
     @Override
     public String toString() {
         return "GetMessageResult{" +
-                "segmentBuffers=" + segmentBuffers.size() +
+                "buffers=" + buffers.size() +
                 ", bufferTotalSize=" + bufferTotalSize +
                 ", status=" + status +
-                ", minOffset=" + minOffset +
-                ", maxOffset=" + maxOffset +
-                ", nextBeginOffset=" + nextBeginOffset +
+                ", nextBeginSequence=" + nextBeginSequence +
                 ", consumerLogRange=" + consumerLogRange +
                 '}';
     }
