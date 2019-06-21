@@ -54,6 +54,8 @@ public class MessageConsumerProvider implements MessageConsumer {
     private String metaServer;
     private int destroyWaitInSeconds;
 
+    private boolean autoOnline = true;
+
     public MessageConsumerProvider() {
         this.clientIdProvider = ClientIdProviderFactory.createDefault();
         this.pullRegister = new PullRegister();
@@ -83,7 +85,7 @@ public class MessageConsumerProvider implements MessageConsumer {
             distributor = new MessageDistributor(pullRegister);
             distributor.setClientId(clientId);
 
-            pullRegister.setAutoOnline(true);
+            pullRegister.setAutoOnline(autoOnline);
             inited = true;
         }
     }
@@ -170,6 +172,18 @@ public class MessageConsumerProvider implements MessageConsumer {
 
     public void setDestroyWaitInSeconds(int destroyWaitInSeconds) {
         this.destroyWaitInSeconds = destroyWaitInSeconds;
+    }
+
+    public void setAutoOnline(boolean autoOnline){
+        this.autoOnline = autoOnline;
+    }
+
+    public void online() {
+        this.pullRegister.online();
+    }
+
+    public void offline() {
+        this.pullRegister.offline();
     }
 
     @PreDestroy
