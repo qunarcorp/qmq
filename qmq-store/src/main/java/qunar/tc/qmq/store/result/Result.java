@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar, Inc.
+ * Copyright 2019 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,16 +14,26 @@
  * limitations under the License.
  */
 
-package qunar.tc.qmq.store;
+package qunar.tc.qmq.store.result;
 
 /**
- * Created by zhaohui.yu
- * 9/3/18
+ * @author keli.wang
+ * @since 2019-06-10
  */
-interface MessageFilter {
-    boolean filter(WithTimestamp entry);
+public final class Result<S, D> {
+    private final S status;
+    private final D data;
 
-    interface WithTimestamp {
-        long getTimestamp();
+    public Result(final S status, final D data) {
+        this.status = status;
+        this.data = data;
+    }
+
+    public S getStatus() {
+        return status;
+    }
+
+    public D getData() {
+        return data;
     }
 }

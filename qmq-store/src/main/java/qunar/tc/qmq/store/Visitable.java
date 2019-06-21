@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar, Inc.
+ * Copyright 2019 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,13 +17,13 @@
 package qunar.tc.qmq.store;
 
 /**
- * Created by zhaohui.yu
- * 9/3/18
+ * @author keli.wang
+ * @since 2019-06-18
  */
-interface MessageFilter {
-    boolean filter(WithTimestamp entry);
+public interface Visitable<T> {
+    AbstractLogVisitor<T> newVisitor(long iterateFrom);
 
-    interface WithTimestamp {
-        long getTimestamp();
-    }
+    long getMinOffset();
+
+    long getMaxOffset();
 }

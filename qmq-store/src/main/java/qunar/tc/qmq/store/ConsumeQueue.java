@@ -44,7 +44,7 @@ public class ConsumeQueue {
         this.storage = storage;
         this.subject = subject;
         this.group = group;
-        this.nextSequence = new AtomicLong(lastMaxSequence + 1);
+        this.nextSequence = new AtomicLong(lastMaxSequence);
     }
 
     public synchronized void setNextSequence(long nextSequence) {
@@ -73,7 +73,7 @@ public class ConsumeQueue {
         }
     }
 
-    private boolean isDelayReached(ConsumerLogEntry entry) {
+    private boolean isDelayReached(MessageFilter.WithTimestamp entry) {
         final int delayMillis = storage.getStorageConfig().getRetryDelaySeconds() * 1000;
         return entry.getTimestamp() + delayMillis <= System.currentTimeMillis();
     }

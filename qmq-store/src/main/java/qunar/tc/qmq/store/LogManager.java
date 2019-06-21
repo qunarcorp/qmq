@@ -24,10 +24,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.function.Predicate;
 
@@ -41,17 +38,14 @@ public class LogManager {
     private final File logDir;
     private final int fileSize;
 
-    private final StorageConfig config;
-
     private final LogSegmentValidator segmentValidator;
     private final ConcurrentSkipListMap<Long, LogSegment> segments = new ConcurrentSkipListMap<>();
 
     private long flushedOffset = 0;
 
-    public LogManager(final File dir, final int fileSize, final StorageConfig config, final LogSegmentValidator segmentValidator) {
+    public LogManager(final File dir, final int fileSize, final LogSegmentValidator segmentValidator) {
         this.logDir = dir;
         this.fileSize = fileSize;
-        this.config = config;
         this.segmentValidator = segmentValidator;
         createAndValidateLogDir();
         loadLogs();
@@ -190,6 +184,19 @@ public class LogManager {
         return null;
     }
 
+    public Optional<LogSegment> getOrAllocSegment(final long baseOffset) {
+        if (!isBaseOffset(baseOffset)) {
+            return Optional.empty();
+        }
+
+        final LogSegment segment = segments.get(baseOffset);
+        if (segment != null) {
+            return Optional.of(segment);
+        }
+
+        return Optional.ofNullable(allocSegment(baseOffset));
+    }
+
     public LogSegment allocOrResetSegments(final long expectedOffset) {
         final long baseOffset = computeBaseOffset(expectedOffset);
 
@@ -260,13 +267,7 @@ public class LogManager {
         final long deleteUntil = System.currentTimeMillis() - retentionMs;
         Preconditions.checkState(deleteUntil > 0, "retentionMs不应该超过当前时间");
 
-        Predicate<LogSegment> predicate = segment -> {
-            if (!config.isDeleteExpiredLogsEnable()) {
-                LOG.info("should delete expired segment {}, but delete expired logs is disabled for now", segment);
-                return false;
-            }
-            return segment.getLastModifiedTime() < deleteUntil;
-        };
+        Predicate<LogSegment> predicate = segment -> segment.getLastModifiedTime() < deleteUntil;
         deleteSegments(predicate, afterDeleted);
     }
 
@@ -301,7 +302,7 @@ public class LogManager {
     private void executeHook(DeleteHook hook, LogSegment segment) {
         if (hook == null) return;
 
-        hook.afterDeleted(segment);
+        hook.afterDeleted(this, segment);
     }
 
     private boolean deleteSegment(final long key, final LogSegment segment) {
@@ -317,7 +318,7 @@ public class LogManager {
     }
 
     public interface DeleteHook {
-        void afterDeleted(LogSegment segment);
+        void afterDeleted(final LogManager logManager, final LogSegment deletedSegment);
     }
 
     public boolean clean(Long key) {

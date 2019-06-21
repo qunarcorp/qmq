@@ -19,7 +19,7 @@ package qunar.tc.qmq.utils;
 import java.nio.ByteBuffer;
 import java.util.zip.Checksum;
 
-final class Checksums {
+public final class Checksums {
 
     private Checksums() {
     }

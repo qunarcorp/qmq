@@ -233,8 +233,8 @@ public final class QMon {
         countInc("replayMessageLogFailed", NONE, NONE);
     }
 
-    public static void replayActionLogFailedCountInc() {
-        countInc("replayActionLogFailed", NONE, NONE);
+    public static void replayLogFailedCountInc(String name) {
+        countInc(name, NONE, NONE);
     }
 
     public static void logSegmentTotalRefCountInc() {
@@ -353,8 +353,8 @@ public final class QMon {
         Metrics.gauge("replayMessageLogLag", NONE, NONE, supplier);
     }
 
-    public static void replayActionLogLag(Supplier<Double> supplier) {
-        Metrics.gauge("replayActionLogLag", NONE, NONE, supplier);
+    public static void replayLag(String name, Supplier<Double> supplier) {
+        Metrics.gauge(name, NONE, NONE, supplier);
     }
 
     public static void slaveMessageLogLagGauge(String role, Supplier<Double> supplier) {
@@ -391,5 +391,9 @@ public final class QMon {
 
     public static void actorProcessTime(String actor, long elapsedMillis) {
         Metrics.timer("actorProcessTime", ACTOR, new String[]{actor}).update(elapsedMillis, TimeUnit.MILLISECONDS);
+    }
+
+    public static void memtableHitsCountInc(final int messageNum) {
+        countInc("memtable_hits_count", NONE, NONE, messageNum);
     }
 }
