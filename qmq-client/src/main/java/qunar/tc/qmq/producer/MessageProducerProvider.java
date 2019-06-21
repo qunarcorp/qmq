@@ -78,6 +78,7 @@ public class MessageProducerProvider implements MessageProducer {
         Preconditions.checkNotNull(metaServer, "metaServer的http地址");
 
         this.routerManager.setMetaServer(this.metaServer);
+        this.routerManager.setAppCode(appCode);
 
         if (STARTED.compareAndSet(false, true)) {
             routerManager.init(clientIdProvider.get());
