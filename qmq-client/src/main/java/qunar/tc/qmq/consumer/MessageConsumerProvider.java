@@ -77,6 +77,7 @@ public class MessageConsumerProvider implements MessageConsumer {
             this.pullRegister.setMetaServer(metaServer);
             this.pullRegister.setEnvProvider(envProvider);
             this.pullRegister.setClientId(clientId);
+            this.pullRegister.setAppCode(appCode);
             this.pullRegister.init();
 
             distributor = new MessageDistributor(pullRegister);
