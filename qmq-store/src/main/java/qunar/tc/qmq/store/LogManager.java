@@ -306,7 +306,7 @@ public class LogManager {
     }
 
     private boolean deleteSegment(final long key, final LogSegment segment) {
-        if (!segment.release()) return false;
+        if (!segment.disable()) return false;
         segments.remove(key);
         segment.destroy();
         return true;
