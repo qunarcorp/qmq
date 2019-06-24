@@ -7,10 +7,6 @@ import com.zaxxer.hikari.HikariDataSource;
 import qunar.tc.qmq.configuration.DynamicConfig;
 
 public class DefaultDataSourceFactory implements DataSourceFactory {
-	@Override
-	public String name() {
-		return "default";
-	}
 
 	@Override
 	public DataSource createDataSource(DynamicConfig config) {
