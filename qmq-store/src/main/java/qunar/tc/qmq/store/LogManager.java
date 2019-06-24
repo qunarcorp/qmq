@@ -119,13 +119,18 @@ public class LogManager {
         }
         flushedOffset = offset;
 
-        final long maxOffset = latestSegment().getBaseOffset() + latestSegment().getFileSize();
+        final LogSegment latestSegment = latestSegment();
+        final long maxOffset = latestSegment.getBaseOffset() + latestSegment.getFileSize();
         final int relativeOffset = (int) (offset % fileSize);
         final LogSegment segment = locateSegment(offset);
         if (segment != null && maxOffset != offset) {
             segment.setWrotePosition(relativeOffset);
             LOG.info("recover wrote offset to {}:{}", segment, segment.getWrotePosition());
-            // TODO(keli.wang): should delete crash file
+            if (segment.getBaseOffset() != latestSegment.getBaseOffset()) {
+                LOG.info("will remove all segment after max wrote position. current base offset: {}, max base offset: {}",
+                        segment.getBaseOffset(), latestSegment.getBaseOffset());
+                deleteSegmentsAfterOffset(offset);
+            }
         }
         LOG.info("Recover done.");
     }
@@ -277,6 +282,11 @@ public class LogManager {
         deleteSegments(predicate, null);
     }
 
+    private void deleteSegmentsAfterOffset(final long offset) {
+        Predicate<LogSegment> predicate = segment -> segment.getBaseOffset() > offset;
+        deleteSegments(predicate, null);
+    }
+
     public void deleteSegments(Predicate<LogSegment> predicate, DeleteHook afterDeleted) {
         int count = segments.size();
         if (count <= 1) return;
@@ -306,7 +316,7 @@ public class LogManager {
     }
 
     private boolean deleteSegment(final long key, final LogSegment segment) {
-        if (!segment.release()) return false;
+        if (!segment.disable()) return false;
         segments.remove(key);
         segment.destroy();
         return true;
