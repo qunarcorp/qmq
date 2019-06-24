@@ -81,7 +81,7 @@ public class ServerWrapper implements Disposable {
         this.resources = new ArrayList<>();
     }
 
-    public void start() {
+    public void start(boolean autoOnline) {
         LOG.info("qmq server init started");
         register();
         createStorage();
@@ -91,7 +91,8 @@ public class ServerWrapper implements Disposable {
         startServerHandlers();
         startConsumerChecker();
         addToResources();
-        online();
+        if (autoOnline)
+            online();
         LOG.info("qmq server init done");
     }
 
@@ -241,7 +242,7 @@ public class ServerWrapper implements Disposable {
         this.resources.add(storage);
     }
 
-    private void online() {
+    public void online() {
         BrokerConfig.markAsWritable();
         brokerRegisterService.healthSwitch(true);
         subscriberStatusChecker.brokerStatusChanged(true);
@@ -275,7 +276,7 @@ public class ServerWrapper implements Disposable {
         }
     }
 
-    private void offline() {
+    public void offline() {
         for (int i = 0; i < 3; ++i) {
             try {
                 brokerRegisterService.healthSwitch(false);

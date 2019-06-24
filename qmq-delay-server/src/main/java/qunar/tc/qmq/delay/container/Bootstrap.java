@@ -24,6 +24,6 @@ public class Bootstrap {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             wrapper.destroy();
         }));
-        wrapper.start();
+        wrapper.start(true);
     }
 }
