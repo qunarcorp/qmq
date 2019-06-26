@@ -193,6 +193,10 @@ public class MessageProducerProvider implements MessageProducer {
         configs.setSendTryCount(sendTryCount);
     }
 
+    public void setSendTimeoutMillis(long timeoutMillis) {
+        configs.setSendTimeoutMillis(timeoutMillis);
+    }
+
     public void setClientIdProvider(ClientIdProvider clientIdProvider) {
         this.clientIdProvider = clientIdProvider;
     }
