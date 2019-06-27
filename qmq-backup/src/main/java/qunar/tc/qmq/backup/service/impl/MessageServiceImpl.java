@@ -18,9 +18,10 @@ package qunar.tc.qmq.backup.service.impl;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
-import com.ning.http.client.AsyncHttpClient;
-import com.ning.http.client.Response;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import org.asynchttpclient.AsyncHttpClient;
+import org.asynchttpclient.BoundRequestBuilder;
+import org.asynchttpclient.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.backup.base.*;
@@ -46,6 +47,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.*;
 
+import static org.asynchttpclient.Dsl.asyncHttpClient;
+
 /**
  * @author xufeng.deng dennisdxf@gmail.com
  * @since 2019/5/29
@@ -56,7 +59,7 @@ public class MessageServiceImpl implements MessageService, Disposable {
     private static final String MESSAGE_QUERY_PROTOCOL = "http://";
     private static final String MESSAGE_QUERY_URL = "/api/broker/message";
 
-    private static final AsyncHttpClient ASYNC_HTTP_CLIENT = new AsyncHttpClient();
+    private static final AsyncHttpClient ASYNC_HTTP_CLIENT = asyncHttpClient();
 
     private final Serializer serializer = Serializer.getSerializer();
 
@@ -151,10 +154,10 @@ public class MessageServiceImpl implements MessageService, Disposable {
         String url = MESSAGE_QUERY_PROTOCOL + backupAddress + MESSAGE_QUERY_URL;
 
         try {
-            final AsyncHttpClient.BoundRequestBuilder builder = ASYNC_HTTP_CLIENT.prepareGet(url);
-            builder.addQueryParam("backupQuery", serializer.serialize(getQuery(subject, metas)));
+            BoundRequestBuilder boundRequestBuilder = ASYNC_HTTP_CLIENT.prepareGet(url);
+            boundRequestBuilder.addQueryParam("backupQuery", serializer.serialize(getQuery(subject, metas)));
 
-            final Response response = builder.execute().get();
+            final Response response = boundRequestBuilder.execute().get();
             if (response.getStatusCode() != HttpResponseStatus.OK.code()) {
                 return Collections.emptyList();
             }
@@ -172,7 +175,7 @@ public class MessageServiceImpl implements MessageService, Disposable {
             }
 
             return messages;
-        } catch (InterruptedException | ExecutionException | IOException e) {
+        } catch (InterruptedException | ExecutionException e) {
             LOG.error("retrieve message with meta failed.", e);
             throw new RuntimeException("retrieve message failed.");
         }
@@ -246,5 +249,10 @@ public class MessageServiceImpl implements MessageService, Disposable {
             LOG.error("Shutdown queryExecutorService interrupted.");
         }
         metaSupplier.destroy();
+        try {
+            ASYNC_HTTP_CLIENT.close();
+        } catch (IOException ignored) {
+
+        }
     }
 }

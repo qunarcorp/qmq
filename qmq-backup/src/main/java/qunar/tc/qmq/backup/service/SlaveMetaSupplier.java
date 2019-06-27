@@ -20,17 +20,19 @@ import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import com.ning.http.client.AsyncHttpClient;
-import com.ning.http.client.Response;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import org.asynchttpclient.AsyncHttpClient;
+import org.asynchttpclient.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.common.Disposable;
 import qunar.tc.qmq.configuration.DynamicConfig;
 
+import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
+import static org.asynchttpclient.Dsl.asyncHttpClient;
 import static qunar.tc.qmq.backup.config.DefaultBackupConfig.ACQUIRE_BACKUP_META_URL;
 
 /**
@@ -42,7 +44,7 @@ public class SlaveMetaSupplier implements Disposable {
 
     private final String serverMetaAcquiredUrl;
 
-    private static final AsyncHttpClient HTTP_CLIENT = new AsyncHttpClient();
+    private static final AsyncHttpClient ASYNC_HTTP_CLIENT = asyncHttpClient();
 
     private final LoadingCache<String, String> CACHE = CacheBuilder.newBuilder().maximumSize(128).expireAfterAccess(1, TimeUnit.MINUTES).build(new CacheLoader<String, String>() {
         @Override
@@ -53,7 +55,7 @@ public class SlaveMetaSupplier implements Disposable {
 
     private String getServerAddress(String groupName) {
         try {
-            Response response = HTTP_CLIENT.prepareGet(serverMetaAcquiredUrl).addQueryParam("groupName", groupName).execute().get();
+            Response response = ASYNC_HTTP_CLIENT.prepareGet(serverMetaAcquiredUrl).addQueryParam("groupName", groupName).execute().get();
             if (response.getStatusCode() == HttpResponseStatus.OK.code()) {
                 String address = response.getResponseBody();
                 if (!Strings.isNullOrEmpty(address)) {
@@ -81,6 +83,9 @@ public class SlaveMetaSupplier implements Disposable {
 
     @Override
     public void destroy() {
-        HTTP_CLIENT.close();
+        try {
+            ASYNC_HTTP_CLIENT.close();
+        } catch (IOException ignored) {
+        }
     }
 }

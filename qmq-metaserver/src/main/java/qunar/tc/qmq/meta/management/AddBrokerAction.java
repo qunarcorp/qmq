@@ -22,9 +22,8 @@ import qunar.tc.qmq.meta.model.BrokerMeta;
 import qunar.tc.qmq.meta.store.BrokerStore;
 
 import javax.servlet.http.HttpServletRequest;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -33,13 +32,15 @@ import java.util.Optional;
  */
 public class AddBrokerAction implements MetaManagementAction {
 
-    private static final Map<BrokerRole, BrokerRole> MATCHED_ROLES = new HashMap<>();
+    private static final HashSet<BrokerRole> MATCHED_ROLES = new HashSet<>();
 
     static {
-        MATCHED_ROLES.put(BrokerRole.MASTER, BrokerRole.SLAVE);
-        MATCHED_ROLES.put(BrokerRole.SLAVE, BrokerRole.MASTER);
-        MATCHED_ROLES.put(BrokerRole.DELAY_MASTER, BrokerRole.DELAY_SLAVE);
-        MATCHED_ROLES.put(BrokerRole.DELAY_SLAVE, BrokerRole.DELAY_MASTER);
+        MATCHED_ROLES.add(BrokerRole.MASTER);
+        MATCHED_ROLES.add(BrokerRole.SLAVE);
+        MATCHED_ROLES.add(BrokerRole.DELAY_MASTER);
+        MATCHED_ROLES.add(BrokerRole.DELAY_SLAVE);
+        MATCHED_ROLES.add(BrokerRole.BACKUP);
+        MATCHED_ROLES.add(BrokerRole.DELAY_BACKUP);
     }
 
     private final BrokerStore store;
@@ -57,8 +58,7 @@ public class AddBrokerAction implements MetaManagementAction {
             final String ip = req.getParameter("ip");
             final int servePort = Integer.parseInt(req.getParameter("servePort"));
             int syncPort = -1;
-            if (role != BrokerRole.BACKUP
-                    && role != BrokerRole.DELAY_BACKUP) {
+            if (notBackup(role)) {
                 syncPort = Integer.parseInt(req.getParameter("syncPort"));
             }
             final BrokerMeta broker = new BrokerMeta(brokerGroup, role, hostname, ip, servePort, syncPort);
@@ -83,7 +83,7 @@ public class AddBrokerAction implements MetaManagementAction {
         if (Strings.isNullOrEmpty(broker.getGroup())) {
             return Optional.of("please provide broker group name");
         }
-        if (!MATCHED_ROLES.containsKey(broker.getRole())) {
+        if (!MATCHED_ROLES.contains(broker.getRole())) {
             return Optional.of("invalid broker role code " + broker.getRole().getCode());
         }
         if (Strings.isNullOrEmpty(broker.getHostname())) {
@@ -95,22 +95,33 @@ public class AddBrokerAction implements MetaManagementAction {
 
         final int servePort = broker.getServePort();
         final int syncPort = broker.getSyncPort();
-        if (servePort <= 0 || syncPort <= 0 || servePort == syncPort) {
+        if (servePort <= 0 || (syncPort <= 0 && notBackup(broker.getRole())) || servePort == syncPort) {
             return Optional.of("serve port and sync port should valid and should be different port");
         }
 
         List<BrokerMeta> brokers = store.queryBrokers(broker.getGroup());
         if (brokers == null || brokers.isEmpty()) return Optional.empty();
 
-        if (brokers.size() >= 2) {
+        if (brokers.size() >= 3) {
             return Optional.of("The brokerGroup: " + broker.getGroup() + " already exists");
         }
 
-        BrokerMeta exsits = brokers.get(0);
-        if (broker.getRole() != MATCHED_ROLES.get(exsits.getRole())) {
-            return Optional.of("The brokerGroup: " + broker.getGroup() + " with role: " + exsits.getRole() + " already exists, you need use other brokerGroup name");
+        if (exist(brokers, broker)) {
+            return Optional.of("The brokerGroup: " + broker.getGroup() + " with role: " + broker.getRole() + " already exists, you need use other brokerGroup name");
         }
 
         return Optional.empty();
+    }
+
+    private boolean notBackup(BrokerRole role) {
+        return role != BrokerRole.BACKUP && role != BrokerRole.DELAY_BACKUP;
+    }
+
+    private boolean exist(final List<BrokerMeta> brokers, final BrokerMeta broker) {
+        for (BrokerMeta brokerMeta : brokers) {
+            if (broker.getRole() == brokerMeta.getRole()) return true;
+        }
+
+        return false;
     }
 }
