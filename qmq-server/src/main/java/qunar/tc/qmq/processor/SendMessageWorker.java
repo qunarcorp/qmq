@@ -16,6 +16,8 @@
 
 package qunar.tc.qmq.processor;
 
+import static com.google.common.base.CharMatcher.BREAKING_WHITESPACE;
+
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Function;
 import com.google.common.eventbus.Subscribe;
@@ -132,7 +134,7 @@ public class SendMessageWorker {
     }
 
     private boolean isIllegalSubject(final String subject) {
-        if (ILLEGAL_MATCHER.matchesAnyOf(subject)) {
+        if (ILLEGAL_MATCHER.matchesAnyOf(subject) || BREAKING_WHITESPACE.matchesAnyOf(subject)) {
             QMon.receivedIllegalSubjectMessagesCountInc(subject);
             return true;
         }
