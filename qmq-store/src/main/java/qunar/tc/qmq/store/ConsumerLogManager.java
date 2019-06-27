@@ -66,11 +66,11 @@ public class ConsumerLogManager implements AutoCloseable {
                     continue;
                 }
 
-                final String subject = consumerLogDir.getName();
-                if (CharMatcher.BREAKING_WHITESPACE.matchesAnyOf(subject)) {
-                    LOG.error("consumer log directory name is invalid, skip. name: {}", subject);
-                    return;
-                }
+				final String subject = consumerLogDir.getName();
+				if (CharMatcher.BREAKING_WHITESPACE.matchesAnyOf(subject)) {
+					LOG.error("consumer log directory name is invalid, skip. name: {}", subject);
+					continue;
+				}
                 final Long maxSequence = maxSequences.get(subject);
                 if (maxSequence == null) {
                     LOG.warn("cannot find max sequence for subject {} in checkpoint.", subject);
