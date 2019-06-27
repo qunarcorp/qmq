@@ -106,9 +106,9 @@ public class AddBrokerAction implements MetaManagementAction {
             return Optional.of("The brokerGroup: " + broker.getGroup() + " already exists");
         }
 
-        BrokerMeta exsits = brokers.get(0);
-        if (broker.getRole() != MATCHED_ROLES.get(exsits.getRole())) {
-            return Optional.of("The brokerGroup: " + broker.getGroup() + " with role: " + exsits.getRole() + " already exists, you need use other brokerGroup name");
+        BrokerMeta exists = brokers.get(0);
+        if (broker.getRole() != MATCHED_ROLES.get(exists.getRole())) {
+            return Optional.of("The brokerGroup: " + broker.getGroup() + " with role: " + exists.getRole() + " already exists, you need use other brokerGroup name");
         }
 
         return Optional.empty();
