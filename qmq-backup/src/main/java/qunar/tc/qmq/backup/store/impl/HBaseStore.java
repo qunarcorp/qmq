@@ -49,7 +49,7 @@ public class HBaseStore extends AbstractHBaseStore {
         PutRequest request = new PutRequest(table, key, family, qualifiers, value);
         client.put(request).addBoth(input -> {
             if (input instanceof Throwable) {
-                LOG.error("put backup message failed.", input);
+                LOG.error("put backup message failed.", (Throwable) input);
             }
             return null;
         });
