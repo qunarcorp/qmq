@@ -21,6 +21,7 @@ import com.google.common.collect.Table;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * @author keli.wang
@@ -37,7 +38,8 @@ public class ConsumeQueueManager {
 
     public synchronized ConsumeQueue getOrCreate(final String subject, final String group) {
         if (!queues.contains(subject, group)) {
-            queues.put(subject, group, new ConsumeQueue(storage, subject, group, getLastMaxSequence(subject, group)));
+            final long nextSequence = getLastMaxSequence(subject, group).map(seq -> seq + 1).orElse(0L);
+            queues.put(subject, group, new ConsumeQueue(storage, subject, group, nextSequence));
         }
         return queues.get(subject, group);
     }
@@ -50,12 +52,12 @@ public class ConsumeQueueManager {
         }
     }
 
-    private long getLastMaxSequence(final String subject, final String group) {
+    private Optional<Long> getLastMaxSequence(final String subject, final String group) {
         final ConsumerGroupProgress progress = storage.getConsumerGroupProgress(subject, group);
         if (progress == null) {
-            return -1;
+            return Optional.empty();
         } else {
-            return progress.getPull();
+            return Optional.of(progress.getPull());
         }
     }
 

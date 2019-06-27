@@ -26,10 +26,12 @@ import qunar.tc.qmq.MessageStore;
 import qunar.tc.qmq.ProduceMessage;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.metrics.Metrics;
+import qunar.tc.qmq.metrics.MetricsConstants;
 import qunar.tc.qmq.metrics.QmqCounter;
 import qunar.tc.qmq.metrics.QmqMeter;
 import qunar.tc.qmq.tracing.TraceUtil;
 
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -199,7 +201,7 @@ class ProduceMessageImpl implements ProduceMessage {
             try {
                 if (store == null) return;
                 if (base.isStoreAtFailed()) {
-                    store.insertNew(this);
+                    save();
                 }
             } catch (Exception e) {
                 TraceUtil.recordEvent("Qmq.Store.Failed");
@@ -254,7 +256,15 @@ class ProduceMessageImpl implements ProduceMessage {
 
     @Override
     public void save() {
-        this.sequence = store.insertNew(this);
+        long start = System.nanoTime();
+        try {
+            this.sequence = store.insertNew(this);
+        } finally {
+            Metrics.timer("qmq_client_persistence_time",
+                    MetricsConstants.SUBJECT_ARRAY,
+                    new String[]{getSubject()}).update(System.nanoTime() - start, TimeUnit.NANOSECONDS);
+        }
+
     }
 
     @Override

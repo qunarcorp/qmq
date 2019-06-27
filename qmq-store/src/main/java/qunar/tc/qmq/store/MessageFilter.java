@@ -21,5 +21,9 @@ package qunar.tc.qmq.store;
  * 9/3/18
  */
 interface MessageFilter {
-    boolean filter(ConsumerLogEntry entry);
+    boolean filter(WithTimestamp entry);
+
+    interface WithTimestamp {
+        long getTimestamp();
+    }
 }

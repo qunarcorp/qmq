@@ -78,6 +78,7 @@ public class MessageProducerProvider implements MessageProducer {
         Preconditions.checkNotNull(metaServer, "metaServer的http地址");
 
         this.routerManager.setMetaServer(this.metaServer);
+        this.routerManager.setAppCode(appCode);
 
         if (STARTED.compareAndSet(false, true)) {
             routerManager.init(clientIdProvider.get());
@@ -190,6 +191,10 @@ public class MessageProducerProvider implements MessageProducer {
      */
     public void setSendTryCount(int sendTryCount) {
         configs.setSendTryCount(sendTryCount);
+    }
+
+    public void setSendTimeoutMillis(long timeoutMillis) {
+        configs.setSendTimeoutMillis(timeoutMillis);
     }
 
     public void setClientIdProvider(ClientIdProvider clientIdProvider) {

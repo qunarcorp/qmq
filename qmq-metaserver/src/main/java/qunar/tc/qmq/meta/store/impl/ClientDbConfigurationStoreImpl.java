@@ -17,9 +17,10 @@
 package qunar.tc.qmq.meta.store.impl;
 
 import org.springframework.jdbc.core.JdbcTemplate;
+
+import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
 import qunar.tc.qmq.meta.model.ClientDbInfo;
 import qunar.tc.qmq.meta.store.ClientDbConfigurationStore;
-import qunar.tc.qmq.meta.store.JdbcTemplateHolder;
 
 import java.sql.Timestamp;
 

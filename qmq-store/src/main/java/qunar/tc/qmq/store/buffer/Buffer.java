@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
+ * Copyright 2019 Qunar, Inc.
+=======
  * Copyright 2018 Qunar, Inc.
+>>>>>>> origin/master
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +24,7 @@ import java.nio.ByteBuffer;
 
 /**
  * @author keli.wang
- * @since 2019-02-19
+ * @since 2019-06-10
  */
 public interface Buffer {
     ByteBuffer getBuffer();

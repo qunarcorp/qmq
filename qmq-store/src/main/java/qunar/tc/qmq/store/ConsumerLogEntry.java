@@ -20,7 +20,7 @@ package qunar.tc.qmq.store;
  * Created by zhaohui.yu
  * 9/3/18
  */
-public class ConsumerLogEntry {
+public class ConsumerLogEntry implements MessageFilter.WithTimestamp {
     private long timestamp;
     private long wroteOffset;
     private int wroteBytes;
@@ -59,7 +59,7 @@ public class ConsumerLogEntry {
     }
 
     public static class Factory {
-        private static final ThreadLocal<ConsumerLogEntry> ENTRY = ThreadLocal.withInitial(() -> new ConsumerLogEntry());
+        private static final ThreadLocal<ConsumerLogEntry> ENTRY = ThreadLocal.withInitial(ConsumerLogEntry::new);
 
         public static ConsumerLogEntry create() {
             return ENTRY.get();

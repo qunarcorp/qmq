@@ -56,7 +56,7 @@ public class MessageCheckpointSerde implements Serde<MessageCheckpoint> {
             final int version = Integer.parseInt(reader.readLine());
             switch (version) {
                 case VERSION_V1:
-                    return new MessageCheckpoint(true, -1, new HashMap<>());
+                    throw new RuntimeException("v1 checkpoint not support");
                 case VERSION_V2:
                     return parseV2(reader);
                 default:

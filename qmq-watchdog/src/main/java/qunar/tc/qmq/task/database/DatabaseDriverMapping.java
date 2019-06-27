@@ -16,7 +16,10 @@
 
 package qunar.tc.qmq.task.database;
 
+import java.util.HashMap;
 import java.util.Map;
+import java.util.ServiceLoader;
+
 
 /**
  * Created by IntelliJ IDEA.
@@ -26,13 +29,20 @@ import java.util.Map;
  */
 public class DatabaseDriverMapping {
 
-    private final Map<String, IDatabaseDriver> map;
+	private final Map<String, IDatabaseDriver> map;
 
-    public DatabaseDriverMapping(Map<String, IDatabaseDriver> map) {
-        this.map = map;
-    }
+	public DatabaseDriverMapping() {
+		this.map = new HashMap<>();
+	}
 
-    public IDatabaseDriver getDatabaseMapping(String protocol) {
-        return map.get(protocol);
-    }
+	public void init() {
+		ServiceLoader<IDatabaseDriver> drivers = ServiceLoader.load(IDatabaseDriver.class);
+		for (IDatabaseDriver driver : drivers) {
+			map.put(driver.protocol(), driver);
+		}
+	}
+
+	public IDatabaseDriver getDatabaseMapping(String protocol) {
+		return map.get(protocol);
+	}
 }

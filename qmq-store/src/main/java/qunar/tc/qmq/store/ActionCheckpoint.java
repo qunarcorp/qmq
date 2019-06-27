@@ -23,24 +23,12 @@ import com.google.common.collect.Table;
  * @since 2018/9/10
  */
 public class ActionCheckpoint {
-    // mark this object is read from old version snapshot file
-    // TODO(keli.wang): delete this after all broker group is migrate to new snapshot format
-    private final boolean fromOldVersion;
     private final Table<String, String, ConsumerGroupProgress> progresses;
     private long offset;
 
     public ActionCheckpoint(long offset, Table<String, String, ConsumerGroupProgress> progresses) {
-        this(false, offset, progresses);
-    }
-
-    public ActionCheckpoint(boolean fromOldVersion, long offset, Table<String, String, ConsumerGroupProgress> progresses) {
-        this.fromOldVersion = fromOldVersion;
         this.offset = offset;
         this.progresses = progresses;
-    }
-
-    public boolean isFromOldVersion() {
-        return fromOldVersion;
     }
 
     public long getOffset() {

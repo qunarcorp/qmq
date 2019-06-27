@@ -94,6 +94,6 @@ public class BrokerStoreImpl implements BrokerStore {
     public int replaceBrokerByRole(final BrokerMeta oldBroker, final BrokerMeta newBroker) {
         return jdbcTemplate.update(REPLACE_BROKER_BY_ROLE_SQL,
                 newBroker.getHostname(), newBroker.getIp(), newBroker.getServePort(), newBroker.getSyncPort(),
-                oldBroker.getGroup(), oldBroker.getRole(), oldBroker.getHostname(), oldBroker.getSyncPort());
+                oldBroker.getGroup(), oldBroker.getRole(), oldBroker.getHostname(), oldBroker.getServePort());
     }
 }

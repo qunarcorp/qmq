@@ -32,6 +32,11 @@ public class MysqlMMMDatabaseDriver implements IDatabaseDriver {
         dataSourceService = new TomcatDataSourceService();
     }
 
+	@Override
+	public String protocol() {
+		return "mmm";
+	}
+
     public DatasourceWrapper makeDataSource(String url, String userName, String password) {
         String jdbcUrl = covertToJdbcUrl(url);
         return new DefaultDatasourceWrapper(dataSourceService.makeDataSource(jdbcUrl, DRIVER_CLASS, userName, password));

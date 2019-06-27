@@ -23,6 +23,8 @@ package qunar.tc.qmq.task.database;
  * Time: 下午3:01
  */
 public interface IDatabaseDriver {
+	String protocol();
+
     DatasourceWrapper makeDataSource(String url, String userName, String password);
 
     void close(DatasourceWrapper dataSource);

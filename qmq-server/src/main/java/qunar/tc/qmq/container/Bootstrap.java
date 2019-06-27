@@ -29,7 +29,7 @@ public class Bootstrap {
         DynamicConfig config = DynamicConfigLoader.load("broker.properties");
         ServerWrapper wrapper = new ServerWrapper(config);
         Runtime.getRuntime().addShutdownHook(new Thread(wrapper::destroy));
-        wrapper.start();
+        wrapper.start(true);
 
         if (wrapper.isSlave()) {
             final ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);

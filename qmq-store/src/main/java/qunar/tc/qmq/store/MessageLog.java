@@ -32,10 +32,10 @@ import java.util.Arrays;
  * @author keli.wang
  * @since 2017/7/4
  */
-public class MessageLog implements AutoCloseable {
+public class MessageLog implements AutoCloseable, Visitable<MessageLogRecord> {
     private static final Logger LOG = LoggerFactory.getLogger(MessageLog.class);
 
-    private static final int PER_SEGMENT_FILE_SIZE = 1024 * 1024 * 1024;
+    static final int PER_SEGMENT_FILE_SIZE = 1024 * 1024 * 1024;
 
     static final byte ATTR_BLANK_RECORD = 2;
     static final byte ATTR_EMPTY_RECORD = 1;
@@ -52,7 +52,7 @@ public class MessageLog implements AutoCloseable {
     public MessageLog(final StorageConfig config, final ConsumerLogManager consumerLogManager) {
         this.config = config;
         this.consumerLogManager = consumerLogManager;
-        this.logManager = new LogManager(new File(config.getMessageLogStorePath()), PER_SEGMENT_FILE_SIZE, config, new MessageLogSegmentValidator());
+        this.logManager = new LogManager(new File(config.getMessageLogStorePath()), PER_SEGMENT_FILE_SIZE, new MessageLogSegmentValidator());
         consumerLogManager.adjustConsumerLogMinOffset(logManager.firstSegment());
     }
 
@@ -68,10 +68,12 @@ public class MessageLog implements AutoCloseable {
                 + (payloadSize > 0 ? payloadSize : 0);
     }
 
+    @Override
     public long getMaxOffset() {
         return logManager.getMaxOffset();
     }
 
+    @Override
     public long getMinOffset() {
         return logManager.getMinOffset();
     }
@@ -159,7 +161,7 @@ public class MessageLog implements AutoCloseable {
     }
 
     public void clean() {
-        logManager.deleteExpiredSegments(config.getMessageLogRetentionMs(), segment -> {
+        logManager.deleteExpiredSegments(config.getMessageLogRetentionMs(), (logManager, segment) -> {
             consumerLogManager.adjustConsumerLogMinOffset(logManager.firstSegment());
 
             final String fileName = StoreUtils.offsetFileNameForSegment(segment);
@@ -175,11 +177,8 @@ public class MessageLog implements AutoCloseable {
         });
     }
 
-    public MessageLogMetaVisitor newVisitor(long iterateFrom) {
-        return new MessageLogMetaVisitor(logManager, iterateFrom);
-    }
-
-    public MessageLogRecordVisitor newLogRecordVisitor(long iterateFrom) {
+    @Override
+    public MessageLogRecordVisitor newVisitor(long iterateFrom) {
         return new MessageLogRecordVisitor(logManager, iterateFrom);
     }
 

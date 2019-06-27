@@ -36,10 +36,6 @@ import java.util.concurrent.Executor;
  * @date 2012-12-28
  */
 public class MessageConsumerProvider implements MessageConsumer {
-
-    private static final int MAX_CONSUMER_GROUP_LEN = 50;
-    private static final int MAX_PREFIX_LEN = 100;
-
     private MessageDistributor distributor;
 
     private final PullConsumerFactory pullConsumerFactory;
@@ -53,6 +49,11 @@ public class MessageConsumerProvider implements MessageConsumer {
     private String appCode;
     private String metaServer;
     private int destroyWaitInSeconds;
+
+    private int maxSubjectLen = 100;
+    private int maxConsumerGroupLen = 100;
+
+    private boolean autoOnline = true;
 
     public MessageConsumerProvider() {
         this.clientIdProvider = ClientIdProviderFactory.createDefault();
@@ -77,12 +78,13 @@ public class MessageConsumerProvider implements MessageConsumer {
             this.pullRegister.setMetaServer(metaServer);
             this.pullRegister.setEnvProvider(envProvider);
             this.pullRegister.setClientId(clientId);
+            this.pullRegister.setAppCode(appCode);
             this.pullRegister.init();
 
             distributor = new MessageDistributor(pullRegister);
             distributor.setClientId(clientId);
 
-            pullRegister.setAutoOnline(true);
+            pullRegister.setAutoOnline(autoOnline);
             inited = true;
         }
     }
@@ -95,8 +97,8 @@ public class MessageConsumerProvider implements MessageConsumer {
     @Override
     public ListenerHolder addListener(String subject, String consumerGroup, MessageListener listener, Executor executor, SubscribeParam subscribeParam) {
         init();
-        Preconditions.checkArgument(subject != null && subject.length() <= MAX_PREFIX_LEN, "subject长度不允许超过" + MAX_PREFIX_LEN + "个字符");
-        Preconditions.checkArgument(consumerGroup == null || consumerGroup.length() <= MAX_CONSUMER_GROUP_LEN, "consumerGroup长度不允许超过" + MAX_CONSUMER_GROUP_LEN + "个字符");
+        Preconditions.checkArgument(subject != null && subject.length() <= maxSubjectLen, "subject长度不允许超过" + maxSubjectLen + "个字符");
+        Preconditions.checkArgument(consumerGroup == null || consumerGroup.length() <= maxConsumerGroupLen, "consumerGroup长度不允许超过" + maxConsumerGroupLen + "个字符");
 
         Preconditions.checkArgument(!subject.contains("${"), "请确保subject已经正确解析: " + subject);
         Preconditions.checkArgument(consumerGroup == null || !consumerGroup.contains("${"), "请确保consumerGroup已经正确解析: " + consumerGroup);
@@ -169,6 +171,26 @@ public class MessageConsumerProvider implements MessageConsumer {
 
     public void setDestroyWaitInSeconds(int destroyWaitInSeconds) {
         this.destroyWaitInSeconds = destroyWaitInSeconds;
+    }
+
+    public void setAutoOnline(boolean autoOnline){
+        this.autoOnline = autoOnline;
+    }
+
+    public void online() {
+        this.pullRegister.online();
+    }
+
+    public void offline() {
+        this.pullRegister.offline();
+    }
+
+    public void setMaxConsumerGroupLen(int maxConsumerGroupLen) {
+        this.maxConsumerGroupLen = maxConsumerGroupLen;
+    }
+
+    public void setMaxSubjectLen(int maxSubjectLen) {
+        this.maxSubjectLen = maxSubjectLen;
     }
 
     @PreDestroy

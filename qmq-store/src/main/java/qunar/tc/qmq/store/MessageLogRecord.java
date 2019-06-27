@@ -27,7 +27,7 @@ public class MessageLogRecord {
     private final long sequence;
     private final long wroteOffset;
     private final int wroteBytes;
-    private final long payloadOffset;
+    private final short headerSize;
     private final long baseOffset;
     private final ByteBuffer payload;
     private final LogSegment logSegment;
@@ -36,7 +36,7 @@ public class MessageLogRecord {
                             long sequence,
                             long wroteOffset,
                             int wroteBytes,
-                            long payloadOffset,
+                            short headerSize,
                             long baseOffset,
                             ByteBuffer payload,
                             LogSegment logSegment) {
@@ -44,7 +44,7 @@ public class MessageLogRecord {
         this.sequence = sequence;
         this.wroteOffset = wroteOffset;
         this.wroteBytes = wroteBytes;
-        this.payloadOffset = payloadOffset;
+        this.headerSize = headerSize;
         this.baseOffset = baseOffset;
         this.payload = payload;
         this.logSegment = logSegment;
@@ -66,8 +66,8 @@ public class MessageLogRecord {
         return wroteBytes;
     }
 
-    public long getPayloadOffset() {
-        return payloadOffset;
+    public short getHeaderSize() {
+        return headerSize;
     }
 
     public long getBaseOffset() {
@@ -85,7 +85,7 @@ public class MessageLogRecord {
                 ", sequence=" + sequence +
                 ", wroteOffset=" + wroteOffset +
                 ", wroteBytes=" + wroteBytes +
-                ", payloadOffset=" + payloadOffset +
+                ", headerSize=" + headerSize +
                 ", baseOffset=" + baseOffset +
                 '}';
     }

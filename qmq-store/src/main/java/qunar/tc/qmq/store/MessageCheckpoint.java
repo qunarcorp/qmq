@@ -24,27 +24,11 @@ import java.util.Map;
  */
 public class MessageCheckpoint {
     private final Map<String, Long> maxSequences;
-    // mark this object is read from old version snapshot file
-    // TODO(keli.wang): delete this after all broker group is migrate to new snapshot format
-    private boolean fromOldVersion;
     private long offset;
 
     public MessageCheckpoint(long offset, Map<String, Long> maxSequences) {
-        this(false, offset, maxSequences);
-    }
-
-    public MessageCheckpoint(boolean fromOldVersion, long offset, Map<String, Long> maxSequences) {
-        this.fromOldVersion = fromOldVersion;
         this.offset = offset;
         this.maxSequences = maxSequences;
-    }
-
-    public boolean isFromOldVersion() {
-        return fromOldVersion;
-    }
-
-    public void setFromOldVersion(boolean fromOldVersion) {
-        this.fromOldVersion = fromOldVersion;
     }
 
     public long getOffset() {

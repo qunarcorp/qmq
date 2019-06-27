@@ -61,6 +61,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
 
     private String clientId;
     private String metaServer;
+    private String appCode;
     private int destroyWaitInSeconds;
 
     private EnvProvider envProvider;
@@ -80,6 +81,8 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         this.ackService.setDestroyWaitInSeconds(destroyWaitInSeconds);
         this.ackService.setClientId(clientId);
         this.metaInfoService.setConsumerStateChangedListener(this);
+
+        this.brokerService.setAppCode(appCode);
     }
 
     @Override
@@ -233,6 +236,10 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
     public void setEnvProvider(EnvProvider envProvider) {
         this.envProvider = envProvider;
     }
+
+	public void setAppCode(String appCode) {
+		this.appCode = appCode;
+	}
 
     @Override
     public synchronized void destroy() {

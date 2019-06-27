@@ -64,6 +64,10 @@ public class ConfigCenter {
         return sendTimeoutMillis;
     }
 
+    public void setSendTimeoutMillis(long timeoutMillis) {
+        this.sendTimeoutMillis = timeoutMillis;
+    }
+
     public int getSendTryCount() {
         return sendTryCount;
     }

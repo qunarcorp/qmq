@@ -65,7 +65,7 @@ public interface Storage extends Disposable {
 
     ConsumerGroupProgress getConsumerGroupProgress(final String subject, final String group);
 
-    Collection<ConsumerGroupProgress> allConsumerGroupProgresses();
+    Table<String, String, ConsumerGroupProgress> allConsumerGroupProgresses();
 
     long getMaxPulledMessageSequence(String subject, String group);
 

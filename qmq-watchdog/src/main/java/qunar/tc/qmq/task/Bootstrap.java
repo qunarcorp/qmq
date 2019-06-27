@@ -16,24 +16,20 @@
 
 package qunar.tc.qmq.task;
 
-import org.springframework.jdbc.core.JdbcTemplate;
+import java.util.concurrent.CountDownLatch;
+
 import qunar.tc.qmq.MessageProducer;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.configuration.DynamicConfigLoader;
+import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
 import qunar.tc.qmq.producer.MessageProducerProvider;
 import qunar.tc.qmq.task.database.DatabaseDriverMapping;
-import qunar.tc.qmq.task.database.IDatabaseDriver;
-import qunar.tc.qmq.task.database.MysqlMMMDatabaseDriver;
-import qunar.tc.qmq.task.database.TomcatDataSourceService;
 import qunar.tc.qmq.task.store.IDataSourceConfigStore;
 import qunar.tc.qmq.task.store.impl.CachedMessageClientStore;
 import qunar.tc.qmq.task.store.impl.DataSourceConfigStoreImpl;
 import qunar.tc.qmq.task.store.impl.LeaderElectionDaoImpl;
 
-import javax.sql.DataSource;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.CountDownLatch;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 public class Bootstrap {
     public static void main(String[] args) throws InterruptedException {
@@ -43,7 +39,7 @@ public class Bootstrap {
         int checkInterval = config.getInt("checkInterval", 60 * 1000);
         String namespace = config.getString("namespace", "default");
         CachedMessageClientStore cachedMessageClientStore = new CachedMessageClientStore();
-        JdbcTemplate jdbcTemplate = createJdbcTemplate();
+        JdbcTemplate jdbcTemplate = JdbcTemplateHolder.getOrCreate();
         IDataSourceConfigStore dataSourceConfigStore = new DataSourceConfigStoreImpl(jdbcTemplate);
         TaskManager taskManager = new TaskManager(sendMessageTaskExecuteTimeout, refreshInterval, checkInterval, namespace,
                 cachedMessageClientStore, dataSourceConfigStore, initDriverMapping(), createMessageProducer(config));
@@ -64,19 +60,9 @@ public class Bootstrap {
     }
 
     private static DatabaseDriverMapping initDriverMapping() {
-        Map<String, IDatabaseDriver> mapping = new HashMap<>();
-        mapping.put("mmm", new MysqlMMMDatabaseDriver());
-        return new DatabaseDriverMapping(mapping);
+        DatabaseDriverMapping databaseDriverMapping = new DatabaseDriverMapping();
+        databaseDriverMapping.init();
+        return databaseDriverMapping;
     }
 
-    private static JdbcTemplate createJdbcTemplate() {
-        DynamicConfig config = DynamicConfigLoader.load("datasource.properties");
-        TomcatDataSourceService dataSourceService = new TomcatDataSourceService();
-        String jdbcUrl = config.getString("jdbc.url");
-        String jdbcDriver = config.getString("jdbc.driverClassName");
-        String userName = config.getString("jdbc.username");
-        String password = config.getString("jdbc.password");
-        DataSource dataSource = dataSourceService.makeDataSource(jdbcUrl, jdbcDriver, userName, password);
-        return new JdbcTemplate(dataSource);
-    }
 }

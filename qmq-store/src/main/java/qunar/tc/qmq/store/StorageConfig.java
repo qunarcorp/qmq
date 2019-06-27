@@ -41,9 +41,11 @@ public interface StorageConfig {
 
     String getIndexLogStorePath();
 
-    boolean isDeleteExpiredLogsEnable();
-
     long getLogRetentionMs();
+
+    String getSMTStorePath();
+
+    long getSMTRetentionMs();
 
     int getRetryDelaySeconds();
 
@@ -52,4 +54,14 @@ public interface StorageConfig {
     long getActionCheckpointInterval();
 
     long getMessageCheckpointInterval();
+
+    int getMaxReservedMemTable();
+
+    int getMaxActiveMemTable();
+
+    boolean isConsumerLogV2Enable();
+
+    boolean isSMTEnable();
+
+    long getLogDispatcherPauseMillis();
 }
