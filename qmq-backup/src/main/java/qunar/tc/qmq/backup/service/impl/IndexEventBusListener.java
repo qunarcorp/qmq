@@ -78,6 +78,6 @@ public class IndexEventBusListener implements FixedExecOrderEventBus.Listener<Me
     }
 
     private static void monitorConstructMessage(String subject) {
-        Metrics.meter("construct.message.qps",SUBJECT_ARRAY,new String[]{subject}).mark();
+        Metrics.meter("construct.message.qps", SUBJECT_ARRAY, new String[] {subject}).mark();
     }
 }
