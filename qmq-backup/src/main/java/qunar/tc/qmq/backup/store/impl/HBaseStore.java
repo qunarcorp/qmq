@@ -17,6 +17,7 @@
 package qunar.tc.qmq.backup.store.impl;
 
 import com.google.common.base.Strings;
+import com.stumbleupon.async.Deferred;
 import org.hbase.async.*;
 import org.jboss.netty.util.CharsetUtil;
 import org.slf4j.Logger;
@@ -38,24 +39,23 @@ public class HBaseStore extends AbstractHBaseStore {
         this.client = client;
     }
 
-    @Override
-    protected void doBatchSave(byte[] table, byte[][] keys, byte[] family, byte[][] qualifiers, byte[][][] values) {
-        for (int i = 0; i < keys.length; ++i) {
-            doSave(table, keys[i], family, qualifiers, values[i]);
-        }
-    }
+	@Override
+	protected void doBatchSave(byte[] table, byte[][] keys, byte[] family, byte[][] qualifiers, byte[][][] values) {
+		List<Deferred<Object>> deferreds = new ArrayList<>(keys.length);
+		for (int i = 0; i < keys.length; ++i) {
+			PutRequest request = new PutRequest(table, keys[i], family, qualifiers, values[i]);
+			Deferred<Object> future = client.put(request);
+			deferreds.add(future);
+		}
 
-    private void doSave(byte[] table, byte[] key, byte[] family, byte[][] qualifiers, byte[][] value) {
-        PutRequest request = new PutRequest(table, key, family, qualifiers, value);
-        client.put(request).addBoth(input -> {
-            if (input instanceof Throwable) {
-                LOG.error("put backup message failed.", input);
-            }
-            return null;
-        });
-    }
+		try {
+			Deferred.group(deferreds).join(30 * 1000);
+		}catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+	}
 
-    @Override
+	@Override
     protected <T, V> List<T> scan(byte[] table, String keyRegexp, String startKey, String stopKey, int maxNumRows, int maxVersions, byte[] family, byte[][] qualifiers, RowExtractor<T> rowExtractor) throws Exception {
         Scanner scanner = null;
         try {
