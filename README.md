@@ -23,6 +23,7 @@ QMQ是去哪儿网内部广泛使用的消息中间件，自2012年诞生以来�
 * Consumer的处理能力也可以方便扩容缩容
 * Server可以随心所欲扩容缩容
 * Java Client, .NET Client
+* 读写分离
 * 消息投递轨迹(即将开源)
 * 历史消息的自动备份(即将开源)
 * 有序消息(即将开源)
@@ -37,7 +38,7 @@ qmq的客户端已经发布到maven中央仓库，可以通过下面的方式获
 <dependency>
     <groupId>com.qunar.qmq</groupId>
     <artifactId>qmq</artifactId>
-    <version>1.1.3</version>
+    <version>1.1.5</version>
 </dependency>
 ```
 
@@ -91,3 +92,4 @@ qmq的客户端已经发布到maven中央仓库，可以通过下面的方式获
 ![IYMedia](docs/images/logo/iymedia.png)
 ![便利蜂](docs/images/logo/bianlifeng.png)
 ![金汇金融](docs/images/logo/jinhui365.png)
+![必贝证券](docs/images/logo/bbae.svg)
