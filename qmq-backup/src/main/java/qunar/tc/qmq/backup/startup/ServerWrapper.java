@@ -16,6 +16,12 @@
 
 package qunar.tc.qmq.backup.startup;
 
+import static qunar.tc.qmq.backup.service.DicService.SIX_DIGIT_FORMAT_PATTERN;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
+
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import io.netty.buffer.ByteBuf;
@@ -24,9 +30,28 @@ import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.backup.base.ActionRecord;
 import qunar.tc.qmq.backup.config.BackupConfig;
 import qunar.tc.qmq.backup.config.DefaultBackupConfig;
-import qunar.tc.qmq.backup.service.*;
-import qunar.tc.qmq.backup.service.impl.*;
-import qunar.tc.qmq.backup.store.*;
+import qunar.tc.qmq.backup.service.BackupKeyGenerator;
+import qunar.tc.qmq.backup.service.BatchBackup;
+import qunar.tc.qmq.backup.service.BatchBackupManager;
+import qunar.tc.qmq.backup.service.DicService;
+import qunar.tc.qmq.backup.service.IndexLogIterateService;
+import qunar.tc.qmq.backup.service.MessageService;
+import qunar.tc.qmq.backup.service.ScheduleFlushManager;
+import qunar.tc.qmq.backup.service.SyncLogIterator;
+import qunar.tc.qmq.backup.service.impl.ActionSyncLogIterator;
+import qunar.tc.qmq.backup.service.impl.DbDicService;
+import qunar.tc.qmq.backup.service.impl.DeadMessageBatchBackup;
+import qunar.tc.qmq.backup.service.impl.DeadRecordBatchBackup;
+import qunar.tc.qmq.backup.service.impl.IndexEventBusListener;
+import qunar.tc.qmq.backup.service.impl.IndexFileStore;
+import qunar.tc.qmq.backup.service.impl.MessageIndexBatchBackup;
+import qunar.tc.qmq.backup.service.impl.MessageServiceImpl;
+import qunar.tc.qmq.backup.service.impl.RecordBatchBackup;
+import qunar.tc.qmq.backup.store.DicStore;
+import qunar.tc.qmq.backup.store.KvStore;
+import qunar.tc.qmq.backup.store.MessageStore;
+import qunar.tc.qmq.backup.store.RecordStore;
+import qunar.tc.qmq.backup.store.RocksDBStore;
 import qunar.tc.qmq.backup.store.impl.DbDicDao;
 import qunar.tc.qmq.backup.store.impl.FactoryStoreImpl;
 import qunar.tc.qmq.backup.store.impl.RocksDBStoreImpl;
@@ -37,22 +62,18 @@ import qunar.tc.qmq.backup.sync.IndexLogSyncDispatcher;
 import qunar.tc.qmq.common.Disposable;
 import qunar.tc.qmq.configuration.BrokerConfig;
 import qunar.tc.qmq.configuration.DynamicConfig;
-import qunar.tc.qmq.meta.BrokerRegisterService;
 import qunar.tc.qmq.meta.BrokerRole;
-import qunar.tc.qmq.meta.MetaServerLocator;
-import qunar.tc.qmq.store.*;
+import qunar.tc.qmq.store.Action;
+import qunar.tc.qmq.store.CheckpointManager;
+import qunar.tc.qmq.store.IndexLog;
+import qunar.tc.qmq.store.MessageQueryIndex;
+import qunar.tc.qmq.store.StorageConfig;
+import qunar.tc.qmq.store.StorageConfigImpl;
 import qunar.tc.qmq.store.event.FixedExecOrderEventBus;
 import qunar.tc.qmq.sync.MasterSlaveSyncManager;
 import qunar.tc.qmq.sync.SlaveSyncClient;
 import qunar.tc.qmq.sync.SyncType;
 import qunar.tc.qmq.utils.NetworkUtils;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.Consumer;
-
-import static qunar.tc.qmq.backup.service.DicService.SIX_DIGIT_FORMAT_PATTERN;
-import static qunar.tc.qmq.constants.BrokerConstants.*;
 
 public class ServerWrapper implements Disposable {
     private static final Logger LOG = LoggerFactory.getLogger(ServerWrapper.class);
@@ -81,11 +102,7 @@ public class ServerWrapper implements Disposable {
     public void start() {
         try {
             final DynamicConfig localConfig = config.getDynamicConfig();
-            int listenPort = localConfig.getInt(PORT_CONFIG, DEFAULT_PORT);
-            final MetaServerLocator metaServerLocator = new MetaServerLocator(localConfig.getString(META_SERVER_ENDPOINT));
-            BrokerRegisterService brokerRegisterService = new BrokerRegisterService(listenPort, metaServerLocator);
-            brokerRegisterService.start();
-            if (BrokerConfig.getBrokerRole() != BrokerRole.BACKUP) {
+			if (BrokerConfig.getBrokerRole() != BrokerRole.BACKUP) {
                 LOG.error("Config error,({})'s role is not backup.", NetworkUtils.getLocalHostname());
                 throw new IllegalArgumentException("Config error, the role is not backup");
             }
