@@ -33,6 +33,10 @@ public class DefaultBackupConfig implements BackupConfig {
     public static final String DEFAULT_STORE_FACTORY_TYPE = "hbase";
     public static final int DEFAULT_ROCKS_DB_TTL = 7200;
 
+    public static final String HBASE_MESSAGE_INDEX_CONFIG_KEY = "table.qmq.backup";
+    public static final String HBASE_DELAY_MESSAGE_INDEX_CONFIG_KEY = "table.qmq.delay.backup";
+    public static final String HBASE_RECORD_CONFIG_KEY = "table.qmq.backup.record";
+    public static final String HBASE_DEAD_CONFIG_KEY = "table.qmq.backup.dead";
     public static final String SYNC_OFFSET_FLUSH_INTERVAL_CONFIG_KEY = "sync.offset.flush.interval";
     public static final String MESSAGE_BATCH_SIZE_CONFIG_KEY = "message.backup.batch.size";
     public static final String MESSAGE_RETRY_NUM_CONFIG_KEY = "message.backup.max.retry.num";

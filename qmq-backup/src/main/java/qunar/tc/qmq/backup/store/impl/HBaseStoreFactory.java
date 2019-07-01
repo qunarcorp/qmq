@@ -57,10 +57,10 @@ public class HBaseStoreFactory implements KvStore.StoreFactory {
         this.client = new HBaseClient(HBaseConfig);
         this.client.setFlushInterval(CLIENT_FLUSH_INTERVAL);
         this.client.setIncrementBufferSize(CLIENT_BUFFER_SIZE);
-        this.table = DEFAULT_HBASE_MESSAGE_INDEX_TABLE;
-        this.delayTable = DEFAULT_HBASE_DELAY_MESSAGE_INDEX_TABLE;
-        this.recordTable = DEFAULT_HBASE_RECORD_TABLE;
-        this.deadTable = DEFAULT_HBASE_DEAD_TABLE;
+        this.table = config.getString(HBASE_MESSAGE_INDEX_CONFIG_KEY, DEFAULT_HBASE_MESSAGE_INDEX_TABLE);
+        this.delayTable = config.getString(HBASE_DELAY_MESSAGE_INDEX_CONFIG_KEY, DEFAULT_HBASE_DELAY_MESSAGE_INDEX_TABLE);
+        this.recordTable = config.getString(HBASE_RECORD_CONFIG_KEY, DEFAULT_HBASE_RECORD_TABLE);
+        this.deadTable = config.getString(HBASE_DEAD_CONFIG_KEY, DEFAULT_HBASE_DEAD_TABLE);
 
         this.dicService = dicService;
         this.keyGenerator = keyGenerator;

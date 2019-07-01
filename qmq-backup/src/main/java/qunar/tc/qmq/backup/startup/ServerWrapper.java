@@ -84,7 +84,7 @@ public class ServerWrapper implements Disposable {
             int listenPort = localConfig.getInt(PORT_CONFIG, DEFAULT_PORT);
             final MetaServerLocator metaServerLocator = new MetaServerLocator(localConfig.getString(META_SERVER_ENDPOINT));
             BrokerRegisterService brokerRegisterService = new BrokerRegisterService(listenPort, metaServerLocator);
-            brokerRegisterService.start();
+            brokerRegisterService.acquireMeta();
             if (BrokerConfig.getBrokerRole() != BrokerRole.BACKUP) {
                 LOG.error("Config error,({})'s role is not backup.", NetworkUtils.getLocalHostname());
                 throw new IllegalArgumentException("Config error, the role is not backup");

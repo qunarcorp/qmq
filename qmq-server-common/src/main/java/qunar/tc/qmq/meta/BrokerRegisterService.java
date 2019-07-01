@@ -72,7 +72,7 @@ public class BrokerRegisterService implements Disposable {
         heartbeatScheduler.scheduleWithFixedDelay(this::heartbeat, 0, HEARTBEAT_DELAY_SECONDS, TimeUnit.SECONDS);
     }
 
-    private void acquireMeta() {
+    public void acquireMeta() {
         Datagram datagram = null;
         try {
             datagram = client.sendSync(endpoint, buildAcquireMetaDatagram(), TIMEOUT_MS);
