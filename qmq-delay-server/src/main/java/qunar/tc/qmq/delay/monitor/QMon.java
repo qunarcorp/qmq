@@ -69,8 +69,7 @@ public class QMon {
     }
 
     public static void receivedRetryMessagesCountInc(String subject) {
-        final String[] values = {subject};
-        countInc("receivedRetryMessagesCount", SUBJECT_ARRAY, values);
+        countInc("receivedRetryMessagesCount", SUBJECT_ARRAY, new String[] {subject});
     }
 
     public static void delayBrokerSendMsgCount(String groupName, String subject) {
@@ -110,8 +109,7 @@ public class QMon {
     }
 
     public static void receivedIllegalSubjectMessagesCountInc(String subject) {
-        final String[] values = {subject};
-        countInc("receivedIllegalSubjectMessagesCount", SUBJECT_ARRAY, values);
+        countInc("receivedIllegalSubjectMessagesCount", SUBJECT_ARRAY, new String[] {subject});
     }
 
     public static void loadSegmentFailed() {
@@ -120,5 +118,9 @@ public class QMon {
 
     public static void appendFailedByMessageIllegal(String subject) {
         countInc("appendMessageFailedByIllegal", subject);
+    }
+
+    public static void processTime(String subject, long time) {
+        Metrics.timer("processTime", SUBJECT_ARRAY, new String[] {subject}).update(time, TimeUnit.MILLISECONDS);
     }
 }
