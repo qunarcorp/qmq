@@ -75,6 +75,7 @@ public class IndexLogVisitor extends AbstractLogVisitor<MessageQueryIndex> {
 
         MessageQueryIndex index = new MessageQueryIndex(subject, messageId, sequence, createTime);
         incrVisitedBufferSize(buffer.position() - startPos);
+        index.setCurrentOffset(getStartOffset() + visitedBufferSize());
         return LogVisitorRecord.data(index);
     }
 

@@ -16,6 +16,22 @@
 
 package qunar.tc.qmq.backup.service.impl;
 
+import static qunar.tc.qmq.backup.config.DefaultBackupConfig.DEAD_RECORD_BACKUP_THREAD_SIZE_CONFIG_KEY;
+import static qunar.tc.qmq.backup.config.DefaultBackupConfig.DEFAULT_BACKUP_THREAD_SIZE;
+import static qunar.tc.qmq.backup.config.DefaultBackupConfig.DEFAULT_BATCH_SIZE;
+import static qunar.tc.qmq.backup.config.DefaultBackupConfig.DEFAULT_RETRY_NUM;
+import static qunar.tc.qmq.backup.config.DefaultBackupConfig.RECORD_BACKUP_RETRY_NUM_CONFIG_KEY;
+import static qunar.tc.qmq.backup.config.DefaultBackupConfig.RECORD_BATCH_SIZE_CONFIG_KEY;
+import static qunar.tc.qmq.metrics.MetricsConstants.EMPTY;
+import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_ARRAY;
+
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+
 import com.google.common.base.Throwables;
 import org.hbase.async.Bytes;
 import org.slf4j.Logger;
@@ -27,16 +43,6 @@ import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.store.MessageQueryIndex;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
-
-import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
-
-import static qunar.tc.qmq.backup.config.DefaultBackupConfig.*;
-import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_ARRAY;
 
 /**
  * @author xufeng.deng dennisdxf@gmail.com
@@ -53,8 +59,9 @@ public class DeadRecordBatchBackup extends AbstractBatchBackup<MessageQueryIndex
         super("deadRecordBackup", config);
         this.recordStore = recordStore;
         this.keyGenerator = keyGenerator;
-        this.executorService = Executors.newFixedThreadPool(config.getDynamicConfig().getInt(DEAD_RECORD_BACKUP_THREAD_SIZE_CONFIG_KEY, DEFAULT_BACKUP_THREAD_SIZE)
-                , new NamedThreadFactory("dead-record-backup"));
+        int threads = config.getDynamicConfig().getInt(DEAD_RECORD_BACKUP_THREAD_SIZE_CONFIG_KEY, DEFAULT_BACKUP_THREAD_SIZE);
+        this.executorService = new ThreadPoolExecutor(threads, threads, 60, TimeUnit.MINUTES, new LinkedBlockingQueue<Runnable>(1000)
+                , new NamedThreadFactory("dead-record-backup"), new ThreadPoolExecutor.DiscardOldestPolicy());
     }
 
     @Override
@@ -73,38 +80,23 @@ public class DeadRecordBatchBackup extends AbstractBatchBackup<MessageQueryIndex
 
     @Override
     protected void store(List<MessageQueryIndex> batch, Consumer<MessageQueryIndex> fi) {
-        try {
-            doStore(batch);
-        } catch (RejectedExecutionException e) {
-            LOGGER.error("dead record backup reject exec.", e);
-            retry(batch);
-        }
-    }
-
-    private void retry(List<MessageQueryIndex> batch) {
-        batch.forEach(this::retry);
-    }
-
-    private void retry(MessageQueryIndex message) {
-        final int tryStoreNum = message.getBackupRetryTimes();
-        if (tryStoreNum < retryNum()) {
-            monitorStoreRetry(message.getSubject());
-            message.setBackupRetryTimes(tryStoreNum + 1);
-            add(message, null);
-        } else {
-            monitorStoreDiscard(message.getSubject());
-            LOGGER.warn("record backup store discard. subject={}, messageId={}", message.getSubject(), message.getMessageId());
-        }
+        doStore(batch);
     }
 
     private void doStore(final List<MessageQueryIndex> batch) {
         executorService.execute(() -> {
-            try {
-                doBatchSaveBackupDeadRecord(batch);
-            } catch (Exception e) {
-                LOGGER.error("dead record backup store error.", e);
-                retry(batch);
+            for (int i = 0; i < retryNum(); ++i) {
+                try {
+                    doBatchSaveBackupDeadRecord(batch);
+                    return;
+                } catch (Exception e) {
+                    LOGGER.error("dead record backup store error.", e);
+                    monitorStoreRetry();
+                }
             }
+
+            monitorStoreDiscard();
+
         });
     }
 
@@ -148,16 +140,16 @@ public class DeadRecordBatchBackup extends AbstractBatchBackup<MessageQueryIndex
         return config.getInt(RECORD_BACKUP_RETRY_NUM_CONFIG_KEY, DEFAULT_RETRY_NUM);
     }
 
-    private void monitorStoreDiscard(String subject) {
-        Metrics.counter("dead_record_backup_store_discard", SUBJECT_ARRAY, new String[]{subject}).inc();
+    private void monitorStoreDiscard() {
+        Metrics.counter("dead_record_backup_store_discard", EMPTY, EMPTY).inc();
     }
 
     private void monitorStoreDeadDeadError(String subject) {
         Metrics.counter("dead_record_store_error", SUBJECT_ARRAY, new String[]{subject}).inc();
     }
 
-    private static void monitorStoreRetry(String subject) {
-        Metrics.counter("dead_record_backup_store_retry", SUBJECT_ARRAY, new String[]{subject}).inc();
+    private static void monitorStoreRetry() {
+        Metrics.counter("dead_record_backup_store_retry", EMPTY, EMPTY).inc();
     }
 
     @Override

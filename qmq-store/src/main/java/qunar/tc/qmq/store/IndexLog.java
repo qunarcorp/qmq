@@ -16,30 +16,45 @@
 
 package qunar.tc.qmq.store;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
-import io.netty.util.ReferenceCountUtil;
-import qunar.tc.qmq.metrics.Metrics;
+import static qunar.tc.qmq.store.AppendMessageStatus.END_OF_FILE;
+import static qunar.tc.qmq.store.AppendMessageStatus.SUCCESS;
 
 import java.io.File;
 import java.nio.ByteBuffer;
 import java.util.concurrent.TimeUnit;
 
-import static qunar.tc.qmq.store.AppendMessageStatus.END_OF_FILE;
-import static qunar.tc.qmq.store.AppendMessageStatus.SUCCESS;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
+import io.netty.util.ReferenceCountUtil;
+import qunar.tc.qmq.metrics.Metrics;
 
-public class IndexLog implements AutoCloseable {
+public class IndexLog implements AutoCloseable, Visitable<MessageQueryIndex> {
     private static final int PER_SEGMENT_FILE_SIZE = 1024 * 1024 * 1024;
 
     private final LogManager logManager;
     private final CheckpointManager checkpointManager;
 
-    private volatile long deleteTo;
+    private final PeriodicFlushService indexCommittedCheckpointFlusher;
+
+    private volatile long committed;
 
     public IndexLog(StorageConfig config, CheckpointManager checkpointManager) {
         this.logManager = new LogManager(new File(config.getIndexLogStorePath()), PER_SEGMENT_FILE_SIZE,
                 new MaxSequenceLogSegmentValidator(checkpointManager.getIndexCheckpointIndexOffset()));
         this.checkpointManager = checkpointManager;
+        this.committed = checkpointManager.getIndexIterateCheckpoint();
+        this.indexCommittedCheckpointFlusher = new PeriodicFlushService(new PeriodicFlushService.FlushProvider() {
+            @Override
+            public int getInterval() {
+                return 60 * 1000;
+            }
+
+            @Override
+            public void flush() {
+                checkpointManager.saveIndexIterateCheckpointSnapshot(new Snapshot<>(committed, committed));
+            }
+        });
+        indexCommittedCheckpointFlusher.start();
     }
 
     public void appendData(final long startOffset, final ByteBuf input) {
@@ -140,24 +155,26 @@ public class IndexLog implements AutoCloseable {
         return new IndexLogVisitor(logManager, start);
     }
 
+    @Override
+    public long getMinOffset() {
+        return logManager.getMinOffset();
+    }
+
+    @Override
+    public long getMaxOffset() {
+        return logManager.getMaxOffset();
+    }
+
     public long getMessageOffset() {
         return checkpointManager.getIndexCheckpointMessageOffset();
     }
 
     public void clean() {
-        logManager.deleteSegmentsBeforeOffset(deleteTo);
+        logManager.deleteSegmentsBeforeOffset(committed);
     }
 
-    public void setDeleteTo(long deleteTo) {
-        if (this.deleteTo < deleteTo) this.deleteTo = deleteTo;
-    }
-
-    public long maxOffset() {
-        return logManager.getMaxOffset();
-    }
-
-    public long minOffset() {
-        return logManager.getMinOffset();
+    public void commit(long offset) {
+        if (this.committed < offset) this.committed = offset;
     }
 
     public void flush() {
@@ -171,7 +188,7 @@ public class IndexLog implements AutoCloseable {
         checkpointManager.saveIndexCheckpointSnapshot(snapshot);
     }
 
-    @Override
+	@Override
     public void close() {
         logManager.close();
     }

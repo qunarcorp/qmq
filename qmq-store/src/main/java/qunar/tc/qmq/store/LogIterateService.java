@@ -40,7 +40,7 @@ public class LogIterateService<T> implements AutoCloseable {
     private final LongAdder iterateFrom;
     private volatile boolean stop = false;
 
-    LogIterateService(final String name, final StorageConfig config, final Visitable<T> visitable, final long checkpoint, final FixedExecOrderEventBus dispatcher) {
+    public LogIterateService(final String name, final StorageConfig config, final Visitable<T> visitable, final long checkpoint, final FixedExecOrderEventBus dispatcher) {
         this.name = name;
         this.config = config;
         this.visitable = visitable;

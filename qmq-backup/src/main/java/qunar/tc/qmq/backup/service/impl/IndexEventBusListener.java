@@ -61,15 +61,15 @@ public class IndexEventBusListener implements FixedExecOrderEventBus.Listener<Me
         // handle message attributes
         if (RetrySubjectUtils.isDeadRetrySubject(index.getSubject())) {
             // additionally, generate a consume record
-            saveDeadMessage(index, consumer);
+            saveDeadMessage(index);
             return;
         }
         // indexBatchBackup
         indexBatchBackup.add(index, consumer);
     }
 
-    private void saveDeadMessage(MessageQueryIndex message, Consumer<MessageQueryIndex> consumer) {
-        deadMessageBatchBackup.add(message, consumer);
+    private void saveDeadMessage(MessageQueryIndex message) {
+        deadMessageBatchBackup.add(message, null);
         deadRecordBatchBackup.add(message, null);
     }
 
