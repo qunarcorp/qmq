@@ -130,10 +130,10 @@ public class MessageServiceImpl implements MessageService, Disposable {
                     final long sequence = query.getSequence();
                     final BackupMessageMeta meta = new BackupMessageMeta(sequence, brokerGroup, "");
                     final List<BackupMessage> messages = retrieveMessageWithMeta(brokerGroup, subject, Lists.newArrayList(meta));
-                    if (messages.isEmpty()) {
-                        future.complete(null);
+                    BackupMessage message = null;
+                    if (!messages.isEmpty()) {
+                        message = messages.get(0);
                     }
-                    final BackupMessage message = messages.get(0);
                     future.complete(message);
                 } catch (Exception e) {
                     LOG.error("Failed to find message details. {} ", query, e);

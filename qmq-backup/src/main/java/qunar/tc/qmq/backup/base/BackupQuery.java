@@ -59,7 +59,7 @@ public class BackupQuery implements Serializable {
 
     private long sequence;
 
-    private Serializable start;
+    private String start;
 
     private int len;
 
@@ -143,11 +143,11 @@ public class BackupQuery implements Serializable {
         this.sequence = sequence;
     }
 
-    public Serializable getStart() {
+    public String getStart() {
         return start;
     }
 
-    public void setStart(Serializable start) {
+    public void setStart(String start) {
         this.start = start;
     }
 
