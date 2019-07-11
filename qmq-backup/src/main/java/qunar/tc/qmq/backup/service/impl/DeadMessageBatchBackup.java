@@ -16,24 +16,6 @@
 
 package qunar.tc.qmq.backup.service.impl;
 
-import static qunar.tc.qmq.backup.config.DefaultBackupConfig.DEAD_MESSAGE_BACKUP_THREAD_SIZE_CONFIG_KEY;
-import static qunar.tc.qmq.backup.config.DefaultBackupConfig.DEFAULT_BACKUP_THREAD_SIZE;
-import static qunar.tc.qmq.backup.config.DefaultBackupConfig.DEFAULT_BATCH_SIZE;
-import static qunar.tc.qmq.backup.config.DefaultBackupConfig.DEFAULT_RETRY_NUM;
-import static qunar.tc.qmq.backup.config.DefaultBackupConfig.MESSAGE_BATCH_SIZE_CONFIG_KEY;
-import static qunar.tc.qmq.backup.config.DefaultBackupConfig.MESSAGE_RETRY_NUM_CONFIG_KEY;
-import static qunar.tc.qmq.metrics.MetricsConstants.EMPTY;
-import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_ARRAY;
-import static qunar.tc.qmq.utils.RetrySubjectUtils.getConsumerGroup;
-
-import java.util.Date;
-import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
-
 import com.google.common.base.Throwables;
 import org.hbase.async.Bytes;
 import org.slf4j.Logger;
@@ -45,6 +27,19 @@ import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.store.MessageQueryIndex;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
+
+import java.util.Date;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+
+import static qunar.tc.qmq.backup.config.DefaultBackupConfig.*;
+import static qunar.tc.qmq.metrics.MetricsConstants.EMPTY;
+import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_ARRAY;
+import static qunar.tc.qmq.utils.RetrySubjectUtils.getConsumerGroup;
 
 /**
  * @author xufeng.deng dennisdxf@gmail.com
@@ -119,13 +114,13 @@ public class DeadMessageBatchBackup extends AbstractBatchBackup<MessageQueryInde
                     final Date createTime = new Date();
                     final byte[] key = keyGenerator.generateDeadMessageKey(realSubject, messageId, consumerGroup, createTime);
                     final byte[] messageIdBytes = Bytes.UTF8(messageId);
-                    final int messageIdLength = messageIdBytes.length;
-                    final byte[] value = new byte[16 + brokerGroupLength + messageIdLength];
+
+                    final byte[] value = new byte[20 + brokerGroupLength + messageIdBytes.length];
                     Bytes.setLong(value, index.getSequence(), 0);
-                    Bytes.setInt(value, brokerGroupLength, 8);
-                    System.arraycopy(brokerGroupBytes, 0, value, 12, brokerGroupLength);
-                    Bytes.setInt(value, messageIdLength, 12 + brokerGroupLength);
-                    System.arraycopy(messageIdBytes, 0, value, 16 + brokerGroupLength, messageIdLength);
+                    Bytes.setLong(value, index.getCreateTime(), 8);
+                    Bytes.setInt(value, brokerGroupLength, 16);
+                    System.arraycopy(brokerGroupBytes, 0, value, 20, brokerGroupLength);
+                    System.arraycopy(messageIdBytes, 0, value, 20 + brokerGroupLength, messageIdBytes.length);
 
                     final byte[][] recordValue = new byte[][]{value};
                     recordKeys[i] = key;
