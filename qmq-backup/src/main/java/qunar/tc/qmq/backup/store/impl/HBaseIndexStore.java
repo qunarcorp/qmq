@@ -43,7 +43,7 @@ public class HBaseIndexStore extends AbstractHBaseMessageStore {
         final Date msgCreateTimeBegin = query.getMsgCreateTimeBegin();
         final Date msgCreateTimeEnd = query.getMsgCreateTimeEnd();
         final int len = query.getLen();
-        final String start = (String) query.getStart();
+        final String start = query.getStart();
         final String messageId = query.getMessageId();
         String subjectId;
         byte[] table;

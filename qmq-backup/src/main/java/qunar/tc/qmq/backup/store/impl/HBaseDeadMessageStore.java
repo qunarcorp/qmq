@@ -44,7 +44,7 @@ public class HBaseDeadMessageStore extends AbstractHBaseMessageStore implements 
         final Date msgCreateTimeBegin = query.getMsgCreateTimeBegin();
         final Date msgCreateTimeEnd = query.getMsgCreateTimeEnd();
         final int len = 200;
-        final String start = (String) query.getStart();
+        final String start = query.getStart();
         final String consumerGroup = query.getConsumerGroup();
 
         final String subjectId = dicService.name2Id(subject);
