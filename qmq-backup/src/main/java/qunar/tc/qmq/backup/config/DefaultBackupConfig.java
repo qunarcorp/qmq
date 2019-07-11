@@ -33,6 +33,10 @@ public class DefaultBackupConfig implements BackupConfig {
     public static final String DEFAULT_STORE_FACTORY_TYPE = "hbase";
     public static final int DEFAULT_ROCKS_DB_TTL = 7200;
 
+    public static final String HBASE_MESSAGE_INDEX_TABLE_CONFIG_KEY = "hbase.message.table";
+    public static final String HBASE_DELAY_MESSAGE_INDEX_TABLE_CONFIG_KEY = "hbase.delay.message.table";
+    public static final String HBASE_RECORD_TABLE_CONFIG_KEY = "hbase.record.table";
+    public static final String HBASE_DEAD_MESSAGE_CONFIG_KEY = "hbase.dead.table";
     public static final String SYNC_OFFSET_FLUSH_INTERVAL_CONFIG_KEY = "sync.offset.flush.interval";
     public static final String MESSAGE_BATCH_SIZE_CONFIG_KEY = "message.backup.batch.size";
     public static final String MESSAGE_RETRY_NUM_CONFIG_KEY = "message.backup.max.retry.num";
