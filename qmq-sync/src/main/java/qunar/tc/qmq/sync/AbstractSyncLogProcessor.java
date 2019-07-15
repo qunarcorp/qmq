@@ -17,8 +17,6 @@
 package qunar.tc.qmq.sync;
 
 import io.netty.buffer.ByteBuf;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.protocol.Datagram;
 
 /**
@@ -26,16 +24,11 @@ import qunar.tc.qmq.protocol.Datagram;
  * @since 2017/8/19
  */
 public abstract class AbstractSyncLogProcessor implements SyncLogProcessor {
-    private static final Logger LOG = LoggerFactory.getLogger(AbstractSyncLogProcessor.class);
 
     @Override
     public void process(Datagram datagram) {
         final ByteBuf body = datagram.getBody();
-        final int size = body.readInt();
-        if (size == 0) {
-            LOG.debug("sync data empty");
-            return;
-        }
+        body.readInt();
         final long startOffset = body.readLong();
         appendLogs(startOffset, body);
     }
