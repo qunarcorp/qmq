@@ -68,7 +68,6 @@ public class DefaultMessageStore implements MessageStore {
         this.insertStatementFactory = createFactory();
         this.gson = new GsonBuilder().setLongSerializationPolicy(LongSerializationPolicy.STRING).create();
         this.routerSelector = routerSelector;
-        this.sqlStatementProvider = new DefaultSqlStatementProvider();
     }
 
     @Override
