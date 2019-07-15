@@ -61,7 +61,7 @@ abstract class AbstractLogSyncWorker implements SyncProcessor {
     public void process(SyncRequestEntry entry) {
         final SyncRequest syncRequest = entry.getSyncRequest();
         final SegmentBuffer result = getSyncLog(syncRequest);
-        if (result == null || result.getSize() <= 0) {
+		if (result == null) {
             final long timeout = config.getLong("message.sync.timeout.ms", 10L);
             ServerTimerUtil.newTimeout(new SyncRequestTimeoutTask(entry, this), timeout, TimeUnit.MILLISECONDS);
             return;
