@@ -43,6 +43,7 @@ import qunar.tc.qmq.backup.service.SyncLogIterator;
 import qunar.tc.qmq.backup.service.impl.ActionSyncLogIterator;
 import qunar.tc.qmq.backup.service.impl.DbDicService;
 import qunar.tc.qmq.backup.service.impl.DeadMessageBatchBackup;
+import qunar.tc.qmq.backup.service.impl.DeadMessageContentBatchBackup;
 import qunar.tc.qmq.backup.service.impl.DeadRecordBatchBackup;
 import qunar.tc.qmq.backup.service.impl.IndexEventBusListener;
 import qunar.tc.qmq.backup.service.impl.IndexFileStore;
@@ -92,6 +93,7 @@ public class ServerWrapper implements Disposable {
     private RecordStore recordStore;
     private MessageStore indexStore;
     private MessageStore deadMessageStore;
+    private MessageStore deadMessageContentStore;
 
     private MessageService messageService;
 
@@ -139,8 +141,11 @@ public class ServerWrapper implements Disposable {
         this.indexStore = factory.createMessageIndexStore();
         this.recordStore = factory.createRecordStore();
         this.deadMessageStore = factory.createDeadMessageStore();
+        this.deadMessageContentStore = factory.createDeadMessageContentStore();
         IndexLog log = new IndexLog(storageConfig, checkpointManager);
         final IndexLogSyncDispatcher dispatcher = new IndexLogSyncDispatcher(log);
+
+        messageService = new MessageServiceImpl(config, indexStore, deadMessageStore, recordStore);
 
         FixedExecOrderEventBus.Listener<MessageQueryIndex> indexProcessor = getConstructIndexListener(keyGenerator
                 , messageQueryIndex -> log.commit(messageQueryIndex.getCurrentOffset()));
@@ -163,7 +168,6 @@ public class ServerWrapper implements Disposable {
         IndexFileStore indexFileStore = new IndexFileStore(log, config);
         scheduleFlushManager.register(indexFileStore);
 
-        messageService = new MessageServiceImpl(config, indexStore, deadMessageStore, recordStore);
 
         scheduleFlushManager.scheduleFlush();
         backupManager.start();
@@ -189,11 +193,18 @@ public class ServerWrapper implements Disposable {
     private FixedExecOrderEventBus.Listener<MessageQueryIndex> getConstructIndexListener(final BackupKeyGenerator keyGenerator, Consumer<MessageQueryIndex> consumer) {
         final BatchBackup<MessageQueryIndex> deadRecordBackup = new DeadRecordBatchBackup(recordStore, keyGenerator, config);
         backupManager.registerBatchBackup(deadRecordBackup);
+
         final BatchBackup<MessageQueryIndex> deadMessageBackup = new DeadMessageBatchBackup(deadMessageStore, keyGenerator, config);
         backupManager.registerBatchBackup(deadMessageBackup);
+
+        final BatchBackup<MessageQueryIndex> deadMessageContentBackup = new DeadMessageContentBatchBackup(deadMessageContentStore, keyGenerator, config, messageService);
+        backupManager.registerBatchBackup(deadMessageContentBackup);
+
         final BatchBackup<MessageQueryIndex> indexBackup = new MessageIndexBatchBackup(config, indexStore, keyGenerator);
         backupManager.registerBatchBackup(indexBackup);
-        return new IndexEventBusListener(deadMessageBackup, deadRecordBackup, indexBackup, consumer);
+
+
+        return new IndexEventBusListener(deadMessageBackup, deadMessageContentBackup, deadRecordBackup, indexBackup, consumer);
     }
 
     private void addResourcesInOrder(Disposable resource, Disposable... resources) {

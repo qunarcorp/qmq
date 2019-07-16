@@ -16,6 +16,25 @@
 
 package qunar.tc.qmq.backup.store.impl;
 
+import static qunar.tc.qmq.backup.config.DefaultBackupConfig.DEFAULT_HBASE_CONFIG_FILE;
+import static qunar.tc.qmq.backup.config.DefaultBackupConfig.DEFAULT_HBASE_DEAD_CONTENT_TABLE;
+import static qunar.tc.qmq.backup.config.DefaultBackupConfig.DEFAULT_HBASE_DEAD_TABLE;
+import static qunar.tc.qmq.backup.config.DefaultBackupConfig.DEFAULT_HBASE_DELAY_MESSAGE_INDEX_TABLE;
+import static qunar.tc.qmq.backup.config.DefaultBackupConfig.DEFAULT_HBASE_MESSAGE_INDEX_TABLE;
+import static qunar.tc.qmq.backup.config.DefaultBackupConfig.DEFAULT_HBASE_RECORD_TABLE;
+import static qunar.tc.qmq.backup.config.DefaultBackupConfig.HBASE_DEAD_MESSAGE_CONFIG_KEY;
+import static qunar.tc.qmq.backup.config.DefaultBackupConfig.HBASE_DEAD_MESSAGE_CONTENT_CONFIG_KEY;
+import static qunar.tc.qmq.backup.config.DefaultBackupConfig.HBASE_DELAY_MESSAGE_INDEX_TABLE_CONFIG_KEY;
+import static qunar.tc.qmq.backup.config.DefaultBackupConfig.HBASE_MESSAGE_INDEX_TABLE_CONFIG_KEY;
+import static qunar.tc.qmq.backup.config.DefaultBackupConfig.HBASE_RECORD_TABLE_CONFIG_KEY;
+import static qunar.tc.qmq.backup.store.impl.AbstractHBaseStore.B_FAMILY;
+import static qunar.tc.qmq.backup.store.impl.AbstractHBaseStore.B_MESSAGE_QUALIFIERS;
+import static qunar.tc.qmq.backup.store.impl.AbstractHBaseStore.B_RECORD_QUALIFIERS;
+import static qunar.tc.qmq.backup.store.impl.AbstractHBaseStore.R_FAMILY;
+
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
 import org.hbase.async.Config;
 import org.hbase.async.HBaseClient;
 import qunar.tc.qmq.backup.service.BackupKeyGenerator;
@@ -26,12 +45,6 @@ import qunar.tc.qmq.backup.store.RecordStore;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.configuration.DynamicConfigLoader;
 import qunar.tc.qmq.utils.CharsetUtils;
-
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
-
-import static qunar.tc.qmq.backup.config.DefaultBackupConfig.*;
-import static qunar.tc.qmq.backup.store.impl.AbstractHBaseStore.*;
 
 /**
  * @author xufeng.deng dennisdxf@gmail.com
@@ -47,6 +60,7 @@ public class HBaseStoreFactory implements KvStore.StoreFactory {
     private final String delayTable;
     private final String recordTable;
     private final String deadTable;
+    private final String deadContentTable;
 
     private final DicService dicService;
     private final BackupKeyGenerator keyGenerator;
@@ -61,6 +75,7 @@ public class HBaseStoreFactory implements KvStore.StoreFactory {
         this.delayTable = config.getString(HBASE_DELAY_MESSAGE_INDEX_TABLE_CONFIG_KEY, DEFAULT_HBASE_DELAY_MESSAGE_INDEX_TABLE);
         this.recordTable = config.getString(HBASE_RECORD_TABLE_CONFIG_KEY, DEFAULT_HBASE_RECORD_TABLE);
         this.deadTable = config.getString(HBASE_DEAD_MESSAGE_CONFIG_KEY, DEFAULT_HBASE_DEAD_TABLE);
+        this.deadContentTable = config.getString(HBASE_DEAD_MESSAGE_CONTENT_CONFIG_KEY, DEFAULT_HBASE_DEAD_CONTENT_TABLE);
 
         this.dicService = dicService;
         this.keyGenerator = keyGenerator;
@@ -92,5 +107,11 @@ public class HBaseStoreFactory implements KvStore.StoreFactory {
     public MessageStore createDeadMessageStore() {
         byte[] table = CharsetUtils.toUTF8Bytes(deadTable);
         return new HBaseDeadMessageStore(table, B_FAMILY, B_MESSAGE_QUALIFIERS, client, dicService);
+    }
+
+    @Override
+    public MessageStore createDeadMessageContentStore() {
+        byte[] table = CharsetUtils.toUTF8Bytes(deadContentTable);
+        return new HBaseDeadMessageContentStore(table, B_FAMILY, B_MESSAGE_QUALIFIERS, client, dicService);
     }
 }

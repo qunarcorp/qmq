@@ -28,6 +28,7 @@ import static qunar.tc.qmq.utils.RetrySubjectUtils.getConsumerGroup;
 
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -36,10 +37,13 @@ import java.util.function.Consumer;
 
 import com.google.common.base.Throwables;
 import org.hbase.async.Bytes;
+import org.jboss.netty.util.CharsetUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.backup.base.BackupQuery;
 import qunar.tc.qmq.backup.config.BackupConfig;
 import qunar.tc.qmq.backup.service.BackupKeyGenerator;
+import qunar.tc.qmq.backup.service.MessageService;
 import qunar.tc.qmq.backup.store.KvStore;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.metrics.Metrics;
@@ -50,17 +54,20 @@ import qunar.tc.qmq.utils.RetrySubjectUtils;
  * @author xufeng.deng dennisdxf@gmail.com
  * @since 2018-12-10 16:53
  */
-public class DeadMessageBatchBackup extends AbstractBatchBackup<MessageQueryIndex> {
-    private static final Logger LOGGER = LoggerFactory.getLogger(DeadMessageBatchBackup.class);
+public class DeadMessageContentBatchBackup extends AbstractBatchBackup<MessageQueryIndex> {
+    private static final Logger LOGGER = LoggerFactory.getLogger(DeadMessageContentBatchBackup.class);
 
     private final KvStore deadMessageStore;
     private final ExecutorService executorService;
     private final BackupKeyGenerator keyGenerator;
+    private final MessageService messageService;
 
-    public DeadMessageBatchBackup(KvStore deadMessageStore, BackupKeyGenerator keyGenerator, BackupConfig config) {
-        super("deadMessageBackup", config);
+
+    public DeadMessageContentBatchBackup(KvStore deadMessageStore, BackupKeyGenerator keyGenerator, BackupConfig config, MessageService messageService) {
+        super("deadMessageContentBackup", config);
         this.deadMessageStore = deadMessageStore;
         this.keyGenerator = keyGenerator;
+        this.messageService = messageService;
         int threads = config.getDynamicConfig().getInt(DEAD_MESSAGE_BACKUP_THREAD_SIZE_CONFIG_KEY, DEFAULT_BACKUP_THREAD_SIZE);
         this.executorService = new ThreadPoolExecutor(threads, threads, 60, TimeUnit.MINUTES, new LinkedBlockingQueue<>(1000)
                 , new NamedThreadFactory("dead-message-backup"), new ThreadPoolExecutor.CallerRunsPolicy());
@@ -71,7 +78,7 @@ public class DeadMessageBatchBackup extends AbstractBatchBackup<MessageQueryInde
         try {
             executorService.awaitTermination(5, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
-            LOGGER.error("dead message backup close interrupted.", e);
+            LOGGER.error("dead message content backup close interrupted.", e);
         }
         try {
             if (deadMessageStore != null) deadMessageStore.close();
@@ -110,22 +117,26 @@ public class DeadMessageBatchBackup extends AbstractBatchBackup<MessageQueryInde
             for (int i = 0; i < indexes.size(); ++i) {
                 MessageQueryIndex index = indexes.get(i);
                 String subject = index.getSubject();
+
+                BackupQuery query = new BackupQuery();
+                query.setSubject(subject);
+                query.setBrokerGroup(new String(brokerGroupBytes, CharsetUtil.UTF_8));
+                query.setSequence(index.getSequence());
+
+                CompletableFuture<byte[]> future = messageService.findMessageBytes(query);
+
+
                 try {
                     monitorDeadMessageQps(subject);
-
+                    LOGGER.info("backup dead msg content, subject: {}", subject);
                     final String realSubject = RetrySubjectUtils.getRealSubject(subject);
                     final String messageId = index.getMessageId();
                     final String consumerGroup = getConsumerGroup(subject);
                     final Date createTime = new Date();
                     final byte[] key = keyGenerator.generateDeadMessageKey(realSubject, messageId, consumerGroup, createTime);
-                    final byte[] messageIdBytes = Bytes.UTF8(messageId);
 
-                    final byte[] value = new byte[20 + brokerGroupLength + messageIdBytes.length];
-                    Bytes.setLong(value, index.getSequence(), 0);
-                    Bytes.setLong(value, index.getCreateTime(), 8);
-                    Bytes.setInt(value, brokerGroupLength, 16);
-                    System.arraycopy(brokerGroupBytes, 0, value, 20, brokerGroupLength);
-                    System.arraycopy(messageIdBytes, 0, value, 20 + brokerGroupLength, messageIdBytes.length);
+                    byte[] value = future.get(1, TimeUnit.SECONDS);
+
 
                     final byte[][] recordValue = new byte[][]{value};
                     recordKeys[i] = key;
@@ -144,7 +155,7 @@ public class DeadMessageBatchBackup extends AbstractBatchBackup<MessageQueryInde
             LOGGER.error("put backup dead message fail.", e);
             Throwables.propagate(e);
         } finally {
-            Metrics.timer("BatchBackup.Store.Timer", TYPE_ARRAY, DEAD_MESSAGE_TYPE).update(System.currentTimeMillis() - currentTime, TimeUnit.MILLISECONDS);
+            Metrics.timer("BatchBackup.Store.Timer", TYPE_ARRAY, DEAD_MESSAGE_CONTENT_TYPE).update(System.currentTimeMillis() - currentTime, TimeUnit.MILLISECONDS);
         }
     }
 
@@ -153,19 +164,19 @@ public class DeadMessageBatchBackup extends AbstractBatchBackup<MessageQueryInde
     }
 
     private static void monitorDeadMessageError(String subject) {
-        Metrics.counter("dead_message_store_error", SUBJECT_ARRAY, new String[]{subject}).inc();
+        Metrics.counter("dead_message_content_store_error", SUBJECT_ARRAY, new String[]{subject}).inc();
     }
 
 	private static void monitorStoreDiscard() {
-		Metrics.counter("dead_message_backup_store_discard", EMPTY, EMPTY).inc();
+		Metrics.counter("dead_message_content_backup_store_discard", EMPTY, EMPTY).inc();
 	}
 
     private static void monitorDeadMessageQps(String subject) {
-        Metrics.meter("backup.dead.message.qps", SUBJECT_ARRAY, new String[]{subject}).mark();
+        Metrics.meter("backup.dead.message.content.qps", SUBJECT_ARRAY, new String[]{subject}).mark();
     }
 
     private static void monitorStoreRetry() {
-		Metrics.counter("dead_message_backup_store_retry", EMPTY, EMPTY).inc();
+		Metrics.counter("dead_message_content_backup_store_retry", EMPTY, EMPTY).inc();
     }
 
     @Override

@@ -33,15 +33,18 @@ import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_ARRAY;
  */
 public class IndexEventBusListener implements FixedExecOrderEventBus.Listener<MessageQueryIndex> {
     private final BatchBackup<MessageQueryIndex> deadMessageBatchBackup;
+    private final BatchBackup<MessageQueryIndex> deadMessageContentBatchBackup;
     private final BatchBackup<MessageQueryIndex> deadRecordBatchBackup;
     private final BatchBackup<MessageQueryIndex> indexBatchBackup;
     private final Consumer<MessageQueryIndex> consumer;
 
     public IndexEventBusListener(BatchBackup<MessageQueryIndex> deadMessageBatchBackup,
-                                 BatchBackup<MessageQueryIndex> deadRecordBatchBackup,
-                                 BatchBackup<MessageQueryIndex> indexBatchBackup,
-                                 Consumer<MessageQueryIndex> consumer) {
+            BatchBackup<MessageQueryIndex> deadMessageContentBatchBackup,
+            BatchBackup<MessageQueryIndex> deadRecordBatchBackup,
+            BatchBackup<MessageQueryIndex> indexBatchBackup,
+            Consumer<MessageQueryIndex> consumer) {
         this.deadMessageBatchBackup = deadMessageBatchBackup;
+        this.deadMessageContentBatchBackup = deadMessageContentBatchBackup;
         this.deadRecordBatchBackup = deadRecordBatchBackup;
         this.indexBatchBackup = indexBatchBackup;
         this.consumer = consumer;
@@ -71,6 +74,7 @@ public class IndexEventBusListener implements FixedExecOrderEventBus.Listener<Me
     private void saveDeadMessage(MessageQueryIndex message) {
         deadMessageBatchBackup.add(message, null);
         deadRecordBatchBackup.add(message, null);
+        deadMessageContentBatchBackup.add(message, null);
     }
 
     private static boolean isInvisible(String subject) {

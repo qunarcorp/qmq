@@ -44,12 +44,25 @@ public class BackupMessageKeyRangeBuilder {
         return start;
     }
 
+    public static String buildDeadContentStartKey(String start, String subjectId, String consumerGroupId, String messageId, Date msgCreateTimeEnd) {
+        if (Strings.isNullOrEmpty(start)) return buildDeadContentKey(subjectId, consumerGroupId, messageId, msgCreateTimeEnd);
+        return start;
+    }
+
     public static String buildDeadEndKey(String subjectId, String consumerGroupId, Date msgCreateTimeBegin) {
         return buildDeadKey(subjectId, consumerGroupId, msgCreateTimeBegin);
     }
 
+    public static String buildDeadContentEndKey(String subjectId, String consumerGroupId, String messageId, Date msgCreateTimeBegin) {
+        return buildDeadContentKey(subjectId, consumerGroupId, messageId, msgCreateTimeBegin);
+    }
+
     private static String buildDeadKey(String subjectId, String consumerGroupId, Date msgCreateTime) {
         return subjectId + consumerGroupId + generateDateKey(msgCreateTime);
+    }
+
+    private static String buildDeadContentKey(String subjectId, String consumerGroupId, String messageId, Date msgCreateTime) {
+        return subjectId + consumerGroupId + generateDateKey(msgCreateTime) + messageId;
     }
 
     public static String buildDeadRecordStartKey(String subjectId, String messageId) {
