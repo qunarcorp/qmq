@@ -41,8 +41,14 @@ public class BackupMessageKeyRegexpBuilder {
     }
 
     public static String buildDeadContentRegexp(String subjectId, String consumerGroupId, String messageId) {
-        if (Strings.isNullOrEmpty(subjectId)|| Strings.isNullOrEmpty(consumerGroupId) || Strings.isNullOrEmpty(messageId))
-            throw new RuntimeException("Subject , ConsumerGroup And MessageId Needed.");
+        if (Strings.isNullOrEmpty(subjectId)|| Strings.isNullOrEmpty(consumerGroupId)) {
+            throw new RuntimeException("Subject , ConsumerGroup Needed.");
+        }
+
+        if (Strings.isNullOrEmpty(messageId)) {
+            return "^" + subjectId + consumerGroupId + "\\d{12}" + "\\w{32}";
+        }
+
         return "^" + subjectId +  consumerGroupId + "\\d{12}" + generateMD5Key(messageId);
     }
 
