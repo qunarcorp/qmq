@@ -21,8 +21,13 @@ import static qunar.tc.qmq.store.AppendMessageStatus.SUCCESS;
 
 import java.io.File;
 import java.nio.ByteBuffer;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Maps;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.util.ReferenceCountUtil;
@@ -32,17 +37,24 @@ public class IndexLog implements AutoCloseable, Visitable<MessageQueryIndex> {
     private static final int PER_SEGMENT_FILE_SIZE = 1024 * 1024 * 1024;
 
     private final LogManager logManager;
-    private final CheckpointManager checkpointManager;
+    private final CheckpointManager indexCheckpointManager;
 
     private final PeriodicFlushService indexCommittedCheckpointFlusher;
 
-    private volatile long committed;
+    private Map<CheckpointManager, CheckpointRecorder> iteratorCheckpointRecorderMap;
 
-    public IndexLog(StorageConfig config, CheckpointManager checkpointManager) {
+    public IndexLog(StorageConfig config, CheckpointManager indexCheckpointManager, List<CheckpointManager> iterateCheckpointManagers) {
+
+        Preconditions.checkNotNull(iterateCheckpointManagers, "iterateCheckpointManagers should not be null!");
+
         this.logManager = new LogManager(new File(config.getIndexLogStorePath()), PER_SEGMENT_FILE_SIZE,
-                new MaxSequenceLogSegmentValidator(checkpointManager.getIndexCheckpointIndexOffset()));
-        this.checkpointManager = checkpointManager;
-        this.committed = checkpointManager.getIndexIterateCheckpoint();
+                new MaxSequenceLogSegmentValidator(indexCheckpointManager.getIndexCheckpointIndexOffset()));
+        this.indexCheckpointManager = indexCheckpointManager;
+        iteratorCheckpointRecorderMap = Maps.newHashMap();
+        iterateCheckpointManagers.forEach(x->{
+            iteratorCheckpointRecorderMap.put(x, new CheckpointRecorder(x, x.getIndexIterateCheckpoint()));
+        });
+
         this.indexCommittedCheckpointFlusher = new PeriodicFlushService(new PeriodicFlushService.FlushProvider() {
             @Override
             public int getInterval() {
@@ -51,15 +63,28 @@ public class IndexLog implements AutoCloseable, Visitable<MessageQueryIndex> {
 
             @Override
             public void flush() {
-                checkpointManager.saveIndexIterateCheckpointSnapshot(new Snapshot<>(committed, committed));
+                for (CheckpointRecorder recorder : iteratorCheckpointRecorderMap.values()) {
+                    long committed = recorder.committed.get();
+                    recorder.checkpointManager.saveIndexIterateCheckpointSnapshot(new Snapshot<>(committed, committed));
+                }
             }
         });
         indexCommittedCheckpointFlusher.start();
     }
 
+    private static class CheckpointRecorder {
+        private CheckpointManager checkpointManager;
+        private AtomicLong committed;
+
+        public CheckpointRecorder(CheckpointManager checkpointManager, long committed) {
+            this.checkpointManager = checkpointManager;
+            this.committed = new AtomicLong(committed);
+        }
+    }
+
     public void appendData(final long startOffset, final ByteBuf input) {
         if (!input.isReadable()) {
-            checkpointManager.updateMessageIndexCheckpoint(startOffset);
+            indexCheckpointManager.updateMessageIndexCheckpoint(startOffset);
             return;
         }
 
@@ -67,7 +92,7 @@ public class IndexLog implements AutoCloseable, Visitable<MessageQueryIndex> {
     }
 
     private void appendData(final long startOffset, final ByteBuffer data) {
-        final long indexOffset = checkpointManager.getIndexCheckpointIndexOffset();
+        final long indexOffset = indexCheckpointManager.getIndexCheckpointIndexOffset();
         LogSegment segment = logManager.locateSegment(indexOffset);
         if (segment == null) {
             segment = logManager.allocOrResetSegments(indexOffset);
@@ -76,13 +101,13 @@ public class IndexLog implements AutoCloseable, Visitable<MessageQueryIndex> {
         final AppendMessageResult result = doAppendData(segment, data);
         switch (result.getStatus()) {
             case SUCCESS:
-                checkpointManager.updateIndexCheckpoint(startOffset, result.getWroteOffset());
+                indexCheckpointManager.updateIndexCheckpoint(startOffset, result.getWroteOffset());
                 break;
             case END_OF_FILE:
                 if (logManager.allocNextSegment() == null) {
                     return;
                 }
-                checkpointManager.updateIndexLogCheckpoint(result.getWroteOffset());
+                indexCheckpointManager.updateIndexLogCheckpoint(result.getWroteOffset());
                 appendData(startOffset, data);
         }
     }
@@ -166,26 +191,45 @@ public class IndexLog implements AutoCloseable, Visitable<MessageQueryIndex> {
     }
 
     public long getMessageOffset() {
-        return checkpointManager.getIndexCheckpointMessageOffset();
+        return indexCheckpointManager.getIndexCheckpointMessageOffset();
     }
 
     public void clean() {
-        logManager.deleteSegmentsBeforeOffset(committed);
+
+        long minCommitted = Long.MAX_VALUE;
+
+        for (CheckpointRecorder recorder : iteratorCheckpointRecorderMap.values()) {
+            long committed = recorder.committed.get();
+            if (committed < minCommitted) {
+                minCommitted = committed;
+            }
+        }
+
+        logManager.deleteSegmentsBeforeOffset(minCommitted);
     }
 
-    public void commit(long offset) {
-        if (this.committed < offset) this.committed = offset;
+    public void commit(CheckpointManager iterateCheckpointManager, long offset) {
+
+        CheckpointRecorder checkpointRecorder = iteratorCheckpointRecorderMap.get(iterateCheckpointManager);
+        if (checkpointRecorder == null) {
+            throw new RuntimeException("iterateCheckpointManager not exist!");
+        }
+
+        long current = checkpointRecorder.committed.get();
+        if (current < offset) {
+            checkpointRecorder.committed.compareAndSet(current, offset);
+        }
     }
 
     public void flush() {
         long currentTime = System.currentTimeMillis();
-        final Snapshot<IndexCheckpoint> snapshot = checkpointManager.createIndexCheckpoint();
+        final Snapshot<IndexCheckpoint> snapshot = indexCheckpointManager.createIndexCheckpoint();
         try {
             logManager.flush();
         } finally {
             Metrics.timer("Store.IndexLog.FlushTimer").update(System.currentTimeMillis() - currentTime, TimeUnit.MILLISECONDS);
         }
-        checkpointManager.saveIndexCheckpointSnapshot(snapshot);
+        indexCheckpointManager.saveIndexCheckpointSnapshot(snapshot);
     }
 
 	@Override

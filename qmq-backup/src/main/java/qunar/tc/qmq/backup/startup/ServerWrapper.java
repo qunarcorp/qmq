@@ -44,6 +44,7 @@ import qunar.tc.qmq.backup.service.impl.ActionSyncLogIterator;
 import qunar.tc.qmq.backup.service.impl.DbDicService;
 import qunar.tc.qmq.backup.service.impl.DeadMessageBatchBackup;
 import qunar.tc.qmq.backup.service.impl.DeadMessageContentBatchBackup;
+import qunar.tc.qmq.backup.service.impl.DeadMsgEventBusListener;
 import qunar.tc.qmq.backup.service.impl.DeadRecordBatchBackup;
 import qunar.tc.qmq.backup.service.impl.IndexEventBusListener;
 import qunar.tc.qmq.backup.service.impl.IndexFileStore;
@@ -85,6 +86,7 @@ public class ServerWrapper implements Disposable {
     private static final Logger LOG = LoggerFactory.getLogger(ServerWrapper.class);
 
     private final BackupConfig config;
+    private final BackupConfig deadConfig;
     private final DicService dicService;
     private final List<Disposable> resources;
     private final BatchBackupManager backupManager;
@@ -97,8 +99,11 @@ public class ServerWrapper implements Disposable {
 
     private MessageService messageService;
 
-    public ServerWrapper(DynamicConfig config) {
+
+
+    public ServerWrapper(DynamicConfig config, DynamicConfig deadConfig) {
         this.config = new DefaultBackupConfig(config);
+        this.deadConfig = new DefaultBackupConfig(deadConfig);
         this.resources = new ArrayList<>();
         this.backupManager = new BatchBackupManager();
         this.scheduleFlushManager = new ScheduleFlushManager();
@@ -109,6 +114,7 @@ public class ServerWrapper implements Disposable {
     public void start() {
         try {
             final DynamicConfig localConfig = config.getDynamicConfig();
+            final DynamicConfig deadLocalConfig = deadConfig.getDynamicConfig();
             int listenPort = localConfig.getInt(PORT_CONFIG, DEFAULT_PORT);
             final MetaServerLocator metaServerLocator = new MetaServerLocator(localConfig.getString(META_SERVER_ENDPOINT));
             BrokerRegisterService brokerRegisterService = new BrokerRegisterService(listenPort, metaServerLocator);
@@ -118,14 +124,14 @@ public class ServerWrapper implements Disposable {
                 throw new IllegalArgumentException("Config error, the role is not backup");
             }
             config.setBrokerGroup(BrokerConfig.getBrokerName());
-            register(localConfig);
+            register(localConfig, deadLocalConfig);
         } catch (Exception e) {
             LOG.error("backup server start up failed.", e);
             Throwables.propagate(e);
         }
     }
 
-    private void register(final DynamicConfig config) {
+    private void register(final DynamicConfig config, final DynamicConfig deadConfig) {
         BrokerRole role = BrokerConfig.getBrokerRole();
         if(role != BrokerRole.BACKUP) throw new RuntimeException("Only support backup");
 
@@ -133,29 +139,50 @@ public class ServerWrapper implements Disposable {
         final MasterSlaveSyncManager masterSlaveSyncManager = new MasterSlaveSyncManager(slaveSyncClient);
 
         StorageConfig storageConfig = dummyConfig(config);
+        StorageConfig deadStorageConfig = dummyConfig(deadConfig);
+
+
         final CheckpointManager checkpointManager = new CheckpointManager(BrokerConfig.getBrokerRole(), storageConfig, null);
 
-        final FixedExecOrderEventBus bus = new FixedExecOrderEventBus();
+        final CheckpointManager deadCheckpointManager = new CheckpointManager(BrokerConfig.getBrokerRole(), deadStorageConfig, null);
+
         final BackupKeyGenerator keyGenerator = new BackupKeyGenerator(dicService);
         final KvStore.StoreFactory factory = new FactoryStoreImpl().createStoreFactory(config, dicService, keyGenerator);
         this.indexStore = factory.createMessageIndexStore();
         this.recordStore = factory.createRecordStore();
         this.deadMessageStore = factory.createDeadMessageStore();
         this.deadMessageContentStore = factory.createDeadMessageContentStore();
-        IndexLog log = new IndexLog(storageConfig, checkpointManager);
-        final IndexLogSyncDispatcher dispatcher = new IndexLogSyncDispatcher(log);
+
+        IndexLog indexLog = new IndexLog(storageConfig, checkpointManager, Lists.newArrayList(checkpointManager, deadCheckpointManager));
 
         messageService = new MessageServiceImpl(config, indexStore, deadMessageStore, recordStore);
 
         FixedExecOrderEventBus.Listener<MessageQueryIndex> indexProcessor = getConstructIndexListener(keyGenerator
-                , messageQueryIndex -> log.commit(messageQueryIndex.getCurrentOffset()));
+                , messageQueryIndex -> indexLog.commit(checkpointManager, messageQueryIndex.getCurrentOffset()));
+
+        FixedExecOrderEventBus.Listener<MessageQueryIndex> deadMessageIndexProcessor = getConstructDeadIndexListener(keyGenerator
+                , messageQueryIndex -> indexLog.commit(deadCheckpointManager, messageQueryIndex.getCurrentOffset()));
+
+        final FixedExecOrderEventBus bus = new FixedExecOrderEventBus();
         bus.subscribe(MessageQueryIndex.class, indexProcessor);
+
+        LogIterateService<MessageQueryIndex> iterateService = new LogIterateService<>("index", new StorageConfigImpl(config), indexLog, checkpointManager.getIndexIterateCheckpoint(), bus);
+        IndexFileStore indexFileStore = new IndexFileStore(indexLog, config);
+        scheduleFlushManager.register(indexFileStore);
+
+        final FixedExecOrderEventBus deadBus = new FixedExecOrderEventBus();
+        deadBus.subscribe(MessageQueryIndex.class, deadMessageIndexProcessor);
+
+        LogIterateService<MessageQueryIndex> deadIterateService = new LogIterateService<>("dead-index", new StorageConfigImpl(config), indexLog, deadCheckpointManager.getIndexIterateCheckpoint(), deadBus);
+
+        final IndexLogSyncDispatcher dispatcher = new IndexLogSyncDispatcher(indexLog);
         masterSlaveSyncManager.registerProcessor(dispatcher.getSyncType(), new BackupMessageLogSyncProcessor(dispatcher));
 
         // action
         final RocksDBStore rocksDBStore = new RocksDBStoreImpl(config);
         final BatchBackup<ActionRecord> recordBackup = new RecordBatchBackup(this.config, keyGenerator, rocksDBStore, recordStore);
         backupManager.registerBatchBackup(recordBackup);
+
         final SyncLogIterator<Action, ByteBuf> actionIterator = new ActionSyncLogIterator();
         BackupActionLogSyncProcessor actionLogSyncProcessor = new BackupActionLogSyncProcessor(checkpointManager, config, actionIterator, recordBackup);
         masterSlaveSyncManager.registerProcessor(SyncType.action, actionLogSyncProcessor);
@@ -164,14 +191,11 @@ public class ServerWrapper implements Disposable {
 
         masterSlaveSyncManager.registerProcessor(SyncType.heartbeat, new HeartBeatProcessor(checkpointManager));
 
-        LogIterateService<MessageQueryIndex> iterateService = new LogIterateService<>("index", new StorageConfigImpl(config), log, checkpointManager.getIndexIterateCheckpoint(), bus);
-        IndexFileStore indexFileStore = new IndexFileStore(log, config);
-        scheduleFlushManager.register(indexFileStore);
-
 
         scheduleFlushManager.scheduleFlush();
         backupManager.start();
         iterateService.start();
+        deadIterateService.start();
         masterSlaveSyncManager.startSync();
         addResourcesInOrder(scheduleFlushManager, backupManager, masterSlaveSyncManager);
     }
@@ -191,6 +215,15 @@ public class ServerWrapper implements Disposable {
     }
 
     private FixedExecOrderEventBus.Listener<MessageQueryIndex> getConstructIndexListener(final BackupKeyGenerator keyGenerator, Consumer<MessageQueryIndex> consumer) {
+
+        final BatchBackup<MessageQueryIndex> indexBackup = new MessageIndexBatchBackup(config, indexStore, keyGenerator);
+        backupManager.registerBatchBackup(indexBackup);
+
+
+        return new IndexEventBusListener(indexBackup, consumer);
+    }
+
+    private FixedExecOrderEventBus.Listener<MessageQueryIndex> getConstructDeadIndexListener(final BackupKeyGenerator keyGenerator, Consumer<MessageQueryIndex> consumer) {
         final BatchBackup<MessageQueryIndex> deadRecordBackup = new DeadRecordBatchBackup(recordStore, keyGenerator, config);
         backupManager.registerBatchBackup(deadRecordBackup);
 
@@ -200,11 +233,7 @@ public class ServerWrapper implements Disposable {
         final BatchBackup<MessageQueryIndex> deadMessageContentBackup = new DeadMessageContentBatchBackup(deadMessageContentStore, keyGenerator, config, messageService);
         backupManager.registerBatchBackup(deadMessageContentBackup);
 
-        final BatchBackup<MessageQueryIndex> indexBackup = new MessageIndexBatchBackup(config, indexStore, keyGenerator);
-        backupManager.registerBatchBackup(indexBackup);
-
-
-        return new IndexEventBusListener(deadMessageBackup, deadMessageContentBackup, deadRecordBackup, indexBackup, consumer);
+        return new DeadMsgEventBusListener(deadMessageBackup, deadMessageContentBackup, deadRecordBackup, consumer);
     }
 
     private void addResourcesInOrder(Disposable resource, Disposable... resources) {

@@ -16,8 +16,6 @@
 
 package qunar.tc.qmq.backup.service.impl;
 
-import static qunar.tc.qmq.backup.config.DefaultBackupConfig.DEAD_MESSAGE_BACKUP_THREAD_SIZE_CONFIG_KEY;
-import static qunar.tc.qmq.backup.config.DefaultBackupConfig.DEFAULT_BACKUP_THREAD_SIZE;
 import static qunar.tc.qmq.backup.config.DefaultBackupConfig.DEFAULT_BATCH_SIZE;
 import static qunar.tc.qmq.backup.config.DefaultBackupConfig.DEFAULT_RETRY_NUM;
 import static qunar.tc.qmq.backup.config.DefaultBackupConfig.MESSAGE_BATCH_SIZE_CONFIG_KEY;
@@ -29,14 +27,10 @@ import static qunar.tc.qmq.utils.RetrySubjectUtils.getConsumerGroup;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import com.google.common.base.Throwables;
-import org.hbase.async.Bytes;
 import org.jboss.netty.util.CharsetUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,7 +39,6 @@ import qunar.tc.qmq.backup.config.BackupConfig;
 import qunar.tc.qmq.backup.service.BackupKeyGenerator;
 import qunar.tc.qmq.backup.service.MessageService;
 import qunar.tc.qmq.backup.store.KvStore;
-import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.store.MessageQueryIndex;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
@@ -58,7 +51,6 @@ public class DeadMessageContentBatchBackup extends AbstractBatchBackup<MessageQu
     private static final Logger LOGGER = LoggerFactory.getLogger(DeadMessageContentBatchBackup.class);
 
     private final KvStore deadMessageStore;
-    private final ExecutorService executorService;
     private final BackupKeyGenerator keyGenerator;
     private final MessageService messageService;
 
@@ -68,23 +60,10 @@ public class DeadMessageContentBatchBackup extends AbstractBatchBackup<MessageQu
         this.deadMessageStore = deadMessageStore;
         this.keyGenerator = keyGenerator;
         this.messageService = messageService;
-        int threads = config.getDynamicConfig().getInt(DEAD_MESSAGE_BACKUP_THREAD_SIZE_CONFIG_KEY, DEFAULT_BACKUP_THREAD_SIZE);
-        this.executorService = new ThreadPoolExecutor(threads, threads, 60, TimeUnit.MINUTES, new LinkedBlockingQueue<>(1000)
-                , new NamedThreadFactory("dead-message-backup"), new ThreadPoolExecutor.CallerRunsPolicy());
     }
 
     @Override
     protected void doStop() {
-        try {
-            executorService.awaitTermination(5, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            LOGGER.error("dead message content backup close interrupted.", e);
-        }
-        try {
-            if (deadMessageStore != null) deadMessageStore.close();
-        } catch (Exception e) {
-            LOGGER.error("close {} failed.", deadMessageStore);
-        }
     }
 
     @Override
@@ -93,20 +72,19 @@ public class DeadMessageContentBatchBackup extends AbstractBatchBackup<MessageQu
     }
 
 	private void doStore(List<MessageQueryIndex> batch, Consumer<MessageQueryIndex> func) {
-        executorService.execute(() -> {
-			for (int i = 0; i < retryNum(); ++i) {
-				try {
-					doBatchSaveBackupDeadMessage(batch, func);
-                    return;
-                } catch (Exception e) {
-                    LOGGER.error("dead message backup store error.", e);
-                    monitorStoreRetry();
-                }
-            }
+		for (int i = 0; i < retryNum(); ++i) {
+			try {
+				doBatchSaveBackupDeadMessage(batch, func);
+				return;
+			}
+			catch (Exception e) {
+				LOGGER.error("dead message backup store error.", e);
+				monitorStoreRetry();
+			}
+		}
 
-			monitorStoreDiscard();
-        });
-    }
+		monitorStoreDiscard();
+	}
 
     private void doBatchSaveBackupDeadMessage(List<MessageQueryIndex> indexes, Consumer<MessageQueryIndex> func) {
         byte[][] recordKeys = new byte[indexes.size()][];
@@ -132,7 +110,7 @@ public class DeadMessageContentBatchBackup extends AbstractBatchBackup<MessageQu
                     final String realSubject = RetrySubjectUtils.getRealSubject(subject);
                     final String messageId = index.getMessageId();
                     final String consumerGroup = getConsumerGroup(subject);
-                    final Date createTime = new Date();
+                    final Date createTime = new Date(index.getCreateTime());
                     final byte[] key = keyGenerator.generateDeadMessageKey(realSubject, messageId, consumerGroup, createTime);
 
                     byte[] value = future.get(1, TimeUnit.SECONDS);
