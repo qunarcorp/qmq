@@ -16,9 +16,11 @@
 
 package qunar.tc.qmq.processor;
 
-import static com.google.common.base.CharMatcher.BREAKING_WHITESPACE;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.LinkedBlockingQueue;
 
-import com.google.common.base.CharMatcher;
 import com.google.common.base.Function;
 import com.google.common.eventbus.Subscribe;
 import com.google.common.util.concurrent.Futures;
@@ -27,23 +29,26 @@ import com.google.common.util.concurrent.SettableFuture;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.base.*;
+import qunar.tc.qmq.base.MessageHeader;
+import qunar.tc.qmq.base.RawMessage;
+import qunar.tc.qmq.base.ReceiveResult;
+import qunar.tc.qmq.base.ReceivingMessage;
+import qunar.tc.qmq.base.SyncRequest;
 import qunar.tc.qmq.configuration.BrokerConfig;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.monitor.QMon;
 import qunar.tc.qmq.processor.filters.Invoker;
 import qunar.tc.qmq.processor.filters.ReceiveFilterChain;
-import qunar.tc.qmq.protocol.*;
+import qunar.tc.qmq.protocol.CommandCode;
+import qunar.tc.qmq.protocol.Datagram;
+import qunar.tc.qmq.protocol.PayloadHolder;
+import qunar.tc.qmq.protocol.RemotingCommand;
 import qunar.tc.qmq.protocol.producer.MessageProducerCode;
 import qunar.tc.qmq.store.MessageStoreWrapper;
 import qunar.tc.qmq.util.RemotingBuilder;
 import qunar.tc.qmq.utils.CharsetUtils;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Queue;
-import java.util.concurrent.LinkedBlockingQueue;
+import qunar.tc.qmq.utils.SubjectUtils;
 
 /**
  * @author yunfeng.yang
@@ -51,8 +56,6 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 public class SendMessageWorker {
     private static final Logger LOG = LoggerFactory.getLogger(SendMessageWorker.class);
-
-    private static final CharMatcher ILLEGAL_MATCHER = CharMatcher.anyOf("/\r\n");
 
     private final DynamicConfig config;
     private final Invoker invoker;
@@ -113,7 +116,8 @@ public class SendMessageWorker {
         }
 
         final String subject = message.getSubject();
-        if (isIllegalSubject(subject)) {
+        if (SubjectUtils.isInValid(subject)) {
+            QMon.receivedIllegalSubjectMessagesCountInc(subject);
             if (isRejectIllegalSubject()) {
                 notAllowed(message);
                 return;
@@ -131,15 +135,6 @@ public class SendMessageWorker {
     private void notAllowed(ReceivingMessage message) {
         QMon.rejectReceivedMessageCountInc(message.getSubject());
         end(message, new ReceiveResult(message.getMessageId(), MessageProducerCode.SUBJECT_NOT_ASSIGNED, "message rejected", -1));
-    }
-
-    private boolean isIllegalSubject(final String subject) {
-        if (ILLEGAL_MATCHER.matchesAnyOf(subject) || BREAKING_WHITESPACE.matchesAnyOf(subject)) {
-            QMon.receivedIllegalSubjectMessagesCountInc(subject);
-            return true;
-        }
-
-        return false;
     }
 
     private boolean isRejectIllegalSubject() {

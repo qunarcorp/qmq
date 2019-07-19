@@ -56,19 +56,13 @@ public class MessageIndexSyncWorker extends AbstractLogSyncWorker {
         try (MessageLogRecordVisitor visitor = storage.newMessageLogVisitor(startSyncOffset)) {
             LogSegment logSegment = null;
             ByteBuf byteBuf = ByteBufAllocator.DEFAULT.ioBuffer(batchSize);
-            long nextSyncOffset = startSyncOffset;
+            long nextSyncOffset;
             try {
                 for (int i = 0; i < MAX_SYNC_NUM; ++i) {
                     LogVisitorRecord<MessageLogRecord> record = visitor.nextRecord();
-                    if (record.isNoMore()) {
-                        nextSyncOffset = visitor.getStartOffset() + visitor.visitedBufferSize();
-                        break;
-                    }
 
-                    if (!record.hasData()) {
-                        nextSyncOffset = visitor.getStartOffset() + visitor.visitedBufferSize();
-                        continue;
-                    }
+					if (record.isNoMore()) break;
+					if (!record.hasData()) continue;
 
                     MessageLogRecord data = record.getData();
                     logSegment = data.getLogSegment();
@@ -90,13 +84,15 @@ public class MessageIndexSyncWorker extends AbstractLogSyncWorker {
                     body.getLong();
 
                     //subject
-                    short len = body.getShort();
-                    byte[] subject = new byte[len];
-                    body.get(subject);
+					short len = body.getShort();
+					if (len == 0) continue;
+					byte[] subject = new byte[len];
+					body.get(subject);
 
                     //message id
-                    len = body.getShort();
-                    byte[] messageId = new byte[len];
+					len = body.getShort();
+					if (len == 0) continue;
+					byte[] messageId = new byte[len];
                     body.get(messageId);
 
                     byteBuf.writeLong(createTime);
@@ -112,9 +108,10 @@ public class MessageIndexSyncWorker extends AbstractLogSyncWorker {
                         break;
                     }
                     PayloadHolderUtils.writeString(messageId, byteBuf);
-
-                    nextSyncOffset = visitor.getStartOffset() + visitor.visitedBufferSize();
                 }
+
+                //must update nextSyncOffset
+				nextSyncOffset = visitor.getStartOffset() + visitor.visitedBufferSize();
             } finally {
                 if (!byteBuf.isReadable()) {
                     byteBuf.release();
