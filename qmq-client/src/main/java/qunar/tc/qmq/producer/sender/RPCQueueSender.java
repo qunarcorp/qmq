@@ -87,7 +87,10 @@ class RPCQueueSender implements QueueSender, SendErrorHandler, Processor<Produce
             //按照路由分组发送
             Collection<MessageSenderGroup> messages = groupBy(list);
             for (MessageSenderGroup group : messages) {
+                QmqTimer timer = Metrics.timer("MQ.client.producer.sendBroker.Time", new String[] {"type"}, new String[] {"qmq"});
+                long startTime = System.currentTimeMillis();
                 group.send();
+                timer.update(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
             }
         } finally {
             timer.update(System.currentTimeMillis() - start, TimeUnit.MILLISECONDS);

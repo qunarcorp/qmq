@@ -26,6 +26,8 @@ import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import qunar.tc.qmq.MessageStore;
 import qunar.tc.qmq.ProduceMessage;
+import qunar.tc.qmq.metrics.Metrics;
+import qunar.tc.qmq.metrics.QmqTimer;
 import qunar.tc.qmq.producer.tx.DefaultSqlStatementProvider;
 import qunar.tc.qmq.producer.tx.SqlStatementProvider;
 
@@ -34,6 +36,7 @@ import java.sql.Timestamp;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author miao.yang susing@gmail.com
@@ -72,18 +75,37 @@ public class DefaultMessageStore implements MessageStore {
 
     @Override
     public long insertNew(ProduceMessage message) {
-        KeyHolder holder = new GeneratedKeyHolder();
-        String json = this.gson.toJson(message.getBase());
-        platform.update(this.insertStatementFactory.newPreparedStatementCreator(new Object[]{json, new Timestamp(System.currentTimeMillis())}), holder);
-        message.setRouteKey(routerSelector.getRouteKey(platform.getDataSource()));
-        return holder.getKey().longValue();
+        try {
+            KeyHolder holder = new GeneratedKeyHolder();
+            String json = this.gson.toJson(message.getBase());
+
+            QmqTimer timer = Metrics.timer("MQ.client.producer.persistence.Time", new String[] {"produceType", "type"}, new String[] {"qmq", "save"});
+
+            long startTime = System.currentTimeMillis();
+            platform.update(this.insertStatementFactory.newPreparedStatementCreator(new Object[] {json, new Timestamp(System.currentTimeMillis())}), holder);
+            timer.update(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
+
+            message.setRouteKey(routerSelector.getRouteKey(platform.getDataSource()));
+            return holder.getKey().longValue();
+        }
+        catch (Exception e) {
+            Metrics.counter("MQ.client.producer.persistence.Throwable", new String[] {"produceType", "topic", "type"}, new String[] {"qmq", message.getSubject(), "save"}).inc();
+            throw e;
+        }
     }
 
     @Override
     public void finish(ProduceMessage message) {
         routerSelector.setRouteKey(message.getRouteKey(), platform.getDataSource());
         try {
+            QmqTimer timer = Metrics.timer("MQ.client.producer.persistence.Time", new String[] {"produceType", "type"}, new String[] {"qmq", "success"});
+
+            long startTime = System.currentTimeMillis();
             platform.update(sqlStatementProvider.getDeleteSql(), message.getSequence());
+            timer.update(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            Metrics.counter("MQ.client.producer.persistence.Throwable", new String[] {"produceType", "topic", "type"}, new String[] {"qmq", message.getSubject(), "success"}).inc();
+            throw e;
         } finally {
             routerSelector.clearRoute(message.getRouteKey(), platform.getDataSource());
         }
@@ -93,7 +115,14 @@ public class DefaultMessageStore implements MessageStore {
     public void block(ProduceMessage message) {
         routerSelector.setRouteKey(message.getRouteKey(), platform.getDataSource());
         try {
+            QmqTimer timer = Metrics.timer("MQ.client.producer.persistence.Time", new String[] {"produceType", "type"}, new String[] {"qmq", "block"});
+
+            long startTime = System.currentTimeMillis();
             platform.update(sqlStatementProvider.getBlockSql(), new Timestamp(System.currentTimeMillis()), message.getSequence());
+            timer.update(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            Metrics.counter("MQ.client.producer.persistence.Throwable", new String[] {"produceType", "topic", "type"}, new String[] {"qmq", message.getSubject(), "block"}).inc();
+            throw e;
         } finally {
             routerSelector.clearRoute(message.getRouteKey(), platform.getDataSource());
         }
