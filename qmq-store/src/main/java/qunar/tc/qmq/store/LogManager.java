@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.util.*;
+import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.function.Predicate;
 
@@ -246,17 +247,35 @@ public class LogManager {
         return segment.getBaseOffset() + segment.getWrotePosition();
     }
 
-    public boolean flush() {
-        boolean result = true;
-        final LogSegment segment = locateSegment(flushedOffset);
-        if (segment != null) {
-            final int offset = segment.flush();
-            final long where = segment.getBaseOffset() + offset;
-            result = where == this.flushedOffset;
-            this.flushedOffset = where;
-        }
-        return result;
-    }
+	public boolean flush() {
+		ConcurrentNavigableMap<Long, LogSegment> beingFlushView = findBeingFlushView();
+		int lastOffset = -1;
+		long lastBaseOffset = -1;
+		for (Map.Entry<Long, LogSegment> entry : beingFlushView.entrySet()) {
+			try {
+				LogSegment segment = entry.getValue();
+				lastOffset = segment.flush();
+				lastBaseOffset = segment.getBaseOffset();
+			}
+			catch (Exception e) {
+				break;
+			}
+		}
+
+		if (lastBaseOffset == -1 || lastOffset == -1) return false;
+		final long where = lastBaseOffset + lastOffset;
+		boolean result = where != this.flushedOffset;
+		this.flushedOffset = where;
+		return result;
+	}
+
+	private ConcurrentNavigableMap<Long, LogSegment> findBeingFlushView() {
+		LogSegment lastFlush = locateSegment(flushedOffset);
+		if (lastFlush == null) {
+			return segments;
+		}
+		return segments.tailMap(lastFlush.getBaseOffset(), true);
+	}
 
     public void close() {
         for (final LogSegment segment : segments.values()) {
