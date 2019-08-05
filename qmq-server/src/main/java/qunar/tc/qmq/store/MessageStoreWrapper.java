@@ -16,9 +16,17 @@
 
 package qunar.tc.qmq.store;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.base.*;
+import qunar.tc.qmq.base.ConsumerSequence;
+import qunar.tc.qmq.base.MessageHeader;
+import qunar.tc.qmq.base.PullMessageResult;
+import qunar.tc.qmq.base.RawMessage;
+import qunar.tc.qmq.base.ReceiveResult;
+import qunar.tc.qmq.base.ReceivingMessage;
+import qunar.tc.qmq.base.WritePutActionResult;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.consumer.ConsumerSequenceManager;
 import qunar.tc.qmq.monitor.QMon;
@@ -27,9 +35,6 @@ import qunar.tc.qmq.protocol.consumer.PullRequest;
 import qunar.tc.qmq.protocol.producer.MessageProducerCode;
 import qunar.tc.qmq.store.action.RangeAckAction;
 import qunar.tc.qmq.store.buffer.Buffer;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * @author yunfeng.yang
@@ -42,12 +47,12 @@ public class MessageStoreWrapper {
 
     private final Storage storage;
     private final ConsumerSequenceManager consumerSequenceManager;
-    private final PullResultFilter pullResultFilter;
+    private final PullMessageFilterChain pullMessageFilterChain;
 
     public MessageStoreWrapper(final DynamicConfig config, final Storage storage, final ConsumerSequenceManager consumerSequenceManager) {
         this.storage = storage;
         this.consumerSequenceManager = consumerSequenceManager;
-        this.pullResultFilter = new PullResultFilter(config);
+        this.pullMessageFilterChain = new PullMessageFilterChain(config);
     }
 
     public ReceiveResult putMessage(final ReceivingMessage message) {
@@ -172,7 +177,7 @@ public class MessageStoreWrapper {
         long end = -1;
         for (int i = 0; i < messages.size(); ++i) {
             Buffer message = messages.get(i);
-            if (pullResultFilter.needKeep(request, message)) {
+            if (pullMessageFilterChain.needKeep(request, message)) {
                 if (range == null) {
                     range = new GetMessageResult();
                     result.add(range);
@@ -316,7 +321,7 @@ public class MessageStoreWrapper {
                 //避免客户端发布一个新版本，新版本里tags发生变化了，那么原来已经拉取但是未ack的消息就可能存在不符合新条件的消息了
                 //这个时候需要重新过滤一遍
                 final Buffer segmentBuffer = getMessageResult.getBuffers().get(0);
-                if (!noPullFilter(pullRequest) && !pullResultFilter.needKeep(pullRequest, segmentBuffer)) {
+                if (!noPullFilter(pullRequest) && !pullMessageFilterChain.needKeep(pullRequest, segmentBuffer)) {
                     segmentBuffer.release();
                     if (firstValidSeq != -1) {
                         break;
