@@ -96,9 +96,13 @@ public class EnvPullMessageFilter implements PullMessageFilter {
 	}
 
 	private void reloadRules(EnvRuleGetter ruleGetter) {
-		Collection<SubEnvIsolationRule> rules = ruleGetter.getRules();
-		if (rules != null) {
-			this.ruleMap = toMap(rules);
+		try {
+			Collection<SubEnvIsolationRule> rules = ruleGetter.getRules();
+			if (rules != null) {
+				this.ruleMap = toMap(rules);
+			}
+		} catch (Throwable t) {
+			LOG.error("update evn rules error", t);
 		}
 	}
 
