@@ -124,8 +124,8 @@ public class MessageProducerProvider implements MessageProducer {
         }
 
 
-        List<String> tags = Lists.newArrayList("type");
-        List<String> tagValues = Lists.newArrayList("qmq");
+        List<String> tags = Lists.newArrayList("subject");
+        List<String> tagValues = Lists.newArrayList(message.getSubject());
         long startTime = System.currentTimeMillis();
         Tracer.SpanBuilder spanBuilder = tracer.buildSpan("Qmq.Produce.Send")
                 .withTag("appCode", appCode)
@@ -170,7 +170,7 @@ public class MessageProducerProvider implements MessageProducer {
 
             String[] tagValueArray = new String[tagValues.size()];
             tagValues.toArray(tagValueArray);
-            QmqTimer timer = Metrics.timer("MQ.client.producer.sendMessage.Time", tagArray, tagValueArray);
+            QmqTimer timer = Metrics.timer("qmq_client_producer_send_message_time", tagArray, tagValueArray);
             timer.update(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
 
             if (scope != null) {
