@@ -26,7 +26,6 @@ import qunar.tc.qmq.MessageStore;
 import qunar.tc.qmq.ProduceMessage;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.metrics.Metrics;
-import qunar.tc.qmq.metrics.MetricsConstants;
 import qunar.tc.qmq.metrics.QmqCounter;
 import qunar.tc.qmq.metrics.QmqMeter;
 import qunar.tc.qmq.tracing.TraceUtil;
@@ -55,6 +54,12 @@ class ProduceMessageImpl implements ProduceMessage {
     private static final QmqCounter sendFailCount = Metrics.counter("qmq_client_send_fail_count");
     private static final QmqCounter resendCount = Metrics.counter("qmq_client_resend_count");
     private static final QmqCounter enterQueueFail = Metrics.counter("qmq_client_enter_queue_fail");
+
+    private static final String persistenceTime = "qmq_client_persistence_time";
+    private static final String[] persistenceTags = new String[] {"subject", "type"};
+
+    private static final String persistenceThrowable = "qmq_client_persistence_throwable";
+
 
     /**
      * 最多尝试次数
@@ -139,9 +144,15 @@ class ProduceMessageImpl implements ProduceMessage {
         try {
             if (store == null) return;
             if (base.isStoreAtFailed()) return;
+            long startTime = System.currentTimeMillis();
             store.finish(this);
+            Metrics.timer(persistenceTime,
+                    persistenceTags,
+                    new String[] {getSubject(), "success"})
+                    .update(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
         } catch (Exception e) {
             TraceUtil.recordEvent("Qmq.Store.Failed");
+            Metrics.counter(persistenceThrowable, persistenceTags, new String[] {getSubject(), "success"}).inc();
         } finally {
             onSuccess();
             closeTrace();
@@ -177,9 +188,15 @@ class ProduceMessageImpl implements ProduceMessage {
             state.set(BLOCK);
             try {
                 if (store == null) return;
+                long startTime = System.currentTimeMillis();
                 store.block(this);
+                Metrics.timer(persistenceTime,
+                        persistenceTags,
+                        new String[] {getSubject(), "block"})
+                        .update(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
             } catch (Exception e) {
                 TraceUtil.recordEvent("Qmq.Store.Failed");
+                Metrics.counter(persistenceThrowable, persistenceTags, new String[] {getSubject(), "block"}).inc();
             }
             LOGGER.info("消息被拒绝");
             if (store == null && syncSend) {
@@ -259,10 +276,12 @@ class ProduceMessageImpl implements ProduceMessage {
         long start = System.nanoTime();
         try {
             this.sequence = store.insertNew(this);
-        } finally {
-            Metrics.timer("qmq_client_persistence_time",
-                    MetricsConstants.SUBJECT_ARRAY,
-                    new String[]{getSubject()}).update(System.nanoTime() - start, TimeUnit.NANOSECONDS);
+            Metrics.timer(persistenceTime,
+                    persistenceTags,
+                    new String[]{getSubject(), "save"}).update(System.nanoTime() - start, TimeUnit.NANOSECONDS);
+        } catch (Exception e) {
+            Metrics.counter(persistenceThrowable, persistenceTags, new String[] {this.getSubject(), "save"}).inc();
+            throw e;
         }
 
     }

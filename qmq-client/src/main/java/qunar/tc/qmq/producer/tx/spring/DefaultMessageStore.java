@@ -16,24 +16,29 @@
 
 package qunar.tc.qmq.producer.tx.spring;
 
+import java.sql.Timestamp;
+import java.sql.Types;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+
+import javax.sql.DataSource;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.LongSerializationPolicy;
+import qunar.tc.qmq.MessageStore;
+import qunar.tc.qmq.ProduceMessage;
+import qunar.tc.qmq.metrics.Metrics;
+import qunar.tc.qmq.metrics.QmqTimer;
+import qunar.tc.qmq.producer.tx.DefaultSqlStatementProvider;
+import qunar.tc.qmq.producer.tx.SqlStatementProvider;
+
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.PreparedStatementCreatorFactory;
 import org.springframework.jdbc.core.SqlParameter;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
-import qunar.tc.qmq.MessageStore;
-import qunar.tc.qmq.ProduceMessage;
-import qunar.tc.qmq.producer.tx.DefaultSqlStatementProvider;
-import qunar.tc.qmq.producer.tx.SqlStatementProvider;
-
-import javax.sql.DataSource;
-import java.sql.Timestamp;
-import java.sql.Types;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * @author miao.yang susing@gmail.com
@@ -74,7 +79,9 @@ public class DefaultMessageStore implements MessageStore {
     public long insertNew(ProduceMessage message) {
         KeyHolder holder = new GeneratedKeyHolder();
         String json = this.gson.toJson(message.getBase());
-        platform.update(this.insertStatementFactory.newPreparedStatementCreator(new Object[]{json, new Timestamp(System.currentTimeMillis())}), holder);
+
+        platform.update(this.insertStatementFactory.newPreparedStatementCreator(new Object[] {json, new Timestamp(System.currentTimeMillis())}), holder);
+
         message.setRouteKey(routerSelector.getRouteKey(platform.getDataSource()));
         return holder.getKey().longValue();
     }

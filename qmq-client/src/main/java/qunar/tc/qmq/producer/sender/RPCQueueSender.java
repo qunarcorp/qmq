@@ -22,6 +22,7 @@ import qunar.tc.qmq.ProduceMessage;
 import qunar.tc.qmq.batch.BatchExecutor;
 import qunar.tc.qmq.batch.Processor;
 import qunar.tc.qmq.metrics.Metrics;
+import qunar.tc.qmq.metrics.MetricsConstants;
 import qunar.tc.qmq.metrics.QmqTimer;
 import qunar.tc.qmq.netty.exception.SubjectNotAssignedException;
 import qunar.tc.qmq.producer.QueueSender;
@@ -87,7 +88,10 @@ class RPCQueueSender implements QueueSender, SendErrorHandler, Processor<Produce
             //按照路由分组发送
             Collection<MessageSenderGroup> messages = groupBy(list);
             for (MessageSenderGroup group : messages) {
+                QmqTimer timer = Metrics.timer("qmq_client_producer_send_broker_time");
+                long startTime = System.currentTimeMillis();
                 group.send();
+                timer.update(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
             }
         } finally {
             timer.update(System.currentTimeMillis() - start, TimeUnit.MILLISECONDS);
