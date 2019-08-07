@@ -30,6 +30,7 @@ import qunar.tc.qmq.common.ClientIdProvider;
 import qunar.tc.qmq.common.ClientIdProviderFactory;
 import qunar.tc.qmq.common.EnvProvider;
 import qunar.tc.qmq.metrics.Metrics;
+import qunar.tc.qmq.metrics.MetricsConstants;
 import qunar.tc.qmq.metrics.QmqTimer;
 import qunar.tc.qmq.producer.idgenerator.IdGenerator;
 import qunar.tc.qmq.producer.idgenerator.TimestampAndHostIdGenerator;
@@ -124,8 +125,7 @@ public class MessageProducerProvider implements MessageProducer {
         }
 
 
-        List<String> tags = Lists.newArrayList("subject");
-        List<String> tagValues = Lists.newArrayList(message.getSubject());
+        String[] tagValues = null;
         long startTime = System.currentTimeMillis();
         Tracer.SpanBuilder spanBuilder = tracer.buildSpan("Qmq.Produce.Send")
                 .withTag("appCode", appCode)
@@ -142,8 +142,7 @@ public class MessageProducerProvider implements MessageProducer {
                 spanBuilder.withTag("messageType", "NormalMessage");
                 scope = spanBuilder.startActive(true);
 
-                tags.add("messageType");
-                tagValues.add("NormalMessage");
+                tagValues = new String[]{message.getSubject(), "NormalMessage"};
                 pm.send();
                 return;
             }
@@ -152,25 +151,18 @@ public class MessageProducerProvider implements MessageProducer {
                 spanBuilder.withTag("messageType", "PersistenceMessage");
                 scope = spanBuilder.startActive(true);
 
-                tags.add("messageType");
-                tagValues.add("PersistenceMessage");
+                tagValues = new String[]{message.getSubject(), "PersistenceMessage"};
                 pm.send();
             } else {
                 spanBuilder.withTag("messageType", "TransactionMessage");
                 scope = spanBuilder.startActive(true);
 
-                tags.add("messageType");
-                tagValues.add("TransactionMessage");
+                tagValues = new String[]{message.getSubject(), "TransactionMessage"};
             }
 
 
         } finally {
-            String[] tagArray = new String[tags.size()];
-            tags.toArray(tagArray);
-
-            String[] tagValueArray = new String[tagValues.size()];
-            tagValues.toArray(tagValueArray);
-            QmqTimer timer = Metrics.timer("qmq_client_producer_send_message_time", tagArray, tagValueArray);
+            QmqTimer timer = Metrics.timer("qmq_client_producer_send_message_time", MetricsConstants.SUBJECT_AND_TYPE_ARRAY, tagValues);
             timer.update(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
 
             if (scope != null) {
