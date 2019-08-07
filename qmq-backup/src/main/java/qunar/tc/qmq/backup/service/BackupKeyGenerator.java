@@ -142,7 +142,7 @@ public class BackupKeyGenerator {
             if (!Strings.isNullOrEmpty(consumerGroupId))
                 return generateRetryMessageKey(toUtf8(subjectId), toUtf8(messageIdKey), toUtf8(createTimeKey), toUtf8(brokerGroupId), toUtf8(consumerGroupId), toUtf8(sequenceId));
         }
-        throw new RuntimeException("Unsupported subject type");
+        throw new RuntimeException("Unsupported subject type, subject: " + subject);
     }
 
     private byte[] generateRetryMessageKey(byte[] subject, byte[] messageId, byte[] createTime, byte[] brokerGroup, byte[] consumerGroup, byte[] sequence) {

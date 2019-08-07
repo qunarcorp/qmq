@@ -16,6 +16,8 @@
 
 package qunar.tc.qmq.backup.store.impl;
 
+import java.util.Date;
+
 import org.hbase.async.HBaseClient;
 import qunar.tc.qmq.backup.base.BackupQuery;
 import qunar.tc.qmq.backup.base.MessageQueryResult;
@@ -23,8 +25,6 @@ import qunar.tc.qmq.backup.service.DicService;
 import qunar.tc.qmq.backup.store.MessageStore;
 import qunar.tc.qmq.backup.util.BackupMessageKeyRangeBuilder;
 import qunar.tc.qmq.backup.util.BackupMessageKeyRegexpBuilder;
-
-import java.util.Date;
 
 /**
  * @author xufeng.deng dennisdxf@gmail.com
@@ -43,7 +43,7 @@ public class HBaseDeadMessageStore extends AbstractHBaseMessageStore implements 
         final String subject = query.getSubject();
         final Date msgCreateTimeBegin = query.getMsgCreateTimeBegin();
         final Date msgCreateTimeEnd = query.getMsgCreateTimeEnd();
-        final int len = 200;
+        final int len = query.getLen();
         final String start = query.getStart();
         final String consumerGroup = query.getConsumerGroup();
 

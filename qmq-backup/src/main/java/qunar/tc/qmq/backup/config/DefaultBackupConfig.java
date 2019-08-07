@@ -28,6 +28,7 @@ public class DefaultBackupConfig implements BackupConfig {
     public static final String DEFAULT_HBASE_DELAY_MESSAGE_INDEX_TABLE = "qmq_backup_delay";
     public static final String DEFAULT_HBASE_RECORD_TABLE = "qmq_backup_record";
     public static final String DEFAULT_HBASE_DEAD_TABLE = "qmq_backup_dead";
+    public static final String DEFAULT_HBASE_DEAD_CONTENT_TABLE = "qmq_backup_dead_content";
     public static final String DEFAULT_DB_DIC_TABLE = "qmq_dic";
     public static final String DEFAULT_DELAY_DB_DIC_TABLE = "qmq_delay_dic";
     public static final String DEFAULT_STORE_FACTORY_TYPE = "hbase";
@@ -37,6 +38,7 @@ public class DefaultBackupConfig implements BackupConfig {
     public static final String HBASE_DELAY_MESSAGE_INDEX_TABLE_CONFIG_KEY = "hbase.delay.message.table";
     public static final String HBASE_RECORD_TABLE_CONFIG_KEY = "hbase.record.table";
     public static final String HBASE_DEAD_MESSAGE_CONFIG_KEY = "hbase.dead.table";
+    public static final String HBASE_DEAD_MESSAGE_CONTENT_CONFIG_KEY = "hbase.dead.content.table";
     public static final String SYNC_OFFSET_FLUSH_INTERVAL_CONFIG_KEY = "sync.offset.flush.interval";
     public static final String MESSAGE_BATCH_SIZE_CONFIG_KEY = "message.backup.batch.size";
     public static final String MESSAGE_RETRY_NUM_CONFIG_KEY = "message.backup.max.retry.num";

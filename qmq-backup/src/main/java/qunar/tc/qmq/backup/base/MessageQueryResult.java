@@ -24,21 +24,21 @@ import java.util.List;
 /**
  * User: zhaohuiyu Date: 3/22/14 Time: 10:29 PM
  */
-public class MessageQueryResult implements Serializable {
+public class MessageQueryResult<T> implements Serializable {
     private static final long serialVersionUID = -6106414829068194397L;
 
-    private List<MessageMeta> list = Lists.newArrayList();
+    private List<T> list = Lists.newArrayList();
     private Serializable next;
 
     public MessageQueryResult() {
         super();
     }
 
-    public void setList(List<MessageMeta> list) {
+    public void setList(List<T> list) {
         this.list = list;
     }
 
-    public List<MessageMeta> getList() {
+    public List<T> getList() {
         return list;
     }
 

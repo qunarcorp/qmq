@@ -43,10 +43,10 @@ import static qunar.tc.qmq.backup.util.HBaseValueDecoder.getMessageMeta;
  * @author xufeng.deng dennisdxf@gmail.com
  * @since 2019/5/29
  */
-public abstract class AbstractHBaseMessageStore extends HBaseStore implements MessageStore {
+public abstract class AbstractHBaseMessageStore<T> extends HBaseStore implements MessageStore {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractHBaseMessageStore.class);
 
-    static final MessageQueryResult EMPTY_RESULT = new MessageQueryResult();
+    protected final MessageQueryResult<T> EMPTY_RESULT = new MessageQueryResult<T>();
 
     AbstractHBaseMessageStore(byte[] table, byte[] family, byte[][] qualifiers, HBaseClient client) {
         super(table, family, qualifiers, client);
@@ -80,7 +80,7 @@ public abstract class AbstractHBaseMessageStore extends HBaseStore implements Me
         messageQueryResult.setList(messages);
     }
 
-    private <T> void slim(final List<T> messageRowKeys, final MessageQueryResult messageQueryResult, final int maxResults) {
+    protected <T> void slim(final List<T> messageRowKeys, final MessageQueryResult messageQueryResult, final int maxResults) {
         int size = messageRowKeys.size();
         if (maxResults > 0) {
             if (size <= maxResults) {
@@ -124,11 +124,11 @@ public abstract class AbstractHBaseMessageStore extends HBaseStore implements Me
     }
 
     @Override
-    public MessageQueryResult findMessages(BackupQuery query) {
+    public MessageQueryResult<T> findMessages(BackupQuery query) {
         if (isInvalidate(query)) return EMPTY_RESULT;
         makeUp(query);
         return findMessagesInternal(query);
     }
 
-    protected abstract MessageQueryResult findMessagesInternal(BackupQuery query);
+    protected abstract MessageQueryResult<T> findMessagesInternal(BackupQuery query);
 }

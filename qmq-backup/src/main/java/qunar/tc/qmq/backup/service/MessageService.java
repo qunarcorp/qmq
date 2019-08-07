@@ -32,5 +32,7 @@ public interface MessageService {
 
     CompletableFuture<BackupMessage> findMessage(BackupQuery query);
 
+    CompletableFuture<byte[]> findMessageBytes(BackupQuery query);
+
     CompletableFuture<RecordQueryResult> findRecords(RecordQuery query);
 }

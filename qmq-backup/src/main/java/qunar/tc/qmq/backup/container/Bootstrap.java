@@ -33,7 +33,8 @@ import javax.servlet.Servlet;
 public class Bootstrap {
     public static void main(String[] args) throws Exception {
         DynamicConfig config = DynamicConfigLoader.load("backup.properties");
-        ServerWrapper wrapper = new ServerWrapper(config);
+        DynamicConfig deadConfig = DynamicConfigLoader.load("dead_backup.properties");
+        ServerWrapper wrapper = new ServerWrapper(config, deadConfig);
         Runtime.getRuntime().addShutdownHook(new Thread(wrapper::destroy));
         wrapper.start();
 

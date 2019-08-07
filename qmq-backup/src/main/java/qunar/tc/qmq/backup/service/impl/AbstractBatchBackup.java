@@ -46,6 +46,7 @@ public abstract class AbstractBatchBackup<T> implements BatchBackup<T> {
     protected static final String[] INDEX_TYPE = new String[]{"messageIndex"};
     protected static final String[] RECORD_TYPE = new String[]{"record"};
     protected static final String[] DEAD_MESSAGE_TYPE = new String[]{"deadMessage"};
+    protected static final String[] DEAD_MESSAGE_CONTENT_TYPE = new String[]{"deadMessageContent"};
     protected static final String[] DEAD_RECORD_TYPE = new String[]{"deadRecord"};
 
     protected final DynamicConfig config;

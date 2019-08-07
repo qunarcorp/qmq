@@ -29,6 +29,7 @@ import qunar.tc.qmq.backup.service.MessageService;
 import qunar.tc.qmq.backup.service.SlaveMetaSupplier;
 import qunar.tc.qmq.backup.store.MessageStore;
 import qunar.tc.qmq.backup.store.RecordStore;
+import qunar.tc.qmq.backup.util.HBaseValueDecoder;
 import qunar.tc.qmq.backup.util.Serializer;
 import qunar.tc.qmq.backup.util.Tags;
 import qunar.tc.qmq.base.BaseMessage;
@@ -130,10 +131,11 @@ public class MessageServiceImpl implements MessageService, Disposable {
                     final long sequence = query.getSequence();
                     final BackupMessageMeta meta = new BackupMessageMeta(sequence, brokerGroup, "");
                     final List<BackupMessage> messages = retrieveMessageWithMeta(brokerGroup, subject, Lists.newArrayList(meta));
-                    BackupMessage message = null;
-                    if (!messages.isEmpty()) {
-                        message = messages.get(0);
+                    if (messages.isEmpty()) {
+                        future.complete(null);
+                        return;
                     }
+                    final BackupMessage message = messages.get(0);
                     future.complete(message);
                 } catch (Exception e) {
                     LOG.error("Failed to find message details. {} ", query, e);
@@ -145,6 +147,58 @@ public class MessageServiceImpl implements MessageService, Disposable {
             future.completeExceptionally(e);
         }
         return future;
+    }
+
+    @Override
+    public CompletableFuture<byte[]> findMessageBytes(BackupQuery query) {
+        final CompletableFuture<byte[]> future = new CompletableFuture<>();
+        try {
+            queryExecutorService.execute(() -> {
+                try {
+                    final String subject = query.getSubject();
+                    final String brokerGroup = query.getBrokerGroup();
+                    final long sequence = query.getSequence();
+                    final BackupMessageMeta meta = new BackupMessageMeta(sequence, brokerGroup, "");
+                    final byte[] messageBytes = getMessageBytesWithMeta(brokerGroup, subject, Lists.newArrayList(meta));
+                    if (messageBytes.length == 0) {
+                        future.complete(null);
+                        return;
+                    }
+                    future.complete(messageBytes);
+                } catch (Exception e) {
+                    LOG.error("Failed to find message details. {} ", query, e);
+                    future.completeExceptionally(e);
+                }
+            });
+        } catch (RejectedExecutionException e) {
+            LOG.error("Find message reject error.", e);
+            future.completeExceptionally(e);
+        }
+        return future;
+    }
+
+    private byte[] getMessageBytesWithMeta(String brokerGroup, String subject, List<BackupMessageMeta> metas) {
+        final String backupAddress = metaSupplier.resolveServerAddress(brokerGroup);
+        if (Strings.isNullOrEmpty(backupAddress)) return new byte[]{};
+        String url = MESSAGE_QUERY_PROTOCOL + backupAddress + MESSAGE_QUERY_URL;
+
+        try {
+            BoundRequestBuilder boundRequestBuilder = ASYNC_HTTP_CLIENT.prepareGet(url);
+            boundRequestBuilder.addQueryParam("backupQuery", serializer.serialize(getQuery(subject, metas)));
+
+            final Response response = boundRequestBuilder.execute().get();
+            if (response.getStatusCode() != HttpResponseStatus.OK.code()) {
+                return new byte[]{};
+            }
+
+            final ByteBuffer buffer = response.getResponseBodyAsByteBuffer();
+
+
+            return buffer.array();
+        } catch (InterruptedException | ExecutionException e) {
+            LOG.error("get message byte with meta failed.", e);
+            throw new RuntimeException("get message byte failed.");
+        }
     }
 
     private List<BackupMessage> retrieveMessageWithMeta(String brokerGroup, String subject, List<BackupMessageMeta> metas) {
@@ -166,8 +220,13 @@ public class MessageServiceImpl implements MessageService, Disposable {
             final ByteBuffer buffer = response.getResponseBodyAsByteBuffer();
             while (buffer.hasRemaining()) {
                 if (buffer.remaining() < Long.BYTES) break;
-                long sequence = buffer.getLong();
-                BackupMessage message = decodeBackupMessage(buffer, sequence);
+                BackupMessage message = null;
+                try {
+                    message = HBaseValueDecoder.getMessage(buffer);
+                }
+                catch (Exception e) {
+                    LOG.error("retrieve message failed.", e);
+                }
                 if (message != null) {
                     message.setBrokerGroup(brokerGroup);
                     messages.add(message);
@@ -181,41 +240,6 @@ public class MessageServiceImpl implements MessageService, Disposable {
         }
     }
 
-    private BackupMessage decodeBackupMessage(final ByteBuffer message, final long messageSeq) {
-        // flag
-        byte flag = message.get();
-        // createTime
-        final long createTime = message.getLong();
-        // expiredTime or scheduleTime
-        message.position(message.position() + Long.BYTES);
-        // subject
-        final String subject = PayloadHolderUtils.readString(message);
-        // messageId
-        final String messageId = PayloadHolderUtils.readString(message);
-        // tags
-        Set<String> tags = Tags.readTags(flag, message);
-        // body
-        final byte[] bodyBs = PayloadHolderUtils.readBytes(message);
-        HashMap<String, Object> attributes = null;
-        try {
-            attributes = getAttributes(bodyBs, createTime);
-        } catch (Exception e) {
-            LOG.error("retrieve message attributes failed.", e);
-        }
-        BackupMessage backupMessage = new BackupMessage(messageId, subject);
-        backupMessage.setAttrs(attributes);
-        tags.forEach(backupMessage::addTag);
-        backupMessage.setSequence(messageSeq);
-
-        return backupMessage;
-    }
-
-    private static HashMap<String, Object> getAttributes(final byte[] bodyBs, final long createTime) {
-        HashMap<String, Object> attributes;
-        attributes = QMQSerializer.deserializeMap(bodyBs);
-        attributes.put(BaseMessage.keys.qmq_createTime.name(), createTime);
-        return attributes;
-    }
 
     private RemoteMessageQuery getQuery(String subject, List<BackupMessageMeta> metas) {
         final List<RemoteMessageQuery.MessageKey> keys = Lists.newArrayListWithCapacity(metas.size());
