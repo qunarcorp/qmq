@@ -11,10 +11,6 @@
 
     <artifactId>qmq-backup</artifactId>
 
-    <properties>
-        <maven_deploy_skip>true</maven_deploy_skip>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>org.rocksdb</groupId>

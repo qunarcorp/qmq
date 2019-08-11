@@ -10,10 +10,6 @@
 
     <artifactId>qmq-sync</artifactId>
 
-    <properties>
-        <maven_deploy_skip>true</maven_deploy_skip>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>${project.groupId}</groupId>

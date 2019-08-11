@@ -11,12 +11,6 @@
     <artifactId>qmq-delay-server</artifactId>
     <packaging>jar</packaging>
 
-    <properties>
-        <java_source_version>1.8</java_source_version>
-        <java_target_version>1.8</java_target_version>
-        <maven_deploy_skip>true</maven_deploy_skip>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>${project.groupId}</groupId>
