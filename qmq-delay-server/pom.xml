@@ -14,6 +14,10 @@
     <dependencies>
         <dependency>
             <groupId>${project.groupId}</groupId>
+            <artifactId>qmq-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
             <artifactId>qmq-server-common</artifactId>
         </dependency>
         <dependency>
@@ -23,10 +27,6 @@
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>qmq-store</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>qmq-client</artifactId>
         </dependency>
         <dependency>
             <groupId>joda-time</groupId>
