@@ -16,7 +16,6 @@
 
 package qunar.tc.qmq.store;
 
-import io.netty.util.internal.PlatformDependent;
 import qunar.tc.qmq.monitor.QMon;
 
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -29,11 +28,7 @@ abstract class ReferenceObject {
     private static final AtomicIntegerFieldUpdater<ReferenceObject> REF_CNT_UPDATER;
 
     static {
-        AtomicIntegerFieldUpdater<ReferenceObject> updater =
-                PlatformDependent.newAtomicIntegerFieldUpdater(ReferenceObject.class, "refCnt");
-        if (updater == null) {
-            updater = AtomicIntegerFieldUpdater.newUpdater(ReferenceObject.class, "refCnt");
-        }
+        AtomicIntegerFieldUpdater<ReferenceObject> updater = AtomicIntegerFieldUpdater.newUpdater(ReferenceObject.class, "refCnt");
         REF_CNT_UPDATER = updater;
     }
 
