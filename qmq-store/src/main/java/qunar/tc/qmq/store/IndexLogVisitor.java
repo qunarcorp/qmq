@@ -38,38 +38,38 @@ public class IndexLogVisitor extends AbstractLogVisitor<MessageQueryIndex> {
         // magic
         if (buffer.remaining() < Long.BYTES) {
             //end of file
-            return retNoMore();
+            return LogVisitorRecord.noMore();
         }
 
         // sequence
         long sequence = buffer.getLong();
         if (sequence < 0) {
-            return retNoMore();
+            return LogVisitorRecord.noMore();
         }
 
         // createTime
         if (buffer.remaining() < Long.BYTES) {
-            return retNoMore();
+            return LogVisitorRecord.noMore();
         }
         long createTime = buffer.getLong();
 
         // subject
         if (buffer.remaining() < Short.BYTES) {
-            return retNoMore();
+            return LogVisitorRecord.noMore();
         }
         short subjectLen = buffer.getShort();
         if (buffer.remaining() < subjectLen) {
-            return retNoMore();
+            return LogVisitorRecord.noMore();
         }
         String subject = PayloadHolderUtils.readString(subjectLen, buffer);
 
         // msgId
         if (buffer.remaining() < Short.BYTES) {
-            return retNoMore();
+            return LogVisitorRecord.noMore();
         }
         short messageIdLen = buffer.getShort();
         if (buffer.remaining() < messageIdLen) {
-            return retNoMore();
+            return LogVisitorRecord.noMore();
         }
         String messageId = PayloadHolderUtils.readString(messageIdLen, buffer);
 
@@ -79,8 +79,4 @@ public class IndexLogVisitor extends AbstractLogVisitor<MessageQueryIndex> {
         return LogVisitorRecord.data(index);
     }
 
-    private LogVisitorRecord<MessageQueryIndex> retNoMore() {
-        setVisitedBufferSize(getBufferSize());
-        return LogVisitorRecord.noMore();
-    }
 }

@@ -31,21 +31,15 @@ import qunar.tc.qmq.backup.store.MessageStore;
 import qunar.tc.qmq.backup.store.RecordStore;
 import qunar.tc.qmq.backup.util.HBaseValueDecoder;
 import qunar.tc.qmq.backup.util.Serializer;
-import qunar.tc.qmq.backup.util.Tags;
-import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.base.RemoteMessageQuery;
 import qunar.tc.qmq.common.Disposable;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.configuration.DynamicConfig;
-import qunar.tc.qmq.protocol.QMQSerializer;
-import qunar.tc.qmq.utils.PayloadHolderUtils;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.*;
 
 import static org.asynchttpclient.Dsl.asyncHttpClient;

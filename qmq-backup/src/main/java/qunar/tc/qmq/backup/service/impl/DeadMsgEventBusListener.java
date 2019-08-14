@@ -16,25 +16,17 @@
 
 package qunar.tc.qmq.backup.service.impl;
 
-import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_ARRAY;
+import qunar.tc.qmq.backup.service.BatchBackup;
+import qunar.tc.qmq.store.MessageQueryIndex;
+import qunar.tc.qmq.utils.RetrySubjectUtils;
 
 import java.util.function.Consumer;
-
-import com.google.common.base.CharMatcher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.backup.service.BatchBackup;
-import qunar.tc.qmq.metrics.Metrics;
-import qunar.tc.qmq.store.MessageQueryIndex;
-import qunar.tc.qmq.store.event.FixedExecOrderEventBus;
-import qunar.tc.qmq.utils.RetrySubjectUtils;
 
 /**
  * @author xufeng.deng dennisdxf@gmail.com
  * @since 2019/5/28
  */
 public class DeadMsgEventBusListener extends AbstractEventBusListener<MessageQueryIndex> {
-    private static final Logger LOGGER = LoggerFactory.getLogger(DeadMsgEventBusListener.class);
 
 
     private final BatchBackup<MessageQueryIndex> deadMessageBatchBackup;
