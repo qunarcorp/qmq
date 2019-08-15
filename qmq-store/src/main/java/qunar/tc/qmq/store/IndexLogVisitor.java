@@ -37,41 +37,39 @@ public class IndexLogVisitor extends AbstractLogVisitor<MessageQueryIndex> {
         final int startPos = buffer.position();
         // magic
         if (buffer.remaining() < Long.BYTES) {
-            //end of file
-            return LogVisitorRecord.noMore();
+            return retNoMore();
         }
 
         // sequence
         long sequence = buffer.getLong();
         //小于零表示到了文件末尾，全部是填充数据
         if (sequence < 0) {
-            setVisitedBufferSize(getBufferSize());
-            return LogVisitorRecord.noMore();
+            return retNoMore();
         }
 
         // createTime
         if (buffer.remaining() < Long.BYTES) {
-            return LogVisitorRecord.noMore();
+            return retNoMore();
         }
         long createTime = buffer.getLong();
 
         // subject
         if (buffer.remaining() < Short.BYTES) {
-            return LogVisitorRecord.noMore();
+            return retNoMore();
         }
         short subjectLen = buffer.getShort();
         if (buffer.remaining() < subjectLen) {
-            return LogVisitorRecord.noMore();
+            return retNoMore();
         }
         String subject = PayloadHolderUtils.readString(subjectLen, buffer);
 
         // msgId
         if (buffer.remaining() < Short.BYTES) {
-            return LogVisitorRecord.noMore();
+            return retNoMore();
         }
         short messageIdLen = buffer.getShort();
         if (buffer.remaining() < messageIdLen) {
-            return LogVisitorRecord.noMore();
+            return retNoMore();
         }
         String messageId = PayloadHolderUtils.readString(messageIdLen, buffer);
 
@@ -79,6 +77,11 @@ public class IndexLogVisitor extends AbstractLogVisitor<MessageQueryIndex> {
         incrVisitedBufferSize(buffer.position() - startPos);
         index.setCurrentOffset(getStartOffset() + visitedBufferSize());
         return LogVisitorRecord.data(index);
+    }
+
+    private LogVisitorRecord<MessageQueryIndex> retNoMore() {
+        setVisitedBufferSize(getBufferSize());
+        return LogVisitorRecord.noMore();
     }
 
 }
