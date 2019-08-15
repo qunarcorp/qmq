@@ -43,7 +43,9 @@ public class IndexLogVisitor extends AbstractLogVisitor<MessageQueryIndex> {
 
         // sequence
         long sequence = buffer.getLong();
+        //小于零表示到了文件末尾，全部是填充数据
         if (sequence < 0) {
+            setVisitedBufferSize(getBufferSize());
             return LogVisitorRecord.noMore();
         }
 
