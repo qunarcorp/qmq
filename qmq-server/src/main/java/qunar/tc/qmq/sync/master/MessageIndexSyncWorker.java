@@ -56,13 +56,15 @@ public class MessageIndexSyncWorker extends AbstractLogSyncWorker {
         try (MessageLogRecordVisitor visitor = storage.newMessageLogVisitor(startSyncOffset)) {
             LogSegment currentSegment = null;
             ByteBuf byteBuf = ByteBufAllocator.DEFAULT.ioBuffer(batchSize);
-            long nextSyncOffset;
+            long nextSyncOffset = originalOffset;
             try {
                 for (int i = 0; i < MAX_SYNC_NUM; ++i) {
                     LogVisitorRecord<MessageLogRecord> record = visitor.nextRecord();
 
                     if (record.isNoMore()) break;
-                    if (!record.hasData()) continue;
+                    if (!record.hasData()) {
+                        nextSyncOffset = visitor.getStartOffset() + visitor.visitedBufferSize();
+                    }
 
                     MessageLogRecord data = record.getData();
                     currentSegment = data.getLogSegment();
@@ -84,17 +86,22 @@ public class MessageIndexSyncWorker extends AbstractLogSyncWorker {
 
                     //subject
                     Control control = copyString(body, byteBuf);
-                    if (control == Control.INVALID) continue;
+                    if (control == Control.INVALID) {
+                        nextSyncOffset = visitor.getStartOffset() + visitor.visitedBufferSize();
+                        continue;
+                    }
                     if (control == Control.NOSPACE) break;
 
                     //message id
                     control = copyString(body, byteBuf);
-                    if (control == Control.INVALID) continue;
+                    if (control == Control.INVALID) {
+                        nextSyncOffset = visitor.getStartOffset() + visitor.visitedBufferSize();
+                    }
                     if (control == Control.NOSPACE) break;
+
+                    nextSyncOffset = visitor.getStartOffset() + visitor.visitedBufferSize();
                 }
 
-                //must update nextSyncOffset
-                nextSyncOffset = visitor.getStartOffset() + visitor.visitedBufferSize();
             } finally {
                 if (!byteBuf.isReadable()) {
                     byteBuf.release();
