@@ -35,7 +35,8 @@ public class IndexLogVisitor extends AbstractLogVisitor<MessageQueryIndex> {
     protected LogVisitorRecord<MessageQueryIndex> readOneRecord(SegmentBuffer segmentBuffer) {
         final ByteBuffer buffer = segmentBuffer.getBuffer();
         final int startPos = buffer.position();
-        // magic
+
+        // sequence
         if (buffer.remaining() < Long.BYTES) {
             return retNoMore();
         }

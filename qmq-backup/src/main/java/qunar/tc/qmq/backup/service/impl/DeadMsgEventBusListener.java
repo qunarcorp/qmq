@@ -26,28 +26,20 @@ import java.util.function.Consumer;
  * @author xufeng.deng dennisdxf@gmail.com
  * @since 2019/5/28
  */
-public class DeadMsgEventBusListener extends AbstractEventBusListener<MessageQueryIndex> {
-
-
+public class DeadMsgEventBusListener extends AbstractEventBusListener {
     private final BatchBackup<MessageQueryIndex> deadMessageBatchBackup;
     private final BatchBackup<MessageQueryIndex> deadMessageContentBatchBackup;
     private final BatchBackup<MessageQueryIndex> deadRecordBatchBackup;
     private final Consumer<MessageQueryIndex> consumer;
 
     public DeadMsgEventBusListener(BatchBackup<MessageQueryIndex> deadMessageBatchBackup,
-            BatchBackup<MessageQueryIndex> deadMessageContentBatchBackup,
-            BatchBackup<MessageQueryIndex> deadRecordBatchBackup,
-            Consumer<MessageQueryIndex> consumer) {
+                                   BatchBackup<MessageQueryIndex> deadMessageContentBatchBackup,
+                                   BatchBackup<MessageQueryIndex> deadRecordBatchBackup,
+                                   Consumer<MessageQueryIndex> consumer) {
         this.deadMessageBatchBackup = deadMessageBatchBackup;
         this.deadMessageContentBatchBackup = deadMessageContentBatchBackup;
         this.deadRecordBatchBackup = deadRecordBatchBackup;
         this.consumer = consumer;
-    }
-
-
-    @Override
-    String getSubject(MessageQueryIndex event) {
-        return event.getSubject();
     }
 
     @Override

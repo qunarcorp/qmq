@@ -59,6 +59,7 @@ public final class PayloadHolderUtils {
     }
 
     public static String readString(short len, ByteBuffer in) {
+        if (len <= 0) return "";
         byte[] bs = new byte[len];
         in.get(bs);
         return CharsetUtils.toUTF8String(bs);

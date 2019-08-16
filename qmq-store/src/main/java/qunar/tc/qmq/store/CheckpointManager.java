@@ -444,11 +444,11 @@ public class CheckpointManager implements AutoCloseable {
         }
     }
 
-    void updateMessageIndexCheckpoint(final long messageIndexOffset) {
+    void updateMessageIndexCheckpoint(final long msgOffset) {
         indexCheckpointGuard.lock();
         try {
-            if (messageIndexOffset <= indexCheckpoint.getMsgOffset()) return;
-            indexCheckpoint.setMsgOffset(messageIndexOffset);
+            if (msgOffset <= indexCheckpoint.getMsgOffset()) return;
+            indexCheckpoint.setMsgOffset(msgOffset);
         } finally {
             indexCheckpointGuard.unlock();
         }
@@ -578,9 +578,9 @@ public class CheckpointManager implements AutoCloseable {
             try {
                 final String checkpoint = new String(data, Charsets.UTF_8);
                 int pos = checkpoint.indexOf(SLASH);
-                long smtOffset = Long.parseLong(checkpoint.substring(0, pos));
+                long msgOffset = Long.parseLong(checkpoint.substring(0, pos));
                 long indexOffset = Long.parseLong(checkpoint.substring(pos + 1));
-                return new IndexCheckpoint(smtOffset, indexOffset);
+                return new IndexCheckpoint(msgOffset, indexOffset);
             } catch (NumberFormatException e) {
                 throw new RuntimeException(e);
             }

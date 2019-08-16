@@ -16,47 +16,41 @@
 
 package qunar.tc.qmq.backup.service.impl;
 
-import java.util.function.Consumer;
-
 import qunar.tc.qmq.backup.service.BatchBackup;
 import qunar.tc.qmq.store.MessageQueryIndex;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
+
+import java.util.function.Consumer;
 
 /**
  * @author xufeng.deng dennisdxf@gmail.com
  * @since 2019/5/28
  */
-public class IndexEventBusListener extends AbstractEventBusListener<MessageQueryIndex> {
+public class IndexEventBusListener extends AbstractEventBusListener {
 
-	private final BatchBackup<MessageQueryIndex> indexBatchBackup;
+    private final BatchBackup<MessageQueryIndex> indexBatchBackup;
 
-	private final Consumer<MessageQueryIndex> consumer;
+    private final Consumer<MessageQueryIndex> consumer;
 
-	public IndexEventBusListener(BatchBackup<MessageQueryIndex> indexBatchBackup, Consumer<MessageQueryIndex> consumer) {
-		this.indexBatchBackup = indexBatchBackup;
-		this.consumer = consumer;
-	}
+    public IndexEventBusListener(BatchBackup<MessageQueryIndex> indexBatchBackup, Consumer<MessageQueryIndex> consumer) {
+        this.indexBatchBackup = indexBatchBackup;
+        this.consumer = consumer;
+    }
 
+    @Override
+    void post(MessageQueryIndex index) {
+        // handle message attributes
+        if (RetrySubjectUtils.isDeadRetrySubject(index.getSubject())) {
+            consumer.accept(index);
+            return;
+        }
+        // indexBatchBackup
+        indexBatchBackup.add(index, consumer);
+    }
 
-	@Override
-	String getSubject(MessageQueryIndex event) {
-		return event.getSubject();
-	}
-
-	@Override
-	void post(MessageQueryIndex index) {
-		// handle message attributes
-		if (RetrySubjectUtils.isDeadRetrySubject(index.getSubject())) {
-			consumer.accept(index);
-			return;
-		}
-		// indexBatchBackup
-		indexBatchBackup.add(index, consumer);
-	}
-
-	@Override
-	String getMetricName() {
-		return "construct.message.qps";
-	}
+    @Override
+    String getMetricName() {
+        return "construct.message.qps";
+    }
 
 }

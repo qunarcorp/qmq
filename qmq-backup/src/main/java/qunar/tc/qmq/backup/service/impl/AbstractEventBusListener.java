@@ -3,7 +3,9 @@ package qunar.tc.qmq.backup.service.impl;
 import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_ARRAY;
 
 import com.google.common.base.CharMatcher;
+import com.google.common.base.Strings;
 import qunar.tc.qmq.metrics.Metrics;
+import qunar.tc.qmq.store.MessageQueryIndex;
 import qunar.tc.qmq.store.event.FixedExecOrderEventBus;
 
 /**
@@ -12,32 +14,30 @@ import qunar.tc.qmq.store.event.FixedExecOrderEventBus;
  * @author xiao.liang
  * @since 18 July 2019
  */
-public abstract class AbstractEventBusListener<T> implements FixedExecOrderEventBus.Listener<T> {
+public abstract class AbstractEventBusListener implements FixedExecOrderEventBus.Listener<MessageQueryIndex> {
 
-	@Override
-	public void onEvent(T event) {
-		if (event == null) return;
-		final String subject = getSubject(event);
-		if (isInvisible(subject)) return;
-		monitorConstructMessage(subject);
+    @Override
+    public void onEvent(MessageQueryIndex event) {
+        if (event == null) return;
+        final String subject = event.getSubject();
+        if (isInvisible(subject)) return;
+        if (Strings.isNullOrEmpty(event.getMessageId())) return;
+        monitorConstructMessage(subject);
 
-		post(event);
-	}
+        post(event);
+    }
 
-	abstract String getSubject(T event);
+    abstract void post(MessageQueryIndex index);
 
-	abstract void post(T index) ;
+    abstract String getMetricName();
 
-	abstract String getMetricName();
+    private static boolean isInvisible(String subject) {
+        return Strings.isNullOrEmpty(subject) || CharMatcher.INVISIBLE.matchesAnyOf(subject);
+    }
 
-	private static boolean isInvisible(String subject) {
-		return CharMatcher.INVISIBLE.matchesAnyOf(subject);
-	}
-
-	private  void monitorConstructMessage(String subject) {
-		Metrics.meter(getMetricName(), SUBJECT_ARRAY, new String[] {subject}).mark();
-	}
-
+    private void monitorConstructMessage(String subject) {
+        Metrics.meter(getMetricName(), SUBJECT_ARRAY, new String[]{subject}).mark();
+    }
 
 
 }

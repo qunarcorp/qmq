@@ -51,7 +51,7 @@ public class IndexLog implements AutoCloseable, Visitable<MessageQueryIndex> {
                 new MaxSequenceLogSegmentValidator(indexCheckpointManager.getIndexCheckpointIndexOffset()));
         this.indexCheckpointManager = indexCheckpointManager;
         iteratorCheckpointRecorderMap = Maps.newHashMap();
-        iterateCheckpointManagers.forEach(x->{
+        iterateCheckpointManagers.forEach(x -> {
             iteratorCheckpointRecorderMap.put(x, new CheckpointRecorder(x, x.getIndexIterateCheckpoint()));
         });
 
@@ -169,6 +169,10 @@ public class IndexLog implements AutoCloseable, Visitable<MessageQueryIndex> {
             to.resetWriterIndex();
             return false;
         }
+        if (len == 0) {
+            to.writeShort(len);
+            return true;
+        }
         byte[] subject = new byte[len];
         src.get(subject);
         to.writeShort(len);
@@ -232,7 +236,7 @@ public class IndexLog implements AutoCloseable, Visitable<MessageQueryIndex> {
         indexCheckpointManager.saveIndexCheckpointSnapshot(snapshot);
     }
 
-	@Override
+    @Override
     public void close() {
         logManager.close();
     }
