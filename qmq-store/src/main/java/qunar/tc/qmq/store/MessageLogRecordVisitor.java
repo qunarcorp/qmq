@@ -40,7 +40,7 @@ public class MessageLogRecordVisitor extends AbstractLogVisitor<MessageLogRecord
         }
 
         final int startPos = buffer.position();
-        final long wroteOffset = getStartOffset() + startPos;
+        final long startWrotePos = getStartOffset() + startPos;
         final int magic = buffer.getInt();
         if (!MagicCodeSupport.isValidMessageLogMagicCode(magic)) {
             setVisitedBufferSize(getBufferSize());
@@ -92,10 +92,10 @@ public class MessageLogRecordVisitor extends AbstractLogVisitor<MessageLogRecord
 
             buffer.position(buffer.position() + payloadSize);
 
-            final int wroteBytes = buffer.position() - startPos;
-            incrVisitedBufferSize(wroteBytes);
+            final int recordBytes = buffer.position() - startPos;
+            incrVisitedBufferSize(recordBytes);
             final String subject = new String(subjectBytes, StandardCharsets.UTF_8);
-            return LogVisitorRecord.data(new MessageLogRecord(subject, sequence, wroteOffset, wroteBytes, headerSize, getBaseOffset(), payload, segmentBuffer.getLogSegment()));
+            return LogVisitorRecord.data(new MessageLogRecord(subject, sequence, startWrotePos, recordBytes, headerSize, getBaseOffset(), payload, segmentBuffer.getLogSegment()));
         }
     }
 }

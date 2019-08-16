@@ -21,16 +21,12 @@ import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.delay.store.model.LogRecord;
 import qunar.tc.qmq.delay.store.model.LogRecordHeader;
 import qunar.tc.qmq.delay.store.model.MessageLogRecord;
-import qunar.tc.qmq.store.LogManager;
-import qunar.tc.qmq.store.LogSegment;
-import qunar.tc.qmq.store.MagicCode;
-import qunar.tc.qmq.store.MagicCodeSupport;
+import qunar.tc.qmq.store.AbstractLogVisitor;
+import qunar.tc.qmq.store.*;
 import qunar.tc.qmq.store.buffer.SegmentBuffer;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.Optional;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static qunar.tc.qmq.delay.store.model.MessageLogAttrEnum.ATTR_EMPTY_RECORD;
 import static qunar.tc.qmq.delay.store.model.MessageLogAttrEnum.ATTR_SKIP_RECORD;
@@ -39,79 +35,30 @@ import static qunar.tc.qmq.delay.store.model.MessageLogAttrEnum.ATTR_SKIP_RECORD
  * @author xufeng.deng dennisdxf@gmail.com
  * @since 2018-07-11 18:33
  */
-public class DelayMessageLogVisitor implements LogVisitor<LogRecord> {
+public class DelayMessageLogVisitor extends AbstractLogVisitor<LogRecord> {
     private static final Logger LOGGER = LoggerFactory.getLogger(DelayMessageLogVisitor.class);
-
-    public static final EmptyLogRecord EMPTY_LOG_RECORD = new EmptyLogRecord();
 
     private static final int MIN_RECORD_BYTES = 13;
 
-    private final AtomicInteger visitedBufferSize = new AtomicInteger(0);
-
-    private LogSegment currentSegment;
-    private SegmentBuffer currentBuffer;
-    private long startOffset;
-
-    public DelayMessageLogVisitor(LogManager logManager, final Long startOffset) {
-        long initialOffset = initialOffset(logManager, startOffset);
-        this.currentSegment = logManager.locateSegment(initialOffset);
-        this.currentBuffer = selectBuffer(initialOffset);
-        this.startOffset = initialOffset;
-    }
-
-    public long startOffset() {
-        return startOffset;
+    public DelayMessageLogVisitor(LogManager logManager, final long startOffset) {
+        super(logManager, startOffset);
     }
 
     @Override
-    public Optional<LogRecord> nextRecord() {
-        if (currentBuffer == null) {
-            return Optional.of(EMPTY_LOG_RECORD);
-        }
-
-        return readOneRecord(currentBuffer.getBuffer());
-    }
-
-    @Override
-    public long visitedBufferSize() {
-        if (currentBuffer == null) {
-            return 0;
-        }
-        return visitedBufferSize.get();
-    }
-
-    private long initialOffset(final LogManager logManager, final Long originStart) {
-        long minOffset = logManager.getMinOffset();
-        if (originStart < minOffset) {
-            LOGGER.error("initial delay message log visitor offset less than min offset. start: {}, min: {}",
-                    originStart, minOffset);
-            return minOffset;
-        }
-
-        return originStart;
-    }
-
-    private SegmentBuffer selectBuffer(final long startOffset) {
-        if (currentSegment == null) {
-            return null;
-        }
-        final int pos = (int) (startOffset % currentSegment.getFileSize());
-        return currentSegment.selectSegmentBuffer(pos);
-    }
-
-    private Optional<LogRecord> readOneRecord(final ByteBuffer buffer) {
+    protected LogVisitorRecord<LogRecord> readOneRecord(SegmentBuffer segmentBuffer) {
+        ByteBuffer buffer = segmentBuffer.getBuffer();
         if (buffer.remaining() < MIN_RECORD_BYTES) {
-            return Optional.of(EMPTY_LOG_RECORD);
+            return LogVisitorRecord.empty();
         }
 
         final int startPos = buffer.position();
-        long startWroteOffset = startOffset + startPos;
+        final long wroteOffset = getStartOffset() + startPos;
 
         // magic
         final int magic = buffer.getInt();
         if (!MagicCodeSupport.isValidMessageLogMagicCode(magic)) {
-            visitedBufferSize.set(currentBuffer.getSize());
-            return Optional.of(EMPTY_LOG_RECORD);
+            setVisitedBufferSize(getBufferSize());
+            return LogVisitorRecord.empty();
         }
 
         // attr
@@ -120,57 +67,57 @@ public class DelayMessageLogVisitor implements LogVisitor<LogRecord> {
         buffer.getLong();
         if (attributes == ATTR_SKIP_RECORD.getCode()) {
             if (buffer.remaining() < Integer.BYTES) {
-                return Optional.of(EMPTY_LOG_RECORD);
+                return LogVisitorRecord.empty();
             }
             // blank size
             final int blankSize = buffer.getInt();
-            visitedBufferSize.addAndGet(blankSize + (buffer.position() - startPos));
-            return Optional.empty();
+            incrVisitedBufferSize(blankSize + (buffer.position() - startPos));
+            return LogVisitorRecord.empty();
         } else if (attributes == ATTR_EMPTY_RECORD.getCode()) {
-            visitedBufferSize.set(currentBuffer.getSize());
-            return Optional.of(EMPTY_LOG_RECORD);
+            setVisitedBufferSize(getBufferSize());
+            return LogVisitorRecord.empty();
         } else {
             // schedule time
             if (buffer.remaining() < Long.BYTES) {
-                return Optional.of(EMPTY_LOG_RECORD);
+                return LogVisitorRecord.empty();
             }
             long scheduleTime = buffer.getLong();
 
             // sequence
             if (buffer.remaining() < Long.BYTES) {
-                return Optional.of(EMPTY_LOG_RECORD);
+                return LogVisitorRecord.empty();
             }
             long sequence = buffer.getLong();
 
             // message id size
             if (buffer.remaining() < Integer.BYTES) {
-                return Optional.of(EMPTY_LOG_RECORD);
+                return LogVisitorRecord.empty();
             }
             final int messageIdSize = buffer.getInt();
 
             // message id
             if (buffer.remaining() < messageIdSize) {
-                return Optional.of(EMPTY_LOG_RECORD);
+                return LogVisitorRecord.empty();
             }
             final byte[] messageIdBytes = new byte[messageIdSize];
             buffer.get(messageIdBytes);
 
             // subject size
             if (buffer.remaining() < Integer.BYTES) {
-                return Optional.of(EMPTY_LOG_RECORD);
+                return LogVisitorRecord.empty();
             }
             final int subjectSize = buffer.getInt();
 
             // subject
             if (buffer.remaining() < subjectSize) {
-                return Optional.of(EMPTY_LOG_RECORD);
+                return LogVisitorRecord.empty();
             }
             final byte[] subjectBytes = new byte[subjectSize];
             buffer.get(subjectBytes);
 
             if (magic >= MagicCode.MESSAGE_LOG_MAGIC_V2) {
                 if (buffer.remaining() < Long.BYTES) {
-                    return Optional.of(EMPTY_LOG_RECORD);
+                    return LogVisitorRecord.empty();
                 }
                 // crc
                 buffer.getLong();
@@ -178,71 +125,26 @@ public class DelayMessageLogVisitor implements LogVisitor<LogRecord> {
 
             // payload size
             if (buffer.remaining() < Integer.BYTES) {
-                return Optional.of(EMPTY_LOG_RECORD);
+                return LogVisitorRecord.empty();
             }
             final int payloadSize = buffer.getInt();
 
             // message body && The new buffer's position will be zero
             if (buffer.remaining() < payloadSize) {
-                return Optional.of(EMPTY_LOG_RECORD);
+                return LogVisitorRecord.empty();
             }
             final ByteBuffer message = buffer.slice();
             message.limit(payloadSize);
+
             buffer.position(buffer.position() + payloadSize);
             int recordBytes = buffer.position() - startPos;
-            visitedBufferSize.addAndGet(recordBytes);
+            incrVisitedBufferSize(recordBytes);
+
             String subject = new String(subjectBytes, StandardCharsets.UTF_8);
             String messageId = new String(messageIdBytes, StandardCharsets.UTF_8);
             LogRecordHeader header = new LogRecordHeader(subject, messageId, scheduleTime, sequence);
-            return Optional.of(new MessageLogRecord(header, recordBytes, startWroteOffset, payloadSize, message));
+            return LogVisitorRecord.data(new MessageLogRecord(header, recordBytes, wroteOffset, payloadSize, message));
         }
     }
 
-    @Override
-    public void close() {
-
-    }
-
-    public static class EmptyLogRecord implements LogRecord {
-
-        @Override
-        public String getSubject() {
-            return null;
-        }
-
-        @Override
-        public String getMessageId() {
-            return null;
-        }
-
-        @Override
-        public long getScheduleTime() {
-            return 0;
-        }
-
-        @Override
-        public int getPayloadSize() {
-            return 0;
-        }
-
-        @Override
-        public ByteBuffer getRecord() {
-            return null;
-        }
-
-        @Override
-        public long getStartWroteOffset() {
-            return 0;
-        }
-
-        @Override
-        public int getRecordSize() {
-            return 0;
-        }
-
-        @Override
-        public long getSequence() {
-            return 0;
-        }
-    }
 }

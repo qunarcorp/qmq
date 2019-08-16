@@ -24,7 +24,6 @@ import qunar.tc.qmq.delay.store.model.LogRecord;
 import qunar.tc.qmq.delay.store.model.MessageLogAttrEnum;
 import qunar.tc.qmq.delay.store.model.RawMessageExtend;
 import qunar.tc.qmq.delay.store.visitor.DelayMessageLogVisitor;
-import qunar.tc.qmq.delay.store.visitor.LogVisitor;
 import qunar.tc.qmq.store.*;
 import qunar.tc.qmq.store.buffer.SegmentBuffer;
 
@@ -183,8 +182,8 @@ public class MessageSegmentContainer implements SegmentContainer<AppendMessageRe
         logManager.flush();
     }
 
-    LogVisitor<LogRecord> newLogVisitor(final Long key) {
-        return new DelayMessageLogVisitor(logManager, key);
+    AbstractLogVisitor<LogRecord> newVisitor(final long startPos) {
+        return new DelayMessageLogVisitor(logManager, startPos);
     }
 
     long getMaxOffset() {

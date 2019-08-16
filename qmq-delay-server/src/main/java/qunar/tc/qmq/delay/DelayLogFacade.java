@@ -74,8 +74,6 @@ public interface DelayLogFacade {
 
     long higherScheduleBaseOffset(long index);
 
-    LogVisitor<LogRecord> newMessageLogVisitor(long start);
-
     AppendLogResult<ScheduleIndex> appendScheduleLog(LogRecord event);
 
     long initialMessageIterateFrom();

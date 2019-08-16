@@ -97,7 +97,7 @@ public class DefaultStorage implements Storage {
         this.actionEventBus.subscribe(ActionEvent.class, new PullLogBuilder(this));
         this.actionEventBus.subscribe(ActionEvent.class, new MaxSequencesUpdater(checkpointManager));
         this.actionEventBus.subscribe(ActionEvent.class, pullLogFlusher);
-        this.actionLogIterateService = new LogIterateService<>("ReplayActionLog", config, actionLog, checkpointManager.getActionCheckpointOffset(), actionEventBus);
+        this.actionLogIterateService = new LogIterateService<>("ReplayActionLog", config.getLogDispatcherPauseMillis(), actionLog, checkpointManager.getActionCheckpointOffset(), actionEventBus);
 
         this.consumerLogFlusher = new ConsumerLogFlusher(config, checkpointManager, consumerLogManager);
         this.messageEventBus = new FixedExecOrderEventBus();
@@ -108,7 +108,7 @@ public class DefaultStorage implements Storage {
             this.messageEventBus.subscribe(MessageLogRecord.class, new BuildConsumerLogEventListener(consumerLogManager));
             this.messageEventBus.subscribe(MessageLogRecord.class, consumerLogFlusher);
         }
-        this.messageLogIterateService = new LogIterateService<>("ReplayMessageLog", config, messageLog, checkpointManager.getMessageCheckpointOffset(), messageEventBus);
+        this.messageLogIterateService = new LogIterateService<>("ReplayMessageLog", config.getLogDispatcherPauseMillis(), messageLog, checkpointManager.getMessageCheckpointOffset(), messageEventBus);
 
         this.logCleanerExecutor = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder().setNameFormat("log-cleaner-%d").build());
 

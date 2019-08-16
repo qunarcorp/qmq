@@ -21,15 +21,15 @@ import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.base.MessageHeader;
 import qunar.tc.qmq.delay.config.StoreConfiguration;
 import qunar.tc.qmq.delay.monitor.QMon;
-import qunar.tc.qmq.delay.store.VisitorAccessor;
 import qunar.tc.qmq.delay.store.model.AppendLogResult;
 import qunar.tc.qmq.delay.store.model.AppendMessageRecordResult;
 import qunar.tc.qmq.delay.store.model.LogRecord;
 import qunar.tc.qmq.delay.store.model.RawMessageExtend;
-import qunar.tc.qmq.delay.store.visitor.LogVisitor;
 import qunar.tc.qmq.protocol.producer.MessageProducerCode;
+import qunar.tc.qmq.store.AbstractLogVisitor;
 import qunar.tc.qmq.store.PeriodicFlushService;
 import qunar.tc.qmq.store.PutMessageStatus;
+import qunar.tc.qmq.store.Visitable;
 import qunar.tc.qmq.store.buffer.SegmentBuffer;
 
 import java.nio.ByteBuffer;
@@ -38,7 +38,7 @@ import java.nio.ByteBuffer;
  * @author xufeng.deng dennisdxf@gmail.com
  * @since 2018-07-19 9:29
  */
-public class MessageLog implements Log<MessageLog.MessageRecordMeta, RawMessageExtend>, VisitorAccessor<Long> {
+public class MessageLog implements Log<MessageLog.MessageRecordMeta, RawMessageExtend>, Visitable<LogRecord> {
     private static final Logger LOGGER = LoggerFactory.getLogger(MessageLog.class);
 
     private static final int DEFAULT_FLUSH_INTERVAL = 500;
@@ -96,16 +96,6 @@ public class MessageLog implements Log<MessageLog.MessageRecordMeta, RawMessageE
         container.flush();
     }
 
-    @Override
-    public LogVisitor<LogRecord> newVisitor(Long key) {
-        return ((MessageSegmentContainer) container).newLogVisitor(key);
-    }
-
-    @Override
-    public long getMaxOffset() {
-        return ((MessageSegmentContainer) container).getMaxOffset();
-    }
-
     public PeriodicFlushService.FlushProvider getProvider() {
         return new PeriodicFlushService.FlushProvider() {
             @Override
@@ -132,6 +122,17 @@ public class MessageLog implements Log<MessageLog.MessageRecordMeta, RawMessageE
         QMon.appendTimer(subject, cost);
     }
 
+    @Override
+    public AbstractLogVisitor<LogRecord> newVisitor(long iterateFrom) {
+        return ((MessageSegmentContainer) container).newVisitor(iterateFrom);
+    }
+
+    @Override
+    public long getMaxOffset() {
+        return ((MessageSegmentContainer) container).getMaxOffset();
+    }
+
+    @Override
     public long getMinOffset() {
         return ((MessageSegmentContainer) container).getMinOffset();
     }
