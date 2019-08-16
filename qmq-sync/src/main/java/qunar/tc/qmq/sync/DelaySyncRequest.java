@@ -31,7 +31,7 @@ public class DelaySyncRequest {
         this.syncType = syncType;
     }
 
-    public DelaySyncRequest(long messageLogOffset, int dispatchLogSegmentBaseOffset, long dispatchLogOffset, int lastDispatchLogBaseOffset, long lastDispatchLogOffset, int syncType) {
+    public DelaySyncRequest(long messageLogOffset, long dispatchLogSegmentBaseOffset, long dispatchLogOffset, long lastDispatchLogBaseOffset, long lastDispatchLogOffset, int syncType) {
         this.messageLogOffset = messageLogOffset;
         this.dispatchSyncRequest = new DispatchLogSyncRequest(dispatchLogSegmentBaseOffset, dispatchLogOffset, lastDispatchLogBaseOffset, lastDispatchLogOffset);
         this.syncType = syncType;

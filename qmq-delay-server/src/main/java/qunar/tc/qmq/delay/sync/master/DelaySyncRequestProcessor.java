@@ -60,8 +60,7 @@ public class DelaySyncRequestProcessor implements NettyRequestProcessor, Disposa
         this.processorMap.put(SyncType.heartbeat.getCode(), heartbeatSyncWorker);
 
         int workerSize = processorMap.size();
-        this.syncProcessPool = Executors.newFixedThreadPool(workerSize,
-                new ThreadFactoryBuilder().setNameFormat("delay-master-sync-%d").build());
+        this.syncProcessPool = Executors.newFixedThreadPool(workerSize, new ThreadFactoryBuilder().setNameFormat("delay-master-sync-%d").build());
         this.processorTimer = Executors.newScheduledThreadPool(workerSize - 1,
                 new ThreadFactoryBuilder().setNameFormat("delay-processor-timer-%d").build());
 
@@ -102,9 +101,9 @@ public class DelaySyncRequestProcessor implements NettyRequestProcessor, Disposa
         ByteBuf body = request.getBody();
         int logType = body.readByte();
         long messageLogOffset = body.readLong();
-        int dispatchLogSegmentBaseOffset = body.readInt();
+        long dispatchLogSegmentBaseOffset = body.readLong();
         long dispatchLogOffset = body.readLong();
-        int lastDispatchLogBaseOffset = body.readInt();
+        long lastDispatchLogBaseOffset = body.readLong();
         long lastDispatchLogOffset = body.readLong();
         return new DelaySyncRequest(messageLogOffset, dispatchLogSegmentBaseOffset, dispatchLogOffset, lastDispatchLogBaseOffset, lastDispatchLogOffset, logType);
     }
