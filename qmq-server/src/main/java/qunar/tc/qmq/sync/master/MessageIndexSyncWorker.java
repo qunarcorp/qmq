@@ -83,9 +83,14 @@ public class MessageIndexSyncWorker extends AbstractLogSyncWorker {
                     body.getLong();
 
                     //subject
-                    if (!copyString(body, byteBuf)) break;
+                    Control control = copyString(body, byteBuf);
+                    if (control == Control.INVALID) continue;
+                    if (control == Control.NOSPACE) break;
+
                     //message id
-                    if (!copyString(body, byteBuf)) break;
+                    control = copyString(body, byteBuf);
+                    if (control == Control.INVALID) continue;
+                    if (control == Control.NOSPACE) break;
                 }
 
                 //must update nextSyncOffset
@@ -118,21 +123,26 @@ public class MessageIndexSyncWorker extends AbstractLogSyncWorker {
         return true;
     }
 
-    private boolean copyString(ByteBuffer from, ByteBuf to) {
+    private enum Control {
+        NOSPACE,
+        INVALID,
+        OK
+    }
+
+    private Control copyString(ByteBuffer from, ByteBuf to) {
         short len = from.getShort();
         if (len <= 0) {
-            if (!to.isWritable(Short.BYTES)) return false;
-            to.writeShort(0);
-            return true;
+            to.resetWriterIndex();
+            return Control.INVALID;
         }
         byte[] str = new byte[len];
         from.get(str);
         if (!to.isWritable(Short.BYTES + len)) {
             to.resetWriterIndex();
-            return false;
+            return Control.NOSPACE;
         }
         PayloadHolderUtils.writeString(str, to);
-        return true;
+        return Control.OK;
     }
 
     private static class ByteBufSegmentBuffer extends SegmentBuffer {
