@@ -1,7 +1,5 @@
 package qunar.tc.qmq.batch;
 
-import io.netty.util.internal.PlatformDependent;
-
 import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
@@ -18,16 +16,12 @@ abstract class MpscLinkedQueueHeadRef<E> extends MpscLinkedQueuePad0<E> implemen
 
     static {
         @SuppressWarnings("rawtypes")
-        AtomicReferenceFieldUpdater<MpscLinkedQueueHeadRef, MpscLinkedQueueNode> updater;
-        updater = PlatformDependent.newAtomicReferenceFieldUpdater(MpscLinkedQueueHeadRef.class, "headRef");
-        if (updater == null) {
-            updater = AtomicReferenceFieldUpdater.newUpdater(
-                    MpscLinkedQueueHeadRef.class, MpscLinkedQueueNode.class, "headRef");
-        }
+        AtomicReferenceFieldUpdater<MpscLinkedQueueHeadRef, MpscLinkedQueueNode> updater = AtomicReferenceFieldUpdater.newUpdater(
+                MpscLinkedQueueHeadRef.class, MpscLinkedQueueNode.class, "headRef");
         UPDATER = updater;
     }
 
-    private transient  volatile MpscLinkedQueueNode<E> headRef;
+    private transient volatile MpscLinkedQueueNode<E> headRef;
 
     protected final MpscLinkedQueueNode<E> headRef() {
         return headRef;

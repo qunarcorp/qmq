@@ -1,7 +1,5 @@
 package qunar.tc.qmq.batch;
 
-import io.netty.util.internal.PlatformDependent;
-
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 /**
@@ -17,12 +15,8 @@ abstract class MpscLinkedQueueTailRef<E> extends MpscLinkedQueuePad1<E> {
 
     static {
         @SuppressWarnings("rawtypes")
-        AtomicReferenceFieldUpdater<MpscLinkedQueueTailRef, MpscLinkedQueueNode> updater;
-        updater = PlatformDependent.newAtomicReferenceFieldUpdater(MpscLinkedQueueTailRef.class, "tailRef");
-        if (updater == null) {
-            updater = AtomicReferenceFieldUpdater.newUpdater(
-                    MpscLinkedQueueTailRef.class, MpscLinkedQueueNode.class, "tailRef");
-        }
+        AtomicReferenceFieldUpdater<MpscLinkedQueueTailRef, MpscLinkedQueueNode> updater = AtomicReferenceFieldUpdater.newUpdater(
+                MpscLinkedQueueTailRef.class, MpscLinkedQueueNode.class, "tailRef");
         UPDATER = updater;
     }
 
