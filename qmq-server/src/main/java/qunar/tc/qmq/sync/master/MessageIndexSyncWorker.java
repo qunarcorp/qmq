@@ -118,15 +118,15 @@ public class MessageIndexSyncWorker extends AbstractLogSyncWorker {
         return true;
     }
 
-    private boolean copyString(ByteBuffer src, ByteBuf to) {
-        short len = src.getShort();
+    private boolean copyString(ByteBuffer from, ByteBuf to) {
+        short len = from.getShort();
         if (len <= 0) {
             if (!to.isWritable(Short.BYTES)) return false;
             to.writeShort(0);
             return true;
         }
         byte[] str = new byte[len];
-        src.get(str);
+        from.get(str);
         if (!to.isWritable(Short.BYTES + len)) {
             to.resetWriterIndex();
             return false;
