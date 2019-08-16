@@ -23,10 +23,7 @@ import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 import qunar.tc.qmq.meta.route.SubjectRouter;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
@@ -69,7 +66,7 @@ public class DelayRouter implements SubjectRouter {
 
     private List<BrokerGroup> select(final List<BrokerGroup> groups) {
         if (groups == null || groups.size() == 0) {
-            return null;
+            return Collections.EMPTY_LIST;
         }
         if (groups.size() <= DEFAULT_MIN_NUM) {
             return groups;
