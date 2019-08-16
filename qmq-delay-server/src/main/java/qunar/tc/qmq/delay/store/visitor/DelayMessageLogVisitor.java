@@ -106,6 +106,7 @@ public class DelayMessageLogVisitor implements LogVisitor<LogRecord> {
 
         final int startPos = buffer.position();
         long startWroteOffset = startOffset + startPos;
+
         // magic
         final int magic = buffer.getInt();
         if (!MagicCodeSupport.isValidMessageLogMagicCode(magic)) {
@@ -129,35 +130,42 @@ public class DelayMessageLogVisitor implements LogVisitor<LogRecord> {
             visitedBufferSize.set(currentBuffer.getSize());
             return Optional.of(EMPTY_LOG_RECORD);
         } else {
-            if (buffer.remaining() < Long.BYTES) {
-                return Optional.of(EMPTY_LOG_RECORD);
-            }
             // schedule time
-            long scheduleTime = buffer.getLong();
             if (buffer.remaining() < Long.BYTES) {
                 return Optional.of(EMPTY_LOG_RECORD);
             }
-            // logical offset
+            long scheduleTime = buffer.getLong();
+
+            // sequence
+            if (buffer.remaining() < Long.BYTES) {
+                return Optional.of(EMPTY_LOG_RECORD);
+            }
             long sequence = buffer.getLong();
+
+            // message id size
             if (buffer.remaining() < Integer.BYTES) {
                 return Optional.of(EMPTY_LOG_RECORD);
             }
-            // message id size
             final int messageIdSize = buffer.getInt();
+
+            // message id
             if (buffer.remaining() < messageIdSize) {
                 return Optional.of(EMPTY_LOG_RECORD);
             }
             final byte[] messageIdBytes = new byte[messageIdSize];
-            // message id
             buffer.get(messageIdBytes);
 
             // subject size
+            if (buffer.remaining() < Integer.BYTES) {
+                return Optional.of(EMPTY_LOG_RECORD);
+            }
             final int subjectSize = buffer.getInt();
+
+            // subject
             if (buffer.remaining() < subjectSize) {
                 return Optional.of(EMPTY_LOG_RECORD);
             }
             final byte[] subjectBytes = new byte[subjectSize];
-            // subject
             buffer.get(subjectBytes);
 
             if (magic >= MagicCode.MESSAGE_LOG_MAGIC_V2) {
@@ -168,21 +176,24 @@ public class DelayMessageLogVisitor implements LogVisitor<LogRecord> {
                 buffer.getLong();
             }
 
+            // payload size
             if (buffer.remaining() < Integer.BYTES) {
                 return Optional.of(EMPTY_LOG_RECORD);
             }
-            // payload size
             final int payloadSize = buffer.getInt();
+
+            // message body && The new buffer's position will be zero
             if (buffer.remaining() < payloadSize) {
                 return Optional.of(EMPTY_LOG_RECORD);
             }
-            // message body && The new buffer's position will be zero
             final ByteBuffer message = buffer.slice();
             message.limit(payloadSize);
             buffer.position(buffer.position() + payloadSize);
             int recordBytes = buffer.position() - startPos;
             visitedBufferSize.addAndGet(recordBytes);
-            LogRecordHeader header = new LogRecordHeader(new String(subjectBytes, StandardCharsets.UTF_8), new String(messageIdBytes, StandardCharsets.UTF_8), scheduleTime, sequence);
+            String subject = new String(subjectBytes, StandardCharsets.UTF_8);
+            String messageId = new String(messageIdBytes, StandardCharsets.UTF_8);
+            LogRecordHeader header = new LogRecordHeader(subject, messageId, scheduleTime, sequence);
             return Optional.of(new MessageLogRecord(header, recordBytes, startWroteOffset, payloadSize, message));
         }
     }
