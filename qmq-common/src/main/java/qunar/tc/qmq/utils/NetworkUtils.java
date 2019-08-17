@@ -46,6 +46,9 @@ public class NetworkUtils {
             final ArrayList<String> ipv6Result = new ArrayList<>();
             while (interfaces.hasMoreElements()) {
                 final NetworkInterface networkInterface = interfaces.nextElement();
+                if (!networkInterface.isUp()) continue;
+                if (networkInterface.isVirtual()) continue;
+
                 final Enumeration<InetAddress> addresses = networkInterface.getInetAddresses();
                 while (addresses.hasMoreElements()) {
                     final InetAddress address = addresses.nextElement();
