@@ -36,12 +36,6 @@
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
         </dependency>
-        <dependency>
-            <groupId>com.diffblue</groupId>
-            <artifactId>deeptestutils</artifactId>
-            <version>1.9.0</version>
-            <scope>test</scope>
-        </dependency>
     </dependencies>
 
 </project>

@@ -33,11 +33,7 @@ public class HashedWheelTimer {
     private static final AtomicIntegerFieldUpdater<HashedWheelTimer> WORKER_STATE_UPDATER;
 
     static {
-        AtomicIntegerFieldUpdater<HashedWheelTimer> workerStateUpdater =
-                PlatformDependent.newAtomicIntegerFieldUpdater(HashedWheelTimer.class, "workerState");
-        if (workerStateUpdater == null) {
-            workerStateUpdater = AtomicIntegerFieldUpdater.newUpdater(HashedWheelTimer.class, "workerState");
-        }
+        AtomicIntegerFieldUpdater<HashedWheelTimer> workerStateUpdater = AtomicIntegerFieldUpdater.newUpdater(HashedWheelTimer.class, "workerState");
         WORKER_STATE_UPDATER = workerStateUpdater;
     }
 
@@ -298,11 +294,7 @@ public class HashedWheelTimer {
         private static final AtomicIntegerFieldUpdater<HashedWheelTimeout> STATE_UPDATER;
 
         static {
-            AtomicIntegerFieldUpdater<HashedWheelTimeout> updater =
-                    PlatformDependent.newAtomicIntegerFieldUpdater(HashedWheelTimeout.class, "state");
-            if (updater == null) {
-                updater = AtomicIntegerFieldUpdater.newUpdater(HashedWheelTimeout.class, "state");
-            }
+            AtomicIntegerFieldUpdater<HashedWheelTimeout> updater = AtomicIntegerFieldUpdater.newUpdater(HashedWheelTimeout.class, "state");
             STATE_UPDATER = updater;
         }
 
