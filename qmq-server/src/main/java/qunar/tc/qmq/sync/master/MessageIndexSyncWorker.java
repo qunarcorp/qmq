@@ -97,6 +97,7 @@ public class MessageIndexSyncWorker extends AbstractLogSyncWorker {
                     control = copyString(body, byteBuf);
                     if (control == Control.INVALID) {
                         nextSyncOffset = visitor.getStartOffset() + visitor.visitedBufferSize();
+                        continue;
                     }
                     if (control == Control.NOSPACE) break;
 
