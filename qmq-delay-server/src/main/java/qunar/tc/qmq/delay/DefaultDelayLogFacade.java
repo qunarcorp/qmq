@@ -62,7 +62,7 @@ public class DefaultDelayLogFacade implements DelayLogFacade {
         this.dispatchLog = new DispatchLog(config);
         this.offsetManager = new IterateOffsetManager(config.getCheckpointStorePath(), scheduleLog::flush);
         FixedExecOrderEventBus bus = new FixedExecOrderEventBus();
-        bus.subscribe(LogRecord.class, (e) -> {
+        bus.subscribe(LogRecord.class, e -> {
             AppendLogResult<ScheduleIndex> result = appendScheduleLog(e);
             int code = result.getCode();
             if (MessageProducerCode.SUCCESS != code) {
@@ -70,6 +70,8 @@ public class DefaultDelayLogFacade implements DelayLogFacade {
                 throw new AppendException("appendScheduleLogError");
             }
             func.apply(result.getAdditional());
+        });
+        bus.subscribe(LogRecord.class, e -> {
             long checkpoint = e.getStartWroteOffset() + e.getRecordSize();
             updateIterateOffset(checkpoint);
         });

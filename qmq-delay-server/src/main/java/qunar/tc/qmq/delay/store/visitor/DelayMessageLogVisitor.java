@@ -16,8 +16,6 @@
 
 package qunar.tc.qmq.delay.store.visitor;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.delay.store.model.LogRecord;
 import qunar.tc.qmq.delay.store.model.LogRecordHeader;
 import qunar.tc.qmq.delay.store.model.MessageLogRecord;
@@ -36,7 +34,6 @@ import static qunar.tc.qmq.delay.store.model.MessageLogAttrEnum.ATTR_SKIP_RECORD
  * @since 2018-07-11 18:33
  */
 public class DelayMessageLogVisitor extends AbstractLogVisitor<LogRecord> {
-    private static final Logger LOGGER = LoggerFactory.getLogger(DelayMessageLogVisitor.class);
 
     private static final int MIN_RECORD_BYTES = 13;
 
