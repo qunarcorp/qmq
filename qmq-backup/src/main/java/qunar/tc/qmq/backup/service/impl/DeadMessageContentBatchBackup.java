@@ -16,20 +16,6 @@
 
 package qunar.tc.qmq.backup.service.impl;
 
-import static qunar.tc.qmq.backup.config.DefaultBackupConfig.DEFAULT_BATCH_SIZE;
-import static qunar.tc.qmq.backup.config.DefaultBackupConfig.DEFAULT_RETRY_NUM;
-import static qunar.tc.qmq.backup.config.DefaultBackupConfig.MESSAGE_BATCH_SIZE_CONFIG_KEY;
-import static qunar.tc.qmq.backup.config.DefaultBackupConfig.MESSAGE_RETRY_NUM_CONFIG_KEY;
-import static qunar.tc.qmq.metrics.MetricsConstants.EMPTY;
-import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_ARRAY;
-import static qunar.tc.qmq.utils.RetrySubjectUtils.getConsumerGroup;
-
-import java.util.Date;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
-
 import com.google.common.base.Throwables;
 import org.jboss.netty.util.CharsetUtil;
 import org.slf4j.Logger;
@@ -42,6 +28,17 @@ import qunar.tc.qmq.backup.store.KvStore;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.store.MessageQueryIndex;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
+
+import java.util.Date;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+
+import static qunar.tc.qmq.backup.config.DefaultBackupConfig.DEFAULT_BATCH_SIZE;
+import static qunar.tc.qmq.backup.config.DefaultBackupConfig.MESSAGE_BATCH_SIZE_CONFIG_KEY;
+import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_ARRAY;
+import static qunar.tc.qmq.utils.RetrySubjectUtils.getConsumerGroup;
 
 /**
  * @author xufeng.deng dennisdxf@gmail.com
@@ -71,29 +68,14 @@ public class DeadMessageContentBatchBackup extends AbstractBatchBackup<MessageQu
         doStore(batch, fi);
     }
 
-	private void doStore(List<MessageQueryIndex> batch, Consumer<MessageQueryIndex> func) {
-		for (int i = 0; i < retryNum(); ++i) {
-			try {
-				doBatchSaveBackupDeadMessage(batch, func);
-				return;
-			}
-			catch (Exception e) {
-				LOGGER.error("dead message backup store error.", e);
-				monitorStoreRetry();
-			}
-		}
-
-		monitorStoreDiscard();
-	}
-
-    private void doBatchSaveBackupDeadMessage(List<MessageQueryIndex> indexes, Consumer<MessageQueryIndex> func) {
-        byte[][] recordKeys = new byte[indexes.size()][];
-        byte[][][] recordValues = new byte[indexes.size()][][];
+    private void doStore(List<MessageQueryIndex> batch, Consumer<MessageQueryIndex> func) {
+        byte[][] recordKeys = new byte[batch.size()][];
+        byte[][][] recordValues = new byte[batch.size()][][];
         long currentTime = System.currentTimeMillis();
         try {
             MessageQueryIndex tailIndex = null;
-            for (int i = 0; i < indexes.size(); ++i) {
-                MessageQueryIndex index = indexes.get(i);
+            for (int i = 0; i < batch.size(); ++i) {
+                MessageQueryIndex index = batch.get(i);
                 String subject = index.getSubject();
 
                 BackupQuery query = new BackupQuery();
@@ -137,24 +119,12 @@ public class DeadMessageContentBatchBackup extends AbstractBatchBackup<MessageQu
         }
     }
 
-    private int retryNum() {
-        return config.getInt(MESSAGE_RETRY_NUM_CONFIG_KEY, DEFAULT_RETRY_NUM);
-    }
-
     private static void monitorDeadMessageError(String subject) {
         Metrics.counter("dead_message_content_store_error", SUBJECT_ARRAY, new String[]{subject}).inc();
     }
 
-	private static void monitorStoreDiscard() {
-		Metrics.counter("dead_message_content_backup_store_discard", EMPTY, EMPTY).inc();
-	}
-
     private static void monitorDeadMessageQps(String subject) {
         Metrics.meter("backup.dead.message.content.qps", SUBJECT_ARRAY, new String[]{subject}).mark();
-    }
-
-    private static void monitorStoreRetry() {
-		Metrics.counter("dead_message_content_backup_store_retry", EMPTY, EMPTY).inc();
     }
 
     @Override
