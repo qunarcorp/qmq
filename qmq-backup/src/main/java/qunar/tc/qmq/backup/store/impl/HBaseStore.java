@@ -39,23 +39,26 @@ public class HBaseStore extends AbstractHBaseStore {
         this.client = client;
     }
 
-	@Override
-	protected void doBatchSave(byte[] table, byte[][] keys, byte[] family, byte[][] qualifiers, byte[][][] values) {
-		List<Deferred<Object>> deferreds = new ArrayList<>(keys.length);
-		for (int i = 0; i < keys.length; ++i) {
-			PutRequest request = new PutRequest(table, keys[i], family, qualifiers, values[i]);
-			Deferred<Object> future = client.put(request);
-			deferreds.add(future);
-		}
+    @Override
+    protected void doBatchSave(byte[] table, byte[][] keys, byte[] family, byte[][] qualifiers, byte[][][] values) {
+        List<Deferred<Object>> deferreds = new ArrayList<>(keys.length);
+        for (int i = 0; i < keys.length; ++i) {
+            if (keys[i] == null) continue;
+            if (values[i] == null) continue;
 
-		try {
-			Deferred.group(deferreds).join(30 * 1000);
-		}catch (Exception e) {
-			throw new RuntimeException(e);
-		}
-	}
+            PutRequest request = new PutRequest(table, keys[i], family, qualifiers, values[i]);
+            Deferred<Object> future = client.put(request);
+            deferreds.add(future);
+        }
 
-	@Override
+        try {
+            Deferred.group(deferreds).join(30 * 1000);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
     protected <T, V> List<T> scan(byte[] table, String keyRegexp, String startKey, String stopKey, int maxNumRows, int maxVersions, byte[] family, byte[][] qualifiers, RowExtractor<T> rowExtractor) throws Exception {
         Scanner scanner = null;
         try {
