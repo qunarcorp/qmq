@@ -75,7 +75,7 @@ public class DefaultDelayLogFacade implements DelayLogFacade {
             long checkpoint = e.getStartWroteOffset() + e.getRecordSize();
             updateIterateOffset(checkpoint);
         });
-        this.messageLogIterateService = new LogIterateService<>("message-log", 5, messageLog, initialMessageIterateFrom(), null);
+        this.messageLogIterateService = new LogIterateService<>("message-log", 5, messageLog, initialMessageIterateFrom(), bus);
         this.logFlusher = new LogFlusher(messageLog, offsetManager, dispatchLog);
         this.cleaner = new LogCleaner(config, dispatchLog, scheduleLog, messageLog);
     }
