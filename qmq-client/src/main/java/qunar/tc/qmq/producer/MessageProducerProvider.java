@@ -17,7 +17,6 @@ package qunar.tc.qmq.producer;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
 import io.opentracing.Scope;
 import io.opentracing.Tracer;
 import io.opentracing.util.GlobalTracer;
@@ -40,8 +39,6 @@ import qunar.tc.qmq.tracing.TraceUtil;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
-
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -50,6 +47,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * @date 2013-1-5
  */
 public class MessageProducerProvider implements MessageProducer {
+
     private static final ConfigCenter configs = ConfigCenter.getInstance();
 
     private final IdGenerator idGenerator;
@@ -67,6 +65,8 @@ public class MessageProducerProvider implements MessageProducer {
     private String metaServer;
 
     private MessageTracker messageTracker;
+
+    private OrderedMessageManager orderedMessageManager;
 
     /**
      * 自动路由机房
@@ -101,7 +101,9 @@ public class MessageProducerProvider implements MessageProducer {
     }
 
     private void setupEnv(final BaseMessage message) {
-        if (envProvider == null) return;
+        if (envProvider == null) {
+            return;
+        }
         final String subject = message.getSubject();
         final String env = envProvider.env(subject);
         if (Strings.isNullOrEmpty(env)) {
@@ -123,7 +125,6 @@ public class MessageProducerProvider implements MessageProducer {
         if (!STARTED.get()) {
             throw new RuntimeException("MessageProducerProvider未初始化，如果使用非Spring的方式请确认init()是否调用");
         }
-
 
         String[] tagValues = null;
         long startTime = System.currentTimeMillis();
@@ -162,13 +163,28 @@ public class MessageProducerProvider implements MessageProducer {
 
 
         } finally {
-            QmqTimer timer = Metrics.timer("qmq_client_producer_send_message_time", MetricsConstants.SUBJECT_AND_TYPE_ARRAY, tagValues);
+            QmqTimer timer = Metrics
+                    .timer("qmq_client_producer_send_message_time", MetricsConstants.SUBJECT_AND_TYPE_ARRAY, tagValues);
             timer.update(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
 
             if (scope != null) {
                 scope.close();
             }
         }
+    }
+
+    @Override
+    public void sendMessage(Message message, int orderIdentifier) {
+        PartitionInfo partitionInfo = orderedMessageManager.getPartitionInfo(message.getSubject());
+        OrderedMessageUtils.initOrderedMessage(message, orderIdentifier, partitionInfo);
+        this.sendMessage(message);
+    }
+
+    @Override
+    public void sendMessage(Message message, MessageSendStateListener listener, int orderIdentifier) {
+        PartitionInfo partitionInfo = orderedMessageManager.getPartitionInfo(message.getSubject());
+        OrderedMessageUtils.initOrderedMessage(message, orderIdentifier, partitionInfo);
+        this.sendMessage(message, listener);
     }
 
     private ProduceMessageImpl initProduceMessage(Message message, MessageSendStateListener listener) {
@@ -200,8 +216,6 @@ public class MessageProducerProvider implements MessageProducer {
 
     /**
      * 发送线程数，默认3个线程
-     *
-     * @param sendThreads
      */
     public void setSendThreads(int sendThreads) {
         configs.setSendThreads(sendThreads);
@@ -209,8 +223,6 @@ public class MessageProducerProvider implements MessageProducer {
 
     /**
      * 批量发送，每批量大小，默认值30
-     *
-     * @param sendBatch
      */
     public void setSendBatch(int sendBatch) {
         configs.setSendBatch(sendBatch);
@@ -218,8 +230,6 @@ public class MessageProducerProvider implements MessageProducer {
 
     /**
      * 发送失败重试次数，默认值10
-     *
-     * @param sendTryCount
      */
     public void setSendTryCount(int sendTryCount) {
         configs.setSendTryCount(sendTryCount);
@@ -239,18 +249,13 @@ public class MessageProducerProvider implements MessageProducer {
 
     /**
      * 为了方便维护应用与消息主题之间的关系，每个应用提供一个唯一的标识
-     *
-     * @param appCode
      */
     public void setAppCode(String appCode) {
         this.appCode = appCode;
     }
 
     /**
-     * 用于发现meta server集群的地址
-     * 格式: http://<meta server address>/meta/address
-     *
-     * @param metaServer
+     * 用于发现meta server集群的地址 格式: http://<meta server address>/meta/address
      */
     public void setMetaServer(String metaServer) {
         this.metaServer = metaServer;

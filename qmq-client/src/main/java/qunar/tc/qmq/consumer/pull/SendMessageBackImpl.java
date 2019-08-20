@@ -181,13 +181,13 @@ class SendMessageBackImpl implements SendMessageBack {
                 }
             }
         };
-        final BrokerGroupInfo brokerGroup = brokerLoadBalance.loadBalance(brokerCluster, null);
+        final BrokerGroupInfo brokerGroup = brokerLoadBalance.loadBalance(brokerCluster, null, Lists.newArrayList(message));
         sendBack(brokerGroup, message, callback, ClientType.PRODUCER);
     }
 
     private void sendBackAndCompleteNack(final BaseMessage message, final SendMessageBack.Callback callback) {
         final BrokerClusterInfo brokerCluster = brokerService.getClusterBySubject(ClientType.PRODUCER, message.getSubject());
-        final BrokerGroupInfo brokerGroup = brokerLoadBalance.loadBalance(brokerCluster, null);
+        final BrokerGroupInfo brokerGroup = brokerLoadBalance.loadBalance(brokerCluster, null, Lists.newArrayList(message));
         sendBack(brokerGroup, message, callback, ClientType.PRODUCER);
     }
 

@@ -18,11 +18,23 @@ package qunar.tc.qmq.producer;
 
 import qunar.tc.qmq.ProduceMessage;
 
+import java.util.Map;
+
 /**
  * @author miao.yang susing@gmail.com
  * @date 2013-1-6
  */
 public interface QueueSender {
+
+    enum PropKey {
+        SENDER_NAME,
+        MAX_QUEUE_SIZE,
+        SEND_THREADS,
+        SEND_BATCH,
+        ROUTER_MANAGER
+    }
+
+    void init(Map<PropKey, Object> props);
 
     boolean offer(ProduceMessage pm);
 

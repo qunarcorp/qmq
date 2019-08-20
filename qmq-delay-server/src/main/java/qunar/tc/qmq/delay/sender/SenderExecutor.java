@@ -100,7 +100,7 @@ class SenderExecutor implements Disposable {
 
     private BrokerGroupInfo loadGroup(String subject, BrokerService brokerService) {
         BrokerClusterInfo cluster = brokerService.getClusterBySubject(ClientType.PRODUCER, subject);
-        return brokerLoadBalance.loadBalance(cluster, null);
+        return brokerLoadBalance.loadBalance(cluster, null, null);
     }
 
     private Map<String, List<ScheduleIndex>> groupBySubject(List<ScheduleIndex> list) {

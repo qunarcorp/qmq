@@ -24,6 +24,7 @@ import qunar.tc.qmq.protocol.consumer.MetaInfoResponse;
  * @author yiqun.fan create on 17-9-1.
  */
 interface MetaInfoClient {
+
     void sendRequest(MetaInfoRequest request);
 
     void registerResponseSubscriber(ResponseSubscriber receiver);

@@ -58,7 +58,13 @@ public class BaseMessage implements Message, Serializable {
         qmq_pullOffset,
         qmq_corruptData,
         qmq_env,
-        qmq_subEnv
+        qmq_subEnv,
+        qmq_logicPartition,
+        qmq_physicalPartition,
+        qmq_partitionVersion,
+        qmq_partitionBroker,
+        qmq_queueSenderType,
+        qmq_queueLoadBalanceType
     }
 
     private static final Set<String> keyNames = Sets.newHashSet();

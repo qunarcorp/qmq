@@ -25,7 +25,7 @@ import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerLoadBalance;
 import qunar.tc.qmq.broker.BrokerService;
-import qunar.tc.qmq.broker.impl.PollBrokerLoadBalance;
+import qunar.tc.qmq.broker.impl.AdaptiveBrokerLoadBalance;
 import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.QmqCounter;
@@ -44,6 +44,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_ARRAY;
 
@@ -51,6 +52,7 @@ import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_ARRAY;
  * @author zhenyu.nie created on 2017 2017/7/5 15:08
  */
 class NettyConnection implements Connection {
+
     private final String subject;
     private final ClientType clientType;
     private final NettyProducerClient producerClient;
@@ -58,12 +60,14 @@ class NettyConnection implements Connection {
 
     private volatile BrokerGroupInfo lastSentBroker;
 
-    private final BrokerLoadBalance brokerLoadBalance = PollBrokerLoadBalance.getInstance();
-
     private final QmqCounter sendMessageCountMetrics;
     private final QmqTimer sendMessageTimerMetrics;
 
-    NettyConnection(String subject, ClientType clientType, NettyProducerClient producerClient, BrokerService brokerService) {
+    private BrokerLoadBalance brokerLoadBalance;
+    private MessagePreHandler messagePreHandler;
+
+    NettyConnection(String subject, ClientType clientType, NettyProducerClient producerClient,
+                    BrokerService brokerService) {
         this.subject = subject;
         this.clientType = clientType;
         this.producerClient = producerClient;
@@ -71,6 +75,9 @@ class NettyConnection implements Connection {
 
         sendMessageCountMetrics = Metrics.counter("qmq_client_send_msg_count", SUBJECT_ARRAY, new String[]{subject});
         sendMessageTimerMetrics = Metrics.timer("qmq_client_send_msg_timer");
+
+        this.brokerLoadBalance = new AdaptiveBrokerLoadBalance();
+        this.messagePreHandler = new MessagePreHandlerChain();
     }
 
     public void init() {
@@ -83,7 +90,8 @@ class NettyConnection implements Connection {
         long start = System.currentTimeMillis();
         try {
             BrokerClusterInfo cluster = brokerService.getClusterBySubject(clientType, subject);
-            BrokerGroupInfo target = brokerLoadBalance.loadBalance(cluster, lastSentBroker);
+            List<BaseMessage> baseMessages = messages.stream().map(msg -> (BaseMessage) msg.getBase()).collect(Collectors.toList());
+            BrokerGroupInfo target = brokerLoadBalance.loadBalance(cluster, lastSentBroker, baseMessages);
             if (target == null) {
                 throw new ClientSendException(ClientSendException.SendErrorCode.CREATE_CHANNEL_FAIL);
             }
@@ -113,7 +121,8 @@ class NettyConnection implements Connection {
         this.brokerService.refresh(ClientType.PRODUCER, subject);
     }
 
-    private Map<String, MessageException> process(BrokerGroupInfo target, Datagram response) throws RemoteResponseUnreadableException {
+    private Map<String, MessageException> process(BrokerGroupInfo target, Datagram response)
+            throws RemoteResponseUnreadableException {
         ByteBuf buf = response.getBody();
         try {
             if (buf == null || !buf.isReadable()) {
@@ -159,8 +168,10 @@ class NettyConnection implements Connection {
         }
     }
 
-    private Datagram doSend(BrokerGroupInfo target, List<ProduceMessage> messages) throws ClientSendException, RemoteTimeoutException {
+    private Datagram doSend(BrokerGroupInfo target, List<ProduceMessage> messages)
+            throws ClientSendException, RemoteTimeoutException {
         try {
+            messagePreHandler.handle(messages);
             Datagram datagram = buildDatagram(messages);
             TraceUtil.setTag("broker", target.getGroupName());
             Datagram result = producerClient.sendMessage(target, datagram);

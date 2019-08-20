@@ -332,6 +332,13 @@
                 <version>${powermock.version}</version>
                 <scope>test</scope>
             </dependency>
+
+            <dependency>
+                <groupId>com.diffblue</groupId>
+                <artifactId>deeptestutils</artifactId>
+                <version>1.9.0</version>
+                <scope>test</scope>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 

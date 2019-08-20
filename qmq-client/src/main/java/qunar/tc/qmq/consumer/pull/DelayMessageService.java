@@ -16,6 +16,7 @@
 
 package qunar.tc.qmq.consumer.pull;
 
+import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.SettableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,7 +79,7 @@ class DelayMessageService {
         int result = SEND_FAIL;
         for (int i = 0; i < groups.size(); i++) {
             try {
-                BrokerGroupInfo brokerGroup = brokerLoadBalance.loadBalance(brokerCluster, lastSentBrokerGroup);
+                BrokerGroupInfo brokerGroup = brokerLoadBalance.loadBalance(brokerCluster, lastSentBrokerGroup, Lists.newArrayList(message));
                 result = doSend(message, brokerGroup);
                 lastSentBrokerGroup = brokerGroup;
                 if (SEND_SUCCESS == result) return result;

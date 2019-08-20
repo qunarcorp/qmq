@@ -17,10 +17,13 @@
 package qunar.tc.qmq.producer.sender;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Maps;
 import qunar.tc.qmq.Message;
 import qunar.tc.qmq.producer.ConfigCenter;
 import qunar.tc.qmq.producer.QueueSender;
+import qunar.tc.qmq.producer.QueueSender.PropKey;
 
+import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -41,7 +44,14 @@ abstract class AbstractRouterManager implements RouterManager {
     public void init(String clientId) {
         if (STARTED.compareAndSet(false, true)) {
             doInit(clientId);
-            this.sender = new RPCQueueSender("qmq-sender", configs.getMaxQueueSize(), configs.getSendThreads(), configs.getSendBatch(), this);
+            this.sender = new AdaptiveQueueSender();
+            HashMap<PropKey, Object> props = Maps.newHashMap();
+            props.put(PropKey.SENDER_NAME, "qmq-sender");
+            props.put(PropKey.MAX_QUEUE_SIZE, configs.getMaxQueueSize());
+            props.put(PropKey.SEND_THREADS, configs.getSendThreads());
+            props.put(PropKey.SEND_BATCH, configs.getSendBatch());
+            props.put(PropKey.ROUTER_MANAGER, this);
+            this.sender.init(props);
         }
     }
 

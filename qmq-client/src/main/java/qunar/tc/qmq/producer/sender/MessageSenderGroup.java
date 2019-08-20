@@ -36,7 +36,6 @@ class MessageSenderGroup {
 
     private final static String senMessageThrowable = "qmq_client_producer_send_message_Throwable";
 
-
     private final Connection connection;
     private final SendErrorHandler errorHandler;
 
@@ -48,21 +47,25 @@ class MessageSenderGroup {
         this.source = new ArrayList<>();
     }
 
-    public void send() {
-        Map<String, MessageException> map;
+    public void send(SendCallback sendCallback) {
+        Map<String, MessageException> map = null;
         try {
             map = connection.send(source);
         } catch (Exception e) {
             for (ProduceMessage pm : source) {
-                Metrics.counter(senMessageThrowable, MetricsConstants.SUBJECT_ARRAY, new String[] {pm.getSubject()}).inc();
+                Metrics.counter(senMessageThrowable, MetricsConstants.SUBJECT_ARRAY, new String[]{pm.getSubject()}).inc();
                 errorHandler.error(pm, e);
             }
             return;
+        } finally {
+            if (sendCallback != null && map != null) {
+                sendCallback.run(source, map);
+            }
         }
 
         if (map == null) {
             for (ProduceMessage pm : source) {
-                Metrics.counter(senMessageThrowable, MetricsConstants.SUBJECT_ARRAY, new String[] {pm.getSubject()});
+                Metrics.counter(senMessageThrowable, MetricsConstants.SUBJECT_ARRAY, new String[]{pm.getSubject()});
                 errorHandler.error(pm, new MessageException(pm.getMessageId(), "return null"));
             }
             return;
@@ -83,7 +86,7 @@ class MessageSenderGroup {
                     //如果是block的,证明还没有被授权,也不重试,task也不重试,需要手工恢复
                     errorHandler.block(pm, ex);
                 } else {
-                    Metrics.counter(senMessageThrowable, MetricsConstants.SUBJECT_ARRAY, new String[] {pm.getSubject()});
+                    Metrics.counter(senMessageThrowable, MetricsConstants.SUBJECT_ARRAY, new String[]{pm.getSubject()});
                     errorHandler.error(pm, ex);
                 }
             }
