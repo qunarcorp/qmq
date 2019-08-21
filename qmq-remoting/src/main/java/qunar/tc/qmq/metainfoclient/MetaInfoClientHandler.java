@@ -16,6 +16,7 @@
 
 package qunar.tc.qmq.metainfoclient;
 
+import com.google.common.collect.Maps;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -23,24 +24,28 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.util.internal.ConcurrentSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.base.OnOfflineState;
 import qunar.tc.qmq.meta.BrokerCluster;
 import qunar.tc.qmq.meta.BrokerGroup;
-import qunar.tc.qmq.base.OnOfflineState;
 import qunar.tc.qmq.meta.BrokerState;
 import qunar.tc.qmq.protocol.CommandCode;
 import qunar.tc.qmq.protocol.Datagram;
+import qunar.tc.qmq.protocol.RemotingHeader;
 import qunar.tc.qmq.protocol.consumer.MetaInfoResponse;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.TreeMap;
 
 /**
  * @author yiqun.fan create on 17-8-31.
  */
 @ChannelHandler.Sharable
 class MetaInfoClientHandler extends SimpleChannelInboundHandler<Datagram> {
+
     private static final Logger LOG = LoggerFactory.getLogger(MetaInfoClientHandler.class);
+    private static final MetaInfoResponseDeserializer deserializer = new AdaptiveMetaInfoResponseDeserializer();
 
     private final ConcurrentSet<MetaInfoClient.ResponseSubscriber> responseSubscribers = new ConcurrentSet<>();
 
@@ -52,7 +57,7 @@ class MetaInfoClientHandler extends SimpleChannelInboundHandler<Datagram> {
     protected void channelRead0(ChannelHandlerContext ctx, Datagram msg) {
         MetaInfoResponse response = null;
         if (msg.getHeader().getCode() == CommandCode.SUCCESS) {
-            response = deserializeMetaInfoResponse(msg.getBody());
+            response = deserializer.deserialize(msg.getHeader(), msg.getBody());
         }
 
         if (response != null) {
@@ -72,20 +77,63 @@ class MetaInfoClientHandler extends SimpleChannelInboundHandler<Datagram> {
         }
     }
 
-    private static MetaInfoResponse deserializeMetaInfoResponse(ByteBuf buf) {
-        try {
-            final MetaInfoResponse metaInfoResponse = new MetaInfoResponse();
-            metaInfoResponse.setTimestamp(buf.readLong());
-            metaInfoResponse.setSubject(PayloadHolderUtils.readString(buf));
-            metaInfoResponse.setConsumerGroup(PayloadHolderUtils.readString(buf));
-            metaInfoResponse.setOnOfflineState(OnOfflineState.fromCode(buf.readByte()));
-            metaInfoResponse.setClientTypeCode(buf.readByte());
-            metaInfoResponse.setBrokerCluster(deserializeBrokerCluster(buf));
-            return metaInfoResponse;
-        } catch (Exception e) {
-            LOG.error("deserializeMetaInfoResponse exception", e);
+    private interface MetaInfoResponseDeserializer {
+
+        short getVersion();
+
+        MetaInfoResponse deserialize(RemotingHeader header, ByteBuf buf);
+    }
+
+    private static class AdaptiveMetaInfoResponseDeserializer implements MetaInfoResponseDeserializer {
+
+        private TreeMap<Short, MetaInfoResponseDeserializer> deserializerMap;
+
+        public AdaptiveMetaInfoResponseDeserializer() {
+            this.deserializerMap = Maps.newTreeMap();
+            MetaInfoResponseDeserializerV10 deserializerV10 = new MetaInfoResponseDeserializerV10();
+            deserializerMap.put(deserializerV10.getVersion(), deserializerV10);
         }
-        return null;
+
+        @Override
+        public short getVersion() {
+            return Short.MIN_VALUE;
+        }
+
+        @Override
+        public MetaInfoResponse deserialize(RemotingHeader header, ByteBuf buf) {
+            short version = header.getVersion();
+            MetaInfoResponseDeserializer deserializer = deserializerMap.get(version);
+            if (deserializer == null) {
+                deserializer = deserializerMap.firstEntry().getValue();
+            }
+            return deserializer.deserialize(header, buf);
+        }
+    }
+
+    private static class MetaInfoResponseDeserializerV10 implements MetaInfoResponseDeserializer {
+
+        @Override
+        public short getVersion() {
+            return RemotingHeader.VERSION_10;
+        }
+
+        @Override
+        public MetaInfoResponse deserialize(RemotingHeader header, ByteBuf buf) {
+            try {
+                final MetaInfoResponse metaInfoResponse = new MetaInfoResponse();
+                metaInfoResponse.setTimestamp(buf.readLong());
+                metaInfoResponse.setSubject(PayloadHolderUtils.readString(buf));
+                metaInfoResponse.setConsumerGroup(PayloadHolderUtils.readString(buf));
+                metaInfoResponse.setOnOfflineState(OnOfflineState.fromCode(buf.readByte()));
+                metaInfoResponse.setClientTypeCode(buf.readByte());
+                metaInfoResponse.setBrokerCluster(deserializeBrokerCluster(buf));
+                // TODO 补充 partition 反序列化
+                return metaInfoResponse;
+            } catch (Exception e) {
+                LOG.error("deserializeMetaInfoResponse exception", e);
+            }
+            return null;
+        }
     }
 
     private static BrokerCluster deserializeBrokerCluster(ByteBuf buf) {

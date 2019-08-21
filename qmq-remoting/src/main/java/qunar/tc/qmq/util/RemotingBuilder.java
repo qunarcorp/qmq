@@ -39,7 +39,7 @@ public class RemotingBuilder {
         header.setFlag(flag);
         header.setOpaque(opaque);
         header.setRequestCode(code);
-        header.setVersion(RemotingHeader.VERSION_9);
+        header.setVersion(RemotingHeader.VERSION_10);
         return header;
     }
 

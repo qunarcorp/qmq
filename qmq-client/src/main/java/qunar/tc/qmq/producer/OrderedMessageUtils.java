@@ -1,15 +1,12 @@
 package qunar.tc.qmq.producer;
 
 import com.google.common.base.Preconditions;
-import org.springframework.util.ObjectUtils;
-import qunar.tc.qmq.Message;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.base.BaseMessage.keys;
 import qunar.tc.qmq.broker.impl.OrderedMessageLoadBalance;
 import qunar.tc.qmq.meta.BrokerGroup;
+import qunar.tc.qmq.meta.PartitionInfo;
 import qunar.tc.qmq.producer.sender.OrderedQueueSender;
-
-import java.util.Objects;
 
 /**
  * @author zhenwei.liu
@@ -25,6 +22,11 @@ public class OrderedMessageUtils {
         if (!isOrderedMessage(message)) {
             return;
         }
+
+        if (partitionInfo == null) {
+            throw new IllegalStateException("顺序消息必须先申请分配 partition, 请联系管理员进行申请");
+        }
+
         String subject = message.getSubject();
         int orderIdentifier = message.getOrderKey();
         int logicalPartition = orderIdentifier % partitionInfo.getLogicalPartitionNum();

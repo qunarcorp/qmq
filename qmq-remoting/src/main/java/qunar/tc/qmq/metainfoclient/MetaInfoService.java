@@ -81,6 +81,10 @@ public class MetaInfoService implements MetaInfoClient.ResponseSubscriber, Runna
                 .scheduleAtFixedRate(this, REFRESH_INTERVAL_SECONDS, REFRESH_INTERVAL_SECONDS, TimeUnit.SECONDS);
     }
 
+    public void registerResponseSubscriber(MetaInfoClient.ResponseSubscriber subscriber) {
+        this.client.registerResponseSubscriber(subscriber);
+    }
+
     public void register(Object subscriber) {
         eventBus.register(subscriber);
     }

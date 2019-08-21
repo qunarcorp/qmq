@@ -1,7 +1,6 @@
-package qunar.tc.qmq.producer;
+package qunar.tc.qmq.meta;
 
 import com.google.common.collect.RangeMap;
-import qunar.tc.qmq.meta.BrokerGroup;
 
 import java.util.Map;
 

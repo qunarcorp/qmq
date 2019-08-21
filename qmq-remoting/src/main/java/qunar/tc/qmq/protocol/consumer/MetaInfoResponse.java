@@ -18,6 +18,7 @@ package qunar.tc.qmq.protocol.consumer;
 
 import qunar.tc.qmq.meta.BrokerCluster;
 import qunar.tc.qmq.base.OnOfflineState;
+import qunar.tc.qmq.meta.PartitionInfo;
 
 /**
  * @author yiqun.fan create on 17-8-31.
@@ -29,6 +30,7 @@ public class MetaInfoResponse {
     private OnOfflineState onOfflineState;
     private int clientTypeCode;
     private BrokerCluster brokerCluster;
+    private PartitionInfo partitionInfo;
 
     public long getTimestamp() {
         return timestamp;
@@ -76,6 +78,15 @@ public class MetaInfoResponse {
 
     public void setBrokerCluster(BrokerCluster brokerCluster) {
         this.brokerCluster = brokerCluster;
+    }
+
+    public PartitionInfo getPartitionInfo() {
+        return partitionInfo;
+    }
+
+    public MetaInfoResponse setPartitionInfo(PartitionInfo partitionInfo) {
+        this.partitionInfo = partitionInfo;
+        return this;
     }
 
     @Override

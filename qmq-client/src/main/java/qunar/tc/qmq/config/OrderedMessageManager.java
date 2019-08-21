@@ -1,4 +1,6 @@
-package qunar.tc.qmq.producer;
+package qunar.tc.qmq.config;
+
+import qunar.tc.qmq.meta.PartitionInfo;
 
 /**
  * @author zhenwei.liu
