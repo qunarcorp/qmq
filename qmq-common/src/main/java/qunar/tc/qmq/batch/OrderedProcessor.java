@@ -8,5 +8,5 @@ import java.util.List;
  */
 public interface OrderedProcessor<Item> {
 
-	void process(List<Item> items, OrderedExecutor<Item> executor);
+    void process(List<Item> items, OrderedExecutor<Item> executor);
 }

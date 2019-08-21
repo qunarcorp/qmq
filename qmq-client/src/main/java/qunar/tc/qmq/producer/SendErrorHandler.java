@@ -19,6 +19,8 @@ package qunar.tc.qmq.producer;
 import qunar.tc.qmq.ProduceMessage;
 import qunar.tc.qmq.service.exceptions.MessageException;
 
+import java.util.List;
+
 /**
  * @author zhenyu.nie created on 2017 2017/7/5 17:23
  */
@@ -31,4 +33,6 @@ public interface SendErrorHandler {
     void block(ProduceMessage pm, MessageException ex);
 
     void finish(ProduceMessage pm, Exception e);
+
+    void postHandle(List<ProduceMessage> sourceMessages);
 }

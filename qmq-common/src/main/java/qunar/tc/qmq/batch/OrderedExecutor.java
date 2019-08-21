@@ -1,6 +1,7 @@
 package qunar.tc.qmq.batch;
 
 import com.google.common.collect.Lists;
+
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -22,79 +23,67 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class OrderedExecutor<Item> implements Runnable {
 
-	public enum Status {
-		IDLE, RUNNING
-	}
+    public enum Status {
+        IDLE, RUNNING
+    }
 
-	private AtomicReference<Status> status = new AtomicReference<>(Status.IDLE);
-	private String name;
-	private int batchSize;
-	private LinkedBlockingQueue<Item> queue;
-	private OrderedProcessor<Item> processor;
-	private ThreadPoolExecutor executor;
+    private AtomicReference<Status> status = new AtomicReference<>(Status.IDLE);
+    private String name;
+    private int batchSize;
+    private LinkedBlockingQueue<Item> queue;
+    private OrderedProcessor<Item> processor;
+    private ThreadPoolExecutor executor;
 
-	public OrderedExecutor(String name, int batchSize, int queueSize, OrderedProcessor<Item> processor,
-			ThreadPoolExecutor executor) {
-		this.name = name;
-		this.batchSize = batchSize;
-		this.queue = new LinkedBlockingQueue<>(queueSize);
-		this.processor = processor;
-		this.executor = executor;
-	}
+    public OrderedExecutor(String name, int batchSize, int queueSize, OrderedProcessor<Item> processor, ThreadPoolExecutor executor) {
+        this.name = name;
+        this.batchSize = batchSize;
+        this.queue = new LinkedBlockingQueue<>(queueSize);
+        this.processor = processor;
+        this.executor = executor;
+    }
 
-	public boolean addItem(Item item) {
-		boolean offer = this.queue.offer(item);
-		if (offer) {
-			this.executor.execute(this);
-		}
-		return offer;
-	}
+    public boolean addItem(Item item) {
+        boolean offer = this.queue.offer(item);
+        if (offer) {
+            this.executor.execute(this);
+        }
+        return offer;
+    }
 
-	public boolean addItem(Item item, long timeout, TimeUnit unit) throws InterruptedException {
-		boolean offer = this.queue.offer(item, timeout, unit);
-		if (offer) {
-			this.executor.execute(this);
-		}
-		return offer;
-	}
+    public boolean addItem(Item item, long timeout, TimeUnit unit) throws InterruptedException {
+        boolean offer = this.queue.offer(item, timeout, unit);
+        if (offer) {
+            this.executor.execute(this);
+        }
+        return offer;
+    }
 
-	@Override
-	public void run() {
-		while (!this.queue.isEmpty() && Objects.equals(status.get(), Status.IDLE)) {
-			if (status.compareAndSet(Status.IDLE, Status.RUNNING)) {
-				List<Item> requestList = Lists.newArrayListWithCapacity(batchSize);
-				int count = 0;
-				for (Item item : queue) {
-					if (count < batchSize) {
-						requestList.add(item);
-					}
-					count++;
-				}
-				if (requestList.size() > 0) {
-					this.processor.process(requestList, this);
-				}
-			}
-		}
-	}
+    @Override
+    public void run() {
+        while (!this.queue.isEmpty() && Objects.equals(status.get(), Status.IDLE)) {
+            if (status.compareAndSet(Status.IDLE, Status.RUNNING)) {
+                List<Item> requestList = Lists.newArrayListWithCapacity(batchSize);
+                int count = 0;
+                for (Item item : queue) {
+                    if (count < batchSize) {
+                        requestList.add(item);
+                    }
+                    count++;
+                }
+                if (requestList.size() > 0) {
+                    this.processor.process(requestList, this);
+                }
+            }
+        }
+    }
 
-	public interface ProcessResultHandler<Item> {
+    public boolean removeItem(Item item) {
+        return queue.remove(item);
+    }
 
-		boolean isSuccessful(Item item);
-	}
-
-	public void onCallback(List<Item> requestSource, ProcessResultHandler<Item> resultHandler) {
-		for (Item item : requestSource) {
-			if (resultHandler.isSuccessful(item)) {
-				// 发送成功的从队列移除
-				queue.remove(item);
-			} else {
-				// 遇到失败的任务立即退出, 后续不再判断
-				// 只有这个失败的任务再次执行成功, 才能继续执行下一个任务
-				break;
-			}
-		}
-		status.compareAndSet(Status.RUNNING, Status.IDLE);
-		// 触发一次任务
-		this.executor.execute(this);
-	}
+    public void reset() {
+        status.compareAndSet(OrderedExecutor.Status.RUNNING, OrderedExecutor.Status.IDLE);
+        // 触发一次任务
+        this.executor.execute(this);
+    }
 }

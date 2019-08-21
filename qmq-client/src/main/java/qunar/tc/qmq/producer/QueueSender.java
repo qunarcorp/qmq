@@ -31,7 +31,8 @@ public interface QueueSender {
         MAX_QUEUE_SIZE,
         SEND_THREADS,
         SEND_BATCH,
-        ROUTER_MANAGER
+        ROUTER_MANAGER,
+        ORDER_STRATEGY_MANAGER
     }
 
     void init(Map<PropKey, Object> props);

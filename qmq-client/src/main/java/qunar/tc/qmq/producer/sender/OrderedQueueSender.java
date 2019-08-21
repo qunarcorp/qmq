@@ -2,20 +2,24 @@ package qunar.tc.qmq.producer.sender;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
+import qunar.tc.qmq.OrderStrategy;
 import qunar.tc.qmq.ProduceMessage;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.base.BaseMessage.keys;
+import qunar.tc.qmq.base.OrderStrategyManager;
 import qunar.tc.qmq.batch.OrderedExecutor;
 import qunar.tc.qmq.batch.OrderedProcessor;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.QmqTimer;
+import qunar.tc.qmq.producer.SendErrorHandler;
 import qunar.tc.qmq.service.exceptions.DuplicateMessageException;
 import qunar.tc.qmq.service.exceptions.MessageException;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -29,8 +33,10 @@ import java.util.concurrent.TimeUnit;
 public class OrderedQueueSender extends AbstractQueueSender implements OrderedProcessor<ProduceMessage> {
 
     private ThreadPoolExecutor executor; // 所有分区共享一个线程池
+    private OrderStrategyManager orderStrategyManager;
     private int maxQueueSize;
     private int sendBatch;
+    private QmqTimer timer;
 
     // subject-physicalPartition => executor
     private Map<String, OrderedExecutor<ProduceMessage>> executorMap = Maps.newConcurrentMap();
@@ -43,6 +49,7 @@ public class OrderedQueueSender extends AbstractQueueSender implements OrderedPr
         this.maxQueueSize = (int) Preconditions.checkNotNull(props.get(PropKey.MAX_QUEUE_SIZE));
         this.sendBatch = (int) Preconditions.checkNotNull(props.get(PropKey.SEND_BATCH));
         this.routerManager = (RouterManager) Preconditions.checkNotNull(props.get(PropKey.ROUTER_MANAGER));
+        this.orderStrategyManager = (OrderStrategyManager) Preconditions.checkNotNull(props.get(PropKey.ORDER_STRATEGY_MANAGER));
         this.executor = new ThreadPoolExecutor(1, sendThreads, 1L, TimeUnit.MINUTES,
                 new ArrayBlockingQueue<>(1), new NamedThreadFactory("batch-ordered-" + name + "-task", true));
         this.executor.setRejectedExecutionHandler(new ThreadPoolExecutor.DiscardPolicy());
@@ -79,26 +86,6 @@ public class OrderedQueueSender extends AbstractQueueSender implements OrderedPr
         this.executor.shutdown();
     }
 
-    @Override
-    public void error(ProduceMessage pm, Exception e) {
-        // TODO
-    }
-
-    @Override
-    public void failed(ProduceMessage pm, Exception e) {
-        // TODO
-    }
-
-    @Override
-    public void block(ProduceMessage pm, MessageException ex) {
-        // TODO
-    }
-
-    @Override
-    public void finish(ProduceMessage pm, Exception e) {
-        // TODO
-    }
-
     private OrderedExecutor<ProduceMessage> getExecutor(ProduceMessage produceMessage) {
         BaseMessage baseMessage = (BaseMessage) produceMessage.getBase();
         String key = baseMessage.getSubject() + "#" + baseMessage.getStringProperty(keys.qmq_physicalPartition);
@@ -114,16 +101,59 @@ public class OrderedQueueSender extends AbstractQueueSender implements OrderedPr
             for (MessageSenderGroup group : messages) {
                 QmqTimer timer = Metrics.timer("qmq_client_producer_send_broker_time");
                 long startTime = System.currentTimeMillis();
-                group.send((source, result) -> executor.onCallback(produceMessages, produceMessage -> {
-                    // 在这里判断最终是否发送成功, 发送成功的消息会别 executor 从 queue 中移除
-                    // 连续成功机制由 broker 端来控制
-                    MessageException ex = result.get(produceMessage.getMessageId());
-                    return ex == null || ex instanceof DuplicateMessageException;
-                }));
+                group.send(new SendErrorHandler() {
+
+                    @Override
+                    public void error(ProduceMessage pm, Exception e) {
+                        // 重试交给 executor 处理
+                        pm.reset();
+                        if (!shouldRetry(pm)) {
+                            executor.removeItem(pm);
+                        }
+                    }
+
+                    @Override
+                    public void failed(ProduceMessage pm, Exception e) {
+                        // server busy, 无序处理, 不再重试
+                        executor.removeItem(pm);
+                        pm.failed();
+                    }
+
+                    @Override
+                    public void block(ProduceMessage pm, MessageException ex) {
+                        // 权限问题, 无序处理, 不再重试
+                        executor.removeItem(pm);
+                        pm.block();
+                    }
+
+                    @Override
+                    public void finish(ProduceMessage pm, Exception e) {
+                        executor.removeItem(pm);
+                        pm.finish();
+                    }
+
+                    @Override
+                    public void postHandle(List<ProduceMessage> sourceMessages) {
+                        executor.reset();
+                    }
+                });
                 timer.update(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
             }
         } finally {
             timer.update(System.currentTimeMillis() - start, TimeUnit.MILLISECONDS);
         }
+    }
+
+    private boolean shouldRetry(ProduceMessage message) {
+        OrderStrategy orderStrategy = orderStrategyManager.getOrderStrategy(message.getSubject());
+        if (Objects.equals(orderStrategy, OrderStrategy.STRICT)) {
+            // 永远重试
+            return true;
+        } else if (Objects.equals(orderStrategy, OrderStrategy.BEST_TRIED) &&
+                (message.getTries() < message.getMaxTries())) {
+            // 重试次数内重试
+            return true;
+        }
+        return false;
     }
 }

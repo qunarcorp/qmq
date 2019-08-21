@@ -37,17 +37,14 @@ class MessageSenderGroup {
     private final static String senMessageThrowable = "qmq_client_producer_send_message_Throwable";
 
     private final Connection connection;
-    private final SendErrorHandler errorHandler;
-
     private final List<ProduceMessage> source;
 
-    MessageSenderGroup(SendErrorHandler errorHandler, Connection connection) {
-        this.errorHandler = errorHandler;
+    MessageSenderGroup(Connection connection) {
         this.connection = connection;
         this.source = new ArrayList<>();
     }
 
-    public void send(SendCallback sendCallback) {
+    public void send(SendErrorHandler errorHandler) {
         Map<String, MessageException> map = null;
         try {
             map = connection.send(source);
@@ -57,10 +54,6 @@ class MessageSenderGroup {
                 errorHandler.error(pm, e);
             }
             return;
-        } finally {
-            if (sendCallback != null && map != null) {
-                sendCallback.run(source, map);
-            }
         }
 
         if (map == null) {
@@ -91,6 +84,8 @@ class MessageSenderGroup {
                 }
             }
         }
+
+        errorHandler.postHandle(source);
     }
 
     void addMessage(ProduceMessage source) {
