@@ -89,6 +89,7 @@ class MessageSenderGroup {
             Metrics.counter(senMessageThrowable, MetricsConstants.SUBJECT_ARRAY, new String[]{pm.getSubject()}).inc();
             errorHandler.error(pm, e);
         }
+        errorHandler.postHandle(source);
     }
 
     private void processResult(Map<String, MessageException> result, SendErrorHandler errorHandler) {

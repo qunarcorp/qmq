@@ -82,8 +82,9 @@ public class OrderedExecutor<Item> implements Runnable {
     }
 
     public void reset() {
-        status.compareAndSet(OrderedExecutor.Status.RUNNING, OrderedExecutor.Status.IDLE);
-        // 触发一次任务
-        this.executor.execute(this);
+        if (status.compareAndSet(OrderedExecutor.Status.RUNNING, OrderedExecutor.Status.IDLE)) {
+            // 触发一次任务
+            this.executor.execute(this);
+        }
     }
 }
