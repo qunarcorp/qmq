@@ -16,6 +16,9 @@
 
 package qunar.tc.qmq.producer.sender;
 
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import qunar.tc.qmq.ProduceMessage;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.MetricsConstants;
@@ -44,19 +47,52 @@ class MessageSenderGroup {
         this.source = new ArrayList<>();
     }
 
-    public void send(SendErrorHandler errorHandler) {
-        Map<String, MessageException> map = null;
+    public void sendAsync(SendErrorHandler errorHandler) {
         try {
-            map = connection.send(source);
+            ListenableFuture<Map<String, MessageException>> future = connection.sendAsync(source);
+            Futures.addCallback(future, new FutureCallback<Map<String, MessageException>>() {
+                @Override
+                public void onSuccess(Map<String, MessageException> result) {
+                    processResult(result, errorHandler);
+                }
+
+                @Override
+                public void onFailure(Throwable t) {
+                    Exception ex;
+                    if (!(t instanceof Exception)) {
+                        ex = new RuntimeException(t);
+                    } else {
+                        ex = (Exception) t;
+                    }
+                    processError(ex, errorHandler);
+                }
+            });
         } catch (Exception e) {
-            for (ProduceMessage pm : source) {
-                Metrics.counter(senMessageThrowable, MetricsConstants.SUBJECT_ARRAY, new String[]{pm.getSubject()}).inc();
-                errorHandler.error(pm, e);
-            }
+            processError(e, errorHandler);
+        }
+    }
+
+    public void send(SendErrorHandler errorHandler) {
+        Map<String, MessageException> result;
+        try {
+            result = connection.send(source);
+        } catch (Exception e) {
+            processError(e, errorHandler);
             return;
         }
 
-        if (map == null) {
+        processResult(result, errorHandler);
+    }
+
+    private void processError(Exception e, SendErrorHandler errorHandler) {
+        for (ProduceMessage pm : source) {
+            Metrics.counter(senMessageThrowable, MetricsConstants.SUBJECT_ARRAY, new String[]{pm.getSubject()}).inc();
+            errorHandler.error(pm, e);
+        }
+    }
+
+    private void processResult(Map<String, MessageException> result, SendErrorHandler errorHandler) {
+        if (result == null) {
             for (ProduceMessage pm : source) {
                 Metrics.counter(senMessageThrowable, MetricsConstants.SUBJECT_ARRAY, new String[]{pm.getSubject()});
                 errorHandler.error(pm, new MessageException(pm.getMessageId(), "return null"));
@@ -64,11 +100,11 @@ class MessageSenderGroup {
             return;
         }
 
-        if (map.isEmpty())
-            map = Collections.emptyMap();
+        if (result.isEmpty())
+            result = Collections.emptyMap();
 
         for (ProduceMessage pm : source) {
-            MessageException ex = map.get(pm.getMessageId());
+            MessageException ex = result.get(pm.getMessageId());
             if (ex == null || ex instanceof DuplicateMessageException) {
                 errorHandler.finish(pm, ex);
             } else {

@@ -101,7 +101,7 @@ public class OrderedQueueSender extends AbstractQueueSender implements OrderedPr
             for (MessageSenderGroup group : messages) {
                 QmqTimer timer = Metrics.timer("qmq_client_producer_send_broker_time");
                 long startTime = System.currentTimeMillis();
-                group.send(new SendErrorHandler() {
+                group.sendAsync(new SendErrorHandler() {
 
                     @Override
                     public void error(ProduceMessage pm, Exception e) {

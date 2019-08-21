@@ -16,6 +16,7 @@
 
 package qunar.tc.qmq.producer.sender;
 
+import com.google.common.util.concurrent.ListenableFuture;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.config.NettyClientConfigManager;
 import qunar.tc.qmq.netty.client.NettyClient;
@@ -52,5 +53,7 @@ class NettyProducerClient {
         return client.sendSync(group.getMaster(), datagram, CONFIG.getSendTimeoutMillis());
     }
 
-
+    ListenableFuture<Datagram> sendMessageAsync(BrokerGroupInfo group, Datagram datagram) throws ClientSendException {
+        return client.sendAsync(group.getMaster(), datagram, CONFIG.getSendTimeoutMillis());
+    }
 }

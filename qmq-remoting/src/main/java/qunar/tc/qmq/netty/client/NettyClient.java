@@ -17,6 +17,7 @@
 package qunar.tc.qmq.netty.client;
 
 import com.google.common.util.concurrent.AbstractFuture;
+import com.google.common.util.concurrent.ListenableFuture;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
@@ -96,6 +97,12 @@ public class NettyClient extends AbstractNettyClient {
 
             throw new RuntimeException(e.getCause());
         }
+    }
+
+    public ListenableFuture<Datagram> sendAsync(String brokerAddr, Datagram request, long responseTimeout) throws ClientSendException {
+        ResultFuture result = new ResultFuture(brokerAddr);
+        sendAsync(brokerAddr, request, responseTimeout, result);
+        return result;
     }
 
     private static final class ResultFuture extends AbstractFuture<Datagram> implements ResponseFuture.Callback {

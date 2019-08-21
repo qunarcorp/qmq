@@ -17,9 +17,14 @@
 package qunar.tc.qmq.producer.sender;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ProduceMessage;
+import qunar.tc.qmq.netty.exception.BrokerRejectException;
+import qunar.tc.qmq.netty.exception.ClientSendException;
+import qunar.tc.qmq.netty.exception.RemoteException;
 import qunar.tc.qmq.service.exceptions.MessageException;
 
 import java.util.List;
@@ -43,6 +48,11 @@ class NopRoute implements Route {
         public Map<String, MessageException> send(List<ProduceMessage> messages) {
             logger.warn("send message to nop route, {}", messages);
             return ImmutableMap.of();
+        }
+
+        @Override
+        public ListenableFuture<Map<String, MessageException>> sendAsync(List<ProduceMessage> messages) throws RemoteException, ClientSendException, BrokerRejectException {
+            return Futures.immediateFuture(ImmutableMap.of());
         }
 
         @Override

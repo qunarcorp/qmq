@@ -16,6 +16,7 @@
 
 package qunar.tc.qmq.producer.sender;
 
+import com.google.common.util.concurrent.ListenableFuture;
 import qunar.tc.qmq.ProduceMessage;
 import qunar.tc.qmq.netty.exception.BrokerRejectException;
 import qunar.tc.qmq.netty.exception.ClientSendException;
@@ -32,7 +33,9 @@ public interface Connection {
 
     String url();
 
-    Map<String, MessageException> send(List<ProduceMessage> messages) throws RemoteException, ClientSendException, BrokerRejectException;
+    Map<String, MessageException> send(List<ProduceMessage> messages) throws Exception;
+
+    ListenableFuture<Map<String, MessageException>> sendAsync(List<ProduceMessage> messages) throws Exception;
 
     void destroy();
 }
