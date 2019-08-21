@@ -247,35 +247,34 @@ public class LogManager {
         return segment.getBaseOffset() + segment.getWrotePosition();
     }
 
-	public boolean flush() {
-		ConcurrentNavigableMap<Long, LogSegment> beingFlushView = findBeingFlushView();
-		int lastOffset = -1;
-		long lastBaseOffset = -1;
-		for (Map.Entry<Long, LogSegment> entry : beingFlushView.entrySet()) {
-			try {
-				LogSegment segment = entry.getValue();
-				lastOffset = segment.flush();
-				lastBaseOffset = segment.getBaseOffset();
-			}
-			catch (Exception e) {
-				break;
-			}
-		}
+    public boolean flush() {
+        ConcurrentNavigableMap<Long, LogSegment> beingFlushView = findBeingFlushView();
+        int lastOffset = -1;
+        long lastBaseOffset = -1;
+        for (Map.Entry<Long, LogSegment> entry : beingFlushView.entrySet()) {
+            try {
+                LogSegment segment = entry.getValue();
+                lastOffset = segment.flush();
+                lastBaseOffset = segment.getBaseOffset();
+            } catch (Exception e) {
+                break;
+            }
+        }
 
-		if (lastBaseOffset == -1 || lastOffset == -1) return false;
-		final long where = lastBaseOffset + lastOffset;
-		boolean result = where != this.flushedOffset;
-		this.flushedOffset = where;
-		return result;
-	}
+        if (lastBaseOffset == -1 || lastOffset == -1) return false;
+        final long where = lastBaseOffset + lastOffset;
+        boolean result = where != this.flushedOffset;
+        this.flushedOffset = where;
+        return result;
+    }
 
-	private ConcurrentNavigableMap<Long, LogSegment> findBeingFlushView() {
-		LogSegment lastFlush = locateSegment(flushedOffset);
-		if (lastFlush == null) {
-			return segments;
-		}
-		return segments.tailMap(lastFlush.getBaseOffset(), true);
-	}
+    private ConcurrentNavigableMap<Long, LogSegment> findBeingFlushView() {
+        LogSegment lastFlush = locateSegment(flushedOffset);
+        if (lastFlush == null) {
+            return segments;
+        }
+        return segments.tailMap(lastFlush.getBaseOffset(), true);
+    }
 
     public void close() {
         for (final LogSegment segment : segments.values()) {
@@ -297,7 +296,7 @@ public class LogManager {
 
     public void deleteSegmentsBeforeOffset(final long offset) {
         if (offset == -1) return;
-        Predicate<LogSegment> predicate = segment -> segment.getBaseOffset() < offset;
+        Predicate<LogSegment> predicate = segment -> segment.getBaseOffset() + segment.getFileSize() < offset;
         deleteSegments(predicate, null);
     }
 
