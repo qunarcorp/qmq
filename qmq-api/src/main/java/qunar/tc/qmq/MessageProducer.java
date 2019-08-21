@@ -44,14 +44,4 @@ public interface MessageProducer {
     void sendMessage(Message message);
 
     void sendMessage(Message message, MessageSendStateListener listener);
-
-    /**
-     * 顺序消息接口, order identifier 相同的消息可保证有序
-     *
-     * @param message         消息
-     * @param orderIdentifier 消息 order identifier
-     */
-    void sendMessage(Message message, int orderIdentifier);
-
-    void sendMessage(Message message, MessageSendStateListener listener, int orderIdentifier);
 }

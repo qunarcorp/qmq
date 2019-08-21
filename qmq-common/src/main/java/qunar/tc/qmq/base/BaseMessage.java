@@ -59,6 +59,7 @@ public class BaseMessage implements Message, Serializable {
         qmq_corruptData,
         qmq_env,
         qmq_subEnv,
+        qmq_orderKey,
         qmq_logicPartition,
         qmq_physicalPartition,
         qmq_partitionVersion,
@@ -298,6 +299,21 @@ public class BaseMessage implements Message, Serializable {
 
     public Object getProperty(keys key) {
         return attrs.get(key.name());
+    }
+
+    public void setOrderedKey(String key) {
+        int hash = 0;
+        if (key.length() > 0) {
+            for (int i = 0; i < key.length(); i++) {
+                hash = 31 * hash + key.charAt(i);
+            }
+        }
+        setProperty(keys.qmq_orderKey, hash);
+    }
+
+    public Integer getOrderKey() {
+        Object property = getProperty(keys.qmq_orderKey);
+        return property == null ? null : (Integer) property;
     }
 
     public String getStringProperty(keys key) {

@@ -126,6 +126,11 @@ public class MessageProducerProvider implements MessageProducer {
             throw new RuntimeException("MessageProducerProvider未初始化，如果使用非Spring的方式请确认init()是否调用");
         }
 
+        if (OrderedMessageUtils.isOrderedMessage((BaseMessage) message)) {
+            PartitionInfo partitionInfo = orderedMessageManager.getPartitionInfo(message.getSubject());
+            OrderedMessageUtils.initOrderedMessage((BaseMessage) message, partitionInfo);
+        }
+
         String[] tagValues = null;
         long startTime = System.currentTimeMillis();
         Tracer.SpanBuilder spanBuilder = tracer.buildSpan("Qmq.Produce.Send")
@@ -171,20 +176,6 @@ public class MessageProducerProvider implements MessageProducer {
                 scope.close();
             }
         }
-    }
-
-    @Override
-    public void sendMessage(Message message, int orderIdentifier) {
-        PartitionInfo partitionInfo = orderedMessageManager.getPartitionInfo(message.getSubject());
-        OrderedMessageUtils.initOrderedMessage(message, orderIdentifier, partitionInfo);
-        this.sendMessage(message);
-    }
-
-    @Override
-    public void sendMessage(Message message, MessageSendStateListener listener, int orderIdentifier) {
-        PartitionInfo partitionInfo = orderedMessageManager.getPartitionInfo(message.getSubject());
-        OrderedMessageUtils.initOrderedMessage(message, orderIdentifier, partitionInfo);
-        this.sendMessage(message, listener);
     }
 
     private ProduceMessageImpl initProduceMessage(Message message, MessageSendStateListener listener) {
