@@ -28,9 +28,11 @@ import qunar.tc.qmq.common.Disposable;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.meta.BrokerGroup;
 import qunar.tc.qmq.meta.BrokerGroupKind;
+import qunar.tc.qmq.meta.PartitionInfo;
 import qunar.tc.qmq.meta.model.ReadonlyBrokerGroupSetting;
 import qunar.tc.qmq.meta.model.SubjectInfo;
 import qunar.tc.qmq.meta.model.SubjectRoute;
+import qunar.tc.qmq.meta.store.PartitionStore;
 import qunar.tc.qmq.meta.store.ReadonlyBrokerGroupSettingStore;
 import qunar.tc.qmq.meta.store.Store;
 
@@ -38,6 +40,7 @@ import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * @author yunfeng.yang
@@ -54,6 +57,7 @@ public class CachedMetaInfoManager implements Disposable {
 
     private final Store store;
     private final ReadonlyBrokerGroupSettingStore readonlyBrokerGroupSettingStore;
+    private final PartitionStore partitionStore;
     private final long refreshPeriodSeconds;
 
     /**
@@ -78,14 +82,20 @@ public class CachedMetaInfoManager implements Disposable {
     private volatile Map<String, SubjectInfo> cachedSubjectInfoMap = new HashMap<>();
 
     /**
+     * subject -> partition
+     */
+    private volatile Map<String, PartitionInfo> cachedSubjectPartitionMap = new HashMap<>();
+
+    /**
      * brokerGroupName -> Subject List
      */
     private volatile SetMultimap<String, String> readonlyBrokerGroupSettings = HashMultimap.create();
 
-    public CachedMetaInfoManager(DynamicConfig config, Store store, ReadonlyBrokerGroupSettingStore readonlyBrokerGroupSettingStore) {
+    public CachedMetaInfoManager(DynamicConfig config, Store store, ReadonlyBrokerGroupSettingStore readonlyBrokerGroupSettingStore, PartitionStore partitionStore) {
         this.refreshPeriodSeconds = config.getLong("refresh.period.seconds", DEFAULT_REFRESH_PERIOD_SECONDS);
         this.store = store;
         this.readonlyBrokerGroupSettingStore = readonlyBrokerGroupSettingStore;
+        this.partitionStore = partitionStore;
         refresh();
         initRefreshTask();
     }
@@ -140,6 +150,7 @@ public class CachedMetaInfoManager implements Disposable {
         refreshSubjectInfoCache();
         refreshGroupsAndSubjects();
         refreshReadonlyBrokerGroupSettings();
+        refreshPartitionInfo();
     }
 
     private void refreshReadonlyBrokerGroupSettings() {
@@ -151,6 +162,14 @@ public class CachedMetaInfoManager implements Disposable {
         }
 
         readonlyBrokerGroupSettings = map;
+    }
+
+    private void refreshPartitionInfo() {
+        this.cachedSubjectPartitionMap = partitionStore.getAllLatest().stream().collect(Collectors.toMap(PartitionInfo::getSubject, p -> p));
+    }
+
+    public PartitionInfo getPartitionInfo(String subject) {
+        return cachedSubjectPartitionMap.get(subject);
     }
 
     public Set<String> getBrokerGroupReadonlySubjects(final String brokerGroup) {

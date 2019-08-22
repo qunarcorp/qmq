@@ -11,6 +11,7 @@ import java.util.Collection;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.common.JsonUtils;
 
 /**
  * @author zhenwei.liu
@@ -19,7 +20,7 @@ import org.slf4j.LoggerFactory;
 public class RemoteEnvRuleGetter implements EnvRuleGetter {
 
 	private static final Logger LOG = LoggerFactory.getLogger(RemoteEnvRuleGetter.class);
-	private static final ObjectMapper objectMapper = new ObjectMapper();
+	private static final ObjectMapper objectMapper = JsonUtils.getMapper();
 	private static final int DEF_RETRY = 3;
 
 	private String url;

@@ -46,7 +46,7 @@ public class ClientRegisterProcessor implements NettyRequestProcessor {
                                    final CachedOfflineStateManager offlineStateManager,
                                    final Store store,
                                    ReadonlyBrokerGroupManager readonlyBrokerGroupManager) {
-        this.clientRegisterWorker = new ClientRegisterWorker(subjectRouter, offlineStateManager, store, readonlyBrokerGroupManager);
+        this.clientRegisterWorker = new ClientRegisterWorker(subjectRouter, offlineStateManager, store, readonlyBrokerGroupManager, cachedMetaInfoManager);
         this.aliveClientManager = AliveClientManager.getInstance();
     }
 

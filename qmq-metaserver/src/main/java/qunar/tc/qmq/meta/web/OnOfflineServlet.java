@@ -21,6 +21,7 @@ import com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.base.OnOfflineState;
+import qunar.tc.qmq.common.JsonUtils;
 import qunar.tc.qmq.meta.cache.CachedOfflineStateManager;
 import qunar.tc.qmq.meta.model.ClientOfflineState;
 
@@ -37,7 +38,7 @@ import java.io.PrintWriter;
 public class OnOfflineServlet extends HttpServlet {
     private static final Logger LOGGER = LoggerFactory.getLogger(OnOfflineServlet.class);
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final ObjectMapper MAPPER = JsonUtils.getMapper();
 
     private final CachedOfflineStateManager offlineStateManager = CachedOfflineStateManager.SUPPLIER.get();
 

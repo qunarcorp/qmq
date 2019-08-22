@@ -85,44 +85,49 @@ class MessageSenderGroup {
     }
 
     private void processError(Exception e, SendErrorHandler errorHandler) {
-        for (ProduceMessage pm : source) {
-            Metrics.counter(senMessageThrowable, MetricsConstants.SUBJECT_ARRAY, new String[]{pm.getSubject()}).inc();
-            errorHandler.error(pm, e);
+        try {
+            for (ProduceMessage pm : source) {
+                Metrics.counter(senMessageThrowable, MetricsConstants.SUBJECT_ARRAY, new String[]{pm.getSubject()}).inc();
+                errorHandler.error(pm, e);
+            }
+        } finally {
+            errorHandler.postHandle(source);
         }
-        errorHandler.postHandle(source);
     }
 
     private void processResult(Map<String, MessageException> result, SendErrorHandler errorHandler) {
-        if (result == null) {
-            for (ProduceMessage pm : source) {
-                Metrics.counter(senMessageThrowable, MetricsConstants.SUBJECT_ARRAY, new String[]{pm.getSubject()});
-                errorHandler.error(pm, new MessageException(pm.getMessageId(), "return null"));
-            }
-            return;
-        }
-
-        if (result.isEmpty())
-            result = Collections.emptyMap();
-
-        for (ProduceMessage pm : source) {
-            MessageException ex = result.get(pm.getMessageId());
-            if (ex == null || ex instanceof DuplicateMessageException) {
-                errorHandler.finish(pm, ex);
-            } else {
-                //如果是消息被拒绝，说明broker已经限速，不立即重试;
-                if (ex.isBrokerBusy()) {
-                    errorHandler.failed(pm, ex);
-                } else if (ex instanceof BlockMessageException) {
-                    //如果是block的,证明还没有被授权,也不重试,task也不重试,需要手工恢复
-                    errorHandler.block(pm, ex);
-                } else {
+        try {
+            if (result == null) {
+                for (ProduceMessage pm : source) {
                     Metrics.counter(senMessageThrowable, MetricsConstants.SUBJECT_ARRAY, new String[]{pm.getSubject()});
-                    errorHandler.error(pm, ex);
+                    errorHandler.error(pm, new MessageException(pm.getMessageId(), "return null"));
+                }
+                return;
+            }
+
+            if (result.isEmpty())
+                result = Collections.emptyMap();
+
+            for (ProduceMessage pm : source) {
+                MessageException ex = result.get(pm.getMessageId());
+                if (ex == null || ex instanceof DuplicateMessageException) {
+                    errorHandler.finish(pm, ex);
+                } else {
+                    //如果是消息被拒绝，说明broker已经限速，不立即重试;
+                    if (ex.isBrokerBusy()) {
+                        errorHandler.failed(pm, ex);
+                    } else if (ex instanceof BlockMessageException) {
+                        //如果是block的,证明还没有被授权,也不重试,task也不重试,需要手工恢复
+                        errorHandler.block(pm, ex);
+                    } else {
+                        Metrics.counter(senMessageThrowable, MetricsConstants.SUBJECT_ARRAY, new String[]{pm.getSubject()});
+                        errorHandler.error(pm, ex);
+                    }
                 }
             }
+        } finally {
+            errorHandler.postHandle(source);
         }
-
-        errorHandler.postHandle(source);
     }
 
     void addMessage(ProduceMessage source) {

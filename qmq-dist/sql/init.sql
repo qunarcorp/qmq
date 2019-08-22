@@ -125,3 +125,15 @@ CREATE TABLE IF NOT EXISTS `readonly_broker_group_setting` (
   PRIMARY KEY (`id`),
   UNIQUE `uniq_subject_broker_group` (`subject`, `broker_group`)
 )ENGINE InnoDB DEFAULT CHARSET = utf8mb4 COMMENT '只读broker group标记表';
+
+CREATE TABLE `partitions` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `subject` varchar(45) COLLATE utf8_bin NOT NULL COMMENT '主题',
+  `logical_partition_num` int(11) NOT NULL COMMENT '逻辑分区数量',
+  `logical_2_physical_partition` varchar(8192) COLLATE utf8_bin NOT NULL COMMENT '逻辑分区与物理分区映射关系, json',
+  `physical_partition_2_broker` varchar(2048) COLLATE utf8_bin NOT NULL COMMENT '物理分区与 brokerGroupName 映射',
+  `physical_partition_2_delay_broker` varchar(2048) COLLATE utf8_bin NOT NULL COMMENT '物理分区与 delayBrokerGroupName 映射',
+  `version` int(11) NOT NULL COMMENT '分区信息版本',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_subject_version` (`subject`,`version`)
+)ENGINE InnoDB DEFAULT CHARSET = utf8mb4 COMMENT '顺序消息分区映射表';

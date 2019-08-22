@@ -25,6 +25,8 @@ import qunar.tc.qmq.concurrent.ActorSystem;
 import qunar.tc.qmq.meta.BrokerCluster;
 import qunar.tc.qmq.meta.BrokerGroup;
 import qunar.tc.qmq.meta.BrokerState;
+import qunar.tc.qmq.meta.PartitionInfo;
+import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 import qunar.tc.qmq.meta.cache.CachedOfflineStateManager;
 import qunar.tc.qmq.meta.route.ReadonlyBrokerGroupManager;
 import qunar.tc.qmq.meta.route.SubjectRouter;
@@ -56,10 +58,12 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
     private final Store store;
     private final CachedOfflineStateManager offlineStateManager;
     private final ReadonlyBrokerGroupManager readonlyBrokerGroupManager;
+    private final CachedMetaInfoManager cachedMetaInfoManager;
 
-    ClientRegisterWorker(final SubjectRouter subjectRouter, final CachedOfflineStateManager offlineStateManager, final Store store, ReadonlyBrokerGroupManager readonlyBrokerGroupManager) {
+    ClientRegisterWorker(final SubjectRouter subjectRouter, final CachedOfflineStateManager offlineStateManager, final Store store, ReadonlyBrokerGroupManager readonlyBrokerGroupManager, CachedMetaInfoManager cachedMetaInfoManager) {
         this.subjectRouter = subjectRouter;
         this.readonlyBrokerGroupManager = readonlyBrokerGroupManager;
+        this.cachedMetaInfoManager = cachedMetaInfoManager;
         this.actorSystem = new ActorSystem("qmq_meta");
         this.offlineStateManager = offlineStateManager;
         this.store = store;
@@ -137,9 +141,20 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
 
     private void writeResponse(final ClientRegisterProcessor.ClientRegisterMessage message, final MetaInfoResponse response) {
         final RemotingHeader header = message.getHeader();
-        final MetaInfoResponsePayloadHolder payloadHolder = new MetaInfoResponsePayloadHolder(response);
+        final MetaInfoResponsePayloadHolder payloadHolder = createPayloadHolder(message, response);
         final Datagram datagram = RemotingBuilder.buildResponseDatagram(CommandCode.SUCCESS, header, payloadHolder);
         message.getCtx().writeAndFlush(datagram);
+    }
+
+    private MetaInfoResponsePayloadHolder createPayloadHolder(ClientRegisterProcessor.ClientRegisterMessage message, MetaInfoResponse response) {
+        RemotingHeader header = message.getHeader();
+        short version = header.getVersion();
+        if (version == 10) {
+            String subject = response.getSubject();
+            PartitionInfo partitionInfo = cachedMetaInfoManager.getPartitionInfo(subject);
+            return new MetaInfoResponsePayloadHolderV10(response, partitionInfo);
+        }
+        return new MetaInfoResponsePayloadHolder(response);
     }
 
     private static class MetaInfoResponsePayloadHolder implements PayloadHolder {
@@ -166,6 +181,26 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
                 PayloadHolderUtils.writeString(brokerGroup.getMaster(), out);
                 out.writeLong(brokerGroup.getUpdateTime());
                 out.writeByte(brokerGroup.getBrokerState().getCode());
+            }
+        }
+    }
+
+    private static class MetaInfoResponsePayloadHolderV10 extends MetaInfoResponsePayloadHolder implements PayloadHolder {
+
+        private final MetaInfoResponse response;
+        private final PartitionInfo partitionInfo;
+
+        MetaInfoResponsePayloadHolderV10(MetaInfoResponse response, PartitionInfo partitionInfo) {
+            super(response);
+            this.response = response;
+            this.partitionInfo = partitionInfo;
+        }
+
+        @Override
+        public void writeBody(ByteBuf out) {
+            super.writeBody(out);
+            if (partitionInfo != null) {
+                // TODO 序列化 partition 信息
             }
         }
     }

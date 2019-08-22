@@ -22,6 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.Message;
 import qunar.tc.qmq.MessageSendStateListener;
+import qunar.tc.qmq.common.JsonUtils;
 import qunar.tc.qmq.producer.MessageProducerProvider;
 
 import javax.servlet.AsyncContext;
@@ -45,7 +46,7 @@ public class SendServlet extends HttpServlet {
 
     private MessageProducerProvider producer;
 
-    private final ObjectMapper MAPPER = new ObjectMapper();
+    private final ObjectMapper MAPPER = JsonUtils.getMapper();
 
     @Override
     public void init(ServletConfig config) throws ServletException {

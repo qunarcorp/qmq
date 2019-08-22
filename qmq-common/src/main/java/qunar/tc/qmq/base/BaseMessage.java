@@ -64,6 +64,7 @@ public class BaseMessage implements Message, Serializable {
         qmq_physicalPartition,
         qmq_partitionVersion,
         qmq_partitionBroker,
+        qmq_partitionDelayBroker,
         qmq_queueSenderType,
         qmq_queueLoadBalanceType
     }
