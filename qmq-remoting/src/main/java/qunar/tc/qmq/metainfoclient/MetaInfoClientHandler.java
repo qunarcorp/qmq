@@ -25,9 +25,12 @@ import io.netty.util.internal.ConcurrentSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.base.OnOfflineState;
+import qunar.tc.qmq.codec.Serializer;
+import qunar.tc.qmq.codec.Serializers;
 import qunar.tc.qmq.meta.BrokerCluster;
 import qunar.tc.qmq.meta.BrokerGroup;
 import qunar.tc.qmq.meta.BrokerState;
+import qunar.tc.qmq.meta.PartitionInfo;
 import qunar.tc.qmq.protocol.CommandCode;
 import qunar.tc.qmq.protocol.Datagram;
 import qunar.tc.qmq.protocol.RemotingHeader;
@@ -127,7 +130,8 @@ class MetaInfoClientHandler extends SimpleChannelInboundHandler<Datagram> {
                 metaInfoResponse.setOnOfflineState(OnOfflineState.fromCode(buf.readByte()));
                 metaInfoResponse.setClientTypeCode(buf.readByte());
                 metaInfoResponse.setBrokerCluster(deserializeBrokerCluster(buf));
-                // TODO 补充 partition 反序列化
+                Serializer<PartitionInfo> partitionInfoSerializer = Serializers.getSerializer(PartitionInfo.class);
+                metaInfoResponse.setPartitionInfo(partitionInfoSerializer.deserialize(buf));
                 return metaInfoResponse;
             } catch (Exception e) {
                 LOG.error("deserializeMetaInfoResponse exception", e);

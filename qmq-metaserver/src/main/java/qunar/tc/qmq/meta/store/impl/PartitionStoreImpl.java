@@ -6,7 +6,6 @@ import com.google.common.collect.RangeMap;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import qunar.tc.qmq.common.JsonHolder;
-import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
 import qunar.tc.qmq.meta.PartitionInfo;
 import qunar.tc.qmq.meta.store.PartitionStore;
 
