@@ -105,7 +105,7 @@ public class OrderedQueueSender extends AbstractQueueSender implements OrderedPr
 
                     @Override
                     public void error(ProduceMessage pm, Exception e) {
-                        // TODO 未来需要处理 partition 分裂消息
+                        // TODO(zhenwei.liu) 未来需要处理 partition 分裂消息
                         // 重试交给 executor 处理
                         pm.reset();
                         if (!shouldRetry(pm)) {

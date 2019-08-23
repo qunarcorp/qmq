@@ -1,8 +1,7 @@
 package qunar.tc.qmq.meta.order;
 
-import com.google.common.collect.Range;
+import com.google.common.collect.Maps;
 import com.google.common.collect.RangeMap;
-import com.google.common.collect.TreeRangeMap;
 import qunar.tc.qmq.meta.PartitionInfo;
 import qunar.tc.qmq.meta.store.PartitionStore;
 import qunar.tc.qmq.meta.store.impl.PartitionStoreImpl;
@@ -17,10 +16,13 @@ import java.util.Map;
 public class DefaultOrderedMessageService implements OrderedMessageService {
 
     private PartitionStore partitionStore = new PartitionStoreImpl();
+    private RangePartitionMapper rangePartitionMapper = new AverageRangePartitionMapper();
     private PartitionMapper partitionMapper = new AveragePartitionMapper();
 
     @Override
     public PartitionInfo registerOrderedMessage(String subject, int physicalPartitionNum) {
+
+        // TODO(zhenwei.liu) 这里要加一个主题是否上线的判断, 已经上线的主题不能转化为顺序消息
         PartitionInfo partitionInfo = new PartitionInfo();
         partitionInfo.setSubject(subject);
         partitionInfo.setVersion(0);
@@ -32,13 +34,13 @@ public class DefaultOrderedMessageService implements OrderedMessageService {
         List<String> delayBrokerGroups = OrderedMessageConfig.getDelayBrokerGroups();
 
         // logical => physical mapping
-        RangeMap<Integer, Integer> logical2PhysicalPartitionMap = partitionMapper.map(logicalPartitionNum, physicalPartitionNum);
+        RangeMap<Integer, Integer> logical2PhysicalPartitionMap = rangePartitionMapper.map(logicalPartitionNum, physicalPartitionNum);
 
         // physical => brokerGroup mapping
-        RangeMap<Integer, Integer> physical2BrokerGroup = partitionMapper.map(physicalPartitionNum, brokerGroups.size());
+        Map<Integer, Integer> physical2BrokerGroup = partitionMapper.map(physicalPartitionNum, brokerGroups.size());
 
         // physical => delayBrokerGroup mapping
-        RangeMap<Integer, Integer> physical2DelayBrokerGroup = partitionMapper.map(physicalPartitionNum, delayBrokerGroups.size());
+        Map<Integer, Integer> physical2DelayBrokerGroup = partitionMapper.map(physicalPartitionNum, delayBrokerGroups.size());
 
         partitionInfo.setLogicalPartitionNum(logicalPartitionNum);
         partitionInfo.setLogical2PhysicalPartition(logical2PhysicalPartitionMap);
@@ -50,10 +52,9 @@ public class DefaultOrderedMessageService implements OrderedMessageService {
         return partitionInfo;
     }
 
-    public <V> RangeMap<Integer, V> transform(RangeMap<Integer, Integer> source, List<V> replacer) {
-        RangeMap<Integer, V> result = TreeRangeMap.create();
-        Map<Range<Integer>, Integer> rangeVMap = source.asMapOfRanges();
-        for (Map.Entry<Range<Integer>, Integer> rangeVEntry : rangeVMap.entrySet()) {
+    public <V> Map<Integer, V> transform(Map<Integer, Integer> source, List<V> replacer) {
+        Map<Integer, V> result = Maps.newHashMap();
+        for (Map.Entry<Integer, Integer> rangeVEntry : source.entrySet()) {
             result.put(rangeVEntry.getKey(), replacer.get(rangeVEntry.getValue()));
         }
         return result;

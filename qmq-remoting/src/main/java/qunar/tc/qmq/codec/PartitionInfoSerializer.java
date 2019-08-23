@@ -5,24 +5,15 @@ import io.netty.buffer.ByteBuf;
 import qunar.tc.qmq.meta.PartitionInfo;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
 
+import java.util.Map;
+
 /**
  * @author zhenwei.liu
  * @since 2019-08-23
  */
-public class PartitionInfoSerializer implements Serializer<PartitionInfo> {
-
-    private static final byte NULL = 0;
-    private static final byte EXISTS = 1;
-
+public class PartitionInfoSerializer extends ObjectSerializer<PartitionInfo> {
     @Override
-    public void serialize(PartitionInfo partitionInfo, ByteBuf buf) {
-
-        if (partitionInfo == null) {
-            buf.writeByte(NULL);
-            return;
-        } else {
-            buf.writeByte(EXISTS);
-        }
+    void doSerialize(PartitionInfo partitionInfo, ByteBuf buf) {
 
         PayloadHolderUtils.writeString(partitionInfo.getSubject(), buf);
 
@@ -31,17 +22,14 @@ public class PartitionInfoSerializer implements Serializer<PartitionInfo> {
 
         Serializer<RangeMap> rangeMapSerializer = Serializers.getSerializer(RangeMap.class);
         rangeMapSerializer.serialize(partitionInfo.getLogical2PhysicalPartition(), buf);
-        rangeMapSerializer.serialize(partitionInfo.getPhysicalPartition2Broker(), buf);
-        rangeMapSerializer.serialize(partitionInfo.getPhysicalPartition2DelayBroker(), buf);
+
+        Serializer<Map> mapSerializer = Serializers.getSerializer(Map.class);
+        mapSerializer.serialize(partitionInfo.getPhysicalPartition2Broker(), buf);
+        mapSerializer.serialize(partitionInfo.getPhysicalPartition2DelayBroker(), buf);
     }
 
     @Override
-    public PartitionInfo deserialize(ByteBuf buf, Class... classes) {
-        byte exists = buf.readByte();
-        if (exists == NULL) {
-            return null;
-        }
-
+    PartitionInfo doDeserialize(ByteBuf buf, Class... classes) {
         PartitionInfo partitionInfo = new PartitionInfo();
         partitionInfo.setSubject(PayloadHolderUtils.readString(buf));
         partitionInfo.setVersion(buf.readInt());
@@ -49,8 +37,10 @@ public class PartitionInfoSerializer implements Serializer<PartitionInfo> {
 
         Serializer<RangeMap> rangeMapSerializer = Serializers.getSerializer(RangeMap.class);
         partitionInfo.setLogical2PhysicalPartition(rangeMapSerializer.deserialize(buf, Integer.class, Integer.class));
-        partitionInfo.setPhysicalPartition2Broker(rangeMapSerializer.deserialize(buf, Integer.class, String.class));
-        partitionInfo.setPhysicalPartition2DelayBroker(rangeMapSerializer.deserialize(buf, Integer.class, String.class));
+
+        Serializer<Map> mapSerializer = Serializers.getSerializer(Map.class);
+        partitionInfo.setPhysicalPartition2Broker(mapSerializer.deserialize(buf, Integer.class, String.class));
+        partitionInfo.setPhysicalPartition2DelayBroker(mapSerializer.deserialize(buf, Integer.class, String.class));
 
         return partitionInfo;
     }

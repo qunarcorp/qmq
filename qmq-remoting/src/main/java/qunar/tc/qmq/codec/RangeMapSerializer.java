@@ -13,10 +13,10 @@ import java.util.Map;
  * @author zhenwei.liu
  * @since 2019-08-23
  */
-public class RangeMapSerializer implements Serializer<RangeMap> {
+public class RangeMapSerializer extends ObjectSerializer<RangeMap> {
 
     @Override
-    public void serialize(RangeMap rangeMap, ByteBuf buf) {
+    void doSerialize(RangeMap rangeMap, ByteBuf buf) {
         Map<Range<? extends Comparable>, Object> map = rangeMap.asMapOfRanges();
         buf.writeInt(map.size());
 
@@ -36,7 +36,7 @@ public class RangeMapSerializer implements Serializer<RangeMap> {
     }
 
     @Override
-    public RangeMap deserialize(ByteBuf buf, Class... classes) {
+    RangeMap doDeserialize(ByteBuf buf, Class... classes) {
         Class keyClazz = classes[0];
         Class valClazz = classes[1];
         TreeRangeMap rangeMap = TreeRangeMap.create();

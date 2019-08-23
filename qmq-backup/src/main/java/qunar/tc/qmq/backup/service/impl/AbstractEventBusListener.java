@@ -9,8 +9,6 @@ import qunar.tc.qmq.store.MessageQueryIndex;
 import qunar.tc.qmq.store.event.FixedExecOrderEventBus;
 
 /**
- * TODO completion javadoc.
- *
  * @author xiao.liang
  * @since 18 July 2019
  */

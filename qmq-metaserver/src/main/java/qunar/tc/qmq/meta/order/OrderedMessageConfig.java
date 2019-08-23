@@ -8,23 +8,24 @@ import java.util.List;
  */
 public class OrderedMessageConfig {
 
+    private static final int DEFAULT_LOGICAL_PARTITION_NUM = 16384;
+    private static final int DEFAULT_PHYSICAL_PARTITION_NUM = 8;
+
     public static int getDefaultLogicalPartitionNum() {
-        // TODO
-        return 0;
+        return DEFAULT_LOGICAL_PARTITION_NUM;
     }
 
     public static int getDefaultPhysicalPartitionNum() {
-        // TODO
-        return 0;
+        return DEFAULT_PHYSICAL_PARTITION_NUM;
     }
 
     public static List<String> getBrokerGroups() {
-        // TODO
+        // TODO(zhenwei.liu)
         return null;
     }
 
     public static List<String> getDelayBrokerGroups() {
-        // TODO
+        // TODO(zhenwei.liu)
         return null;
     }
 }

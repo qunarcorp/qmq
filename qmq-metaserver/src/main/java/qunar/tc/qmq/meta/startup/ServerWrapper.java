@@ -73,7 +73,7 @@ public class ServerWrapper implements Disposable {
         final Store store = new DatabaseStore(jdbcTemplate);
         final BrokerStore brokerStore = new BrokerStoreImpl(jdbcTemplate);
         final BrokerMetaManager brokerMetaManager = BrokerMetaManager.getInstance();
-        PartitionStoreImpl partitionStore = new PartitionStoreImpl(jdbcTemplate);
+        PartitionStoreImpl partitionStore = new PartitionStoreImpl();
         brokerMetaManager.init(brokerStore);
 
         final ReadonlyBrokerGroupSettingStore readonlyBrokerGroupSettingStore = new ReadonlyBrokerGroupSettingStoreImpl(jdbcTemplate);
