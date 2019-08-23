@@ -22,7 +22,7 @@ import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.backup.base.BackupQuery;
 import qunar.tc.qmq.backup.base.MessageQueryResult;
 import qunar.tc.qmq.backup.service.MessageService;
-import qunar.tc.qmq.backup.util.Serializer;
+import qunar.tc.qmq.backup.util.GsonUtils;
 
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServlet;
@@ -37,8 +37,6 @@ import java.util.Collections;
  */
 public abstract class AbstractGetServlet extends HttpServlet {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractGetServlet.class);
-
-    final Serializer serializer = Serializer.getSerializer();
 
     final MessageService messageService;
 
@@ -55,7 +53,7 @@ public abstract class AbstractGetServlet extends HttpServlet {
         if (Strings.isNullOrEmpty(queryStr)) return;
         final BackupQuery query = deserialize(queryStr);
         if (query == null) {
-            response(resp, serializer.serialize(Collections.emptyList()));
+            response(resp, GsonUtils.serialize(Collections.emptyList()));
             return;
         }
 
@@ -76,7 +74,7 @@ public abstract class AbstractGetServlet extends HttpServlet {
 
     private BackupQuery deserialize(final String json) {
         try {
-            return serializer.deSerialize(json, BackupQuery.class);
+            return GsonUtils.deSerialize(json, BackupQuery.class);
         } catch (Exception e) {
             LOG.error("Get backup query error.", e);
             return null;

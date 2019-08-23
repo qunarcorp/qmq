@@ -23,7 +23,6 @@ import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 
-import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
 import qunar.tc.qmq.meta.BrokerGroup;
 import qunar.tc.qmq.meta.BrokerGroupKind;
 import qunar.tc.qmq.meta.BrokerState;
@@ -37,7 +36,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
-import static qunar.tc.qmq.meta.store.impl.Serializer.serialize;
+import static qunar.tc.qmq.meta.store.impl.JsonUtils.serialize;
 
 /**
  * @author yunfeng.yang
@@ -79,7 +78,7 @@ public class DatabaseStore implements Store {
         final String groupInfoJson = rs.getString("broker_group_json");
         final Timestamp updateTime = rs.getTimestamp("update_time");
         final int version = rs.getInt("version");
-        final List<String> groupNames = Serializer.deSerialize(groupInfoJson, new TypeReference<List<String>>() {
+        final List<String> groupNames = JsonUtils.deSerialize(groupInfoJson, new TypeReference<List<String>>() {
         });
         final SubjectRoute subjectRoute = new SubjectRoute();
         subjectRoute.setSubject(subject);

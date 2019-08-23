@@ -18,7 +18,7 @@ package qunar.tc.qmq.meta.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
-import qunar.tc.qmq.common.JsonUtils;
+import qunar.tc.qmq.common.JsonHolder;
 import qunar.tc.qmq.meta.management.MetaManagementAction;
 import qunar.tc.qmq.meta.management.MetaManagementActionSupplier;
 
@@ -32,7 +32,7 @@ import java.io.IOException;
  * @since 2017/10/20
  */
 public class MetaManagementServlet extends HttpServlet {
-    private static final ObjectMapper MAPPER = JsonUtils.getMapper();
+    private static final ObjectMapper MAPPER = JsonHolder.getMapper();
 
     private final MetaManagementActionSupplier actions = MetaManagementActionSupplier.getInstance();
 

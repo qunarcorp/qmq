@@ -21,6 +21,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.base.OnOfflineState;
+import qunar.tc.qmq.codec.Serializer;
+import qunar.tc.qmq.codec.Serializers;
 import qunar.tc.qmq.concurrent.ActorSystem;
 import qunar.tc.qmq.meta.BrokerCluster;
 import qunar.tc.qmq.meta.BrokerGroup;
@@ -152,7 +154,8 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
         if (version == 10) {
             String subject = response.getSubject();
             PartitionInfo partitionInfo = cachedMetaInfoManager.getPartitionInfo(subject);
-            return new MetaInfoResponsePayloadHolderV10(response, partitionInfo);
+            response.setPartitionInfo(partitionInfo);
+            return new MetaInfoResponsePayloadHolderV10(response);
         }
         return new MetaInfoResponsePayloadHolder(response);
     }
@@ -188,19 +191,19 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
     private static class MetaInfoResponsePayloadHolderV10 extends MetaInfoResponsePayloadHolder implements PayloadHolder {
 
         private final MetaInfoResponse response;
-        private final PartitionInfo partitionInfo;
 
-        MetaInfoResponsePayloadHolderV10(MetaInfoResponse response, PartitionInfo partitionInfo) {
+        MetaInfoResponsePayloadHolderV10(MetaInfoResponse response) {
             super(response);
             this.response = response;
-            this.partitionInfo = partitionInfo;
         }
 
         @Override
         public void writeBody(ByteBuf out) {
             super.writeBody(out);
+            PartitionInfo partitionInfo = response.getPartitionInfo();
             if (partitionInfo != null) {
-                // TODO 序列化 partition 信息
+                Serializer<PartitionInfo> serializer = Serializers.getSerializer(PartitionInfo.class);
+                serializer.serialize(partitionInfo, out);
             }
         }
     }

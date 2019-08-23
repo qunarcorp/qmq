@@ -5,13 +5,11 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.collect.RangeMap;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
-import qunar.tc.qmq.common.JsonUtils;
+import qunar.tc.qmq.common.JsonHolder;
 import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
 import qunar.tc.qmq.meta.PartitionInfo;
 import qunar.tc.qmq.meta.store.PartitionStore;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.List;
 
 /**
@@ -45,13 +43,13 @@ public class PartitionStoreImpl implements PartitionStore {
             partitionInfo.setLogicalPartitionNum(resultSet.getInt("logical_partition_num"));
 
             String logical2PhysicalPartition = resultSet.getString("logical_2_physical_partition");
-            partitionInfo.setLogical2PhysicalPartition(JsonUtils.getMapper().readValue(logical2PhysicalPartition, partitionMapTr));
+            partitionInfo.setLogical2PhysicalPartition(JsonHolder.getMapper().readValue(logical2PhysicalPartition, partitionMapTr));
 
             String physicalPartition2Broker = resultSet.getString("physical_partition_2_broker");
-            partitionInfo.setPhysicalPartition2Broker(JsonUtils.getMapper().readValue(physicalPartition2Broker, brokerMapTr));
+            partitionInfo.setPhysicalPartition2Broker(JsonHolder.getMapper().readValue(physicalPartition2Broker, brokerMapTr));
 
             String physicalPartition2DelayBroker = resultSet.getString("physical_partition_2_delay_broker");
-            partitionInfo.setPhysicalPartition2DelayBroker(JsonUtils.getMapper().readValue(physicalPartition2DelayBroker, brokerMapTr));
+            partitionInfo.setPhysicalPartition2DelayBroker(JsonHolder.getMapper().readValue(physicalPartition2DelayBroker, brokerMapTr));
 
             return partitionInfo;
         } catch (Throwable t) {
@@ -59,7 +57,11 @@ public class PartitionStoreImpl implements PartitionStore {
         }
     };
 
-    private JdbcTemplate template = JdbcTemplateHolder.getOrCreate();
+    private JdbcTemplate template;
+
+    public PartitionStoreImpl(JdbcTemplate template) {
+        this.template = template;
+    }
 
     @Override
     public void save(PartitionInfo info) {
@@ -76,9 +78,9 @@ public class PartitionStoreImpl implements PartitionStore {
             Object[] args = new Object[6];
             args[0] = partitionInfo.getSubject();
             args[1] = partitionInfo.getLogicalPartitionNum();
-            args[2] = JsonUtils.getMapper().writeValueAsString(partitionInfo.getLogical2PhysicalPartition());
-            args[3] = JsonUtils.getMapper().writeValueAsString(partitionInfo.getPhysicalPartition2Broker());
-            args[4] = JsonUtils.getMapper().writeValueAsString(partitionInfo.getPhysicalPartition2DelayBroker());
+            args[2] = JsonHolder.getMapper().writeValueAsString(partitionInfo.getLogical2PhysicalPartition());
+            args[3] = JsonHolder.getMapper().writeValueAsString(partitionInfo.getPhysicalPartition2Broker());
+            args[4] = JsonHolder.getMapper().writeValueAsString(partitionInfo.getPhysicalPartition2DelayBroker());
             args[5] = partitionInfo.getVersion();
             return args;
         } catch (JsonProcessingException e) {

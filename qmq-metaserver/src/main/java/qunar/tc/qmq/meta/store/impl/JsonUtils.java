@@ -24,7 +24,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 
 import java.io.IOException;
 
-class Serializer {
+class JsonUtils {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     static {

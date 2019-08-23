@@ -18,6 +18,7 @@ package qunar.tc.qmq.meta.startup;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.jdbc.core.JdbcTemplate;
 import qunar.tc.qmq.common.Disposable;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
@@ -33,11 +34,11 @@ import qunar.tc.qmq.meta.route.SubjectRouter;
 import qunar.tc.qmq.meta.route.impl.DefaultSubjectRouter;
 import qunar.tc.qmq.meta.route.impl.DelayRouter;
 import qunar.tc.qmq.meta.service.ReadonlyBrokerGroupSettingService;
-import qunar.tc.qmq.meta.store.*;
-import qunar.tc.qmq.meta.store.impl.BrokerStoreImpl;
-import qunar.tc.qmq.meta.store.impl.ClientDbConfigurationStoreImpl;
-import qunar.tc.qmq.meta.store.impl.DatabaseStore;
-import qunar.tc.qmq.meta.store.impl.ReadonlyBrokerGroupSettingStoreImpl;
+import qunar.tc.qmq.meta.store.BrokerStore;
+import qunar.tc.qmq.meta.store.ClientDbConfigurationStore;
+import qunar.tc.qmq.meta.store.ReadonlyBrokerGroupSettingStore;
+import qunar.tc.qmq.meta.store.Store;
+import qunar.tc.qmq.meta.store.impl.*;
 import qunar.tc.qmq.netty.DefaultConnectionEventHandler;
 import qunar.tc.qmq.netty.NettyServer;
 import qunar.tc.qmq.protocol.CommandCode;
@@ -45,8 +46,6 @@ import qunar.tc.qmq.protocol.CommandCode;
 import javax.servlet.ServletContext;
 import java.util.ArrayList;
 import java.util.List;
-
-import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
  * @author yunfeng.yang
@@ -74,14 +73,15 @@ public class ServerWrapper implements Disposable {
         final Store store = new DatabaseStore(jdbcTemplate);
         final BrokerStore brokerStore = new BrokerStoreImpl(jdbcTemplate);
         final BrokerMetaManager brokerMetaManager = BrokerMetaManager.getInstance();
+        PartitionStoreImpl partitionStore = new PartitionStoreImpl(jdbcTemplate);
         brokerMetaManager.init(brokerStore);
 
         final ReadonlyBrokerGroupSettingStore readonlyBrokerGroupSettingStore = new ReadonlyBrokerGroupSettingStoreImpl(jdbcTemplate);
-        final CachedMetaInfoManager cachedMetaInfoManager = new CachedMetaInfoManager(config, store, readonlyBrokerGroupSettingStore);
+        final CachedMetaInfoManager cachedMetaInfoManager = new CachedMetaInfoManager(config, store, readonlyBrokerGroupSettingStore, partitionStore);
 
         final SubjectRouter subjectRouter = createSubjectRouter(cachedMetaInfoManager, store);
         final ReadonlyBrokerGroupManager readonlyBrokerGroupManager = new ReadonlyBrokerGroupManager(cachedMetaInfoManager);
-        final ClientRegisterProcessor clientRegisterProcessor = new ClientRegisterProcessor(subjectRouter, CachedOfflineStateManager.SUPPLIER.get(), store, readonlyBrokerGroupManager);
+        final ClientRegisterProcessor clientRegisterProcessor = new ClientRegisterProcessor(subjectRouter, CachedOfflineStateManager.SUPPLIER.get(), store, readonlyBrokerGroupManager, cachedMetaInfoManager);
         final BrokerRegisterProcessor brokerRegisterProcessor = new BrokerRegisterProcessor(config, cachedMetaInfoManager, store);
         final BrokerAcquireMetaProcessor brokerAcquireMetaProcessor = new BrokerAcquireMetaProcessor(new BrokerStoreImpl(jdbcTemplate));
         final ReadonlyBrokerGroupSettingService readonlyBrokerGroupSettingService = new ReadonlyBrokerGroupSettingService(readonlyBrokerGroupSettingStore);

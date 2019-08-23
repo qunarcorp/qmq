@@ -40,6 +40,7 @@ public class Bootstrap {
         context.addServlet(SubjectConsumerServlet.class, "/subject/consumers");
         context.addServlet(OnOfflineServlet.class, "/onoffline");
         context.addServlet(SlaveServerAddressSupplierServlet.class, "/slave/meta");
+        context.addServlet(OrderedMessageManagementServlet.class, "/orderedMessage/new");
 
         // TODO(keli.wang): allow set port use env
         int port = config.getInt("meta.server.discover.port", 8080);

@@ -22,7 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.Message;
 import qunar.tc.qmq.PullConsumer;
-import qunar.tc.qmq.common.JsonUtils;
+import qunar.tc.qmq.common.JsonHolder;
 import qunar.tc.qmq.consumer.MessageConsumerProvider;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.MetricsConstants;
@@ -48,7 +48,7 @@ public class PullServlet extends HttpServlet {
 
     private MessageConsumerProvider consumer;
 
-    private final ObjectMapper MAPPER = JsonUtils.getMapper();
+    private final ObjectMapper MAPPER = JsonHolder.getMapper();
 
     private Executor writeExecutor;
 

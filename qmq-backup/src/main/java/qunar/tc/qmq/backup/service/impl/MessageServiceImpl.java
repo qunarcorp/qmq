@@ -29,8 +29,8 @@ import qunar.tc.qmq.backup.service.MessageService;
 import qunar.tc.qmq.backup.service.SlaveMetaSupplier;
 import qunar.tc.qmq.backup.store.MessageStore;
 import qunar.tc.qmq.backup.store.RecordStore;
+import qunar.tc.qmq.backup.util.GsonUtils;
 import qunar.tc.qmq.backup.util.HBaseValueDecoder;
-import qunar.tc.qmq.backup.util.Serializer;
 import qunar.tc.qmq.base.RemoteMessageQuery;
 import qunar.tc.qmq.common.Disposable;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
@@ -55,8 +55,6 @@ public class MessageServiceImpl implements MessageService, Disposable {
     private static final String MESSAGE_QUERY_URL = "/api/broker/message";
 
     private static final AsyncHttpClient ASYNC_HTTP_CLIENT = asyncHttpClient();
-
-    private final Serializer serializer = Serializer.getSerializer();
 
     private final MessageStore indexStore;
     private final MessageStore deadStore;
@@ -178,7 +176,7 @@ public class MessageServiceImpl implements MessageService, Disposable {
 
         try {
             BoundRequestBuilder boundRequestBuilder = ASYNC_HTTP_CLIENT.prepareGet(url);
-            boundRequestBuilder.addQueryParam("backupQuery", serializer.serialize(getQuery(subject, metas)));
+            boundRequestBuilder.addQueryParam("backupQuery", GsonUtils.serialize(getQuery(subject, metas)));
 
             final Response response = boundRequestBuilder.execute().get();
             if (response.getStatusCode() != HttpResponseStatus.OK.code()) {
@@ -203,7 +201,7 @@ public class MessageServiceImpl implements MessageService, Disposable {
 
         try {
             BoundRequestBuilder boundRequestBuilder = ASYNC_HTTP_CLIENT.prepareGet(url);
-            boundRequestBuilder.addQueryParam("backupQuery", serializer.serialize(getQuery(subject, metas)));
+            boundRequestBuilder.addQueryParam("backupQuery", GsonUtils.serialize(getQuery(subject, metas)));
 
             final Response response = boundRequestBuilder.execute().get();
             if (response.getStatusCode() != HttpResponseStatus.OK.code()) {
@@ -217,8 +215,7 @@ public class MessageServiceImpl implements MessageService, Disposable {
                 BackupMessage message = null;
                 try {
                     message = HBaseValueDecoder.getMessage(buffer);
-                }
-                catch (Exception e) {
+                } catch (Exception e) {
                     LOG.error("retrieve message failed.", e);
                 }
                 if (message != null) {

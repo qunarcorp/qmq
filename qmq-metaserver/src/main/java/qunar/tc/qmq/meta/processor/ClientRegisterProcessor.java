@@ -19,6 +19,7 @@ package qunar.tc.qmq.meta.processor;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import qunar.tc.qmq.meta.cache.AliveClientManager;
+import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 import qunar.tc.qmq.meta.cache.CachedOfflineStateManager;
 import qunar.tc.qmq.meta.monitor.QMon;
 import qunar.tc.qmq.meta.route.ReadonlyBrokerGroupManager;
@@ -45,7 +46,8 @@ public class ClientRegisterProcessor implements NettyRequestProcessor {
     public ClientRegisterProcessor(final SubjectRouter subjectRouter,
                                    final CachedOfflineStateManager offlineStateManager,
                                    final Store store,
-                                   ReadonlyBrokerGroupManager readonlyBrokerGroupManager) {
+                                   ReadonlyBrokerGroupManager readonlyBrokerGroupManager,
+                                   CachedMetaInfoManager cachedMetaInfoManager) {
         this.clientRegisterWorker = new ClientRegisterWorker(subjectRouter, offlineStateManager, store, readonlyBrokerGroupManager, cachedMetaInfoManager);
         this.aliveClientManager = AliveClientManager.getInstance();
     }

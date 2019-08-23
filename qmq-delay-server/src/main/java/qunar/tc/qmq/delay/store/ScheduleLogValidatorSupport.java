@@ -23,7 +23,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.io.Files;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.common.JsonUtils;
+import qunar.tc.qmq.common.JsonHolder;
 import qunar.tc.qmq.delay.config.StoreConfiguration;
 import qunar.tc.qmq.store.Serde;
 
@@ -42,7 +42,7 @@ public class ScheduleLogValidatorSupport {
     private static final String SCHEDULE_OFFSET_CHECKPOINT = "schedule_offset_checkpoint.json";
 
     private static final ScheduleOffsetSerde SERDE = new ScheduleOffsetSerde();
-    private static final ObjectMapper MAPPER = JsonUtils.getMapper();
+    private static final ObjectMapper MAPPER = JsonHolder.getMapper();
 
     private static ScheduleLogValidatorSupport SUPPORT;
 

@@ -21,7 +21,7 @@ import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.backup.base.RecordQuery;
 import qunar.tc.qmq.backup.base.RecordQueryResult;
 import qunar.tc.qmq.backup.service.MessageService;
-import qunar.tc.qmq.backup.util.Serializer;
+import qunar.tc.qmq.backup.util.GsonUtils;
 
 import javax.servlet.AsyncContext;
 import javax.servlet.ServletResponse;
@@ -38,8 +38,6 @@ import java.util.concurrent.CompletableFuture;
  */
 public class MessageRecordsServlet extends HttpServlet {
     private static final Logger LOG = LoggerFactory.getLogger(MessageRecordsServlet.class);
-
-    private static final Serializer serializer = Serializer.getSerializer();
 
     private static final RecordQueryResult EMPTY_RECORD_QUERY_RESULT = new RecordQueryResult(Collections.emptyList());
 
@@ -61,7 +59,7 @@ public class MessageRecordsServlet extends HttpServlet {
         final AsyncContext context = req.startAsync();
         CompletableFuture<RecordQueryResult> future = messageService.findRecords(query);
         future.exceptionally(throwable -> EMPTY_RECORD_QUERY_RESULT).thenAccept(result -> {
-            response(resp, serializer.serialize(result));
+            response(resp, GsonUtils.serialize(result));
             context.complete();
         });
     }
@@ -69,7 +67,7 @@ public class MessageRecordsServlet extends HttpServlet {
     private void response(ServletResponse resp) throws IOException {
         resp.setContentType("application/json");
         RecordQueryResult result = new RecordQueryResult(Collections.emptyList());
-        resp.getWriter().println(serializer.serialize(result));
+        resp.getWriter().println(GsonUtils.serialize(result));
     }
 
     private void response(ServletResponse resp, Object data) {
@@ -83,7 +81,7 @@ public class MessageRecordsServlet extends HttpServlet {
     private RecordQuery deserialize(HttpServletRequest req) {
         try {
             final String recordQueryStr = req.getParameter("recordQuery");
-            return serializer.deSerialize(recordQueryStr, RecordQuery.class);
+            return GsonUtils.deSerialize(recordQueryStr, RecordQuery.class);
         } catch (Exception e) {
             LOG.error("Get record query failed.", e);
             return null;
