@@ -23,6 +23,7 @@ import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 
+import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
 import qunar.tc.qmq.meta.BrokerGroup;
 import qunar.tc.qmq.meta.BrokerGroupKind;
 import qunar.tc.qmq.meta.BrokerState;
@@ -96,11 +97,7 @@ public class DatabaseStore implements Store {
         return subjectInfo;
     };
 
-    private final JdbcTemplate jdbcTemplate;
-
-    public DatabaseStore(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
-    }
+    private final JdbcTemplate jdbcTemplate = JdbcTemplateHolder.getOrCreate();
 
     @Override
     public int insertSubjectRoute(String subject, int version, List<String> groupNames) {

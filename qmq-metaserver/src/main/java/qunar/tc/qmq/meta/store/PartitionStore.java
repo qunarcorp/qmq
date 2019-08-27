@@ -1,6 +1,6 @@
 package qunar.tc.qmq.meta.store;
 
-import qunar.tc.qmq.meta.PartitionInfo;
+import qunar.tc.qmq.meta.order.Partition;
 
 import java.util.List;
 
@@ -10,7 +10,9 @@ import java.util.List;
  */
 public interface PartitionStore {
 
-    void save(PartitionInfo info);
+    int save(Partition partition);
 
-    List<PartitionInfo> getAllLatest();
+    int save(List<Partition> partitions);
+
+    List<Partition> getByPartitionIds(List<Integer> partitionIds);
 }

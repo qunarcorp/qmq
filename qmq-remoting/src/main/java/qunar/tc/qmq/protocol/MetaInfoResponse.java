@@ -14,23 +14,22 @@
  * limitations under the License.
  */
 
-package qunar.tc.qmq.protocol.consumer;
+package qunar.tc.qmq.protocol;
 
 import qunar.tc.qmq.meta.BrokerCluster;
 import qunar.tc.qmq.base.OnOfflineState;
-import qunar.tc.qmq.meta.PartitionInfo;
+import qunar.tc.qmq.meta.PartitionAllocation;
 
 /**
  * @author yiqun.fan create on 17-8-31.
  */
-public class MetaInfoResponse {
+public abstract class MetaInfoResponse {
     private long timestamp;
     private String subject;
     private String consumerGroup;
     private OnOfflineState onOfflineState;
     private int clientTypeCode;
     private BrokerCluster brokerCluster;
-    private PartitionInfo partitionInfo;
 
     public long getTimestamp() {
         return timestamp;
@@ -78,15 +77,6 @@ public class MetaInfoResponse {
 
     public void setBrokerCluster(BrokerCluster brokerCluster) {
         this.brokerCluster = brokerCluster;
-    }
-
-    public PartitionInfo getPartitionInfo() {
-        return partitionInfo;
-    }
-
-    public MetaInfoResponse setPartitionInfo(PartitionInfo partitionInfo) {
-        this.partitionInfo = partitionInfo;
-        return this;
     }
 
     @Override

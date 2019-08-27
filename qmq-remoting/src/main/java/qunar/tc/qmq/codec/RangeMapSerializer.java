@@ -5,6 +5,8 @@ import com.google.common.collect.RangeMap;
 import com.google.common.collect.TreeRangeMap;
 import io.netty.buffer.ByteBuf;
 
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.Map;
 
 /**
@@ -36,18 +38,19 @@ public class RangeMapSerializer extends ObjectSerializer<RangeMap> {
     }
 
     @Override
-    RangeMap doDeserialize(ByteBuf buf, Class... classes) {
-        Class keyClazz = classes[0];
-        Class valClazz = classes[1];
+    RangeMap doDeserialize(ByteBuf buf, Type type) {
+        Type[] argTypes = ((ParameterizedType) type).getActualTypeArguments();
+        Type keyType = argTypes[0];
+        Type valType = argTypes[1];
         TreeRangeMap rangeMap = TreeRangeMap.create();
         int size = buf.readInt();
-        Serializer keySerializer = Serializers.getSerializer(keyClazz);
-        Serializer valSerializer = Serializers.getSerializer(valClazz);
+        Serializer keySerializer = getSerializer(keyType);
+        Serializer valSerializer = getSerializer(valType);
         for (int i = 0; i < size; i++) {
-            Comparable lower = (Comparable) keySerializer.deserialize(buf);
-            Comparable upper = (Comparable) keySerializer.deserialize(buf);
+            Comparable lower = (Comparable) keySerializer.deserialize(buf, keyType);
+            Comparable upper = (Comparable) keySerializer.deserialize(buf, keyType);
             Range range = Range.closedOpen(lower, upper);
-            Object value = valSerializer.deserialize(buf);
+            Object value = valSerializer.deserialize(buf, valType);
             rangeMap.put(range, value);
         }
         return rangeMap;

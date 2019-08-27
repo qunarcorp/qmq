@@ -33,7 +33,7 @@ import qunar.tc.qmq.meta.BrokerState;
 import qunar.tc.qmq.meta.MetaServerLocator;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
-import qunar.tc.qmq.protocol.consumer.MetaInfoResponse;
+import qunar.tc.qmq.protocol.MetaInfoResponse;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
 
 import java.util.ArrayList;

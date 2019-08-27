@@ -55,8 +55,6 @@ import java.util.List;
 public class ServerWrapper implements Disposable {
     private static final Logger LOG = LoggerFactory.getLogger(ServerWrapper.class);
 
-    private static final int DEFAULT_META_SERVER_PORT = 20880;
-
     private final List<Disposable> resources;
     private final DynamicConfig config;
 
@@ -65,12 +63,9 @@ public class ServerWrapper implements Disposable {
         this.config = config;
     }
 
-    public void start(ServletContext context) {
-        final int port = config.getInt("meta.server.port", DEFAULT_META_SERVER_PORT);
-        context.setAttribute("port", port);
-
+    public void start(int metaServerPort) {
         JdbcTemplate jdbcTemplate = JdbcTemplateHolder.getOrCreate();
-        final Store store = new DatabaseStore(jdbcTemplate);
+        final Store store = new DatabaseStore();
         final BrokerStore brokerStore = new BrokerStoreImpl(jdbcTemplate);
         final BrokerMetaManager brokerMetaManager = BrokerMetaManager.getInstance();
         PartitionStoreImpl partitionStore = new PartitionStoreImpl();
@@ -86,7 +81,7 @@ public class ServerWrapper implements Disposable {
         final BrokerAcquireMetaProcessor brokerAcquireMetaProcessor = new BrokerAcquireMetaProcessor(new BrokerStoreImpl(jdbcTemplate));
         final ReadonlyBrokerGroupSettingService readonlyBrokerGroupSettingService = new ReadonlyBrokerGroupSettingService(readonlyBrokerGroupSettingStore);
 
-        final NettyServer metaNettyServer = new NettyServer("meta", Runtime.getRuntime().availableProcessors(), port, new DefaultConnectionEventHandler("meta"));
+        final NettyServer metaNettyServer = new NettyServer("meta", Runtime.getRuntime().availableProcessors(), metaServerPort, new DefaultConnectionEventHandler("meta"));
         metaNettyServer.registerProcessor(CommandCode.CLIENT_REGISTER, clientRegisterProcessor);
         metaNettyServer.registerProcessor(CommandCode.BROKER_REGISTER, brokerRegisterProcessor);
         metaNettyServer.registerProcessor(CommandCode.BROKER_ACQUIRE_META, brokerAcquireMetaProcessor);

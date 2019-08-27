@@ -27,14 +27,14 @@ import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.base.OnOfflineState;
 import qunar.tc.qmq.codec.Serializer;
 import qunar.tc.qmq.codec.Serializers;
-import qunar.tc.qmq.meta.BrokerCluster;
-import qunar.tc.qmq.meta.BrokerGroup;
-import qunar.tc.qmq.meta.BrokerState;
-import qunar.tc.qmq.meta.PartitionInfo;
+import qunar.tc.qmq.common.ClientType;
+import qunar.tc.qmq.meta.*;
 import qunar.tc.qmq.protocol.CommandCode;
 import qunar.tc.qmq.protocol.Datagram;
 import qunar.tc.qmq.protocol.RemotingHeader;
-import qunar.tc.qmq.protocol.consumer.MetaInfoResponse;
+import qunar.tc.qmq.protocol.MetaInfoResponse;
+import qunar.tc.qmq.protocol.consumer.ConsumerMetaInfoResponse;
+import qunar.tc.qmq.protocol.producer.ProducerMetaInfoResponse;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
 
 import java.util.ArrayList;
@@ -123,16 +123,32 @@ class MetaInfoClientHandler extends SimpleChannelInboundHandler<Datagram> {
         @Override
         public MetaInfoResponse deserialize(RemotingHeader header, ByteBuf buf) {
             try {
-                final MetaInfoResponse metaInfoResponse = new MetaInfoResponse();
-                metaInfoResponse.setTimestamp(buf.readLong());
-                metaInfoResponse.setSubject(PayloadHolderUtils.readString(buf));
-                metaInfoResponse.setConsumerGroup(PayloadHolderUtils.readString(buf));
-                metaInfoResponse.setOnOfflineState(OnOfflineState.fromCode(buf.readByte()));
-                metaInfoResponse.setClientTypeCode(buf.readByte());
-                metaInfoResponse.setBrokerCluster(deserializeBrokerCluster(buf));
-                Serializer<PartitionInfo> partitionInfoSerializer = Serializers.getSerializer(PartitionInfo.class);
-                metaInfoResponse.setPartitionInfo(partitionInfoSerializer.deserialize(buf));
-                return metaInfoResponse;
+                long timestamp = buf.readLong();
+                String subject = PayloadHolderUtils.readString(buf);
+                String consumerGroup = PayloadHolderUtils.readString(buf);
+                OnOfflineState onOfflineState = OnOfflineState.fromCode(buf.readByte());
+                byte clientTypeCode = buf.readByte();
+                ClientType clientType = ClientType.of(clientTypeCode);
+                BrokerCluster brokerCluster = deserializeBrokerCluster(buf);
+
+                MetaInfoResponse response;
+                if (clientType.isProducer()) {
+                    response = new ProducerMetaInfoResponse();
+                    Serializer<PartitionMapping> serializer = Serializers.getSerializer(PartitionMapping.class);
+                    ((ProducerMetaInfoResponse) response).setPartitionMapping(serializer.deserialize(buf, null));
+                } else {
+                    response = new ConsumerMetaInfoResponse();
+                    Serializer<PartitionAllocation> serializer = Serializers.getSerializer(PartitionAllocation.class);
+                    ((ConsumerMetaInfoResponse) response).setPartitionAllocation(serializer.deserialize(buf, null));
+                }
+
+                response.setTimestamp(timestamp);
+                response.setSubject(subject);
+                response.setConsumerGroup(consumerGroup);
+                response.setOnOfflineState(onOfflineState);
+                response.setClientTypeCode(clientTypeCode);
+                response.setBrokerCluster(brokerCluster);
+                return response;
             } catch (Exception e) {
                 LOG.error("deserializeMetaInfoResponse exception", e);
             }

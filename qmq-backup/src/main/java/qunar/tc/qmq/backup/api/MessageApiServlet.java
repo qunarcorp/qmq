@@ -19,6 +19,7 @@ package qunar.tc.qmq.backup.api;
 import qunar.tc.qmq.backup.base.BackupQuery;
 import qunar.tc.qmq.backup.base.MessageQueryResult;
 import qunar.tc.qmq.backup.service.MessageService;
+import qunar.tc.qmq.backup.util.GsonUtils;
 
 import javax.servlet.AsyncContext;
 import javax.servlet.ServletResponse;
@@ -41,7 +42,7 @@ public class MessageApiServlet extends AbstractGetServlet {
         final ServletResponse response = context.getResponse();
         final CompletableFuture<MessageQueryResult> future = messageService.findMessages(query);
         future.exceptionally(throwable -> EMPTY_MESSAGE_QUERY_RESULT).thenAccept(messageQueryResult -> {
-            response(response, serializer.serialize(messageQueryResult));
+            response(response, GsonUtils.serialize(messageQueryResult));
             context.complete();
         });
 

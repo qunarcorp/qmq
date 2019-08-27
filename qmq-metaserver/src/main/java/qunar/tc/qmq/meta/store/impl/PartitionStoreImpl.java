@@ -1,16 +1,19 @@
 package qunar.tc.qmq.meta.store.impl;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.google.common.collect.RangeMap;
+import com.google.common.collect.Range;
+import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
-import qunar.tc.qmq.common.JsonHolder;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
-import qunar.tc.qmq.meta.PartitionInfo;
+import qunar.tc.qmq.meta.order.Partition;
 import qunar.tc.qmq.meta.store.PartitionStore;
 
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author zhenwei.liu
@@ -18,69 +21,71 @@ import java.util.List;
  */
 public class PartitionStoreImpl implements PartitionStore {
 
-    private static final String SAVE_PARTITION = "insert into partitions " +
-            "(subject, logical_partition_num, logical_2_physical_partition, physical_partition_2_broker, physical_partition_2_delay_broker, version) " +
+    private static final String SAVE_PARTITION_SQL = "insert into partitions " +
+            "(subject, physical_partition, logical_partition_lower_bound, logical_partition_upper_bound, broker_group, status) " +
             "values (?, ?, ?, ?, ?, ?)";
 
-    private static final String SELECT_ALL_LATEST_PARTITION =
-            "select p.subject, p.logical_partition_num, p.logical_2_physical_partition, p.physical_partition_2_broker, p.physical_partition_2_delay_broker, p.version " +
-                    "from partitions p " +
-                    "inner join (" +
-                    "select subject, max(version) as max_version from partitions group by subject" +
-                    ") p2 " +
-                    "on p.subject = p2.subject and p.version = p2.max_version";
+    private static final String SELECT_BY_IDS = "select subject, physical_partition, logical_partition_lower_bound, logical_partition_upper_bound, broker_group, status " +
+            "where physical_partition in (:ids)";
 
-    private static final TypeReference<RangeMap<Integer, Integer>> partitionMapTr = new TypeReference<RangeMap<Integer, Integer>>() {
-    };
-    private static final TypeReference<RangeMap<Integer, String>> brokerMapTr = new TypeReference<RangeMap<Integer, String>>() {
-    };
-
-    private static final RowMapper<PartitionInfo> partitionRowMapper = (resultSet, i) -> {
+    private static final RowMapper<Partition> partitionRowMapper = (resultSet, i) -> {
         try {
-            PartitionInfo partitionInfo = new PartitionInfo();
-            partitionInfo.setSubject(resultSet.getString("subject"));
-            partitionInfo.setVersion(resultSet.getInt("version"));
-            partitionInfo.setLogicalPartitionNum(resultSet.getInt("logical_partition_num"));
+            Partition partition = new Partition();
+            partition.setSubject(resultSet.getString("subject"));
+            partition.setPhysicalPartition(resultSet.getInt("physical_partition"));
 
-            String logical2PhysicalPartition = resultSet.getString("logical_2_physical_partition");
-            partitionInfo.setLogical2PhysicalPartition(JsonHolder.getMapper().readValue(logical2PhysicalPartition, partitionMapTr));
+            int logicalPartitionLowerBound = resultSet.getInt("logical_partition_lower_bound");
+            int logicalPartitionUpperBound = resultSet.getInt("logical_partition_upper_bound");
+            partition.setLogicalPartition(Range.closedOpen(logicalPartitionLowerBound, logicalPartitionUpperBound));
 
-            String physicalPartition2Broker = resultSet.getString("physical_partition_2_broker");
-            partitionInfo.setPhysicalPartition2Broker(JsonHolder.getMapper().readValue(physicalPartition2Broker, brokerMapTr));
-
-            String physicalPartition2DelayBroker = resultSet.getString("physical_partition_2_delay_broker");
-            partitionInfo.setPhysicalPartition2DelayBroker(JsonHolder.getMapper().readValue(physicalPartition2DelayBroker, brokerMapTr));
-
-            return partitionInfo;
+            partition.setBrokerGroup(resultSet.getString("broker_group"));
+            partition.setStatus(Partition.Status.valueOf(resultSet.getString("status")));
+            return partition;
         } catch (Throwable t) {
             throw new RuntimeException(t);
         }
     };
 
     private JdbcTemplate template = JdbcTemplateHolder.getOrCreate();
+    private NamedParameterJdbcTemplate parameterTemplate = new NamedParameterJdbcTemplate(template);
 
     @Override
-    public void save(PartitionInfo info) {
-        template.update(SAVE_PARTITION, parseArgs(info));
+    public int save(Partition partition) {
+        return template.update(SAVE_PARTITION_SQL,
+                partition.getSubject(),
+                partition.getPhysicalPartition(),
+                partition.getLogicalPartition().lowerEndpoint(),
+                partition.getLogicalPartition().upperEndpoint(),
+                partition.getBrokerGroup(),
+                partition.getStatus().name()
+        );
     }
 
     @Override
-    public List<PartitionInfo> getAllLatest() {
-        return template.query(SELECT_ALL_LATEST_PARTITION, partitionRowMapper);
+    public int save(List<Partition> partitions) {
+        return template.update(SAVE_PARTITION_SQL,
+                new BatchPreparedStatementSetter() {
+                    @Override
+                    public void setValues(PreparedStatement ps, int i) throws SQLException {
+                        Partition partition = partitions.get(i);
+                        ps.setString(1, partition.getSubject());
+                        ps.setInt(2, partition.getPhysicalPartition());
+                        ps.setInt(3, partition.getLogicalPartition().lowerEndpoint());
+                        ps.setInt(4, partition.getLogicalPartition().upperEndpoint());
+                        ps.setString(5, partition.getBrokerGroup());
+                        ps.setString(6, partition.getStatus().name());
+                    }
+
+                    @Override
+                    public int getBatchSize() {
+                        return partitions.size();
+                    }
+                });
     }
 
-    private Object[] parseArgs(PartitionInfo partitionInfo) {
-        try {
-            Object[] args = new Object[6];
-            args[0] = partitionInfo.getSubject();
-            args[1] = partitionInfo.getLogicalPartitionNum();
-            args[2] = JsonHolder.getMapper().writeValueAsString(partitionInfo.getLogical2PhysicalPartition());
-            args[3] = JsonHolder.getMapper().writeValueAsString(partitionInfo.getPhysicalPartition2Broker());
-            args[4] = JsonHolder.getMapper().writeValueAsString(partitionInfo.getPhysicalPartition2DelayBroker());
-            args[5] = partitionInfo.getVersion();
-            return args;
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
+    @Override
+    public List<Partition> getByPartitionIds(List<Integer> partitionIds) {
+        Map<String, List<Integer>> param = Collections.singletonMap("ids", partitionIds);
+        return parameterTemplate.query(SELECT_BY_IDS, param, partitionRowMapper);
     }
 }

@@ -34,7 +34,7 @@ public class AdaptiveBrokerLoadBalance implements BrokerLoadBalance {
 	}
 
 	private BrokerLoadBalance selectLoadBalance(BaseMessage message) {
-		Object loadBalanceType = message.getProperty(keys.qmq_queueLoadBalanceType);
+		Object loadBalanceType = message.getProperty(keys.qmq_loadBalanceType);
 		if (loadBalanceType == null) {
 			return loadBalanceMap.get(DEFAULT_LOAD_BALANCE);
 		}

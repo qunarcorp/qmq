@@ -23,23 +23,19 @@ import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.base.OnOfflineState;
 import qunar.tc.qmq.codec.Serializer;
 import qunar.tc.qmq.codec.Serializers;
+import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.concurrent.ActorSystem;
-import qunar.tc.qmq.meta.BrokerCluster;
-import qunar.tc.qmq.meta.BrokerGroup;
-import qunar.tc.qmq.meta.BrokerState;
-import qunar.tc.qmq.meta.PartitionInfo;
+import qunar.tc.qmq.meta.*;
 import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 import qunar.tc.qmq.meta.cache.CachedOfflineStateManager;
 import qunar.tc.qmq.meta.route.ReadonlyBrokerGroupManager;
 import qunar.tc.qmq.meta.route.SubjectRouter;
 import qunar.tc.qmq.meta.store.Store;
 import qunar.tc.qmq.meta.utils.ClientLogUtils;
-import qunar.tc.qmq.protocol.CommandCode;
-import qunar.tc.qmq.protocol.Datagram;
-import qunar.tc.qmq.protocol.PayloadHolder;
-import qunar.tc.qmq.protocol.RemotingHeader;
+import qunar.tc.qmq.protocol.*;
+import qunar.tc.qmq.protocol.consumer.ConsumerMetaInfoResponse;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
-import qunar.tc.qmq.protocol.consumer.MetaInfoResponse;
+import qunar.tc.qmq.protocol.producer.ProducerMetaInfoResponse;
 import qunar.tc.qmq.util.RemotingBuilder;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
@@ -131,11 +127,22 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
     }
 
     private MetaInfoResponse buildResponse(MetaInfoRequest clientRequest, long updateTime, OnOfflineState clientState, BrokerCluster brokerCluster) {
-        final MetaInfoResponse response = new MetaInfoResponse();
+        ClientType clientType = ClientType.of(clientRequest.getRequestType());
+        MetaInfoResponse response;
+        String subject = clientRequest.getSubject();
+        if (clientType.isProducer()) {
+            response = new ProducerMetaInfoResponse();
+            PartitionMapping partitionMapping = cachedMetaInfoManager.getPartitionMapping(subject);
+            ((ProducerMetaInfoResponse) response).setPartitionMapping(partitionMapping);
+        } else {
+            PartitionAllocation partitionAllocation = cachedMetaInfoManager.getPartitionAllocation(subject);
+            response = new ConsumerMetaInfoResponse();
+            ((ConsumerMetaInfoResponse) response).setPartitionAllocation(partitionAllocation);
+        }
+        response.setConsumerGroup(clientRequest.getConsumerGroup());
         response.setTimestamp(updateTime);
         response.setOnOfflineState(clientState);
         response.setSubject(clientRequest.getSubject());
-        response.setConsumerGroup(clientRequest.getConsumerGroup());
         response.setClientTypeCode(clientRequest.getClientTypeCode());
         response.setBrokerCluster(brokerCluster);
         return response;
@@ -151,11 +158,14 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
     private MetaInfoResponsePayloadHolder createPayloadHolder(ClientRegisterProcessor.ClientRegisterMessage message, MetaInfoResponse response) {
         RemotingHeader header = message.getHeader();
         short version = header.getVersion();
-        if (version == 10) {
-            String subject = response.getSubject();
-            PartitionInfo partitionInfo = cachedMetaInfoManager.getPartitionInfo(subject);
-            response.setPartitionInfo(partitionInfo);
-            return new MetaInfoResponsePayloadHolderV10(response);
+        if (version == RemotingHeader.VERSION_10) {
+            if (response instanceof ProducerMetaInfoResponse) {
+                return new ProducerMetaInfoResponsePayloadHolderV10((ProducerMetaInfoResponse) response);
+            } else if (response instanceof ConsumerMetaInfoResponse) {
+                return new ConsumerMetaInfoResponsePayloadHolderV10((ConsumerMetaInfoResponse) response);
+            } else {
+                throw new IllegalArgumentException(String.format("不支持的类型 %s", response.getClass()));
+            }
         }
         return new MetaInfoResponsePayloadHolder(response);
     }
@@ -188,11 +198,11 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
         }
     }
 
-    private static class MetaInfoResponsePayloadHolderV10 extends MetaInfoResponsePayloadHolder implements PayloadHolder {
+    private static class ProducerMetaInfoResponsePayloadHolderV10 extends MetaInfoResponsePayloadHolder implements PayloadHolder {
 
-        private final MetaInfoResponse response;
+        private final ProducerMetaInfoResponse response;
 
-        MetaInfoResponsePayloadHolderV10(MetaInfoResponse response) {
+        ProducerMetaInfoResponsePayloadHolderV10(ProducerMetaInfoResponse response) {
             super(response);
             this.response = response;
         }
@@ -200,11 +210,27 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
         @Override
         public void writeBody(ByteBuf out) {
             super.writeBody(out);
-            PartitionInfo partitionInfo = response.getPartitionInfo();
-            if (partitionInfo != null) {
-                Serializer<PartitionInfo> serializer = Serializers.getSerializer(PartitionInfo.class);
-                serializer.serialize(partitionInfo, out);
-            }
+            PartitionMapping partitionMapping = response.getPartitionMapping();
+            Serializer<PartitionMapping> serializer = Serializers.getSerializer(PartitionMapping.class);
+            serializer.serialize(partitionMapping, out);
+        }
+    }
+
+    private static class ConsumerMetaInfoResponsePayloadHolderV10 extends MetaInfoResponsePayloadHolder implements PayloadHolder {
+
+        private final ConsumerMetaInfoResponse response;
+
+        ConsumerMetaInfoResponsePayloadHolderV10(ConsumerMetaInfoResponse response) {
+            super(response);
+            this.response = response;
+        }
+
+        @Override
+        public void writeBody(ByteBuf out) {
+            super.writeBody(out);
+            PartitionAllocation partitionAllocation = response.getPartitionAllocation();
+            Serializer<PartitionAllocation> serializer = Serializers.getSerializer(PartitionAllocation.class);
+            serializer.serialize(partitionAllocation, out);
         }
     }
 }

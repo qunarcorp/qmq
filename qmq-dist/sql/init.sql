@@ -44,24 +44,6 @@ CREATE TABLE IF NOT EXISTS `subject_route`
   DEFAULT CHARSET = utf8mb4
   COMMENT = '主题路由信息';
 
-CREATE TABLE IF NOT EXISTS `client_meta_info`
-(
-  `id`             INT(11) UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键',
-  `subject_info`   VARCHAR(100)     NOT NULL DEFAULT '' COMMENT '主题',
-  `client_type`    TINYINT          NOT NULL DEFAULT 0 COMMENT 'client类型',
-  `consumer_group` VARCHAR(100)     NOT NULL DEFAULT '' COMMENT '消费组',
-  `client_id`      VARCHAR(100)     NOT NULL DEFAULT '' COMMENT 'client id',
-  `app_code`       VARCHAR(100)     NOT NULL DEFAULT '' COMMENT '应用',
-  `room`           VARCHAR(20)      NOT NULL DEFAULT '' COMMENT '机房',
-  `create_time`    TIMESTAMP        NOT NULL DEFAULT '1970-01-01 08:00:01' COMMENT '创建时间',
-  `update_time`    TIMESTAMP        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '修改时间',
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uniq_subject_client_type_consumer_group_client_id` (`subject_info`, `client_type`, `consumer_group`, `client_id`)
-)
-  ENGINE = InnoDB
-  DEFAULT CHARSET = utf8mb4
-  COMMENT = '订阅关系表';
-
 CREATE TABLE IF NOT EXISTS `client_offline_state`
 (
   `id`             INT(11) UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键',
@@ -126,14 +108,54 @@ CREATE TABLE IF NOT EXISTS `readonly_broker_group_setting` (
   UNIQUE `uniq_subject_broker_group` (`subject`, `broker_group`)
 )ENGINE InnoDB DEFAULT CHARSET = utf8mb4 COMMENT '只读broker group标记表';
 
-CREATE TABLE `partitions` (
-  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT '主键',
-  `subject` varchar(45) COLLATE utf8_bin NOT NULL COMMENT '主题',
-  `logical_partition_num` int(11) NOT NULL COMMENT '逻辑分区数量',
-  `logical_2_physical_partition` varchar(8192) COLLATE utf8_bin NOT NULL COMMENT '逻辑分区与物理分区映射关系, json',
-  `physical_partition_2_broker` varchar(2048) COLLATE utf8_bin NOT NULL COMMENT '物理分区与 brokerGroupName 映射',
-  `physical_partition_2_delay_broker` varchar(2048) COLLATE utf8_bin NOT NULL COMMENT '物理分区与 delayBrokerGroupName 映射',
-  `version` int(11) NOT NULL COMMENT '分区信息版本',
+CREATE TABLE IF NOT EXISTS `client_meta_info`
+(
+  `id`             INT(11) UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `subject_info`   VARCHAR(100)     NOT NULL DEFAULT '' COMMENT '主题',
+  `client_type`    TINYINT          NOT NULL DEFAULT 0 COMMENT 'client类型',
+  `consumer_group` VARCHAR(100)     NOT NULL DEFAULT '' COMMENT '消费组',
+  `client_id`      VARCHAR(100)     NOT NULL DEFAULT '' COMMENT 'client id',
+  `app_code`       VARCHAR(100)     NOT NULL DEFAULT '' COMMENT '应用',
+  `room`           VARCHAR(20)      NOT NULL DEFAULT '' COMMENT '机房',
+  `create_time`    TIMESTAMP        NOT NULL DEFAULT '1970-01-01 08:00:01' COMMENT '创建时间',
+  `update_time`    TIMESTAMP        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '修改时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_subject_client_type_consumer_group_client_id` (`subject_info`, `client_type`, `consumer_group`, `client_id`)
+)
+  ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COMMENT = '订阅关系表';
+
+CREATE TABLE `partition` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `subject` varchar(100) COLLATE utf8mb4_bin NOT NULL COMMENT '主题',
+  `physical_partition` int(11) NOT NULL COMMENT '物理分区',
+  `logical_partition_lower_bound` int(11) COLLATE utf8mb4_bin NOT NULL COMMENT '逻辑分区范围下界, 闭区间, 如 [0, 500)',
+  `logical_partition_upper_bound` int(11) COLLATE utf8mb4_bin NOT NULL COMMENT '逻辑分区范围上界, 开区间, 如 [0, 500)',
+  `broker_group` varchar(45) COLLATE utf8mb4_bin NOT NULL COMMENT '物理分区所在的 broker',
+  `status` varchar(10) COLLATE utf8mb4_bin NOT NULL COMMENT '状态, RW, R',
+  `create_ts` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_ts` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_subject_physical_partition` (`subject`,`physical_partition`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
+CREATE TABLE `partition_set` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `subject` varchar(100) COLLATE utf8mb4_bin NOT NULL COMMENT '主题',
+  `physical_partitions` varchar(4096) COLLATE utf8mb4_bin NOT NULL COMMENT '物理分区, 逗号分隔, 如 "1,2,3"',
+  `version` int(11) NOT NULL COMMENT '扩容/缩容版本号, 该版本只有扩容缩容会变更',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uniq_subject_version` (`subject`,`version`)
-)ENGINE InnoDB DEFAULT CHARSET = utf8mb4 COMMENT '顺序消息分区映射表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='分区版本';
+
+CREATE TABLE `partition_allocation` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `subject` varchar(100) COLLATE utf8_bin NOT NULL COMMENT '主题',
+  `consumer_group` varchar(128) COLLATE utf8_bin NOT NULL COMMENT 'group id',
+  `allocation_detail` varchar(16384) COLLATE utf8_bin NOT NULL COMMENT '该 group 下所有 client 分配的物理分区, JSON',
+  `partition_set_version` int(11) NOT NULL COMMENT '扩容/缩容版本号, 该版本只有扩容缩容会变更',
+  `version` int(11) NOT NULL COMMENT '本次分配的版本号, 用于做分配乐观锁',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_subject_consumer_group` (`subject`, `consumer_group`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='分区分配详情';

@@ -3,6 +3,8 @@ package qunar.tc.qmq.codec;
 import com.google.common.collect.Maps;
 import io.netty.buffer.ByteBuf;
 
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -29,15 +31,16 @@ public class MapSerializer extends ObjectSerializer<Map> {
     }
 
     @Override
-    Map doDeserialize(ByteBuf buf, Class... classes) {
-        Class keyClass = classes[0];
-        Class valClass = classes[1];
-        Serializer keySerializer = Serializers.getSerializer(keyClass);
-        Serializer valSerializer = Serializers.getSerializer(valClass);
+    Map doDeserialize(ByteBuf buf, Type typeT) {
+        Type[] argTypes = ((ParameterizedType) typeT).getActualTypeArguments();
+        Type keyType = argTypes[0];
+        Type valType = argTypes[1];
+        Serializer keySerializer = getSerializer(keyType);
+        Serializer valSerializer = getSerializer(valType);
         HashMap<Object, Object> result = Maps.newHashMap();
         int size = buf.readInt();
         for (int i = 0; i < size; i++) {
-            result.put(keySerializer.deserialize(buf), valSerializer.deserialize(buf));
+            result.put(keySerializer.deserialize(buf, keyType), valSerializer.deserialize(buf, valType));
         }
         return result;
     }

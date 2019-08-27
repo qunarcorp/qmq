@@ -21,7 +21,7 @@ public class OrderedMessageLoadBalance implements BrokerLoadBalance {
     public BrokerGroupInfo loadBalance(BrokerClusterInfo cluster, BrokerGroupInfo lastGroup,
                                        List<BaseMessage> messages) {
         BaseMessage baseMessage = messages.get(0);
-        String groupName = isDelay(baseMessage) ? baseMessage.getStringProperty(keys.qmq_partitionDelayBroker) : baseMessage.getStringProperty(keys.qmq_partitionBroker);
+        String groupName = baseMessage.getStringProperty(keys.qmq_partitionBroker);
         BrokerGroupInfo brokerGroup = cluster.getGroupByName(groupName);
         Preconditions.checkNotNull(brokerGroup, "could not find broker group for name %s", groupName);
         return brokerGroup;

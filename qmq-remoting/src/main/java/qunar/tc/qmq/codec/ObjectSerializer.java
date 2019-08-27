@@ -2,6 +2,8 @@ package qunar.tc.qmq.codec;
 
 import io.netty.buffer.ByteBuf;
 
+import java.lang.reflect.Type;
+
 /**
  * @author zhenwei.liu
  * @since 2019-08-23
@@ -24,14 +26,14 @@ public abstract class ObjectSerializer<T> implements Serializer<T> {
     abstract void doSerialize(T t, ByteBuf buf);
 
     @Override
-    public T deserialize(ByteBuf buf, Class... classes) {
+    public T deserialize(ByteBuf buf, Type type) {
         byte exists = buf.readByte();
         if (exists == NULL) {
             return null;
         } else {
-            return doDeserialize(buf, classes);
+            return doDeserialize(buf, type);
         }
     }
 
-    abstract T doDeserialize(ByteBuf buf, Class... classes);
+    abstract T doDeserialize(ByteBuf buf, Type type);
 }

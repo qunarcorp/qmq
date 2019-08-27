@@ -72,6 +72,7 @@ public class DefaultSubjectRouter implements SubjectRouter {
     private List<BrokerGroup> doRoute(String subject, int clientTypeCode) {
         SubjectInfo subjectInfo = getOrCreateSubjectInfo(subject);
 
+        // TODO(zhenwei.liu) 这里 consumer 获取 broker 的逻辑
         //query assigned brokers
         final List<String> assignedBrokers = cachedMetaInfoManager.getGroups(subject);
 

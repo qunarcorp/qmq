@@ -84,7 +84,7 @@ public class OrderedExecutor<Item> implements Runnable {
     public void reset() {
         if (status.compareAndSet(OrderedExecutor.Status.RUNNING, OrderedExecutor.Status.IDLE)) {
             // 触发一次任务
-            // TODO 当 Client 未收到 Server 端反馈, 导致重复发送一组消息, 可能造成消息乱序, 如 ([1,2,3] 重发 [1,2,3])
+            // TODO(zhenwei.liu) 当 Client 未收到 Server 端反馈, 导致重复发送一组消息, 可能造成消息乱序, 如 ([1,2,3] 重发 [1,2,3])
             this.executor.execute(this);
         }
     }

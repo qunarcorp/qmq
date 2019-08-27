@@ -28,11 +28,12 @@ import qunar.tc.qmq.common.Disposable;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.meta.BrokerGroup;
 import qunar.tc.qmq.meta.BrokerGroupKind;
-import qunar.tc.qmq.meta.PartitionInfo;
+import qunar.tc.qmq.meta.PartitionAllocation;
+import qunar.tc.qmq.meta.PartitionMapping;
 import qunar.tc.qmq.meta.model.ReadonlyBrokerGroupSetting;
 import qunar.tc.qmq.meta.model.SubjectInfo;
 import qunar.tc.qmq.meta.model.SubjectRoute;
-import qunar.tc.qmq.meta.store.PartitionStore;
+import qunar.tc.qmq.meta.order.OrderedMessageService;
 import qunar.tc.qmq.meta.store.ReadonlyBrokerGroupSettingStore;
 import qunar.tc.qmq.meta.store.Store;
 
@@ -57,7 +58,7 @@ public class CachedMetaInfoManager implements Disposable {
 
     private final Store store;
     private final ReadonlyBrokerGroupSettingStore readonlyBrokerGroupSettingStore;
-    private final PartitionStore partitionStore;
+    private final OrderedMessageService orderedMessageService;
     private final long refreshPeriodSeconds;
 
     /**
@@ -82,20 +83,25 @@ public class CachedMetaInfoManager implements Disposable {
     private volatile Map<String, SubjectInfo> cachedSubjectInfoMap = new HashMap<>();
 
     /**
-     * subject -> partition
+     * subject -> partitionAllocation
      */
-    private volatile Map<String, PartitionInfo> cachedSubjectPartitionMap = new HashMap<>();
+    private volatile Map<String, PartitionAllocation> cachedPartitionAllocation = new HashMap<>();
+
+    /**
+     * subject -> partitionMapping
+     */
+    private volatile Map<String, PartitionMapping> cachedPartitionMapping = new HashMap<>();
 
     /**
      * brokerGroupName -> Subject List
      */
     private volatile SetMultimap<String, String> readonlyBrokerGroupSettings = HashMultimap.create();
 
-    public CachedMetaInfoManager(DynamicConfig config, Store store, ReadonlyBrokerGroupSettingStore readonlyBrokerGroupSettingStore, PartitionStore partitionStore) {
+    public CachedMetaInfoManager(DynamicConfig config, Store store, ReadonlyBrokerGroupSettingStore readonlyBrokerGroupSettingStore, OrderedMessageService orderedMessageService) {
         this.refreshPeriodSeconds = config.getLong("refresh.period.seconds", DEFAULT_REFRESH_PERIOD_SECONDS);
         this.store = store;
         this.readonlyBrokerGroupSettingStore = readonlyBrokerGroupSettingStore;
-        this.partitionStore = partitionStore;
+        this.orderedMessageService = orderedMessageService;
         refresh();
         initRefreshTask();
     }
@@ -150,7 +156,8 @@ public class CachedMetaInfoManager implements Disposable {
         refreshSubjectInfoCache();
         refreshGroupsAndSubjects();
         refreshReadonlyBrokerGroupSettings();
-        refreshPartitionInfo();
+        refreshPartitionAllocation();
+        refreshPartitionMapping();
     }
 
     private void refreshReadonlyBrokerGroupSettings() {
@@ -164,12 +171,20 @@ public class CachedMetaInfoManager implements Disposable {
         readonlyBrokerGroupSettings = map;
     }
 
-    private void refreshPartitionInfo() {
-        this.cachedSubjectPartitionMap = partitionStore.getAllLatest().stream().collect(Collectors.toMap(PartitionInfo::getSubject, p -> p));
+    private void refreshPartitionMapping() {
+        this.cachedPartitionMapping = orderedMessageService.getLatestPartitionMappings().stream().collect(Collectors.toMap(PartitionMapping::getSubject, p -> p));
     }
 
-    public PartitionInfo getPartitionInfo(String subject) {
-        return cachedSubjectPartitionMap.get(subject);
+    public PartitionMapping getPartitionMapping(String subject) {
+        return cachedPartitionMapping.get(subject);
+    }
+
+    private void refreshPartitionAllocation() {
+        this.cachedPartitionAllocation = orderedMessageService.getLatestPartitionAllocations().stream().collect(Collectors.toMap(PartitionAllocation::getSubject, p -> p));
+    }
+
+    public PartitionAllocation getPartitionAllocation(String subject) {
+        return cachedPartitionAllocation.get(subject);
     }
 
     public Set<String> getBrokerGroupReadonlySubjects(final String brokerGroup) {
