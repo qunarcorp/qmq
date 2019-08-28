@@ -21,10 +21,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import qunar.tc.qmq.common.Disposable;
 import qunar.tc.qmq.configuration.DynamicConfig;
+import qunar.tc.qmq.event.EventDispatcher;
 import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
 import qunar.tc.qmq.meta.cache.BrokerMetaManager;
 import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 import qunar.tc.qmq.meta.cache.CachedOfflineStateManager;
+import qunar.tc.qmq.meta.event.OrderedConsumerHeartbeatHandler;
 import qunar.tc.qmq.meta.management.*;
 import qunar.tc.qmq.meta.order.DefaultOrderedMessageService;
 import qunar.tc.qmq.meta.processor.BrokerAcquireMetaProcessor;
@@ -39,10 +41,7 @@ import qunar.tc.qmq.meta.store.BrokerStore;
 import qunar.tc.qmq.meta.store.ClientDbConfigurationStore;
 import qunar.tc.qmq.meta.store.ReadonlyBrokerGroupSettingStore;
 import qunar.tc.qmq.meta.store.Store;
-import qunar.tc.qmq.meta.store.impl.BrokerStoreImpl;
-import qunar.tc.qmq.meta.store.impl.ClientDbConfigurationStoreImpl;
-import qunar.tc.qmq.meta.store.impl.DatabaseStore;
-import qunar.tc.qmq.meta.store.impl.ReadonlyBrokerGroupSettingStoreImpl;
+import qunar.tc.qmq.meta.store.impl.*;
 import qunar.tc.qmq.netty.DefaultConnectionEventHandler;
 import qunar.tc.qmq.netty.NettyServer;
 import qunar.tc.qmq.protocol.CommandCode;
@@ -70,11 +69,13 @@ public class ServerWrapper implements Disposable {
         JdbcTemplate jdbcTemplate = JdbcTemplateHolder.getOrCreate();
         final Store store = new DatabaseStore();
         final BrokerStore brokerStore = new BrokerStoreImpl(jdbcTemplate);
+        final ClientMetaInfoStoreImpl clientMetaInfoStore = new ClientMetaInfoStoreImpl();
+
         final BrokerMetaManager brokerMetaManager = BrokerMetaManager.getInstance();
         brokerMetaManager.init(brokerStore);
 
         final ReadonlyBrokerGroupSettingStore readonlyBrokerGroupSettingStore = new ReadonlyBrokerGroupSettingStoreImpl(jdbcTemplate);
-        final CachedMetaInfoManager cachedMetaInfoManager = new CachedMetaInfoManager(config, store, readonlyBrokerGroupSettingStore, new DefaultOrderedMessageService());
+        final CachedMetaInfoManager cachedMetaInfoManager = new CachedMetaInfoManager(config, store, readonlyBrokerGroupSettingStore, DefaultOrderedMessageService.getInstance());
 
         final SubjectRouter subjectRouter = createSubjectRouter(cachedMetaInfoManager, store);
         final ReadonlyBrokerGroupManager readonlyBrokerGroupManager = new ReadonlyBrokerGroupManager(cachedMetaInfoManager);
@@ -109,6 +110,10 @@ public class ServerWrapper implements Disposable {
         resources.add(cachedMetaInfoManager);
         resources.add(brokerMetaManager);
         resources.add(metaNettyServer);
+
+        OrderedConsumerHeartbeatHandler orderedConsumerHeartbeatHandler = new OrderedConsumerHeartbeatHandler(cachedMetaInfoManager, clientMetaInfoStore);
+        EventDispatcher.register(orderedConsumerHeartbeatHandler);
+
     }
 
     private SubjectRouter createSubjectRouter(CachedMetaInfoManager cachedMetaInfoManager, Store store) {

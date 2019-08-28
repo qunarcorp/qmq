@@ -36,6 +36,15 @@ public class DefaultOrderedMessageService implements OrderedMessageService {
     private RangePartitionMapper rangePartitionMapper = new AverageRangePartitionMapper();
     private PartitionMapper partitionMapper = new AveragePartitionMapper();
 
+    private static DefaultOrderedMessageService instance = new DefaultOrderedMessageService();
+
+    public static DefaultOrderedMessageService getInstance() {
+        return instance;
+    }
+
+    private DefaultOrderedMessageService() {
+    }
+
     @Override
     public void registerOrderedMessage(String subject, int physicalPartitionNum) {
 

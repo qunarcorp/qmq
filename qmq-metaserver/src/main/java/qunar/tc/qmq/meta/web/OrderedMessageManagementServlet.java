@@ -23,7 +23,7 @@ public class OrderedMessageManagementServlet extends HttpServlet {
 
     private static final Logger logger = LoggerFactory.getLogger(OrderedMessageManagementServlet.class);
     private static final ObjectMapper jsonMapper = JsonHolder.getMapper();
-    private final OrderedMessageService orderedMessageService = new DefaultOrderedMessageService();
+    private final OrderedMessageService orderedMessageService = DefaultOrderedMessageService.getInstance();
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {

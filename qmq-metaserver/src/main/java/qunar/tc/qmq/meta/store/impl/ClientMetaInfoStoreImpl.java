@@ -29,11 +29,15 @@ import java.util.List;
  * @since 2017/12/5
  */
 public class ClientMetaInfoStoreImpl implements ClientMetaInfoStore {
+
+    private static final String QUERY_CONSUMER_SQL = "SELECT subject_info,client_type,consumer_group,client_id,app_code,room FROM client_meta_info WHERE subject_info=? AND client_type=?";
+    private static final String UPDATE_CLIENT_STATE_SQL = "update client_meta_info set update_time = now() where subject_info = ? and client_type = ? and consumer_group = ? and client_id = ?";
+
     private final JdbcTemplate jdbcTemplate = JdbcTemplateHolder.getOrCreate();
 
     @Override
     public List<ClientMetaInfo> queryConsumer(String subject) {
-        return jdbcTemplate.query("SELECT subject_info,client_type,consumer_group,client_id,app_code,room FROM client_meta_info WHERE subject_info=? AND client_type=?", (rs, rowNum) -> {
+        return jdbcTemplate.query(QUERY_CONSUMER_SQL, (rs, rowNum) -> {
             final ClientMetaInfo meta = new ClientMetaInfo();
             meta.setSubject(rs.getString("subject_info"));
             meta.setClientTypeCode(rs.getInt("client_type"));
@@ -43,5 +47,19 @@ public class ClientMetaInfoStoreImpl implements ClientMetaInfoStore {
             meta.setRoom(rs.getString("room"));
             return meta;
         }, subject, ClientType.CONSUMER.getCode());
+    }
+
+    @Override
+    public int updateClientOnlineState(ClientMetaInfo clientMetaInfo) {
+        return jdbcTemplate.update(UPDATE_CLIENT_STATE_SQL,
+                clientMetaInfo.getSubject(),
+                clientMetaInfo.getClientTypeCode(),
+                defaultEmpty(clientMetaInfo.getConsumerGroup()),
+                clientMetaInfo.getClientId()
+        );
+    }
+
+    private String defaultEmpty(String s) {
+        return s == null ? "" : s;
     }
 }

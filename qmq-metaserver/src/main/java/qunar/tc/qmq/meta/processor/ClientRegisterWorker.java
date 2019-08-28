@@ -25,6 +25,7 @@ import qunar.tc.qmq.codec.Serializer;
 import qunar.tc.qmq.codec.Serializers;
 import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.concurrent.ActorSystem;
+import qunar.tc.qmq.event.EventDispatcher;
 import qunar.tc.qmq.meta.*;
 import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 import qunar.tc.qmq.meta.cache.CachedOfflineStateManager;
@@ -90,6 +91,8 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
         try {
             if (ClientRequestType.ONLINE.getCode() == clientRequestType) {
                 store.insertClientMetaInfo(request);
+            } else if (ClientRequestType.HEARTBEAT.getCode() == clientRequestType) {
+                EventDispatcher.dispatch(request);
             }
 
             final List<BrokerGroup> brokerGroups = subjectRouter.route(realSubject, request);

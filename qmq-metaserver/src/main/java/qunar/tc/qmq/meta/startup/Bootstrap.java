@@ -20,6 +20,7 @@ import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.configuration.DynamicConfigLoader;
+import qunar.tc.qmq.meta.event.OrderedConsumerHeartbeatHandler;
 import qunar.tc.qmq.meta.web.*;
 
 /**
@@ -31,6 +32,7 @@ public class Bootstrap {
     private static final int DEFAULT_META_SERVER_PORT = 20880;
 
     public static void main(String[] args) throws Exception {
+
         final ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath("/");
         context.setResourceBase(System.getProperty("java.io.tmpdir"));

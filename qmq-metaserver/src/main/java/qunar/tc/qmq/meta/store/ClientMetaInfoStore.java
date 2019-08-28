@@ -25,5 +25,8 @@ import java.util.List;
  * @since 2017/12/5
  */
 public interface ClientMetaInfoStore {
+
     List<ClientMetaInfo> queryConsumer(final String subject);
+
+    int updateClientOnlineState(ClientMetaInfo clientMetaInfo);
 }
