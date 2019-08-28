@@ -1,6 +1,5 @@
 package qunar.tc.qmq.config;
 
-import qunar.tc.qmq.meta.PartitionAllocation;
 import qunar.tc.qmq.meta.PartitionMapping;
 
 /**

@@ -27,6 +27,7 @@ import java.util.concurrent.CompletableFuture;
  * @since 2017/7/3
  */
 public interface NettyRequestProcessor {
+
     CompletableFuture<Datagram> processRequest(ChannelHandlerContext ctx, RemotingCommand request);
 
     boolean rejectRequest();

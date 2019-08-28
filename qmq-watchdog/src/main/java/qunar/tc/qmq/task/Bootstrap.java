@@ -52,9 +52,8 @@ public class Bootstrap {
     }
 
     private static MessageProducer createMessageProducer(DynamicConfig config) {
-        MessageProducerProvider producer = new MessageProducerProvider();
+        MessageProducerProvider producer = new MessageProducerProvider(config.getString("meta.server.endpoint"));
         producer.setAppCode(config.getString("appCode"));
-        producer.setMetaServer(config.getString("meta.server.endpoint"));
         producer.init();
         return producer;
     }

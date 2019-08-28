@@ -29,7 +29,6 @@ import qunar.tc.qmq.common.ClientIdProvider;
 import qunar.tc.qmq.common.ClientIdProviderFactory;
 import qunar.tc.qmq.common.EnvProvider;
 import qunar.tc.qmq.config.OrderedMessageManager;
-import qunar.tc.qmq.meta.PartitionAllocation;
 import qunar.tc.qmq.meta.PartitionMapping;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.MetricsConstants;
@@ -65,7 +64,6 @@ public class MessageProducerProvider implements MessageProducer {
     private final Tracer tracer;
 
     private String appCode;
-    private String metaServer;
 
     private MessageTracker messageTracker;
 
@@ -74,19 +72,17 @@ public class MessageProducerProvider implements MessageProducer {
     /**
      * 自动路由机房
      */
-    public MessageProducerProvider() {
+    public MessageProducerProvider(String metaServer) {
         this.idGenerator = new TimestampAndHostIdGenerator();
         this.clientIdProvider = ClientIdProviderFactory.createDefault();
-        this.routerManager = new NettyRouterManager();
+        this.routerManager = new NettyRouterManager(metaServer);
         this.tracer = GlobalTracer.get();
     }
 
     @PostConstruct
     public void init() {
         Preconditions.checkNotNull(appCode, "appCode唯一标识一个应用");
-        Preconditions.checkNotNull(metaServer, "metaServer的http地址");
 
-        this.routerManager.setMetaServer(this.metaServer);
         this.routerManager.setAppCode(appCode);
 
         if (STARTED.compareAndSet(false, true)) {
@@ -246,13 +242,6 @@ public class MessageProducerProvider implements MessageProducer {
      */
     public void setAppCode(String appCode) {
         this.appCode = appCode;
-    }
-
-    /**
-     * 用于发现meta server集群的地址 格式: http://<meta server address>/meta/address
-     */
-    public void setMetaServer(String metaServer) {
-        this.metaServer = metaServer;
     }
 
     public void setTransactionProvider(TransactionProvider transactionProvider) {

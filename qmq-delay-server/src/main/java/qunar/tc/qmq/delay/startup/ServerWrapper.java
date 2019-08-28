@@ -101,15 +101,15 @@ public class ServerWrapper implements Disposable {
         storeConfig = new DefaultStoreConfiguration(config);
         this.facade = new DefaultDelayLogFacade(storeConfig, this::iterateCallback);
 
-        MetaInfoService metaInfoService = new MetaInfoService();
-        metaInfoService.setMetaServer(config.getString(META_SERVER_ENDPOINT));
+        String metaServerAddress = config.getString(META_SERVER_ENDPOINT);
+        MetaInfoService metaInfoService = new MetaInfoService(metaServerAddress);
         metaInfoService.init();
         BrokerService brokerService = new BrokerServiceImpl(metaInfoService);
         this.wheelTickManager = new WheelTickManager(storeConfig, brokerService, facade, sender);
 
         this.receiver = new Receiver(config, facade);
 
-        final MetaServerLocator metaServerLocator = new MetaServerLocator(config.getString(META_SERVER_ENDPOINT));
+        final MetaServerLocator metaServerLocator = new MetaServerLocator(metaServerAddress);
         this.brokerRegisterService = new BrokerRegisterService(listenPort, metaServerLocator);
 
         this.processor = new ReceivedDelayMessageProcessor(receiver);

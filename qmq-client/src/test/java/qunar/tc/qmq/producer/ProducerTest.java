@@ -14,9 +14,8 @@ public class ProducerTest {
     private static final Logger LOG = LoggerFactory.getLogger(ProducerTest.class);
 
     public static void main(String[] args) throws Exception {
-        final MessageProducerProvider provider = new MessageProducerProvider();
+        final MessageProducerProvider provider = new MessageProducerProvider("http://127.0.0.1:8080/meta/address");
         provider.setAppCode("producer_test");
-        provider.setMetaServer("http://127.0.0.1:8080/meta/address");
         provider.init();
 
         final BatchFileAppender appender = new BatchFileAppender(new File("producer.txt"), 10_000);

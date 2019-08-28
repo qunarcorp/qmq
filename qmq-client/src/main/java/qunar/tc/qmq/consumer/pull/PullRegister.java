@@ -60,21 +60,19 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
     private final AckService ackService;
 
     private String clientId;
-    private String metaServer;
     private String appCode;
     private int destroyWaitInSeconds;
 
     private EnvProvider envProvider;
 
-    public PullRegister() {
-        this.metaInfoService = new MetaInfoService();
+    public PullRegister(String metaServer) {
+        this.metaInfoService = new MetaInfoService(metaServer);
         this.brokerService = new BrokerServiceImpl(metaInfoService);
         this.pullService = new PullService();
         this.ackService = new AckService(this.brokerService);
     }
 
     public void init() {
-        this.metaInfoService.setMetaServer(metaServer);
         this.metaInfoService.setClientId(clientId);
         this.metaInfoService.init();
 
@@ -227,10 +225,6 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
 
     public void setClientId(String clientId) {
         this.clientId = clientId;
-    }
-
-    public void setMetaServer(String metaServer) {
-        this.metaServer = metaServer;
     }
 
     public void setEnvProvider(EnvProvider envProvider) {

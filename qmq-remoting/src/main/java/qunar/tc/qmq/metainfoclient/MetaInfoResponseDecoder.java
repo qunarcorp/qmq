@@ -45,9 +45,9 @@ import java.util.TreeMap;
  * @author yiqun.fan create on 17-8-31.
  */
 @ChannelHandler.Sharable
-class MetaInfoClientHandler extends SimpleChannelInboundHandler<Datagram> {
+class MetaInfoResponseDecoder extends SimpleChannelInboundHandler<Datagram> {
 
-    private static final Logger LOG = LoggerFactory.getLogger(MetaInfoClientHandler.class);
+    private static final Logger LOG = LoggerFactory.getLogger(MetaInfoResponseDecoder.class);
     private static final MetaInfoResponseDeserializer deserializer = new AdaptiveMetaInfoResponseDeserializer();
 
     private final ConcurrentSet<MetaInfoClient.ResponseSubscriber> responseSubscribers = new ConcurrentSet<>();

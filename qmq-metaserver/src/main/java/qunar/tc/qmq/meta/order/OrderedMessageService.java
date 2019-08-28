@@ -2,6 +2,8 @@ package qunar.tc.qmq.meta.order;
 
 import qunar.tc.qmq.meta.PartitionAllocation;
 import qunar.tc.qmq.meta.PartitionMapping;
+import qunar.tc.qmq.meta.PartitionSet;
+import qunar.tc.qmq.meta.model.ClientMetaInfo;
 
 import java.util.List;
 
@@ -32,4 +34,14 @@ public interface OrderedMessageService {
      * @return 分区映射
      */
     List<PartitionMapping> getLatestPartitionMappings();
+
+    /**
+     * 为 consumer 分配 partition
+     * @param partitionSet 待分配的 partition
+     * @param onlineConsumerList online  consumer list
+     * @return 分配结果
+     */
+    PartitionAllocation allocatePartitions(PartitionSet partitionSet, List<String> onlineConsumerList, String consumerGroup);
+
+    List<ClientMetaInfo> getOnlineOrderedConsumers();
 }

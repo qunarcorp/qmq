@@ -16,20 +16,22 @@
 
 package qunar.tc.qmq.metainfoclient;
 
-import qunar.tc.qmq.meta.MetaServerLocator;
-import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
+import qunar.tc.qmq.netty.exception.ClientSendException;
 import qunar.tc.qmq.protocol.MetaInfoResponse;
+import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
+
+import java.util.concurrent.ExecutionException;
 
 /**
  * @author yiqun.fan create on 17-9-1.
  */
 public interface MetaInfoClient {
 
-    void sendRequest(MetaInfoRequest request);
+    boolean queryOrderedSubject(String subject) throws MetaServerNotFoundException, ClientSendException, ExecutionException, InterruptedException;
+
+    void sendMetaInfoRequest(MetaInfoRequest request);
 
     void registerResponseSubscriber(ResponseSubscriber receiver);
-
-    void setMetaServerLocator(MetaServerLocator locator);
 
     interface ResponseSubscriber {
         void onResponse(MetaInfoResponse response);

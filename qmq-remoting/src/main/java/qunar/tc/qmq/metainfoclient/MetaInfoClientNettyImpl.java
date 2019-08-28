@@ -16,96 +16,67 @@
 
 package qunar.tc.qmq.metainfoclient;
 
-import com.google.common.base.Optional;
-import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.socket.SocketChannel;
-import io.netty.handler.timeout.IdleStateHandler;
-import io.netty.util.concurrent.DefaultEventExecutorGroup;
+import com.google.common.util.concurrent.SettableFuture;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.meta.MetaServerLocator;
-import qunar.tc.qmq.netty.DecodeHandler;
-import qunar.tc.qmq.netty.EncodeHandler;
 import qunar.tc.qmq.netty.NettyClientConfig;
-import qunar.tc.qmq.netty.client.AbstractNettyClient;
-import qunar.tc.qmq.netty.client.NettyConnectManageHandler;
+import qunar.tc.qmq.netty.exception.ClientSendException;
 import qunar.tc.qmq.protocol.CommandCode;
 import qunar.tc.qmq.protocol.Datagram;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequestPayloadHolder;
 import qunar.tc.qmq.util.RemotingBuilder;
+import qunar.tc.qmq.utils.PayloadHolderUtils;
+
+import java.util.concurrent.ExecutionException;
 
 /**
  * @author yiqun.fan create on 17-8-31.
  */
-class MetaInfoClientNettyImpl extends AbstractNettyClient implements MetaInfoClient {
+class MetaInfoClientNettyImpl extends MetaServerNettyClient implements MetaInfoClient {
+
     private static final Logger LOGGER = LoggerFactory.getLogger(MetaInfoClient.class);
+    private static volatile MetaInfoClientNettyImpl instance;
 
-    private MetaServerLocator locator;
-
-    public static MetaInfoClientNettyImpl getClient() {
-        MetaInfoClientNettyImpl client = SUPPLIER.get();
-        if (!client.isStarted()) {
-            NettyClientConfig config = new NettyClientConfig();
-            config.setClientWorkerThreads(1);
-            client.start(config);
-        }
-        return client;
-    }
-
-    private static final Supplier<MetaInfoClientNettyImpl> SUPPLIER = Suppliers.memoize(new Supplier<MetaInfoClientNettyImpl>() {
-        @Override
-        public MetaInfoClientNettyImpl get() {
-            return new MetaInfoClientNettyImpl();
-        }
-    });
-
-    private MetaInfoClientNettyImpl() {
-        super("qmq-metaclient");
-    }
-
-    private MetaInfoClientHandler clientHandler;
-
-    @Override
-    protected void initHandler() {
-        clientHandler = new MetaInfoClientHandler();
-    }
-
-    @Override
-    protected ChannelInitializer<SocketChannel> newChannelInitializer(final NettyClientConfig config, final DefaultEventExecutorGroup eventExecutors, final NettyConnectManageHandler connectManager) {
-        return new ChannelInitializer<SocketChannel>() {
-            @Override
-            protected void initChannel(SocketChannel ch) throws Exception {
-                ch.pipeline().addLast(eventExecutors,
-                        new EncodeHandler(),
-                        new DecodeHandler(false),
-                        new IdleStateHandler(0, 0, config.getClientChannelMaxIdleTimeSeconds()),
-                        connectManager,
-                        clientHandler);
+    public static MetaInfoClientNettyImpl getClient(MetaServerLocator locator) {
+        if (instance == null) {
+            synchronized (MetaInfoClientNettyImpl.class) {
+                if (instance == null) {
+                    instance = new MetaInfoClientNettyImpl(locator);
+                    if (!instance.isStarted()) {
+                        NettyClientConfig config = new NettyClientConfig();
+                        config.setClientWorkerThreads(1);
+                        instance.start(config);
+                    }
+                }
             }
-        };
+        }
+        return instance;
     }
 
+    private MetaInfoClientNettyImpl(MetaServerLocator locator) {
+        super("qmq-metaclient", locator);
+    }
+
+    private static final String META_INFO_RESPONSE_DECODER_NAME = "metaInfoResponseDecoder";
+    private MetaInfoResponseDecoder metaInfoResponseDecoder = new MetaInfoResponseDecoder();
+
     @Override
-    public void sendRequest(final MetaInfoRequest request) {
+    public void sendMetaInfoRequest(final MetaInfoRequest request) {
         try {
             String metaServer = queryMetaServerAddress();
             if (metaServer == null) return;
             final Channel channel = getOrCreateChannel(metaServer);
             final Datagram datagram = RemotingBuilder.buildRequestDatagram(CommandCode.CLIENT_REGISTER, new MetaInfoRequestPayloadHolder(request));
-            channel.writeAndFlush(datagram).addListener(new ChannelFutureListener() {
-                @Override
-                public void operationComplete(ChannelFuture future) {
-                    if (future.isSuccess()) {
-                        LOGGER.debug("request meta info send success. {}", request);
-                    } else {
-                        LOGGER.debug("request meta info send fail. {}", request);
-                    }
+            addHandler(channel, META_INFO_RESPONSE_DECODER_NAME, metaInfoResponseDecoder);
+            channel.writeAndFlush(datagram).addListener((ChannelFutureListener) future -> {
+                if (future.isSuccess()) {
+                    LOGGER.debug("request meta info send success. {}", request);
+                } else {
+                    LOGGER.debug("request meta info send fail. {}", request);
                 }
             });
         } catch (Exception e) {
@@ -113,43 +84,37 @@ class MetaInfoClientNettyImpl extends AbstractNettyClient implements MetaInfoCli
         }
     }
 
-    private volatile String metaServer;
-
-    private volatile long lastUpdate;
-
-    private static final long UPDATE_INTERVAL = 1000 * 60;
-
-    private String queryMetaServerAddress() {
-        if (metaServer == null) {
-            metaServer = queryMetaServerAddressWithRetry();
-            lastUpdate = System.currentTimeMillis();
-            return metaServer;
-        }
-        if (System.currentTimeMillis() - lastUpdate > UPDATE_INTERVAL) {
-            Optional<String> optional = locator.queryEndpoint();
-            if (optional.isPresent()) {
-                this.metaServer = optional.get();
-                lastUpdate = System.currentTimeMillis();
-            }
-        }
-        return metaServer;
-    }
-
-    private String queryMetaServerAddressWithRetry() {
-        for (int i = 0; i < 3; ++i) {
-            Optional<String> optional = locator.queryEndpoint();
-            if (optional.isPresent())
-                return optional.get();
-        }
-        return null;
-    }
-
     @Override
     public void registerResponseSubscriber(ResponseSubscriber subscriber) {
-        clientHandler.registerResponseSubscriber(subscriber);
+        metaInfoResponseDecoder.registerResponseSubscriber(subscriber);
     }
 
-    public void setMetaServerLocator(MetaServerLocator locator) {
-        this.locator = locator;
+    private static final String QUERY_ORDERED_SUBJECT_DECODER_NAME = "queryOrderedSubjectDecoderName";
+
+    @Override
+    public boolean queryOrderedSubject(String subject) throws MetaServerNotFoundException, ClientSendException, ExecutionException, InterruptedException {
+        String metaServer = queryMetaServerAddress();
+        if (metaServer == null) {
+            throw new MetaServerNotFoundException();
+        }
+        final Channel channel = getOrCreateChannel(metaServer);
+        SettableFuture<Boolean> future = SettableFuture.create();
+        addHandler(channel, QUERY_ORDERED_SUBJECT_DECODER_NAME, new SimpleChannelInboundHandler<Datagram>() {
+            @Override
+            protected void channelRead0(ChannelHandlerContext ctx, Datagram msg) throws Exception {
+                ByteBuf buf = msg.getBody();
+                future.set(buf.readBoolean());
+            }
+        });
+        final Datagram datagram = RemotingBuilder.buildRequestDatagram(CommandCode.QUERY_ORDERED_SUBJECT, out -> PayloadHolderUtils.writeString(subject, out));
+        channel.writeAndFlush(datagram);
+        return future.get();
+    }
+
+    private void addHandler(Channel channel, String name, ChannelHandler handler) {
+        ChannelPipeline pipeline = channel.pipeline();
+        if (pipeline.get(name) == null) {
+            pipeline.addLast(name, handler);
+        }
     }
 }

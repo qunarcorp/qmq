@@ -37,11 +37,10 @@ public class NettyRouterManager extends AbstractRouterManager {
     private final MetaInfoService metaInfoService;
     private final BrokerService brokerService;
 
-    private String metaServer;
     private String appCode;
 
-    public NettyRouterManager() {
-        this.metaInfoService = new MetaInfoService();
+    public NettyRouterManager(String metaServer) {
+        this.metaInfoService = new MetaInfoService(metaServer);
         this.brokerService = new BrokerServiceImpl(this.metaInfoService);
     }
 
@@ -49,7 +48,6 @@ public class NettyRouterManager extends AbstractRouterManager {
     public void doInit(String clientId) {
         this.brokerService.setAppCode(appCode);
 
-        this.metaInfoService.setMetaServer(metaServer);
         this.metaInfoService.setClientId(clientId);
         this.metaInfoService.init();
 
@@ -78,10 +76,6 @@ public class NettyRouterManager extends AbstractRouterManager {
                 logger.error(msg, new RuntimeException());
             }
         }
-    }
-
-    public void setMetaServer(String metaServer) {
-        this.metaServer = metaServer;
     }
 
     public void setAppCode(String appCode) {

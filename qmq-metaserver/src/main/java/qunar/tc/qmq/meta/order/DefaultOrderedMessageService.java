@@ -7,6 +7,7 @@ import qunar.tc.qmq.meta.Partition;
 import qunar.tc.qmq.meta.PartitionAllocation;
 import qunar.tc.qmq.meta.PartitionMapping;
 import qunar.tc.qmq.meta.PartitionSet;
+import qunar.tc.qmq.meta.model.ClientMetaInfo;
 import qunar.tc.qmq.meta.model.SubjectInfo;
 import qunar.tc.qmq.meta.store.PartitionAllocationStore;
 import qunar.tc.qmq.meta.store.PartitionSetStore;
@@ -17,6 +18,7 @@ import qunar.tc.qmq.meta.store.impl.PartitionAllocationStoreImpl;
 import qunar.tc.qmq.meta.store.impl.PartitionSetStoreImpl;
 import qunar.tc.qmq.meta.store.impl.PartitionStoreImpl;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -32,9 +34,10 @@ public class DefaultOrderedMessageService implements OrderedMessageService {
     private PartitionStore partitionStore = new PartitionStoreImpl();
     private PartitionSetStore partitionSetStore = new PartitionSetStoreImpl();
     private PartitionAllocationStore partitionAllocationStore = new PartitionAllocationStoreImpl();
+    private PartitionAllocationStrategy partitionAllocationStrategy = new AveragePartitionAllocationStrategy();
     private TransactionTemplate transactionTemplate = JdbcTemplateHolder.getTransactionTemplate();
-    private RangePartitionMapper rangePartitionMapper = new AverageRangePartitionMapper();
-    private PartitionMapper partitionMapper = new AveragePartitionMapper();
+    private RangeMapper rangeMapper = new AverageRangeMapper();
+    private ItemMapper itemMapper = new AverageItemMapper();
 
     private static DefaultOrderedMessageService instance = new DefaultOrderedMessageService();
 
@@ -58,36 +61,31 @@ public class DefaultOrderedMessageService implements OrderedMessageService {
         physicalPartitionNum = physicalPartitionNum == 0 ? defaultPhysicalPartitionNum : physicalPartitionNum;
         List<String> brokerGroups = OrderedMessageConfig.getBrokerGroups();
 
+        // 初始化 physical/logical partition 列表
+        List<Integer> physicalPartitionList = createIntList(physicalPartitionNum);
+        List<Integer> logicalPartitionList = createIntList(logicalPartitionNum);
+
         // logical => physical mapping
-        RangeMap<Integer, Integer> logical2PhysicalPartitionMap = rangePartitionMapper.map(logicalPartitionNum, physicalPartitionNum);
+        Map<Integer, List<Integer>> physical2LogicalPartitionMap = rangeMapper.map(physicalPartitionList, logicalPartitionList);
 
         // physical => brokerGroup mapping
-        Map<Integer, Integer> physical2BrokerGroup = partitionMapper.map(physicalPartitionNum, brokerGroups.size());
+        Map<Integer, String> physical2BrokerGroupMap = itemMapper.map(physicalPartitionList, brokerGroups);
 
         List<Partition> partitions = Lists.newArrayList();
-        for (Map.Entry<Range<Integer>, Integer> entry : logical2PhysicalPartitionMap.asMapOfRanges().entrySet()) {
-            Range<Integer> logicalPartitionRange = entry.getKey();
-            Integer physicalPartition = entry.getValue();
+        for (Map.Entry<Integer, List<Integer>> entry : physical2LogicalPartitionMap.entrySet()) {
+            Integer physicalPartition = entry.getKey();
+            List<Integer> logicalPartitions = entry.getValue();
+            Range<Integer> logicalPartitionRange =
+                    Range.closedOpen(logicalPartitions.get(0), logicalPartitions.get(logicalPartitions.size() - 1) + 1);
 
             Partition partition = new Partition();
             partition.setSubject(subject);
             partition.setLogicalPartition(logicalPartitionRange);
             partition.setPhysicalPartition(physicalPartition);
             partition.setStatus(Partition.Status.RW);
+            partition.setBrokerGroup(physical2BrokerGroupMap.get(physicalPartition));
 
             partitions.add(partition);
-        }
-
-        for (Map.Entry<Integer, Integer> entry : physical2BrokerGroup.entrySet()) {
-            Integer physicalPartition = entry.getKey();
-            Integer brokerGroupIdx = entry.getValue();
-            String brokerGroup = brokerGroups.get(brokerGroupIdx);
-            for (Partition partition : partitions) {
-                if (partition.getPhysicalPartition() == physicalPartition) {
-                    partition.setBrokerGroup(brokerGroup);
-                    break;
-                }
-            }
         }
 
         PartitionSet partitionSet = new PartitionSet();
@@ -156,11 +154,29 @@ public class DefaultOrderedMessageService implements OrderedMessageService {
         return result;
     }
 
+    @Override
+    public PartitionAllocation allocatePartitions(PartitionSet partitionSet, List<String> onlineConsumerList, String consumerGroup) {
+        return partitionAllocationStrategy.allocate(partitionSet, onlineConsumerList, consumerGroup);
+    }
+
+    @Override
+    public List<ClientMetaInfo> getOnlineOrderedConsumers() {
+        return null;
+    }
+
     private String createPartitionKey(Partition partition) {
         return createPartitionKey(partition.getSubject(), partition.getPhysicalPartition());
     }
 
     private String createPartitionKey(String subject, int physicalPartition) {
         return subject + ":" + physicalPartition;
+    }
+
+    private List<Integer> createIntList(int size) {
+        ArrayList<Integer> intList = Lists.newArrayList();
+        for (int i = 0; i < size; i++) {
+            intList.add(i);
+        }
+        return intList;
     }
 }

@@ -47,7 +47,6 @@ public class MessageConsumerProvider implements MessageConsumer {
 
     private final PullRegister pullRegister;
     private String appCode;
-    private String metaServer;
     private int destroyWaitInSeconds;
 
     private int maxSubjectLen = 100;
@@ -55,16 +54,15 @@ public class MessageConsumerProvider implements MessageConsumer {
 
     private boolean autoOnline = true;
 
-    public MessageConsumerProvider() {
+    public MessageConsumerProvider(String metaServer) {
         this.clientIdProvider = ClientIdProviderFactory.createDefault();
-        this.pullRegister = new PullRegister();
+        this.pullRegister = new PullRegister(metaServer);
         this.pullConsumerFactory = new PullConsumerFactory(this.pullRegister);
     }
 
     @PostConstruct
     public void init() {
         Preconditions.checkNotNull(appCode, "appCode是应用的唯一标识");
-        Preconditions.checkNotNull(metaServer, "metaServer是meta server的地址");
 
         if (inited) return;
 
@@ -75,7 +73,6 @@ public class MessageConsumerProvider implements MessageConsumer {
 
             String clientId = this.clientIdProvider.get();
             this.pullRegister.setDestroyWaitInSeconds(destroyWaitInSeconds);
-            this.pullRegister.setMetaServer(metaServer);
             this.pullRegister.setEnvProvider(envProvider);
             this.pullRegister.setClientId(clientId);
             this.pullRegister.setAppCode(appCode);
@@ -157,16 +154,6 @@ public class MessageConsumerProvider implements MessageConsumer {
      */
     public void setAppCode(String appCode) {
         this.appCode = appCode;
-    }
-
-    /**
-     * 用于发现meta server集群的地址
-     * 格式: http://<meta server address>/meta/address
-     *
-     * @param metaServer
-     */
-    public void setMetaServer(String metaServer) {
-        this.metaServer = metaServer;
     }
 
     public void setDestroyWaitInSeconds(int destroyWaitInSeconds) {

@@ -28,9 +28,7 @@ public enum ClientType {
     PRODUCER(1),
     CONSUMER(2),
     OTHER(3),
-    DELAY_PRODUCER(4),
-    ORDERED_PRODUCER(5),
-    ORDERED_CONSUMER(6);
+    DELAY_PRODUCER(4);
 
     private static final ImmutableMap<Integer, ClientType> INSTANCES;
 
@@ -58,10 +56,10 @@ public enum ClientType {
     }
 
     public boolean isProducer() {
-        return code == PRODUCER.code || code == DELAY_PRODUCER.code || code == ORDERED_PRODUCER.code;
+        return code == PRODUCER.code || code == DELAY_PRODUCER.code;
     }
 
     public boolean isConsumer() {
-        return code == CONSUMER.code || code == ORDERED_CONSUMER.code;
+        return code == CONSUMER.code;
     }
 }

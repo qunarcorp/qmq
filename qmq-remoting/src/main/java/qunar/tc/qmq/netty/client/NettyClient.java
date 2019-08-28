@@ -50,19 +50,14 @@ public class NettyClient extends AbstractNettyClient {
         return INSTANCE;
     }
 
-    private NettyClientHandler clientHandler;
+    private NettyClientHandler clientHandler = new NettyClientHandler();
 
     private NettyClient() {
         super("qmq-client");
     }
 
     @Override
-    protected void initHandler() {
-        clientHandler = new NettyClientHandler();
-    }
-
-    @Override
-    protected void destroyHandler() {
+    protected void destroy() {
         clientHandler.shutdown();
     }
 

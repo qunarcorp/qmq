@@ -57,7 +57,6 @@ public abstract class AbstractNettyClient {
         if (started.get()) {
             return;
         }
-        initHandler();
         Bootstrap bootstrap = new Bootstrap();
         eventLoopGroup = new NioEventLoopGroup(1, new DefaultThreadFactory(clientName + "-boss"));
         eventExecutors = new DefaultEventExecutorGroup(config.getClientWorkerThreads(), new DefaultThreadFactory(clientName + "-worker"));
@@ -81,17 +80,14 @@ public abstract class AbstractNettyClient {
             connectManager.shutdown();
             eventLoopGroup.shutdownGracefully();
             eventExecutors.shutdownGracefully();
-            destroyHandler();
+            destroy();
             started.set(false);
         } catch (Exception e) {
             LOGGER.error("NettyClient {} shutdown exception, ", clientName, e);
         }
     }
 
-    protected void initHandler() {
-    }
-
-    protected void destroyHandler() {
+    protected void destroy() {
     }
 
     protected abstract ChannelInitializer<SocketChannel> newChannelInitializer(NettyClientConfig config, DefaultEventExecutorGroup eventExecutors, NettyConnectManageHandler connectManager);

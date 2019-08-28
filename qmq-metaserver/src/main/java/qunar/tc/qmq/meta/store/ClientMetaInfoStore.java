@@ -16,8 +16,10 @@
 
 package qunar.tc.qmq.meta.store;
 
+import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.meta.model.ClientMetaInfo;
 
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -27,6 +29,15 @@ import java.util.List;
 public interface ClientMetaInfoStore {
 
     List<ClientMetaInfo> queryConsumer(final String subject);
+
+    /**
+     * 获取在指定时间之后更新过的 client
+     *
+     * @param clientType client type
+     * @param onlineStatus online status
+     * @return client list
+     */
+    List<ClientMetaInfo> queryClientsUpdateAfterDate(ClientType clientType, ClientMetaInfo.OnlineStatus onlineStatus, Date updateDate);
 
     int updateClientOnlineState(ClientMetaInfo clientMetaInfo);
 }

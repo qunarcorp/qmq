@@ -117,6 +117,7 @@ CREATE TABLE IF NOT EXISTS `client_meta_info`
   `client_id`      VARCHAR(100)     NOT NULL DEFAULT '' COMMENT 'client id',
   `app_code`       VARCHAR(100)     NOT NULL DEFAULT '' COMMENT '应用',
   `room`           VARCHAR(20)      NOT NULL DEFAULT '' COMMENT '机房',
+  `online_status`  VARCHAR(10)      NOT NULL DEFAULT 'ONLINE' COMMENT '在线状态',
   `create_time`    TIMESTAMP        NOT NULL DEFAULT '1970-01-01 08:00:01' COMMENT '创建时间',
   `update_time`    TIMESTAMP        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '修改时间',
   PRIMARY KEY (`id`),
