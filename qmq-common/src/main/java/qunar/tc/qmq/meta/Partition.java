@@ -1,4 +1,4 @@
-package qunar.tc.qmq.meta.order;
+package qunar.tc.qmq.meta;
 
 import com.google.common.collect.Range;
 

@@ -7,9 +7,10 @@ import org.springframework.dao.support.DataAccessUtils;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
-import qunar.tc.qmq.meta.order.PartitionSet;
+import qunar.tc.qmq.meta.PartitionSet;
 import qunar.tc.qmq.meta.store.PartitionSetStore;
 
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -19,9 +20,11 @@ import java.util.stream.Collectors;
  */
 public class PartitionSetStoreImpl implements PartitionSetStore {
 
-    private static final String SELECT_BY_SUBJECT_VERSION_SQL =
+    private static final String GET_BY_SUBJECT_VERSION_SQL =
             "select subject, physical_partitions, version from partition_set where subject = ? and version = ?";
     private static final String SAVE_SQL = "insert into partition_set (subject, physical_partitions, version) values(?, ?, ?)";
+    private static final String GET_LATEST_SQL = "select p1.subject, p1.physical_partitions, p1.version from partition_set p1 " +
+            "left join partition_set p2 on p1.subject = p2.subject and p1.version < p2.version where p2.version is NULL";
 
     private static final String PARTITION_DELIMITER = ",";
     private static final Joiner commaJoiner = Joiner.on(PARTITION_DELIMITER);
@@ -49,7 +52,12 @@ public class PartitionSetStoreImpl implements PartitionSetStore {
     }
 
     @Override
-    public PartitionSet selectByVersion(String subject, String version) {
-        return DataAccessUtils.singleResult(template.query(SELECT_BY_SUBJECT_VERSION_SQL, partitionSetRowMapper, subject, version));
+    public PartitionSet getByVersion(String subject, String version) {
+        return DataAccessUtils.singleResult(template.query(GET_BY_SUBJECT_VERSION_SQL, partitionSetRowMapper, subject, version));
+    }
+
+    @Override
+    public List<PartitionSet> getLatest() {
+        return template.query(GET_LATEST_SQL, partitionSetRowMapper);
     }
 }

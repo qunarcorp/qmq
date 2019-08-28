@@ -1,6 +1,6 @@
 package qunar.tc.qmq.meta.store;
 
-import qunar.tc.qmq.meta.order.Partition;
+import qunar.tc.qmq.meta.Partition;
 
 import java.util.List;
 

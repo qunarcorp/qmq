@@ -9,7 +9,7 @@ import qunar.tc.qmq.meta.PartitionAllocation;
 public class DefaultOrderedConsumerAllocator implements OrderedConsumerAllocator {
 
     @Override
-    public PartitionAllocation allocate(String subject, String clientId) {
+    public PartitionAllocation allocate(String subject, String group, String clientId) {
         return null;
     }
 }

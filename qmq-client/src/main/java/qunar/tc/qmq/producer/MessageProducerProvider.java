@@ -30,6 +30,7 @@ import qunar.tc.qmq.common.ClientIdProviderFactory;
 import qunar.tc.qmq.common.EnvProvider;
 import qunar.tc.qmq.config.OrderedMessageManager;
 import qunar.tc.qmq.meta.PartitionAllocation;
+import qunar.tc.qmq.meta.PartitionMapping;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.MetricsConstants;
 import qunar.tc.qmq.metrics.QmqTimer;
@@ -129,8 +130,8 @@ public class MessageProducerProvider implements MessageProducer {
         }
 
         if (OrderedMessageUtils.isOrderedMessage((BaseMessage) message)) {
-            PartitionAllocation partitionAllocation = orderedMessageManager.getPartitionInfo(message.getSubject());
-            OrderedMessageUtils.initOrderedMessage((BaseMessage) message, partitionAllocation);
+            PartitionMapping partitionMapping = orderedMessageManager.getPartitionMapping(message.getSubject());
+            OrderedMessageUtils.initOrderedMessage((BaseMessage) message, partitionMapping);
         }
 
         String[] tagValues = null;

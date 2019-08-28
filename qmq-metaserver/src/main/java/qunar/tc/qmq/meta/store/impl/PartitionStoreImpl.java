@@ -6,7 +6,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
-import qunar.tc.qmq.meta.order.Partition;
+import qunar.tc.qmq.meta.Partition;
 import qunar.tc.qmq.meta.store.PartitionStore;
 
 import java.sql.PreparedStatement;

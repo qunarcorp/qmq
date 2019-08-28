@@ -158,7 +158,7 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
     private MetaInfoResponsePayloadHolder createPayloadHolder(ClientRegisterProcessor.ClientRegisterMessage message, MetaInfoResponse response) {
         RemotingHeader header = message.getHeader();
         short version = header.getVersion();
-        if (version == RemotingHeader.VERSION_10) {
+        if (version >= RemotingHeader.VERSION_10) {
             if (response instanceof ProducerMetaInfoResponse) {
                 return new ProducerMetaInfoResponsePayloadHolderV10((ProducerMetaInfoResponse) response);
             } else if (response instanceof ConsumerMetaInfoResponse) {

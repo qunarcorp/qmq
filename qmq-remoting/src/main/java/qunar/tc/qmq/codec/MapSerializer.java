@@ -31,8 +31,8 @@ public class MapSerializer extends ObjectSerializer<Map> {
     }
 
     @Override
-    Map doDeserialize(ByteBuf buf, Type typeT) {
-        Type[] argTypes = ((ParameterizedType) typeT).getActualTypeArguments();
+    Map doDeserialize(ByteBuf buf, Type type) {
+        Type[] argTypes = ((ParameterizedType) type).getActualTypeArguments();
         Type keyType = argTypes[0];
         Type valType = argTypes[1];
         Serializer keySerializer = getSerializer(keyType);

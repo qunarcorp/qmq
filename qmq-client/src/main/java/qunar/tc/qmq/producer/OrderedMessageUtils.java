@@ -4,7 +4,7 @@ import com.google.common.base.Preconditions;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.base.BaseMessage.keys;
 import qunar.tc.qmq.broker.impl.OrderedMessageLoadBalance;
-import qunar.tc.qmq.meta.PartitionAllocation;
+import qunar.tc.qmq.meta.Partition;
 import qunar.tc.qmq.meta.PartitionMapping;
 import qunar.tc.qmq.producer.sender.OrderedQueueSender;
 
@@ -31,13 +31,13 @@ public class OrderedMessageUtils {
         String subject = message.getSubject();
         int orderIdentifier = message.getOrderKey();
         int logicalPartition = orderIdentifier % partitionMapping.getLogicalPartitionNum();
-        Integer physicalPartition = partitionMapping.getLogical2PhysicalPartition().get(logicalPartition);
-        Preconditions.checkNotNull(physicalPartition,
+        Partition partition = partitionMapping.getLogical2PhysicalPartition().get(logicalPartition);
+        Preconditions.checkNotNull(partition,
                 "physical partition could not be found, subject %s, logicalPartition %s", subject, logicalPartition);
-        String brokerGroup = partitionMapping.getPhysicalPartition2BrokerGroup().get(physicalPartition);
+        String brokerGroup = partition.getBrokerGroup();
 
         message.setProperty(keys.qmq_logicPartition, logicalPartition);
-        message.setProperty(keys.qmq_physicalPartition, physicalPartition);
+        message.setProperty(keys.qmq_physicalPartition, partition.getPhysicalPartition());
         message.setProperty(keys.qmq_partitionBroker, brokerGroup);
         message.setProperty(keys.qmq_partitionVersion, partitionMapping.getVersion());
         message.setProperty(keys.qmq_queueSenderType, OrderedQueueSender.class.getName());

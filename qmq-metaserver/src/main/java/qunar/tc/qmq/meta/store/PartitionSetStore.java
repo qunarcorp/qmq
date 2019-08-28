@@ -1,6 +1,8 @@
 package qunar.tc.qmq.meta.store;
 
-import qunar.tc.qmq.meta.order.PartitionSet;
+import qunar.tc.qmq.meta.PartitionSet;
+
+import java.util.List;
 
 /**
  * @author zhenwei.liu
@@ -10,5 +12,7 @@ public interface PartitionSetStore {
 
     int save(PartitionSet partitionSet);
 
-    PartitionSet selectByVersion(String subject, String version);
+    PartitionSet getByVersion(String subject, String version);
+
+    List<PartitionSet> getLatest();
 }

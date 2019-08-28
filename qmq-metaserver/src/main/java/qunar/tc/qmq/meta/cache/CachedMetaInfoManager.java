@@ -180,7 +180,7 @@ public class CachedMetaInfoManager implements Disposable {
     }
 
     private void refreshPartitionAllocation() {
-        this.cachedPartitionAllocation = orderedMessageService.getLatestPartitionAllocations().stream().collect(Collectors.toMap(PartitionAllocation::getSubject, p -> p));
+        this.cachedPartitionAllocation = orderedMessageService.getActivatedPartitionAllocations().stream().collect(Collectors.toMap(PartitionAllocation::getSubject, p -> p));
     }
 
     public PartitionAllocation getPartitionAllocation(String subject) {

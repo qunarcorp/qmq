@@ -2,6 +2,7 @@ package qunar.tc.qmq.codec;
 
 import com.google.common.collect.RangeMap;
 import io.netty.buffer.ByteBuf;
+import qunar.tc.qmq.meta.Partition;
 import qunar.tc.qmq.meta.PartitionMapping;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
 
@@ -17,16 +18,10 @@ public class PartitionMappingSerializer extends ObjectSerializer<PartitionMappin
 
     private ParameterizedType rangeMapType = Types.newParamterizedType(null, RangeMap.class, new Type[]{
             Integer.class,
-            Integer.class
-    });
-
-    private ParameterizedType mapType = Types.newParamterizedType(null, Map.class, new Type[]{
-            Integer.class,
-            String.class
+            Partition.class
     });
 
     private Serializer<RangeMap> rangeMapSerializer = Serializers.getSerializer(RangeMap.class);
-    private Serializer<Map> mapSerializer = Serializers.getSerializer(Map.class);
 
     @Override
     void doSerialize(PartitionMapping partitionMapping, ByteBuf buf) {
@@ -34,7 +29,6 @@ public class PartitionMappingSerializer extends ObjectSerializer<PartitionMappin
         buf.writeInt(partitionMapping.getLogicalPartitionNum());
         buf.writeInt(partitionMapping.getVersion());
         rangeMapSerializer.serialize(partitionMapping.getLogical2PhysicalPartition(), buf);
-        mapSerializer.serialize(partitionMapping.getPhysicalPartition2BrokerGroup(), buf);
     }
 
     @Override
@@ -44,7 +38,6 @@ public class PartitionMappingSerializer extends ObjectSerializer<PartitionMappin
         partitionMapping.setLogicalPartitionNum(buf.readInt());
         partitionMapping.setVersion(buf.readInt());
         partitionMapping.setLogical2PhysicalPartition(rangeMapSerializer.deserialize(buf, rangeMapType));
-        partitionMapping.setPhysicalPartition2BrokerGroup(mapSerializer.deserialize(buf, mapType));
         return partitionMapping;
     }
 }

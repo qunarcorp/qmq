@@ -2,8 +2,6 @@ package qunar.tc.qmq.meta;
 
 import com.google.common.collect.RangeMap;
 
-import java.util.Map;
-
 /**
  * partition 映射, producer 使用
  *
@@ -14,8 +12,7 @@ public class PartitionMapping {
 
     private String subject;
     private int logicalPartitionNum;
-    private RangeMap<Integer, Integer> logical2PhysicalPartition;
-    private Map<Integer, String> physicalPartition2BrokerGroup;
+    private RangeMap<Integer, Partition> logical2PhysicalPartition;
     private int version;
 
     public String getSubject() {
@@ -36,21 +33,12 @@ public class PartitionMapping {
         return this;
     }
 
-    public RangeMap<Integer, Integer> getLogical2PhysicalPartition() {
+    public RangeMap<Integer, Partition> getLogical2PhysicalPartition() {
         return logical2PhysicalPartition;
     }
 
-    public PartitionMapping setLogical2PhysicalPartition(RangeMap<Integer, Integer> logical2PhysicalPartition) {
+    public PartitionMapping setLogical2PhysicalPartition(RangeMap<Integer, Partition> logical2PhysicalPartition) {
         this.logical2PhysicalPartition = logical2PhysicalPartition;
-        return this;
-    }
-
-    public Map<Integer, String> getPhysicalPartition2BrokerGroup() {
-        return physicalPartition2BrokerGroup;
-    }
-
-    public PartitionMapping setPhysicalPartition2BrokerGroup(Map<Integer, String> physicalPartition2BrokerGroup) {
-        this.physicalPartition2BrokerGroup = physicalPartition2BrokerGroup;
         return this;
     }
 

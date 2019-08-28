@@ -26,6 +26,7 @@ import qunar.tc.qmq.meta.cache.BrokerMetaManager;
 import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 import qunar.tc.qmq.meta.cache.CachedOfflineStateManager;
 import qunar.tc.qmq.meta.management.*;
+import qunar.tc.qmq.meta.order.DefaultOrderedMessageService;
 import qunar.tc.qmq.meta.processor.BrokerAcquireMetaProcessor;
 import qunar.tc.qmq.meta.processor.BrokerRegisterProcessor;
 import qunar.tc.qmq.meta.processor.ClientRegisterProcessor;
@@ -38,12 +39,14 @@ import qunar.tc.qmq.meta.store.BrokerStore;
 import qunar.tc.qmq.meta.store.ClientDbConfigurationStore;
 import qunar.tc.qmq.meta.store.ReadonlyBrokerGroupSettingStore;
 import qunar.tc.qmq.meta.store.Store;
-import qunar.tc.qmq.meta.store.impl.*;
+import qunar.tc.qmq.meta.store.impl.BrokerStoreImpl;
+import qunar.tc.qmq.meta.store.impl.ClientDbConfigurationStoreImpl;
+import qunar.tc.qmq.meta.store.impl.DatabaseStore;
+import qunar.tc.qmq.meta.store.impl.ReadonlyBrokerGroupSettingStoreImpl;
 import qunar.tc.qmq.netty.DefaultConnectionEventHandler;
 import qunar.tc.qmq.netty.NettyServer;
 import qunar.tc.qmq.protocol.CommandCode;
 
-import javax.servlet.ServletContext;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -68,11 +71,10 @@ public class ServerWrapper implements Disposable {
         final Store store = new DatabaseStore();
         final BrokerStore brokerStore = new BrokerStoreImpl(jdbcTemplate);
         final BrokerMetaManager brokerMetaManager = BrokerMetaManager.getInstance();
-        PartitionStoreImpl partitionStore = new PartitionStoreImpl();
         brokerMetaManager.init(brokerStore);
 
         final ReadonlyBrokerGroupSettingStore readonlyBrokerGroupSettingStore = new ReadonlyBrokerGroupSettingStoreImpl(jdbcTemplate);
-        final CachedMetaInfoManager cachedMetaInfoManager = new CachedMetaInfoManager(config, store, readonlyBrokerGroupSettingStore, partitionStore);
+        final CachedMetaInfoManager cachedMetaInfoManager = new CachedMetaInfoManager(config, store, readonlyBrokerGroupSettingStore, new DefaultOrderedMessageService());
 
         final SubjectRouter subjectRouter = createSubjectRouter(cachedMetaInfoManager, store);
         final ReadonlyBrokerGroupManager readonlyBrokerGroupManager = new ReadonlyBrokerGroupManager(cachedMetaInfoManager);

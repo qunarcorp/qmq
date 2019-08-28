@@ -36,8 +36,8 @@ public class OrderedMessageManagementServlet extends HttpServlet {
         resp.setHeader("Content-Type", "application/json");
         PrintWriter writer = resp.getWriter();
         try {
-            PartitionAllocation partitionAllocation = orderedMessageService.registerOrderedMessage(subject, physicalPartitionNum);
-            writer.println(jsonMapper.writeValueAsString(new JsonResult<>(ResultStatus.OK, "成功", partitionAllocation)));
+            orderedMessageService.registerOrderedMessage(subject, physicalPartitionNum);
+            writer.println(jsonMapper.writeValueAsString(new JsonResult<>(ResultStatus.OK, "成功", null)));
         } catch (Throwable t) {
             logger.error("顺序消息分配失败 {}", subject, t);
             writer.println(jsonMapper.writeValueAsString(new JsonResult<>(ResultStatus.SYSTEM_ERROR, String.format("失败 %s", t.getMessage()), null)));

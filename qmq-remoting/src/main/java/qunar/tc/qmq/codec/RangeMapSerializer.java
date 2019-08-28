@@ -17,6 +17,8 @@ import java.util.Map;
  */
 public class RangeMapSerializer extends ObjectSerializer<RangeMap> {
 
+    private Serializer<Range> rangeSerializer = Serializers.getSerializer(Range.class);
+
     @Override
     void doSerialize(RangeMap rangeMap, ByteBuf buf) {
         Map<Range<? extends Comparable>, Object> map = rangeMap.asMapOfRanges();
@@ -25,14 +27,10 @@ public class RangeMapSerializer extends ObjectSerializer<RangeMap> {
         for (Map.Entry<Range<? extends Comparable>, Object> entry : map.entrySet()) {
             Range<? extends Comparable> range = entry.getKey();
             Object value = entry.getValue();
-            Comparable lower = range.lowerEndpoint();
-            Comparable upper = range.upperEndpoint();
 
-            Serializer keySerializer = Serializers.getSerializer(lower.getClass());
             Serializer valSerializer = Serializers.getSerializer(value.getClass());
 
-            keySerializer.serialize(lower, buf);
-            keySerializer.serialize(upper, buf);
+            rangeSerializer.serialize(range, buf);
             valSerializer.serialize(value, buf);
         }
     }
@@ -44,12 +42,9 @@ public class RangeMapSerializer extends ObjectSerializer<RangeMap> {
         Type valType = argTypes[1];
         TreeRangeMap rangeMap = TreeRangeMap.create();
         int size = buf.readInt();
-        Serializer keySerializer = getSerializer(keyType);
         Serializer valSerializer = getSerializer(valType);
         for (int i = 0; i < size; i++) {
-            Comparable lower = (Comparable) keySerializer.deserialize(buf, keyType);
-            Comparable upper = (Comparable) keySerializer.deserialize(buf, keyType);
-            Range range = Range.closedOpen(lower, upper);
+            Range range = rangeSerializer.deserialize(buf, keyType);
             Object value = valSerializer.deserialize(buf, valType);
             rangeMap.put(range, value);
         }

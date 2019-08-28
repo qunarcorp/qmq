@@ -11,9 +11,25 @@ import java.util.List;
  */
 public interface OrderedMessageService {
 
+    /**
+     * 注册新的顺序消息主题
+     *
+     * @param subject 主题
+     * @param physicalPartitionNum 物理分区数量
+     */
     void registerOrderedMessage(String subject, int physicalPartitionNum);
 
-    List<PartitionAllocation> getLatestPartitionAllocations();
+    /**
+     * 获取正在生效的分区分配列表
+     *
+     * @return 分区分配列表
+     */
+    List<PartitionAllocation> getActivatedPartitionAllocations();
 
+    /**
+     * 获取最新的分区映射
+     *
+     * @return 分区映射
+     */
     List<PartitionMapping> getLatestPartitionMappings();
 }

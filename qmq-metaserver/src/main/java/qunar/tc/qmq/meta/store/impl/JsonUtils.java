@@ -54,4 +54,12 @@ class JsonUtils {
             return null;
         }
     }
+
+    static <T> T deSerialize(String content, Class<T> clazz) {
+        try {
+            return MAPPER.readValue(content, clazz);
+        } catch (IOException e) {
+            return null;
+        }
+    }
 }
