@@ -23,9 +23,9 @@ package qunar.tc.qmq.consumer.register;
  */
 public interface ConsumerRegister {
 
-    void regist(String prefix, String group, RegistParam param);
+    void register(String prefix, String group, RegistParam param);
 
-    void unregist(String prefix, String group);
+    void unregister(String prefix, String group);
 
     void setAutoOnline(boolean autoOnline);
 

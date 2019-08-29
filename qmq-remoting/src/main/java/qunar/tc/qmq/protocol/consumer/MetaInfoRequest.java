@@ -18,6 +18,7 @@ package qunar.tc.qmq.protocol.consumer;
 
 import com.google.common.base.Strings;
 import qunar.tc.qmq.base.ClientRequestType;
+import qunar.tc.qmq.base.OnOfflineState;
 import qunar.tc.qmq.common.ClientType;
 
 import java.util.HashMap;
@@ -33,6 +34,7 @@ public class MetaInfoRequest {
     private static final String CLIENT_ID = "clientId";
     private static final String CONSUMER_GROUP = "consumerGroup";
     private static final String REQUEST_TYPE = "requestType";
+    private static final String ONLINE_STATE = "onlineState";
 
     private final Map<String, String> attrs;
 
@@ -94,6 +96,14 @@ public class MetaInfoRequest {
 
     public void setRequestType(ClientRequestType requestType) {
         setIntValue(REQUEST_TYPE, requestType.getCode());
+    }
+
+    public OnOfflineState getOnlineState() {
+        return OnOfflineState.valueOf(getStringValue(ONLINE_STATE));
+    }
+
+    public void setOnlineState(OnOfflineState onOfflineState) {
+        setStringValue(ONLINE_STATE, onOfflineState.name());
     }
 
     private void setIntValue(String attrName, int value) {

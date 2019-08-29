@@ -21,7 +21,7 @@ import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.Message;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.broker.impl.BrokerServiceImpl;
-import qunar.tc.qmq.metainfoclient.MetaInfoService;
+import qunar.tc.qmq.metainfoclient.DefaultMetaInfoService;
 import qunar.tc.qmq.tracing.TraceUtil;
 
 import java.util.Map;
@@ -34,13 +34,13 @@ public class NettyRouterManager extends AbstractRouterManager {
 
     private static final int _32K = (32 * 1024) / 4;
 
-    private final MetaInfoService metaInfoService;
+    private final DefaultMetaInfoService metaInfoService;
     private final BrokerService brokerService;
 
     private String appCode;
 
     public NettyRouterManager(String metaServer) {
-        this.metaInfoService = new MetaInfoService(metaServer);
+        this.metaInfoService = new DefaultMetaInfoService(metaServer);
         this.brokerService = new BrokerServiceImpl(this.metaInfoService);
     }
 

@@ -25,6 +25,9 @@ import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.common.StatusSource;
 import qunar.tc.qmq.common.SwitchWaiter;
 import qunar.tc.qmq.config.PullSubjectsConfig;
+import qunar.tc.qmq.metainfoclient.ConsumerOnlineStateManager;
+import qunar.tc.qmq.metainfoclient.DefaultConsumerOnlineStateManager;
+import qunar.tc.qmq.metainfoclient.MetaInfoService;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.QmqCounter;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
@@ -70,6 +73,7 @@ class PullEntry extends AbstractPullEntry implements Runnable {
 
     private final AtomicBoolean isRunning = new AtomicBoolean(true);
     private final SwitchWaiter onlineSwitcher = new SwitchWaiter(false);
+    private final ConsumerOnlineStateManager consumerOnlineStateManager = DefaultConsumerOnlineStateManager.getInstance();
     private final QmqCounter pullRunCounter;
     private final QmqCounter pauseCounter;
     private final String logType;
@@ -101,6 +105,8 @@ class PullEntry extends AbstractPullEntry implements Runnable {
         this.pauseCounter = Metrics.counter("qmq_pull_pause_count", SUBJECT_GROUP_ARRAY, values);
 
         this.logType = "PullEntry=" + subject;
+
+        this.consumerOnlineStateManager.registerConsumer(subject, group, pushConsumer.consumeParam().getConsumerId(), onlineSwitcher::isOnline);
     }
 
     void online(StatusSource src) {

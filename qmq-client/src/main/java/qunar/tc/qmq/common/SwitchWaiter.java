@@ -16,29 +16,42 @@
 
 package qunar.tc.qmq.common;
 
+import com.google.common.collect.Lists;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static qunar.tc.qmq.common.StatusSource.*;
+import static qunar.tc.qmq.common.StatusSource.CODE;
+import static qunar.tc.qmq.common.StatusSource.OPS;
 
 /**
  * @author yiqun.fan create on 17-8-18.
  */
 public class SwitchWaiter {
 
+    public interface Listener {
+        void onStateChange(boolean isOnline);
+    }
+
     private static final int WAIT_TIMEOUT = 60000;
+    private static final Logger logger = LoggerFactory.getLogger(SwitchWaiter.class);
+
+    private List<Listener> listeners = Lists.newArrayList();
 
     private final Lock lock = new ReentrantLock();
     private final Condition condition = lock.newCondition();
 
-    private byte state;
+    private byte onlineResult;
 
-    public SwitchWaiter(boolean initValue) {
-        this.state = (byte) (initValue ? 1 : 0);
-        this.state |= OPS.getCode();
-        this.state |= CODE.getCode();
+    public SwitchWaiter(boolean healthcheckOnlineState) {
+        this.onlineResult = (byte) (healthcheckOnlineState ? 1 : 0);
+        this.onlineResult |= OPS.getCode();
+        this.onlineResult |= CODE.getCode();
     }
 
     public void on(StatusSource src) {
@@ -49,16 +62,31 @@ public class SwitchWaiter {
         change(src, false);
     }
 
-    private void change(StatusSource src, boolean state) {
+    private void change(StatusSource src, boolean sourceOnline) {
         lock.lock();
+        boolean oldOnlineState = isOnline();
         try {
-            boolean ori = (this.state & src.getCode()) == src.getCode();
-            if (ori == state) return;
+            boolean isSameSourceAndOnline = (this.onlineResult & src.getCode()) == src.getCode();
+            if (isSameSourceAndOnline == sourceOnline) {
+                // 本来就是上线, 不需要变更
+                return;
+            }
 
-            if (state) {
-                this.state |= src.getCode();
+            if (sourceOnline) {
+                this.onlineResult |= src.getCode();
             } else {
-                this.state &= ((~src.getCode()) & 7);
+                this.onlineResult &= ((~src.getCode()) & 7);
+            }
+
+            boolean currentOnlineState = isOnline();
+            if (oldOnlineState != currentOnlineState) {
+                for (Listener listener : listeners) {
+                    try {
+                        listener.onStateChange(currentOnlineState);
+                    } catch (Throwable t) {
+                        logger.error("上下线回调失败 old state {} new state {}", oldOnlineState, currentOnlineState, t);
+                    }
+                }
             }
 
             condition.signalAll();
@@ -84,7 +112,11 @@ public class SwitchWaiter {
         return true;
     }
 
-    private boolean isOnline() {
-        return this.state == 7;
+    public boolean isOnline() {
+        return this.onlineResult == 7;
+    }
+
+    public void addListener(Listener listener) {
+        this.listeners.add(listener);
     }
 }

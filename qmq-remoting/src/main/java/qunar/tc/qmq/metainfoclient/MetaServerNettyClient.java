@@ -1,8 +1,10 @@
 package qunar.tc.qmq.metainfoclient;
 
 import com.google.common.base.Optional;
-import io.netty.channel.ChannelInboundHandler;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.concurrent.DefaultEventExecutorGroup;
@@ -12,6 +14,10 @@ import qunar.tc.qmq.netty.EncodeHandler;
 import qunar.tc.qmq.netty.NettyClientConfig;
 import qunar.tc.qmq.netty.client.AbstractNettyClient;
 import qunar.tc.qmq.netty.client.NettyConnectManageHandler;
+import qunar.tc.qmq.netty.exception.ClientSendException;
+import qunar.tc.qmq.protocol.Datagram;
+import qunar.tc.qmq.protocol.PayloadHolder;
+import qunar.tc.qmq.util.RemotingBuilder;
 
 /**
  * @author zhenwei.liu
@@ -60,6 +66,30 @@ public abstract class MetaServerNettyClient extends AbstractNettyClient {
             }
         }
         return metaServer;
+    }
+
+    protected void sendRequest(short commandCode, PayloadHolder payloadHolder) throws MetaServerNotFoundException, ClientSendException {
+        sendRequest(commandCode, null, null, payloadHolder);
+    }
+
+    protected void sendRequest(short commandCode, String decodeHandlerName, ChannelHandler decodeHandler, PayloadHolder payloadHolder) throws MetaServerNotFoundException, ClientSendException {
+        String metaServer = queryMetaServerAddress();
+        if (metaServer == null) {
+            throw new MetaServerNotFoundException();
+        }
+        final Channel channel = getOrCreateChannel(metaServer);
+        if (decodeHandlerName != null && decodeHandler != null) {
+            addHandler(channel, decodeHandlerName, decodeHandler);
+        }
+        final Datagram datagram = RemotingBuilder.buildRequestDatagram(commandCode, payloadHolder);
+        channel.writeAndFlush(datagram);
+    }
+
+    protected void addHandler(Channel channel, String name, ChannelHandler handler) {
+        ChannelPipeline pipeline = channel.pipeline();
+        if (pipeline.get(name) == null) {
+            pipeline.addLast(name, handler);
+        }
     }
 
     private String queryMetaServerAddressWithRetry() {

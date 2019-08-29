@@ -82,17 +82,18 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
     }
 
     private MetaInfoResponse handleClientRegister(final MetaInfoRequest request) {
-        final String realSubject = RetrySubjectUtils.getRealSubject(request.getSubject());
+        String realSubject = RetrySubjectUtils.getRealSubject(request.getSubject());
+        int clientRequestType = request.getRequestType();
+        OnOfflineState onOfflineState = request.getOnlineState();
+
         if (SubjectUtils.isInValid(realSubject)) {
-            return buildResponse(request, -2, OnOfflineState.OFFLINE, new BrokerCluster(new ArrayList<>()));
+            onOfflineState = OnOfflineState.OFFLINE;
+            return buildResponse(request, -2, onOfflineState, new BrokerCluster(new ArrayList<>()));
         }
-        final int clientRequestType = request.getRequestType();
 
         try {
             if (ClientRequestType.ONLINE.getCode() == clientRequestType) {
                 store.insertClientMetaInfo(request);
-            } else if (ClientRequestType.HEARTBEAT.getCode() == clientRequestType) {
-                EventDispatcher.dispatch(request);
             }
 
             final List<BrokerGroup> brokerGroups = subjectRouter.route(realSubject, request);
@@ -107,7 +108,14 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
             return buildResponse(request, offlineStateManager.getLastUpdateTimestamp(), clientState, new BrokerCluster(filteredBrokerGroups));
         } catch (Exception e) {
             LOG.error("process exception. {}", request, e);
-            return buildResponse(request, -2, OnOfflineState.OFFLINE, new BrokerCluster(new ArrayList<>()));
+            onOfflineState = OnOfflineState.OFFLINE;
+            return buildResponse(request, -2, onOfflineState, new BrokerCluster(new ArrayList<>()));
+        } finally {
+            if (ClientRequestType.HEARTBEAT.getCode() == clientRequestType) {
+                // 上线的时候如果出现异常可能会将客户端上线状态改为下线
+                request.setOnlineState(onOfflineState);
+                EventDispatcher.dispatch(request);
+            }
         }
     }
 

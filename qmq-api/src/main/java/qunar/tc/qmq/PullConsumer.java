@@ -97,4 +97,6 @@ public interface PullConsumer extends BaseConsumer, AutoCloseable {
     Future<List<Message>> pullFuture(int size, long timeoutMillis);
 
     Future<List<Message>> pullFuture(int size, long timeoutMillis, boolean isResetCreateTime);
+
+    String getClientId();
 }

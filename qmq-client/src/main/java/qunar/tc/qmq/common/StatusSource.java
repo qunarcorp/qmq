@@ -21,6 +21,7 @@ package qunar.tc.qmq.common;
  * 4/9/18
  */
 public enum StatusSource {
+    // 0001 0010 0100
     HEALTHCHECKER((byte) 1),
     OPS((byte) 2),
     CODE((byte) 4);

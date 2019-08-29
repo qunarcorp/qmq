@@ -123,4 +123,9 @@ abstract class AbstractPullConsumer implements PullConsumer {
     }
 
     abstract PullMessageFuture newFuture(int size, long timeout, boolean isResetCreateTime);
+
+    @Override
+    public String getClientId() {
+        return consumeParam.getConsumerId();
+    }
 }

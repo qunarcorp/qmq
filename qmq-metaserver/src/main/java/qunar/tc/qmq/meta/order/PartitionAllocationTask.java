@@ -51,7 +51,6 @@ public class PartitionAllocationTask {
         // 当前 client 在线列表
         List<ClientMetaInfo> onlineConsumers = orderedMessageService.getOnlineOrderedConsumers();
         // 当前分配情况
-        Map<String, PartitionAllocation> allocationMap = cachedMetaInfoManager.getPartitionAllocations();
         Map<String, List<ClientMetaInfo>> onlineConsumerMap = Maps.newHashMap();
 
         for (ClientMetaInfo consumer : onlineConsumers) {
@@ -61,31 +60,34 @@ public class PartitionAllocationTask {
         }
 
         for (Map.Entry<String, List<ClientMetaInfo>> entry : onlineConsumerMap.entrySet()) {
-            String key = entry.getKey();
             List<ClientMetaInfo> groupOnlineConsumers = entry.getValue();
             String subject = groupOnlineConsumers.get(0).getSubject();
             String consumerGroup = groupOnlineConsumers.get(0).getConsumerGroup();
-            Set<String> groupOnlineConsumerIds = groupOnlineConsumers.stream().map(ClientMetaInfo::getClientId).collect(Collectors.toSet());
-
-            PartitionAllocation allocation = allocationMap.get(key);
-            if (allocation != null) {
-                PartitionAllocation.AllocationDetail allocationDetail = allocation.getAllocationDetail();
-                Set<String> allocationClientIds = allocationDetail.getClientId2PhysicalPartitions().keySet();
-
-                if (!Objects.equals(allocationClientIds, groupOnlineConsumerIds)) {
-                    // 如果当前在线列表与当前分配情况发生变更, 触发重分配
-                    newPartitionAllocation(subject, consumerGroup, Lists.newArrayList(groupOnlineConsumerIds), allocation.getVersion());
-                }
-            } else {
-                // 首次分配
-                newPartitionAllocation(subject, consumerGroup, Lists.newArrayList(groupOnlineConsumerIds), -1);
-            }
-
-
+            reallocation(subject, consumerGroup, groupOnlineConsumers);
         }
     }
 
-    private void newPartitionAllocation(String subject, String consumerGroup, List<String> groupOnlineConsumerIds, int oldVersion) {
+    public void reallocation(String subject, String consumerGroup, List<ClientMetaInfo> groupOnlineConsumers) {
+        String key = subject + ":" + consumerGroup;
+        Set<String> groupOnlineConsumerIds = groupOnlineConsumers.stream().map(ClientMetaInfo::getClientId).collect(Collectors.toSet());
+
+        Map<String, PartitionAllocation> allocationMap = cachedMetaInfoManager.getPartitionAllocations();
+        PartitionAllocation allocation = allocationMap.get(key);
+        if (allocation != null) {
+            PartitionAllocation.AllocationDetail allocationDetail = allocation.getAllocationDetail();
+            Set<String> allocationClientIds = allocationDetail.getClientId2PhysicalPartitions().keySet();
+
+            if (!Objects.equals(allocationClientIds, groupOnlineConsumerIds)) {
+                // 如果当前在线列表与当前分配情况发生变更, 触发重分配
+                reallocation(subject, consumerGroup, Lists.newArrayList(groupOnlineConsumerIds), allocation.getVersion());
+            }
+        } else {
+            // 首次分配
+            reallocation(subject, consumerGroup, Lists.newArrayList(groupOnlineConsumerIds), -1);
+        }
+    }
+
+    private void reallocation(String subject, String consumerGroup, List<String> groupOnlineConsumerIds, int oldVersion) {
         PartitionMapping partitionMapping = cachedMetaInfoManager.getPartitionMapping(subject);
         PartitionSet partitionSet = new PartitionSet();
         partitionSet.setSubject(subject);

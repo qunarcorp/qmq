@@ -3,6 +3,7 @@ package qunar.tc.qmq.meta.order;
 import com.google.common.collect.*;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.transaction.support.TransactionTemplate;
+import qunar.tc.qmq.base.OnOfflineState;
 import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
 import qunar.tc.qmq.meta.Partition;
@@ -172,7 +173,7 @@ public class DefaultOrderedMessageService implements OrderedMessageService {
     @Override
     public List<ClientMetaInfo> getOnlineOrderedConsumers() {
         Date updateTime = new Date(System.currentTimeMillis() - ORDERED_CLIENT_HEARTBEAT_INTERVAL_SECS * 1000);
-        return clientMetaInfoStore.queryClientsUpdateAfterDate(ClientType.CONSUMER, ClientMetaInfo.OnlineStatus.ONLINE, updateTime);
+        return clientMetaInfoStore.queryClientsUpdateAfterDate(ClientType.CONSUMER, OnOfflineState.ONLINE, updateTime);
     }
 
     private String createPartitionKey(Partition partition) {

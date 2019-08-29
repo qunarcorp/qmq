@@ -41,7 +41,7 @@ import qunar.tc.qmq.delay.wheel.WheelTickManager;
 import qunar.tc.qmq.meta.BrokerRegisterService;
 import qunar.tc.qmq.meta.BrokerRole;
 import qunar.tc.qmq.meta.MetaServerLocator;
-import qunar.tc.qmq.metainfoclient.MetaInfoService;
+import qunar.tc.qmq.metainfoclient.DefaultMetaInfoService;
 import qunar.tc.qmq.netty.DefaultConnectionEventHandler;
 import qunar.tc.qmq.netty.NettyServer;
 import qunar.tc.qmq.protocol.CommandCode;
@@ -102,7 +102,7 @@ public class ServerWrapper implements Disposable {
         this.facade = new DefaultDelayLogFacade(storeConfig, this::iterateCallback);
 
         String metaServerAddress = config.getString(META_SERVER_ENDPOINT);
-        MetaInfoService metaInfoService = new MetaInfoService(metaServerAddress);
+        DefaultMetaInfoService metaInfoService = new DefaultMetaInfoService(metaServerAddress);
         metaInfoService.init();
         BrokerService brokerService = new BrokerServiceImpl(metaInfoService);
         this.wheelTickManager = new WheelTickManager(storeConfig, brokerService, facade, sender);

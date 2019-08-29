@@ -45,18 +45,18 @@ public class MessageDistributor {
 
         final RegistParam registParam = new RegistParam(executor, listener, subscribeParam, clientId);
         registParam.setBroadcast(subscribeParam.isBroadcast());
-        register.regist(subject, consumerGroup, registParam);
+        register.register(subject, consumerGroup, registParam);
         return new ListenerHolder() {
 
             @Override
             public void stopListen() {
-                register.unregist(subject, consumerGroup);
+                register.unregister(subject, consumerGroup);
             }
 
             @Override
             public void resumeListen() {
                 registParam.setActionSrc(CODE);
-                register.regist(subject, consumerGroup, registParam);
+                register.register(subject, consumerGroup, registParam);
             }
         };
     }

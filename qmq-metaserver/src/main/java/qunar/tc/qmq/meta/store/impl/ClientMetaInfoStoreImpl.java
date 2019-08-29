@@ -18,6 +18,7 @@ package qunar.tc.qmq.meta.store.impl;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import qunar.tc.qmq.base.OnOfflineState;
 import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
 import qunar.tc.qmq.meta.model.ClientMetaInfo;
@@ -46,7 +47,7 @@ public class ClientMetaInfoStoreImpl implements ClientMetaInfoStore {
         meta.setClientId(rs.getString("client_id"));
         meta.setAppCode(rs.getString("app_code"));
         meta.setRoom(rs.getString("room"));
-        meta.setOnlineStatus(ClientMetaInfo.OnlineStatus.valueOf(rs.getString("online_status")));
+        meta.setOnlineStatus(OnOfflineState.valueOf(rs.getString("online_status")));
         return meta;
     };
 
@@ -56,7 +57,7 @@ public class ClientMetaInfoStoreImpl implements ClientMetaInfoStore {
     }
 
     @Override
-    public List<ClientMetaInfo> queryClientsUpdateAfterDate(ClientType clientType, ClientMetaInfo.OnlineStatus onlineStatus, Date updateDate) {
+    public List<ClientMetaInfo> queryClientsUpdateAfterDate(ClientType clientType, OnOfflineState onlineStatus, Date updateDate) {
         return jdbcTemplate.query(QUERY_CLIENT_AFTER_DATE_SQL, clientMetaInfoRowMapper, clientType.getCode(), onlineStatus.name(), updateDate);
     }
 

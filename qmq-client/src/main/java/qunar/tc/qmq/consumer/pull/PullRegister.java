@@ -19,6 +19,7 @@ package qunar.tc.qmq.consumer.pull;
 import com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.base.OnOfflineState;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.broker.impl.BrokerServiceImpl;
 import qunar.tc.qmq.common.EnvProvider;
@@ -29,7 +30,7 @@ import qunar.tc.qmq.consumer.exception.DuplicateListenerException;
 import qunar.tc.qmq.consumer.register.ConsumerRegister;
 import qunar.tc.qmq.consumer.register.RegistParam;
 import qunar.tc.qmq.metainfoclient.ConsumerStateChangedListener;
-import qunar.tc.qmq.metainfoclient.MetaInfoService;
+import qunar.tc.qmq.metainfoclient.DefaultMetaInfoService;
 import qunar.tc.qmq.protocol.consumer.SubEnvIsolationPullFilter;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
 
@@ -54,7 +55,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
 
     private final ExecutorService pullExecutor = Executors.newCachedThreadPool(new NamedThreadFactory("qmq-pull"));
 
-    private final MetaInfoService metaInfoService;
+    private final DefaultMetaInfoService metaInfoService;
     private final BrokerService brokerService;
     private final PullService pullService;
     private final AckService ackService;
@@ -66,7 +67,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
     private EnvProvider envProvider;
 
     public PullRegister(String metaServer) {
-        this.metaInfoService = new MetaInfoService(metaServer);
+        this.metaInfoService = new DefaultMetaInfoService(metaServer);
         this.brokerService = new BrokerServiceImpl(metaInfoService);
         this.pullService = new PullService();
         this.ackService = new AckService(this.brokerService);
@@ -84,7 +85,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
     }
 
     @Override
-    public synchronized void regist(String subject, String group, RegistParam param) {
+    public synchronized void register(String subject, String group, RegistParam param) {
         String env;
         String subEnv;
         if (envProvider != null && !Strings.isNullOrEmpty(env = envProvider.env(subject))) {
@@ -95,16 +96,16 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
             param.addFilter(new SubEnvIsolationPullFilter(env, subEnv));
         }
 
-        registPullEntry(subject, group, param, new AlwaysPullStrategy());
+        registerPullEntry(subject, group, param, new AlwaysPullStrategy());
         if (RetrySubjectUtils.isDeadRetrySubject(subject)) return;
-        registPullEntry(RetrySubjectUtils.buildRetrySubject(subject, group), group, param, new WeightPullStrategy());
+        registerPullEntry(RetrySubjectUtils.buildRetrySubject(subject, group), group, param, new WeightPullStrategy());
     }
 
     private String toSubEnvIsolationGroup(final String originGroup, final String env, final String subEnv) {
         return originGroup + "_" + env + "_" + subEnv;
     }
 
-    private void registPullEntry(String subject, String group, RegistParam param, PullStrategy pullStrategy) {
+    private void registerPullEntry(String subject, String group, RegistParam param, PullStrategy pullStrategy) {
         final String subscribeKey = MapKeyBuilder.buildSubscribeKey(subject, group);
         PullEntry pullEntry = pullEntryMap.get(subscribeKey);
         if (pullEntry == PullEntry.EMPTY_PULL_ENTRY) {
@@ -145,7 +146,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
     }
 
     @Override
-    public void unregist(String subject, String group) {
+    public void unregister(String subject, String group) {
         changeOnOffline(subject, group, false, CODE);
     }
 
@@ -231,9 +232,9 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         this.envProvider = envProvider;
     }
 
-	public void setAppCode(String appCode) {
-		this.appCode = appCode;
-	}
+    public void setAppCode(String appCode) {
+        this.appCode = appCode;
+    }
 
     @Override
     public synchronized void destroy() {

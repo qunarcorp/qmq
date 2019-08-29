@@ -2,10 +2,9 @@ package qunar.tc.qmq.config;
 
 import com.google.common.collect.Maps;
 import qunar.tc.qmq.common.ClientType;
-import qunar.tc.qmq.meta.PartitionAllocation;
 import qunar.tc.qmq.meta.PartitionMapping;
 import qunar.tc.qmq.metainfoclient.MetaInfoClient;
-import qunar.tc.qmq.metainfoclient.MetaInfoService;
+import qunar.tc.qmq.metainfoclient.DefaultMetaInfoService;
 import qunar.tc.qmq.protocol.MetaInfoResponse;
 import qunar.tc.qmq.protocol.producer.ProducerMetaInfoResponse;
 
@@ -19,7 +18,7 @@ public class DefaultOrderedMessageManager implements OrderedMessageManager, Meta
 
     private Map<String, PartitionMapping> partitionMap = Maps.newConcurrentMap();
 
-    public DefaultOrderedMessageManager(MetaInfoService metaInfoService) {
+    public DefaultOrderedMessageManager(DefaultMetaInfoService metaInfoService) {
         metaInfoService.registerResponseSubscriber(this);
     }
 

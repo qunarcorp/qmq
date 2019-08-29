@@ -18,9 +18,11 @@ package qunar.tc.qmq.metainfoclient;
 
 import com.google.common.util.concurrent.SettableFuture;
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.*;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.SimpleChannelInboundHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.base.OnOfflineState;
 import qunar.tc.qmq.meta.MetaServerLocator;
 import qunar.tc.qmq.netty.NettyClientConfig;
 import qunar.tc.qmq.netty.exception.ClientSendException;
@@ -28,7 +30,6 @@ import qunar.tc.qmq.protocol.CommandCode;
 import qunar.tc.qmq.protocol.Datagram;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequestPayloadHolder;
-import qunar.tc.qmq.util.RemotingBuilder;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
 
 import java.util.concurrent.ExecutionException;
@@ -67,18 +68,12 @@ class MetaInfoClientNettyImpl extends MetaServerNettyClient implements MetaInfoC
     @Override
     public void sendMetaInfoRequest(final MetaInfoRequest request) {
         try {
-            String metaServer = queryMetaServerAddress();
-            if (metaServer == null) return;
-            final Channel channel = getOrCreateChannel(metaServer);
-            final Datagram datagram = RemotingBuilder.buildRequestDatagram(CommandCode.CLIENT_REGISTER, new MetaInfoRequestPayloadHolder(request));
-            addHandler(channel, META_INFO_RESPONSE_DECODER_NAME, metaInfoResponseDecoder);
-            channel.writeAndFlush(datagram).addListener((ChannelFutureListener) future -> {
-                if (future.isSuccess()) {
-                    LOGGER.debug("request meta info send success. {}", request);
-                } else {
-                    LOGGER.debug("request meta info send fail. {}", request);
-                }
-            });
+            sendRequest(
+                    CommandCode.CLIENT_REGISTER,
+                    META_INFO_RESPONSE_DECODER_NAME,
+                    metaInfoResponseDecoder,
+                    new MetaInfoRequestPayloadHolder(request)
+            );
         } catch (Exception e) {
             LOGGER.debug("request meta info exception. {}", request, e);
         }
@@ -92,29 +87,33 @@ class MetaInfoClientNettyImpl extends MetaServerNettyClient implements MetaInfoC
     private static final String QUERY_ORDERED_SUBJECT_DECODER_NAME = "queryOrderedSubjectDecoderName";
 
     @Override
-    public boolean queryOrderedSubject(String subject) throws MetaServerNotFoundException, ClientSendException, ExecutionException, InterruptedException {
-        String metaServer = queryMetaServerAddress();
-        if (metaServer == null) {
-            throw new MetaServerNotFoundException();
-        }
-        final Channel channel = getOrCreateChannel(metaServer);
-        SettableFuture<Boolean> future = SettableFuture.create();
-        addHandler(channel, QUERY_ORDERED_SUBJECT_DECODER_NAME, new SimpleChannelInboundHandler<Datagram>() {
-            @Override
-            protected void channelRead0(ChannelHandlerContext ctx, Datagram msg) throws Exception {
-                ByteBuf buf = msg.getBody();
-                future.set(buf.readBoolean());
-            }
-        });
-        final Datagram datagram = RemotingBuilder.buildRequestDatagram(CommandCode.QUERY_ORDERED_SUBJECT, out -> PayloadHolderUtils.writeString(subject, out));
-        channel.writeAndFlush(datagram);
-        return future.get();
+    public void reportConsumerState(String subject, String consumerGroup, String clientId, OnOfflineState state) throws ClientSendException, MetaServerNotFoundException {
+        sendRequest(
+                CommandCode.REPORT_CONSUMER_ONLINE_STATE,
+                out -> {
+                    PayloadHolderUtils.writeString(subject, out);
+                    PayloadHolderUtils.writeString(consumerGroup, out);
+                    PayloadHolderUtils.writeString(clientId, out);
+                    PayloadHolderUtils.writeString(state.name(), out);
+                }
+        );
     }
 
-    private void addHandler(Channel channel, String name, ChannelHandler handler) {
-        ChannelPipeline pipeline = channel.pipeline();
-        if (pipeline.get(name) == null) {
-            pipeline.addLast(name, handler);
-        }
+    @Override
+    public boolean queryOrderedSubject(String subject) throws MetaServerNotFoundException, ClientSendException, ExecutionException, InterruptedException {
+        SettableFuture<Boolean> future = SettableFuture.create();
+        sendRequest(
+                CommandCode.QUERY_ORDERED_SUBJECT,
+                QUERY_ORDERED_SUBJECT_DECODER_NAME,
+                new SimpleChannelInboundHandler<Datagram>() {
+                    @Override
+                    protected void channelRead0(ChannelHandlerContext ctx, Datagram msg) throws Exception {
+                        ByteBuf buf = msg.getBody();
+                        future.set(buf.readBoolean());
+                    }
+                },
+                out -> PayloadHolderUtils.writeString(subject, out)
+        );
+        return future.get();
     }
 }

@@ -29,6 +29,7 @@ import qunar.tc.qmq.meta.cache.CachedOfflineStateManager;
 import qunar.tc.qmq.meta.event.OrderedConsumerHeartbeatHandler;
 import qunar.tc.qmq.meta.management.*;
 import qunar.tc.qmq.meta.order.DefaultOrderedMessageService;
+import qunar.tc.qmq.meta.order.PartitionAllocationTask;
 import qunar.tc.qmq.meta.processor.BrokerAcquireMetaProcessor;
 import qunar.tc.qmq.meta.processor.BrokerRegisterProcessor;
 import qunar.tc.qmq.meta.processor.ClientRegisterProcessor;
@@ -117,6 +118,8 @@ public class ServerWrapper implements Disposable {
         OrderedConsumerHeartbeatHandler orderedConsumerHeartbeatHandler = new OrderedConsumerHeartbeatHandler(cachedMetaInfoManager, clientMetaInfoStore);
         EventDispatcher.register(orderedConsumerHeartbeatHandler);
 
+        PartitionAllocationTask partitionAllocationTask = new PartitionAllocationTask(cachedMetaInfoManager);
+        partitionAllocationTask.start();
     }
 
     private SubjectRouter createSubjectRouter(CachedMetaInfoManager cachedMetaInfoManager, Store store) {

@@ -40,7 +40,7 @@ public class OrderedConsumerHeartbeatHandler implements HeartbeatHandler {
             clientMetaInfo.setConsumerGroup(request.getConsumerGroup());
             clientMetaInfo.setClientTypeCode(clientTypeCode);
             clientMetaInfo.setClientId(request.getClientId());
-            clientMetaInfo.setOnlineStatus(ClientMetaInfo.OnlineStatus.ONLINE);
+            clientMetaInfo.setOnlineStatus(request.getOnlineState());
 
             clientMetaInfoStore.updateClientOnlineState(clientMetaInfo);
         }

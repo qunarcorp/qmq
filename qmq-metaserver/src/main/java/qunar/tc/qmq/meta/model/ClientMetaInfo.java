@@ -16,23 +16,20 @@
 
 package qunar.tc.qmq.meta.model;
 
+import qunar.tc.qmq.base.OnOfflineState;
+
 /**
  * @author yunfeng.yang
  * @since 2017/9/25
  */
 public class ClientMetaInfo {
-
-    public enum OnlineStatus {
-        ONLINE, OFFLINE
-    }
-
     private String subject;
     private int clientTypeCode;
     private String appCode;
     private String room;
     private String clientId;
     private String consumerGroup;
-    private OnlineStatus onlineStatus;
+    private OnOfflineState onlineStatus;
 
     public String getSubject() {
         return subject;
@@ -82,11 +79,11 @@ public class ClientMetaInfo {
         this.consumerGroup = consumerGroup;
     }
 
-    public OnlineStatus getOnlineStatus() {
+    public OnOfflineState getOnlineStatus() {
         return onlineStatus;
     }
 
-    public ClientMetaInfo setOnlineStatus(OnlineStatus onlineStatus) {
+    public ClientMetaInfo setOnlineStatus(OnOfflineState onlineStatus) {
         this.onlineStatus = onlineStatus;
         return this;
     }

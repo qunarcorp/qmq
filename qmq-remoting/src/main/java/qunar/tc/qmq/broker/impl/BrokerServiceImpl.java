@@ -25,7 +25,7 @@ import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.common.MapKeyBuilder;
 import qunar.tc.qmq.metainfoclient.MetaInfo;
-import qunar.tc.qmq.metainfoclient.MetaInfoService;
+import qunar.tc.qmq.metainfoclient.DefaultMetaInfoService;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -43,10 +43,10 @@ public class BrokerServiceImpl implements BrokerService {
 
     private final ConcurrentMap<String, ClusterFuture> clusterMap = new ConcurrentHashMap<>();
 
-    private final MetaInfoService metaInfoService;
+    private final DefaultMetaInfoService metaInfoService;
     private String appCode;
 
-    public BrokerServiceImpl(MetaInfoService metaInfoService) {
+    public BrokerServiceImpl(DefaultMetaInfoService metaInfoService) {
         this.metaInfoService = metaInfoService;
         this.metaInfoService.register(this);
     }
@@ -140,7 +140,7 @@ public class BrokerServiceImpl implements BrokerService {
         // 这个key上加group不兼容MetaInfoResponse
         String key = MapKeyBuilder.buildMetaInfoKey(clientType, subject);
         ClusterFuture future = clusterMap.get(key);
-        MetaInfoService.MetaInfoRequestParam requestParam = MetaInfoService.buildRequestParam(clientType, subject, group, appCode);
+        DefaultMetaInfoService.MetaInfoRequestParam requestParam = DefaultMetaInfoService.buildRequestParam(clientType, subject, group, appCode);
         if (future == null) {
             future = request(requestParam, false);
         } else {
@@ -156,7 +156,7 @@ public class BrokerServiceImpl implements BrokerService {
 
     @Override
     public void refresh(ClientType clientType, String subject, String group) {
-        request(MetaInfoService.buildRequestParam(clientType, subject, group, appCode), true);
+        request(DefaultMetaInfoService.buildRequestParam(clientType, subject, group, appCode), true);
     }
 
     @Override
@@ -164,7 +164,7 @@ public class BrokerServiceImpl implements BrokerService {
         this.appCode = appCode;
     }
 
-    private ClusterFuture request(MetaInfoService.MetaInfoRequestParam requestParam, boolean refresh) {
+    private ClusterFuture request(DefaultMetaInfoService.MetaInfoRequestParam requestParam, boolean refresh) {
         String key = MapKeyBuilder.buildMetaInfoKey(requestParam.getClientType(), requestParam.getSubject());
         ClusterFuture newFuture = new ClusterFuture();
         ClusterFuture oldFuture = clusterMap.putIfAbsent(key, newFuture);
