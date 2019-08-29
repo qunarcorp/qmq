@@ -92,6 +92,7 @@
         <async.hbaseclient.version>1.7.2</async.hbaseclient.version>
         <powermock.version>1.7.4</powermock.version>
         <powermock-api-mockito2.version>2.0.0</powermock-api-mockito2.version>
+        <commons-codec.version>1.12</commons-codec.version>
     </properties>
 
     <dependencyManagement>
@@ -296,6 +297,12 @@
                 <groupId>org.hbase</groupId>
                 <artifactId>asynchbase</artifactId>
                 <version>${async.hbaseclient.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>commons-codec</groupId>
+                <artifactId>commons-codec</artifactId>
+                <version>${commons-codec.version}</version>
             </dependency>
 
             <dependency>

@@ -17,10 +17,7 @@
 package qunar.tc.qmq.meta.cache;
 
 import com.google.common.base.Strings;
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-import com.google.common.collect.SetMultimap;
+import com.google.common.collect.*;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -179,12 +176,20 @@ public class CachedMetaInfoManager implements Disposable {
         return cachedPartitionMapping.get(subject);
     }
 
-    private void refreshPartitionAllocation() {
-        this.cachedPartitionAllocation = orderedMessageService.getActivatedPartitionAllocations().stream().collect(Collectors.toMap(PartitionAllocation::getSubject, p -> p));
+    public Map<String, PartitionMapping> getPartitionMappings() {
+        return Maps.newHashMap(cachedPartitionMapping);
     }
 
-    public PartitionAllocation getPartitionAllocation(String subject) {
+    private void refreshPartitionAllocation() {
+        this.cachedPartitionAllocation = orderedMessageService.getActivatedPartitionAllocations().stream().collect(Collectors.toMap(pa -> pa.getSubject() + ":" + pa.getConsumerGroup(), pa -> pa));
+    }
+
+    public PartitionAllocation getPartitionAllocation(String subject, String consumerGroup) {
         return cachedPartitionAllocation.get(subject);
+    }
+
+    public Map<String, PartitionAllocation> getPartitionAllocations() {
+        return Maps.newHashMap(cachedPartitionAllocation);
     }
 
     public Set<String> getBrokerGroupReadonlySubjects(final String brokerGroup) {

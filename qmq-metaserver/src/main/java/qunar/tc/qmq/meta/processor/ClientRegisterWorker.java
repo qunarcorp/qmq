@@ -138,7 +138,7 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
             PartitionMapping partitionMapping = cachedMetaInfoManager.getPartitionMapping(subject);
             ((ProducerMetaInfoResponse) response).setPartitionMapping(partitionMapping);
         } else {
-            PartitionAllocation partitionAllocation = cachedMetaInfoManager.getPartitionAllocation(subject);
+            PartitionAllocation partitionAllocation = cachedMetaInfoManager.getPartitionAllocation(subject, clientRequest.getConsumerGroup());
             response = new ConsumerMetaInfoResponse();
             ((ConsumerMetaInfoResponse) response).setPartitionAllocation(partitionAllocation);
         }

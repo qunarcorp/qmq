@@ -20,7 +20,7 @@ public class AveragePartitionAllocationStrategy implements PartitionAllocationSt
 
     @Override
     public PartitionAllocation allocate(PartitionSet partitionSet, List<String> onlineConsumerList, String consumerGroup) {
-        Set<Integer> physicalPartitions = partitionSet.getPhysicalPartitions();
+        Set<Integer> physicalPartitions = Sets.newTreeSet(partitionSet.getPhysicalPartitions());
         // partition => client
         Map<Integer, String> partitionClientMapping = itemMapper.map(Lists.newArrayList(physicalPartitions), onlineConsumerList);
         Map<String, Set<Integer>> clientPartitionMapping = Maps.newHashMap();

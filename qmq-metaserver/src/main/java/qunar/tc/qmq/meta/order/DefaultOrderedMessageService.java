@@ -1,7 +1,9 @@
 package qunar.tc.qmq.meta.order;
 
 import com.google.common.collect.*;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.transaction.support.TransactionTemplate;
+import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
 import qunar.tc.qmq.meta.Partition;
 import qunar.tc.qmq.meta.PartitionAllocation;
@@ -9,20 +11,13 @@ import qunar.tc.qmq.meta.PartitionMapping;
 import qunar.tc.qmq.meta.PartitionSet;
 import qunar.tc.qmq.meta.model.ClientMetaInfo;
 import qunar.tc.qmq.meta.model.SubjectInfo;
-import qunar.tc.qmq.meta.store.PartitionAllocationStore;
-import qunar.tc.qmq.meta.store.PartitionSetStore;
-import qunar.tc.qmq.meta.store.PartitionStore;
-import qunar.tc.qmq.meta.store.Store;
-import qunar.tc.qmq.meta.store.impl.DatabaseStore;
-import qunar.tc.qmq.meta.store.impl.PartitionAllocationStoreImpl;
-import qunar.tc.qmq.meta.store.impl.PartitionSetStoreImpl;
-import qunar.tc.qmq.meta.store.impl.PartitionStoreImpl;
+import qunar.tc.qmq.meta.store.*;
+import qunar.tc.qmq.meta.store.impl.*;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
+
+import static qunar.tc.qmq.common.OrderedConstants.ORDERED_CLIENT_HEARTBEAT_INTERVAL_SECS;
 
 /**
  * @author zhenwei.liu
@@ -31,6 +26,7 @@ import java.util.stream.Collectors;
 public class DefaultOrderedMessageService implements OrderedMessageService {
 
     private Store store = new DatabaseStore();
+    private ClientMetaInfoStore clientMetaInfoStore = new ClientMetaInfoStoreImpl();
     private PartitionStore partitionStore = new PartitionStoreImpl();
     private PartitionSetStore partitionSetStore = new PartitionSetStoreImpl();
     private PartitionAllocationStore partitionAllocationStore = new PartitionAllocationStoreImpl();
@@ -160,8 +156,23 @@ public class DefaultOrderedMessageService implements OrderedMessageService {
     }
 
     @Override
+    public boolean updatePartitionAllocation(PartitionAllocation newAllocation, int baseVersion) {
+        if (baseVersion == -1) {
+            try {
+                return partitionAllocationStore.save(newAllocation) > 0;
+            } catch (DuplicateKeyException e) {
+                // 并发问题, 不更新就好
+                return false;
+            }
+        } else {
+            return partitionAllocationStore.update(newAllocation, baseVersion) > 0;
+        }
+    }
+
+    @Override
     public List<ClientMetaInfo> getOnlineOrderedConsumers() {
-        return null;
+        Date updateTime = new Date(System.currentTimeMillis() - ORDERED_CLIENT_HEARTBEAT_INTERVAL_SECS * 1000);
+        return clientMetaInfoStore.queryClientsUpdateAfterDate(ClientType.CONSUMER, ClientMetaInfo.OnlineStatus.ONLINE, updateTime);
     }
 
     private String createPartitionKey(Partition partition) {

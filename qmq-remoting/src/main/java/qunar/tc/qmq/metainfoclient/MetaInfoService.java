@@ -32,20 +32,19 @@ import qunar.tc.qmq.meta.BrokerGroup;
 import qunar.tc.qmq.meta.BrokerState;
 import qunar.tc.qmq.meta.MetaServerLocator;
 import qunar.tc.qmq.metrics.Metrics;
-import qunar.tc.qmq.netty.exception.ClientSendException;
-import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
 import qunar.tc.qmq.protocol.MetaInfoResponse;
+import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
+import static qunar.tc.qmq.common.OrderedConstants.ORDERED_CLIENT_HEARTBEAT_INTERVAL_SECS;
 import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_GROUP_ARRAY;
 
 /**
@@ -55,7 +54,6 @@ public class MetaInfoService implements MetaInfoClient.ResponseSubscriber {
     private static final Logger LOGGER = LoggerFactory.getLogger(MetaInfoService.class);
 
     private static final long REFRESH_INTERVAL_SECONDS = 60;
-    private static final long ORDERED_REFRESH_INTERVAL_SECONDS = 3;
 
     private final EventBus eventBus = new EventBus("meta-info");
 
@@ -82,9 +80,9 @@ public class MetaInfoService implements MetaInfoClient.ResponseSubscriber {
         Preconditions.checkNotNull(metaServer, "meta server必须提供");
         this.client.registerResponseSubscriber(this);
         Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("qmq-meta-refresh"))
-                .scheduleAtFixedRate(()-> checkSubjectMetaInfo(metaInfoRequests), REFRESH_INTERVAL_SECONDS, REFRESH_INTERVAL_SECONDS, TimeUnit.SECONDS);
+                .scheduleAtFixedRate(() -> checkSubjectMetaInfo(metaInfoRequests), REFRESH_INTERVAL_SECONDS, REFRESH_INTERVAL_SECONDS, TimeUnit.SECONDS);
         Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("qmq-meta-refresh-ordered"))
-                .scheduleAtFixedRate(()-> checkSubjectMetaInfo(orderedMetaInfoRequests), ORDERED_REFRESH_INTERVAL_SECONDS, ORDERED_REFRESH_INTERVAL_SECONDS, TimeUnit.SECONDS);
+                .scheduleAtFixedRate(() -> checkSubjectMetaInfo(orderedMetaInfoRequests), ORDERED_CLIENT_HEARTBEAT_INTERVAL_SECS, ORDERED_CLIENT_HEARTBEAT_INTERVAL_SECS, TimeUnit.SECONDS);
     }
 
     public void registerResponseSubscriber(MetaInfoClient.ResponseSubscriber subscriber) {

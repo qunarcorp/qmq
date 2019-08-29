@@ -43,5 +43,14 @@ public interface OrderedMessageService {
      */
     PartitionAllocation allocatePartitions(PartitionSet partitionSet, List<String> onlineConsumerList, String consumerGroup);
 
+    /**
+     * 更新分区分配信息
+     *
+     * @param newAllocation 新的分配信息
+     * @param baseVersion 分配比对的版本号, 用于做乐观锁
+     * @return 更新结果, 若返回 false, 有可能是乐观锁更新失败
+     */
+    boolean updatePartitionAllocation(PartitionAllocation newAllocation, int baseVersion);
+
     List<ClientMetaInfo> getOnlineOrderedConsumers();
 }

@@ -50,7 +50,7 @@ public class SendServlet extends HttpServlet {
 
     @Override
     public void init(ServletConfig config) throws ServletException {
-        this.producer = new MessageProducerProvider();
+        this.producer = new MessageProducerProvider(null); // TODO(zhenwei.liu) 这里需要写入 meta server 地址
         this.producer.init();
     }
 

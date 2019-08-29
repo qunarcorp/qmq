@@ -18,7 +18,11 @@ public class PartitionAllocationStoreImpl implements PartitionAllocationStore {
 
     private static final String SAVE_SQL = "insert into partition_allocation " +
             "(subject, consumer_group, allocation_detail, partition_set_version, version) " +
-            "values (?, ?, ?, ?, ?)";
+            "values (?, ?, ?, ?, 0)";
+
+    private static final String UPDATE_SQL = "update partition_allocation " +
+            "set allocation_detail = ?, partition_set_version = ?, version = version + 1 " +
+            "where version = ? and subject = ? and consumer_group = ?";
 
     private static final String GET_LATEST_SQL = "select subject, consumer_group, allocation_detail, partition_set_version, version from partition_allocation";
 
@@ -43,8 +47,18 @@ public class PartitionAllocationStoreImpl implements PartitionAllocationStore {
                 partitionAllocation.getSubject(),
                 partitionAllocation.getConsumerGroup(),
                 JsonUtils.serialize(partitionAllocation.getAllocationDetail()),
+                partitionAllocation.getPartitionSetVersion()
+        );
+    }
+
+    @Override
+    public int update(PartitionAllocation partitionAllocation, int baseVersion) {
+        return jdbcTemplate.update(UPDATE_SQL,
+                JsonUtils.serialize(partitionAllocation.getAllocationDetail()),
                 partitionAllocation.getPartitionSetVersion(),
-                partitionAllocation.getVersion()
+                baseVersion,
+                partitionAllocation.getSubject(),
+                partitionAllocation.getConsumerGroup()
         );
     }
 

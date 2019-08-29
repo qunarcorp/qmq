@@ -11,6 +11,7 @@ import java.util.List;
 public interface PartitionAllocationStore {
 
     int save(PartitionAllocation partitionAllocation);
+    int update(PartitionAllocation partitionAllocation, int oldVersion);
 
     List<PartitionAllocation> getLatest();
 }
