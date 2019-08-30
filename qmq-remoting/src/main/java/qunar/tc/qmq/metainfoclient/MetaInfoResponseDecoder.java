@@ -17,8 +17,8 @@
 package qunar.tc.qmq.metainfoclient;
 
 import com.google.common.collect.Maps;
+import com.google.common.util.concurrent.SettableFuture;
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.util.internal.ConcurrentSet;
@@ -31,8 +31,8 @@ import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.meta.*;
 import qunar.tc.qmq.protocol.CommandCode;
 import qunar.tc.qmq.protocol.Datagram;
-import qunar.tc.qmq.protocol.RemotingHeader;
 import qunar.tc.qmq.protocol.MetaInfoResponse;
+import qunar.tc.qmq.protocol.RemotingHeader;
 import qunar.tc.qmq.protocol.consumer.ConsumerMetaInfoResponse;
 import qunar.tc.qmq.protocol.producer.ProducerMetaInfoResponse;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
@@ -44,16 +44,17 @@ import java.util.TreeMap;
 /**
  * @author yiqun.fan create on 17-8-31.
  */
-@ChannelHandler.Sharable
 class MetaInfoResponseDecoder extends SimpleChannelInboundHandler<Datagram> {
 
     private static final Logger LOG = LoggerFactory.getLogger(MetaInfoResponseDecoder.class);
     private static final MetaInfoResponseDeserializer deserializer = new AdaptiveMetaInfoResponseDeserializer();
 
-    private final ConcurrentSet<MetaInfoClient.ResponseSubscriber> responseSubscribers = new ConcurrentSet<>();
+    private final ConcurrentSet<MetaInfoClient.ResponseSubscriber> responseSubscribers;
+    private final SettableFuture<MetaInfoResponse> future;
 
-    void registerResponseSubscriber(MetaInfoClient.ResponseSubscriber subscriber) {
-        responseSubscribers.add(subscriber);
+    public MetaInfoResponseDecoder(SettableFuture<MetaInfoResponse> future, ConcurrentSet<MetaInfoClient.ResponseSubscriber> responseSubscribers) {
+        this.future = future;
+        this.responseSubscribers = responseSubscribers;
     }
 
     @Override
@@ -64,6 +65,7 @@ class MetaInfoResponseDecoder extends SimpleChannelInboundHandler<Datagram> {
         }
 
         if (response != null) {
+            future.set(response);
             notifySubscriber(response);
         } else {
             LOG.warn("request meta info UNKNOWN. code={}", msg.getHeader().getCode());

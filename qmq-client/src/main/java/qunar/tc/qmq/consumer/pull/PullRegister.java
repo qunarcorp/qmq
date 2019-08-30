@@ -21,20 +21,27 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.broker.impl.BrokerServiceImpl;
+import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.common.EnvProvider;
 import qunar.tc.qmq.common.MapKeyBuilder;
 import qunar.tc.qmq.common.StatusSource;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
+import qunar.tc.qmq.config.OrderedMessageManager;
 import qunar.tc.qmq.consumer.exception.DuplicateListenerException;
 import qunar.tc.qmq.consumer.register.ConsumerRegister;
 import qunar.tc.qmq.consumer.register.RegistParam;
+import qunar.tc.qmq.meta.PartitionAllocation;
 import qunar.tc.qmq.metainfoclient.ConsumerStateChangedListener;
 import qunar.tc.qmq.metainfoclient.DefaultMetaInfoService;
+import qunar.tc.qmq.metainfoclient.MetaInfoClient;
+import qunar.tc.qmq.producer.OrderedMessageUtils;
+import qunar.tc.qmq.protocol.MetaInfoResponse;
 import qunar.tc.qmq.protocol.consumer.SubEnvIsolationPullFilter;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -55,6 +62,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
     private final ExecutorService pullExecutor = Executors.newCachedThreadPool(new NamedThreadFactory("qmq-pull"));
 
     private final DefaultMetaInfoService metaInfoService;
+    private final OrderedMessageManager orderedMessageManager;
     private final BrokerService brokerService;
     private final PullService pullService;
     private final AckService ackService;
@@ -65,8 +73,9 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
 
     private EnvProvider envProvider;
 
-    public PullRegister(String metaServer) {
+    public PullRegister(String metaServer, OrderedMessageManager orderedMessageManager) {
         this.metaInfoService = new DefaultMetaInfoService(metaServer);
+        this.orderedMessageManager = orderedMessageManager;
         this.brokerService = new BrokerServiceImpl(metaInfoService);
         this.pullService = new PullService();
         this.ackService = new AckService(this.brokerService);
@@ -83,8 +92,44 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         this.brokerService.setAppCode(appCode);
     }
 
+    private class PullEntryCreator implements MetaInfoClient.ResponseSubscriber {
+
+        private String subject;
+        private String group;
+        private RegistParam registParam;
+
+        public PullEntryCreator(String subject, String group, RegistParam registParam) {
+            this.subject = subject;
+            this.group = group;
+            this.registParam = registParam;
+        }
+
+        @Override
+        public void onResponse(MetaInfoResponse response) {
+            Set<Integer> orderedPhysicalPartitions = getOrderedPhysicalPartitions(subject, group, clientId);
+
+            if (orderedPhysicalPartitions != null) {
+                for (Integer partition : orderedPhysicalPartitions) {
+                    String orderedSubject = OrderedMessageUtils.getOrderedMessageSubject(subject, partition);
+                    registerPullEntry(orderedSubject, group, registParam);
+                }
+            } else {
+                registerPullEntry(subject, group, registParam);
+            }
+        }
+    }
+
     @Override
     public synchronized void register(String subject, String group, RegistParam param) {
+        // TODO(zhenwei.liu) 想想 PullConsumer 是否需要重写 注册/心跳 逻辑
+        // TODO(zhenwei.liu) 改一下 Producer 的心跳注册逻辑
+        // TODO(zhewnei.liu) 如果 producer 发消息是发现 brokerService 信息为空, 需要发消息失败
+        // 首先向 meta server 注册, 只有注册成功才往下一步走
+        metaInfoService.registerHeartbeat(subject, group, ClientType.CONSUMER, appCode);
+        metaInfoService.registerResponseSubscriber(new PullEntryCreator(subject, group, param));
+    }
+
+    private synchronized void registerPullEntry(String subject, String group, RegistParam param) {
         String env;
         String subEnv;
         if (envProvider != null && !Strings.isNullOrEmpty(env = envProvider.env(subject))) {
@@ -98,6 +143,16 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         registerPullEntry(subject, group, param, new AlwaysPullStrategy());
         if (RetrySubjectUtils.isDeadRetrySubject(subject)) return;
         registerPullEntry(RetrySubjectUtils.buildRetrySubject(subject, group), group, param, new WeightPullStrategy());
+
+    }
+
+    private Set<Integer> getOrderedPhysicalPartitions(String subject, String group, String clientId) {
+        // 顺序消息拆分主题
+        PartitionAllocation partitionAllocation = orderedMessageManager.getPartitionAllocation(subject, group);
+        if (partitionAllocation != null) {
+            return partitionAllocation.getAllocationDetail().getClientId2PhysicalPartitions().get(clientId);
+        }
+        return null;
     }
 
     private String toSubEnvIsolationGroup(final String originGroup, final String env, final String subEnv) {

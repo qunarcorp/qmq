@@ -23,7 +23,7 @@ import qunar.tc.qmq.meta.PartitionAllocation;
 /**
  * @author yiqun.fan create on 17-8-31.
  */
-public abstract class MetaInfoResponse {
+public class MetaInfoResponse {
     private long timestamp;
     private String subject;
     private String consumerGroup;

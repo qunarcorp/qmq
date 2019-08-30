@@ -16,26 +16,22 @@
 
 package qunar.tc.qmq.metainfoclient;
 
-import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.eventbus.EventBus;
+import com.google.common.util.concurrent.ListenableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.base.OnOfflineState;
-import qunar.tc.qmq.broker.BrokerClusterInfo;
-import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
-import qunar.tc.qmq.meta.*;
+import qunar.tc.qmq.meta.MetaServerLocator;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.protocol.MetaInfoResponse;
 import qunar.tc.qmq.protocol.consumer.ConsumerMetaInfoResponse;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
+import qunar.tc.qmq.protocol.producer.ProducerMetaInfoResponse;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -48,16 +44,14 @@ import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_GROUP_ARRAY;
 /**
  * @author yiqun.fan create on 17-8-31.
  */
-public class DefaultMetaInfoService implements MetaInfoClient.ResponseSubscriber, MetaInfoService {
+public class DefaultMetaInfoService implements MetaInfoService, MetaInfoClient.ResponseSubscriber {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultMetaInfoService.class);
 
     private static final long REFRESH_INTERVAL_SECONDS = 60;
 
-    private final EventBus eventBus = new EventBus("meta-info");
-
-    private final ConcurrentHashMap<String, MetaInfoRequestParam> metaInfoRequests = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, MetaInfoRequestParam> orderedMetaInfoRequests = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, MetaInfoRequestParam> heartbeatRequests = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, MetaInfoRequestParam> orderedHeartbeatRequests = new ConcurrentHashMap<>();
 
     private final ReentrantLock updateLock = new ReentrantLock();
 
@@ -68,8 +62,8 @@ public class DefaultMetaInfoService implements MetaInfoClient.ResponseSubscriber
     private ConsumerStateChangedListener consumerStateChangedListener;
     private ConsumerOnlineStateManager consumerOnlineStateManager = DefaultConsumerOnlineStateManager.getInstance();
 
-    private ScheduledExecutorService metaInfoRequestExecutor;
-    private ScheduledExecutorService orderedMetaInfoRequestExecutor;
+    private ScheduledExecutorService heartbeatExecutor;
+    private ScheduledExecutorService orderedHeartbeatExecutor;
 
     private String clientId;
     private String metaServer;
@@ -77,32 +71,23 @@ public class DefaultMetaInfoService implements MetaInfoClient.ResponseSubscriber
     public DefaultMetaInfoService(String metaServer) {
         this.metaServer = metaServer;
         this.metaInfoClient = MetaInfoClientNettyImpl.getClient(new MetaServerLocator(this.metaServer));
+        this.metaInfoClient.registerResponseSubscriber(this);
     }
 
     public void init() {
-        Preconditions.checkNotNull(metaServer, "meta server必须提供");
-        this.metaInfoClient.registerResponseSubscriber(this);
-        this.metaInfoRequestExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("qmq-meta-refresh"));
-        this.metaInfoRequestExecutor.scheduleAtFixedRate(() -> checkSubjectMetaInfo(metaInfoRequests), REFRESH_INTERVAL_SECONDS, REFRESH_INTERVAL_SECONDS, TimeUnit.SECONDS);
-        this.orderedMetaInfoRequestExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("qmq-meta-refresh-ordered"));
-        this.orderedMetaInfoRequestExecutor.scheduleAtFixedRate(() -> checkSubjectMetaInfo(orderedMetaInfoRequests), ORDERED_CLIENT_HEARTBEAT_INTERVAL_SECS, ORDERED_CLIENT_HEARTBEAT_INTERVAL_SECS, TimeUnit.SECONDS);
+        this.heartbeatExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("qmq-client-heartbeat-%s"));
+        this.heartbeatExecutor.scheduleAtFixedRate(() -> heartbeat(heartbeatRequests), REFRESH_INTERVAL_SECONDS, REFRESH_INTERVAL_SECONDS, TimeUnit.SECONDS);
+        this.orderedHeartbeatExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("qmq-client-heartbeat-order-%s"));
+        this.orderedHeartbeatExecutor.scheduleAtFixedRate(() -> heartbeat(orderedHeartbeatRequests), ORDERED_CLIENT_HEARTBEAT_INTERVAL_SECS, ORDERED_CLIENT_HEARTBEAT_INTERVAL_SECS, TimeUnit.SECONDS);
     }
 
     public void registerResponseSubscriber(MetaInfoClient.ResponseSubscriber subscriber) {
         this.metaInfoClient.registerResponseSubscriber(subscriber);
     }
 
-    public void register(Object subscriber) {
-        eventBus.register(subscriber);
-    }
-
-    @Override
-    public boolean registerMetaInfoRequest(MetaInfoRequestParam param) {
+    private boolean registerHeartbeat(MetaInfoRequestParam param) {
         String key = createKey(param);
-        if (metaInfoRequests.containsKey(key) || orderedMetaInfoRequests.containsKey(key)) {
-            return false;
-        }
-        return metaInfoRequests.put(key, param) == null;
+        return heartbeatRequests.put(key, param) == null;
     }
 
     private String createKey(MetaInfoRequestParam param) {
@@ -114,31 +99,48 @@ public class DefaultMetaInfoService implements MetaInfoClient.ResponseSubscriber
     }
 
     @Override
-    public void triggerConsumerMetaInfoRequest(boolean isOrdered, ClientRequestType requestType) {
-        if (isOrdered) {
-            this.orderedMetaInfoRequestExecutor.execute(() -> checkSubjectMetaInfo(this.orderedMetaInfoRequests, requestType));
-        } else {
-            this.metaInfoRequestExecutor.execute(() -> checkSubjectMetaInfo(this.metaInfoRequests, requestType));
-        }
+    public void triggerConsumerMetaInfoRequest(ClientRequestType requestType) {
+        this.orderedHeartbeatExecutor.execute(() -> request(this.orderedHeartbeatRequests, requestType));
+        this.heartbeatExecutor.execute(() -> request(this.heartbeatRequests, requestType));
     }
 
-    public void checkSubjectMetaInfo(ConcurrentHashMap<String, MetaInfoRequestParam> requestMap) {
+    /**
+     * 注册心跳
+     *
+     * @param subject    subject
+     * @param group      consumer group
+     * @param clientType client type
+     * @param appCode    app code
+     */
+    @Override
+    public void registerHeartbeat(String subject, String group, ClientType clientType, String appCode) {
+        // 注册心跳
+        DefaultMetaInfoService.MetaInfoRequestParam heartbeatParam =
+                DefaultMetaInfoService.buildRequestParam(clientType, subject, group, appCode);
+        this.registerHeartbeat(heartbeatParam);
+        // 注册一个手动触发一次心跳任务
+        triggerConsumerMetaInfoRequest(ClientRequestType.ONLINE);
+    }
+
+    private boolean isOrdered(MetaInfoResponse response) {
+        if (response instanceof ProducerMetaInfoResponse) {
+            return ((ProducerMetaInfoResponse) response).getPartitionMapping() != null;
+        } else if (response instanceof ConsumerMetaInfoResponse) {
+            return ((ConsumerMetaInfoResponse) response).getPartitionAllocation() != null;
+        }
+        throw new IllegalStateException(String.format("无法识别的 response %s", response.getClass()));
+    }
+
+    private void heartbeat(ConcurrentHashMap<String, MetaInfoRequestParam> requestMap) {
         for (MetaInfoRequestParam param : requestMap.values()) {
-            requestWrapper(param);
+            heartbeatRequest(param);
         }
     }
 
-    public void checkSubjectMetaInfo(ConcurrentHashMap<String, MetaInfoRequestParam> requestMap, ClientRequestType requestType) {
-        for (MetaInfoRequestParam param : requestMap.values()) {
-            request(param, requestType);
-        }
-    }
-
-    public void requestWrapper(MetaInfoRequestParam param) {
+    private void heartbeatRequest(MetaInfoRequestParam param) {
         try {
             Metrics.counter("qmq_pull_metainfo_request_count", SUBJECT_GROUP_ARRAY, new String[]{param.subject, param.group}).inc();
-            boolean firstAdd = tryAddRequest(param);
-            ClientRequestType requestType = firstAdd ? ClientRequestType.ONLINE : ClientRequestType.HEARTBEAT;
+            ClientRequestType requestType = param.hasOnline() ? ClientRequestType.HEARTBEAT : ClientRequestType.ONLINE;
             request(param, requestType);
         } catch (Exception e) {
             LOGGER.debug("request meta info exception. {} {} {}", param.clientType.name(), param.subject, param.group, e);
@@ -146,45 +148,36 @@ public class DefaultMetaInfoService implements MetaInfoClient.ResponseSubscriber
         }
     }
 
-    private void request(MetaInfoRequestParam param, ClientRequestType requestType) {
+    public void request(ConcurrentHashMap<String, MetaInfoRequestParam> requestMap, ClientRequestType requestType) {
+        for (MetaInfoRequestParam param : requestMap.values()) {
+            request(param, requestType);
+        }
+    }
+
+    public ListenableFuture<MetaInfoResponse> request(MetaInfoRequestParam param, ClientRequestType requestType) {
+        return request(
+                param.getSubject(),
+                param.getGroup(),
+                param.getClientType(),
+                param.getAppCode(),
+                requestType
+        );
+    }
+
+    @Override
+    public ListenableFuture<MetaInfoResponse> request(String subject, String group, ClientType clientType, String appCode, ClientRequestType requestType) {
         MetaInfoRequest request = new MetaInfoRequest();
-        request.setSubject(param.subject);
-        request.setClientType(param.clientType);
+        request.setSubject(subject);
+        request.setClientType(clientType);
         request.setClientId(this.clientId);
-        request.setConsumerGroup(param.group);
-        request.setAppCode(param.getAppCode());
-        boolean online = consumerOnlineStateManager.isOnline(param.subject, param.group, this.clientId);
+        request.setConsumerGroup(group);
+        request.setAppCode(appCode);
+        boolean online = consumerOnlineStateManager.isOnline(subject, group, this.clientId);
         request.setOnlineState(online ? OnOfflineState.ONLINE : OnOfflineState.OFFLINE);
         request.setRequestType(requestType);
 
         LOGGER.debug("meta info request: {}", request);
-        metaInfoClient.sendMetaInfoRequest(request);
-    }
-
-    @Override
-    public void onResponse(MetaInfoResponse response) {
-
-        if (response instanceof ConsumerMetaInfoResponse) {
-            ConsumerMetaInfoResponse consumerResponse = (ConsumerMetaInfoResponse) response;
-            PartitionAllocation partitionAllocation = consumerResponse.getPartitionAllocation();
-            if (partitionAllocation != null) {
-                String key = createKey(response.getSubject(), response.getConsumerGroup());
-                MetaInfoRequestParam param = metaInfoRequests.remove(key);
-                if (param != null) {
-                    orderedMetaInfoRequests.put(key, param);
-                }
-            }
-        }
-
-        updateConsumerState(response);
-
-        MetaInfo metaInfo = parseResponse(response);
-        if (metaInfo != null) {
-            LOGGER.debug("meta info: {}", metaInfo);
-            eventBus.post(metaInfo);
-        } else {
-            LOGGER.warn("request meta info fail, will retry in a few seconds.");
-        }
+        return metaInfoClient.sendMetaInfoRequest(request);
     }
 
     private void updateConsumerState(MetaInfoResponse response) {
@@ -216,52 +209,6 @@ public class DefaultMetaInfoService implements MetaInfoClient.ResponseSubscriber
         return thisTimestamp < lastUpdateTimestamp;
     }
 
-    private MetaInfo parseResponse(MetaInfoResponse response) {
-        if (response == null) return null;
-
-        String subject = response.getSubject();
-        if (Strings.isNullOrEmpty(subject)) return null;
-
-        ClientType clientType = parseClientType(response);
-        if (clientType == null) return null;
-
-        BrokerCluster cluster = response.getBrokerCluster();
-        List<BrokerGroup> groups = cluster == null ? null : cluster.getBrokerGroups();
-        if (groups == null || groups.isEmpty()) {
-            return new MetaInfo(subject, clientType, new BrokerClusterInfo());
-        }
-
-        List<BrokerGroup> validBrokers = new ArrayList<>(groups.size());
-        for (BrokerGroup group : groups) {
-            if (inValid(group)) continue;
-
-            BrokerState state = group.getBrokerState();
-            if (clientType.isConsumer() && state.canRead()) {
-                validBrokers.add(group);
-            } else if (clientType.isProducer() && state.canWrite()) {
-                validBrokers.add(group);
-            }
-        }
-        if (validBrokers.isEmpty()) {
-            return new MetaInfo(subject, clientType, new BrokerClusterInfo());
-        }
-        List<BrokerGroupInfo> groupInfos = new ArrayList<>(validBrokers.size());
-        for (int i = 0; i < validBrokers.size(); i++) {
-            BrokerGroup bg = validBrokers.get(i);
-            groupInfos.add(new BrokerGroupInfo(i, bg.getGroupName(), bg.getMaster(), bg.getSlaves()));
-        }
-        BrokerClusterInfo clusterInfo = new BrokerClusterInfo(groupInfos);
-        return new MetaInfo(subject, clientType, clusterInfo);
-    }
-
-    private boolean inValid(BrokerGroup group) {
-        return group == null || Strings.isNullOrEmpty(group.getGroupName()) || Strings.isNullOrEmpty(group.getMaster());
-    }
-
-    private ClientType parseClientType(MetaInfoResponse response) {
-        return ClientType.of(response.getClientTypeCode());
-    }
-
     public static MetaInfoRequestParam buildRequestParam(ClientType clientType, String subject, String group, String appCode) {
         return new MetaInfoRequestParam(clientType, subject, group, appCode);
     }
@@ -284,17 +231,36 @@ public class DefaultMetaInfoService implements MetaInfoClient.ResponseSubscriber
         this.clientId = clientId;
     }
 
+    @Override
+    public void onResponse(MetaInfoResponse response) {
+        updateConsumerState(response);
+        String heartbeatKey = createKey(response.getSubject(), response.getConsumerGroup());
+        if (isOrdered(response)) {
+            // 转移 order 心跳请求到 order map
+            MetaInfoRequestParam param = heartbeatRequests.remove(heartbeatKey);
+            if (param != null) {
+                param.setHasOnline(true);
+                orderedHeartbeatRequests.put(heartbeatKey, param);
+            }
+        } else {
+            MetaInfoRequestParam param = heartbeatRequests.get(heartbeatKey);
+            param.setHasOnline(true);
+        }
+    }
+
     public static final class MetaInfoRequestParam {
         private final ClientType clientType;
         private final String subject;
         private final String group;
         private final String appCode;
+        private boolean hasOnline;
 
         MetaInfoRequestParam(ClientType clientType, String subject, String group, String appCode) {
             this.clientType = clientType;
             this.subject = Strings.nullToEmpty(subject);
             this.group = Strings.nullToEmpty(group);
             this.appCode = appCode;
+            this.hasOnline = false;
         }
 
         public ClientType getClientType() {
@@ -311,6 +277,15 @@ public class DefaultMetaInfoService implements MetaInfoClient.ResponseSubscriber
 
         public String getAppCode() {
             return appCode;
+        }
+
+        public boolean hasOnline() {
+            return hasOnline;
+        }
+
+        public MetaInfoRequestParam setHasOnline(boolean hasOnline) {
+            this.hasOnline = hasOnline;
+            return this;
         }
 
         @Override

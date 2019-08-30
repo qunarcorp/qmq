@@ -16,64 +16,47 @@
 
 package qunar.tc.qmq.broker.impl;
 
-import com.google.common.eventbus.Subscribe;
+import com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.common.MapKeyBuilder;
-import qunar.tc.qmq.metainfoclient.MetaInfo;
+import qunar.tc.qmq.meta.BrokerCluster;
+import qunar.tc.qmq.meta.BrokerGroup;
+import qunar.tc.qmq.meta.BrokerState;
 import qunar.tc.qmq.metainfoclient.DefaultMetaInfoService;
+import qunar.tc.qmq.metainfoclient.MetaInfo;
+import qunar.tc.qmq.metainfoclient.MetaInfoClient;
+import qunar.tc.qmq.protocol.MetaInfoResponse;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * @author yiqun.fan create on 17-8-18.
  */
-public class BrokerServiceImpl implements BrokerService {
+public class BrokerServiceImpl implements BrokerService, MetaInfoClient.ResponseSubscriber {
     private static final Logger LOGGER = LoggerFactory.getLogger(BrokerServiceImpl.class);
 
-    private final ConcurrentMap<String, ClusterFuture> clusterMap = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, BrokerClusterInfo> clusterMap = new ConcurrentHashMap<>();
 
     private final DefaultMetaInfoService metaInfoService;
     private String appCode;
 
     public BrokerServiceImpl(DefaultMetaInfoService metaInfoService) {
         this.metaInfoService = metaInfoService;
-        this.metaInfoService.register(this);
+        this.metaInfoService.registerResponseSubscriber(this);
     }
 
-    @Subscribe
-    public void onReceiveMetaInfo(MetaInfo metaInfo) {
-        String key = MapKeyBuilder.buildMetaInfoKey(metaInfo.getClientType(), metaInfo.getSubject());
-        ClusterFuture future = clusterMap.get(key);
-        if (isEmptyCluster(metaInfo)) {
-            logMetaInfo(metaInfo, future);
-            return;
-        }
-        if (future == null) {
-            future = new ClusterFuture(metaInfo.getClusterInfo());
-            ClusterFuture oldFuture = clusterMap.putIfAbsent(key, future);
-            if (oldFuture != null) {
-                oldFuture.set(metaInfo.getClusterInfo());
-            }
-        } else {
-            updateOnDemand(future, metaInfo.getClusterInfo());
-        }
-    }
-
-    private void updateOnDemand(ClusterFuture future, BrokerClusterInfo clusterInfo) {
-        BrokerClusterInfo oldClusterInfo = future.cluster.get();
+    private void updateOnDemand(String key, BrokerClusterInfo clusterInfo) {
+        BrokerClusterInfo oldClusterInfo = clusterMap.putIfAbsent(key, clusterInfo);
         if (oldClusterInfo == null) {
-            future.set(clusterInfo);
             return;
         }
 
@@ -101,7 +84,7 @@ public class BrokerServiceImpl implements BrokerService {
         }
 
         BrokerClusterInfo updatedCluster = new BrokerClusterInfo(updated);
-        future.set(updatedCluster);
+        clusterMap.put(key, updatedCluster);
     }
 
     private boolean isEquals(BrokerClusterInfo oldClusterInfo, BrokerClusterInfo clusterInfo) {
@@ -117,8 +100,8 @@ public class BrokerServiceImpl implements BrokerService {
         return true;
     }
 
-    private void logMetaInfo(MetaInfo metaInfo, ClusterFuture future) {
-        if (future == null || future.cluster.get() == null) {
+    private void logMetaInfo(MetaInfo metaInfo, BrokerClusterInfo cluster) {
+        if (cluster == null) {
             LOGGER.error("meta server return empty broker, will retry in a few seconds. subject={}, client={}", metaInfo.getSubject(), metaInfo.getClientType());
         } else {
             LOGGER.info("meta server return empty broker, will retry in a few seconds. subject={}, client={}", metaInfo.getSubject(), metaInfo.getClientType());
@@ -139,14 +122,7 @@ public class BrokerServiceImpl implements BrokerService {
     public BrokerClusterInfo getClusterBySubject(ClientType clientType, String subject, String group) {
         // 这个key上加group不兼容MetaInfoResponse
         String key = MapKeyBuilder.buildMetaInfoKey(clientType, subject);
-        ClusterFuture future = clusterMap.get(key);
-        DefaultMetaInfoService.MetaInfoRequestParam requestParam = DefaultMetaInfoService.buildRequestParam(clientType, subject, group, appCode);
-        if (future == null) {
-            future = request(requestParam, false);
-        } else {
-            metaInfoService.tryAddRequest(requestParam);
-        }
-        return future.get();
+        return clusterMap.get(key);
     }
 
     @Override
@@ -156,7 +132,7 @@ public class BrokerServiceImpl implements BrokerService {
 
     @Override
     public void refresh(ClientType clientType, String subject, String group) {
-        request(DefaultMetaInfoService.buildRequestParam(clientType, subject, group, appCode), true);
+        metaInfoService.request(DefaultMetaInfoService.buildRequestParam(clientType, subject, group, appCode), ClientRequestType.HEARTBEAT);
     }
 
     @Override
@@ -164,56 +140,66 @@ public class BrokerServiceImpl implements BrokerService {
         this.appCode = appCode;
     }
 
-    private ClusterFuture request(DefaultMetaInfoService.MetaInfoRequestParam requestParam, boolean refresh) {
-        String key = MapKeyBuilder.buildMetaInfoKey(requestParam.getClientType(), requestParam.getSubject());
-        ClusterFuture newFuture = new ClusterFuture();
-        ClusterFuture oldFuture = clusterMap.putIfAbsent(key, newFuture);
-        if (oldFuture != null) {
-            if (refresh && !oldFuture.inRequest.get()) {
-                oldFuture.inRequest.set(true);
-                metaInfoService.requestWrapper(requestParam);
-            } else {
-                metaInfoService.tryAddRequest(requestParam);
+    @Override
+    public void onResponse(MetaInfoResponse response) {
+        MetaInfo metaInfo = parseResponse(response);
+        if (metaInfo != null) {
+            LOGGER.debug("meta info: {}", metaInfo);
+            String key = MapKeyBuilder.buildMetaInfoKey(metaInfo.getClientType(), metaInfo.getSubject());
+            BrokerClusterInfo brokerClusterInfo = clusterMap.get(key);
+            if (isEmptyCluster(metaInfo)) {
+                logMetaInfo(metaInfo, brokerClusterInfo);
+                return;
             }
-            return oldFuture;
+            updateOnDemand(key, metaInfo.getClusterInfo());
+        } else {
+            LOGGER.warn("request meta info fail, will retry in a few seconds.");
         }
-        metaInfoService.requestWrapper(requestParam);
-        return newFuture;
     }
 
-    private static final class ClusterFuture {
-        private final CountDownLatch latch;
-        private final AtomicReference<BrokerClusterInfo> cluster;
-        private final AtomicBoolean inRequest;
+    private MetaInfo parseResponse(MetaInfoResponse response) {
+        if (response == null) return null;
 
-        ClusterFuture() {
-            latch = new CountDownLatch(1);
-            cluster = new AtomicReference<>(null);
-            inRequest = new AtomicBoolean(true);
+        String subject = response.getSubject();
+        if (Strings.isNullOrEmpty(subject)) return null;
+
+        ClientType clientType = parseClientType(response);
+        if (clientType == null) return null;
+
+        BrokerCluster cluster = response.getBrokerCluster();
+        List<BrokerGroup> groups = cluster == null ? null : cluster.getBrokerGroups();
+        if (groups == null || groups.isEmpty()) {
+            return new MetaInfo(subject, clientType, new BrokerClusterInfo());
         }
 
-        ClusterFuture(BrokerClusterInfo cluster) {
-            latch = new CountDownLatch(0);
-            this.cluster = new AtomicReference<>(cluster);
-            inRequest = new AtomicBoolean(false);
-        }
+        List<BrokerGroup> validBrokers = new ArrayList<>(groups.size());
+        for (BrokerGroup group : groups) {
+            if (inValid(group)) continue;
 
-        void set(BrokerClusterInfo cluster) {
-            this.cluster.set(cluster);
-            latch.countDown();
-            inRequest.set(false);
-        }
-
-        public BrokerClusterInfo get() {
-            while (true) {
-                try {
-                    latch.await();
-                    break;
-                } catch (Exception e) {
-                    LOGGER.warn("get broker cluster info be interrupted, and ignore");
-                }
+            BrokerState state = group.getBrokerState();
+            if (clientType.isConsumer() && state.canRead()) {
+                validBrokers.add(group);
+            } else if (clientType.isProducer() && state.canWrite()) {
+                validBrokers.add(group);
             }
-            return cluster.get();
         }
+        if (validBrokers.isEmpty()) {
+            return new MetaInfo(subject, clientType, new BrokerClusterInfo());
+        }
+        List<BrokerGroupInfo> groupInfos = new ArrayList<>(validBrokers.size());
+        for (int i = 0; i < validBrokers.size(); i++) {
+            BrokerGroup bg = validBrokers.get(i);
+            groupInfos.add(new BrokerGroupInfo(i, bg.getGroupName(), bg.getMaster(), bg.getSlaves()));
+        }
+        BrokerClusterInfo clusterInfo = new BrokerClusterInfo(groupInfos);
+        return new MetaInfo(subject, clientType, clusterInfo);
+    }
+
+    private boolean inValid(BrokerGroup group) {
+        return group == null || Strings.isNullOrEmpty(group.getGroupName()) || Strings.isNullOrEmpty(group.getMaster());
+    }
+
+    private ClientType parseClientType(MetaInfoResponse response) {
+        return ClientType.of(response.getClientTypeCode());
     }
 }

@@ -16,10 +16,13 @@
 
 package qunar.tc.qmq.metainfoclient;
 
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.util.internal.ConcurrentSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.base.OnOfflineState;
@@ -28,6 +31,7 @@ import qunar.tc.qmq.netty.NettyClientConfig;
 import qunar.tc.qmq.netty.exception.ClientSendException;
 import qunar.tc.qmq.protocol.CommandCode;
 import qunar.tc.qmq.protocol.Datagram;
+import qunar.tc.qmq.protocol.MetaInfoResponse;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequestPayloadHolder;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
@@ -63,25 +67,29 @@ class MetaInfoClientNettyImpl extends MetaServerNettyClient implements MetaInfoC
     }
 
     private static final String META_INFO_RESPONSE_DECODER_NAME = "metaInfoResponseDecoder";
-    private MetaInfoResponseDecoder metaInfoResponseDecoder = new MetaInfoResponseDecoder();
+    private ConcurrentSet<ResponseSubscriber> responseSubscribers = new ConcurrentSet<>();
 
     @Override
-    public void sendMetaInfoRequest(final MetaInfoRequest request) {
+    public ListenableFuture<MetaInfoResponse> sendMetaInfoRequest(final MetaInfoRequest request) {
         try {
+            SettableFuture<MetaInfoResponse> future = SettableFuture.create();
+            MetaInfoResponseDecoder responseDecoder = new MetaInfoResponseDecoder(future, responseSubscribers);
             sendRequest(
                     CommandCode.CLIENT_REGISTER,
                     META_INFO_RESPONSE_DECODER_NAME,
-                    metaInfoResponseDecoder,
+                    responseDecoder,
                     new MetaInfoRequestPayloadHolder(request)
             );
+            return future;
         } catch (Exception e) {
             LOGGER.debug("request meta info exception. {}", request, e);
+            return Futures.immediateFailedFuture(e);
         }
     }
 
     @Override
     public void registerResponseSubscriber(ResponseSubscriber subscriber) {
-        metaInfoResponseDecoder.registerResponseSubscriber(subscriber);
+        responseSubscribers.add(subscriber);
     }
 
     private static final String QUERY_ORDERED_SUBJECT_DECODER_NAME = "queryOrderedSubjectDecoderName";

@@ -16,6 +16,7 @@
 
 package qunar.tc.qmq.metainfoclient;
 
+import com.google.common.util.concurrent.ListenableFuture;
 import qunar.tc.qmq.base.OnOfflineState;
 import qunar.tc.qmq.netty.exception.ClientSendException;
 import qunar.tc.qmq.protocol.MetaInfoResponse;
@@ -32,7 +33,7 @@ public interface MetaInfoClient {
 
     boolean queryOrderedSubject(String subject) throws MetaServerNotFoundException, ClientSendException, ExecutionException, InterruptedException;
 
-    void sendMetaInfoRequest(MetaInfoRequest request);
+    ListenableFuture<MetaInfoResponse> sendMetaInfoRequest(MetaInfoRequest request);
 
     void registerResponseSubscriber(ResponseSubscriber receiver);
 

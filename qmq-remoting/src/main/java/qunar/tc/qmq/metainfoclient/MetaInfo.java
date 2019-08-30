@@ -27,7 +27,7 @@ public class MetaInfo {
     private final ClientType clientType;
     private final BrokerClusterInfo clusterInfo;
 
-    MetaInfo(String subject, ClientType clientType, BrokerClusterInfo clusterInfo) {
+    public MetaInfo(String subject, ClientType clientType, BrokerClusterInfo clusterInfo) {
         this.subject = subject;
         this.clientType = clientType;
         this.clusterInfo = clusterInfo;

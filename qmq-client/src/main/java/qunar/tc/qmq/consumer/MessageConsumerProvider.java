@@ -56,7 +56,7 @@ public class MessageConsumerProvider implements MessageConsumer {
 
     public MessageConsumerProvider(String metaServer) {
         this.clientIdProvider = ClientIdProviderFactory.createDefault();
-        this.pullRegister = new PullRegister(metaServer);
+        this.pullRegister = new PullRegister(metaServer, orderedMessageManager);
         this.pullConsumerFactory = new PullConsumerFactory(this.pullRegister);
     }
 
