@@ -111,7 +111,7 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
             onOfflineState = OnOfflineState.OFFLINE;
             return buildResponse(request, -2, onOfflineState, new BrokerCluster(new ArrayList<>()));
         } finally {
-            if (ClientRequestType.HEARTBEAT.getCode() == clientRequestType) {
+            if (ClientRequestType.HEARTBEAT.getCode() == clientRequestType || ClientRequestType.SWITCH_STATE.getCode() == clientRequestType) {
                 // 上线的时候如果出现异常可能会将客户端上线状态改为下线
                 request.setOnlineState(onOfflineState);
                 EventDispatcher.dispatch(request);

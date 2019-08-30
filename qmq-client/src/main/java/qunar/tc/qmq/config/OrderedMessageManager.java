@@ -1,5 +1,6 @@
 package qunar.tc.qmq.config;
 
+import qunar.tc.qmq.meta.PartitionAllocation;
 import qunar.tc.qmq.meta.PartitionMapping;
 
 /**
@@ -8,11 +9,7 @@ import qunar.tc.qmq.meta.PartitionMapping;
  */
 public interface OrderedMessageManager {
 
-    /**
-     * 根据主题获取 partition 数
-     *
-     * @param subject 主题
-     * @return partition 数
-     */
     PartitionMapping getPartitionMapping(String subject);
+
+    PartitionAllocation getPartitionAllocation(String subject, String group);
 }

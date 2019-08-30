@@ -217,7 +217,7 @@ public class ServerWrapper implements Disposable {
     private void startServerHandlers() {
         final ActorSystem actorSystem = new ActorSystem("qmq");
 
-        final PullMessageProcessor pullMessageProcessor = new PullMessageProcessor(config, actorSystem, messageStoreWrapper, subscriberStatusChecker);
+        final PullMessageProcessor pullMessageProcessor = new PullMessageProcessor(config, actorSystem, messageStoreWrapper, subscriberStatusChecker, orderedMessageLockManager);
         this.storage.registerEventListener(ConsumerLogWroteEvent.class, pullMessageProcessor);
         final SendMessageProcessor sendMessageProcessor = new SendMessageProcessor(sendMessageWorker);
         final AckMessageProcessor ackMessageProcessor = new AckMessageProcessor(actorSystem, consumerSequenceManager, subscriberStatusChecker);

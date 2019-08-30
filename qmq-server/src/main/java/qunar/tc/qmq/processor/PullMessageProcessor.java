@@ -34,6 +34,7 @@ import qunar.tc.qmq.concurrent.ActorSystem;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.consumer.SubscriberStatusChecker;
 import qunar.tc.qmq.monitor.QMon;
+import qunar.tc.qmq.order.OrderedMessageLockManager;
 import qunar.tc.qmq.protocol.CommandCode;
 import qunar.tc.qmq.protocol.Datagram;
 import qunar.tc.qmq.protocol.RemotingCommand;
@@ -79,14 +80,17 @@ public class PullMessageProcessor extends AbstractRequestProcessor implements Fi
     private final SubscriberStatusChecker subscriberStatusChecker;
     private final PullMessageWorker pullMessageWorker;
     private final PullRequestSerde pullRequestSerde;
+    private final OrderedMessageLockManager orderedMessageLockManager;
 
     public PullMessageProcessor(final DynamicConfig config,
                                 final ActorSystem actorSystem,
                                 final MessageStoreWrapper messageStoreWrapper,
-                                final SubscriberStatusChecker subscriberStatusChecker) {
+                                final SubscriberStatusChecker subscriberStatusChecker,
+                                final OrderedMessageLockManager orderedMessageLockManager) {
         this.config = config;
         this.actorSystem = actorSystem;
         this.subscriberStatusChecker = subscriberStatusChecker;
+        this.orderedMessageLockManager = orderedMessageLockManager;
         this.pullMessageWorker = new PullMessageWorker(messageStoreWrapper, actorSystem);
         this.pullRequestSerde = new PullRequestSerde();
         this.timer.start();
@@ -100,7 +104,17 @@ public class PullMessageProcessor extends AbstractRequestProcessor implements Fi
         QMon.pullRequestCountInc(pullRequest.getSubject(), pullRequest.getGroup());
 
         if (!checkAndRepairPullRequest(pullRequest)) {
-            return CompletableFuture.completedFuture(crateErrorParamResult(command));
+            return CompletableFuture.completedFuture(crateEmptyResult(command));
+        }
+
+        if (pullRequest.isOrdered()) {
+            String subject = pullRequest.getSubject();
+            String group = pullRequest.getGroup();
+            String consumerId = pullRequest.getConsumerId();
+            if (!orderedMessageLockManager.acquireLock(subject, group, consumerId)) {
+                // 获取锁失败
+                return CompletableFuture.completedFuture(crateEmptyResult(command));
+            }
         }
 
         subscribe(pullRequest);
@@ -162,7 +176,7 @@ public class PullMessageProcessor extends AbstractRequestProcessor implements Fi
         return false;
     }
 
-    private Datagram crateErrorParamResult(RemotingCommand command) {
+    private Datagram crateEmptyResult(RemotingCommand command) {
         return RemotingBuilder.buildEmptyResponseDatagram(CommandCode.NO_MESSAGE, command.getHeader());
     }
 

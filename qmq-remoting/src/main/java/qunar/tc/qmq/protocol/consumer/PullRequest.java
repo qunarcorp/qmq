@@ -31,6 +31,7 @@ public class PullRequest {
     private long pullOffsetLast;
     private String consumerId;
     private boolean isBroadcast;
+    private boolean isOrdered;
     private List<PullFilter> filters;
 
     public String getSubject() {
@@ -111,6 +112,15 @@ public class PullRequest {
 
     public void setFilters(final List<PullFilter> filters) {
         this.filters = filters;
+    }
+
+    public boolean isOrdered() {
+        return isOrdered;
+    }
+
+    public PullRequest setOrdered(boolean ordered) {
+        isOrdered = ordered;
+        return this;
     }
 
     @Override

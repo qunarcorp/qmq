@@ -96,7 +96,8 @@ public class DefaultMetaInfoService implements MetaInfoClient.ResponseSubscriber
         eventBus.register(subscriber);
     }
 
-    public boolean tryAddRequest(MetaInfoRequestParam param) {
+    @Override
+    public boolean registerMetaInfoRequest(MetaInfoRequestParam param) {
         String key = createKey(param);
         if (metaInfoRequests.containsKey(key) || orderedMetaInfoRequests.containsKey(key)) {
             return false;

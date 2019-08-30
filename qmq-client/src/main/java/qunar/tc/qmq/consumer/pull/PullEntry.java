@@ -25,7 +25,9 @@ import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.common.StatusSource;
 import qunar.tc.qmq.common.SwitchWaiter;
+import qunar.tc.qmq.config.OrderedMessageManager;
 import qunar.tc.qmq.config.PullSubjectsConfig;
+import qunar.tc.qmq.meta.PartitionAllocation;
 import qunar.tc.qmq.metainfoclient.ConsumerOnlineStateManager;
 import qunar.tc.qmq.metainfoclient.DefaultConsumerOnlineStateManager;
 import qunar.tc.qmq.metainfoclient.MetaInfoService;
@@ -80,9 +82,11 @@ class PullEntry extends AbstractPullEntry implements Runnable {
     private final String logType;
     private final MetaInfoService metaInfoService;
     private final PullStrategy pullStrategy;
+    private final OrderedMessageManager orderedMessageManager;
 
     private PullEntry() {
         super("", "", null, null, null);
+        orderedMessageManager = null;
         metaInfoService = null;
         pushConsumer = null;
         pullBatchSize = pullTimeout = ackNosendLimit = null;
@@ -92,7 +96,7 @@ class PullEntry extends AbstractPullEntry implements Runnable {
         pullStrategy = null;
     }
 
-    PullEntry(PushConsumer pushConsumer, PullService pullService, AckService ackService, MetaInfoService metaInfoService, BrokerService brokerService, PullStrategy pullStrategy) {
+    PullEntry(PushConsumer pushConsumer, PullService pullService, AckService ackService, MetaInfoService metaInfoService, BrokerService brokerService, PullStrategy pullStrategy, OrderedMessageManager orderedMessageManager) {
         super(pushConsumer.subject(), pushConsumer.group(), pullService, ackService, brokerService);
         this.metaInfoService = metaInfoService;
         String subject = pushConsumer.subject();
@@ -103,6 +107,7 @@ class PullEntry extends AbstractPullEntry implements Runnable {
         this.pullTimeout = PullSubjectsConfig.get().getPullTimeout(realSubject);
         this.ackNosendLimit = PullSubjectsConfig.get().getAckNosendLimit(realSubject);
         this.pullStrategy = pullStrategy;
+        this.orderedMessageManager = orderedMessageManager;
 
         String[] values = new String[]{subject, group};
         this.pullRunCounter = Metrics.counter("qmq_pull_run_count", SUBJECT_GROUP_ARRAY, values);
@@ -150,11 +155,24 @@ class PullEntry extends AbstractPullEntry implements Runnable {
                 }
 
                 if (isRunning.get() && onlineSwitcher.waitOn()) {
+                    // 到这里一定以及收到 metaInfoResponse 且已经上线
+                    // 因为 onlineSwitcher 已经 online
                     doPull(doPullParam);
                 }
             } catch (Exception e) {
                 LOGGER.error("PullEntry run exception", e);
             }
+        }
+    }
+
+    // TODO(zhenwei.liu)
+    public void prepareOrderedConsumer() {
+        ConsumeParam consumeParam = pushConsumer.consumeParam();
+        String subject = consumeParam.getSubject();
+        String group = consumeParam.getGroup();
+        PartitionAllocation partitionAllocation = orderedMessageManager.getPartitionAllocation(subject, group);
+        if (partitionAllocation != null) {
+
         }
     }
 

@@ -9,4 +9,6 @@ import qunar.tc.qmq.base.ClientRequestType;
 public interface MetaInfoService {
 
     void triggerConsumerMetaInfoRequest(boolean isOrdered, ClientRequestType requestType);
+
+    boolean registerMetaInfoRequest(DefaultMetaInfoService.MetaInfoRequestParam param);
 }
