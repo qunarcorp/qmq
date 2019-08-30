@@ -53,4 +53,6 @@ public interface OrderedMessageService {
     boolean updatePartitionAllocation(PartitionAllocation newAllocation, int baseVersion);
 
     List<ClientMetaInfo> getOnlineOrderedConsumers();
+
+    List<ClientMetaInfo> getOnlineOrderedConsumers(String subject, String consumerGroup);
 }

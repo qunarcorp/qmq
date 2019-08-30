@@ -47,7 +47,7 @@ public class PartitionAllocationTask {
         }, 0, 5, TimeUnit.SECONDS);
     }
 
-    private synchronized void updatePartitionAllocation() {
+    private void updatePartitionAllocation() {
         // 当前 client 在线列表
         List<ClientMetaInfo> onlineConsumers = orderedMessageService.getOnlineOrderedConsumers();
         // 当前分配情况
@@ -65,6 +65,11 @@ public class PartitionAllocationTask {
             String consumerGroup = groupOnlineConsumers.get(0).getConsumerGroup();
             reallocation(subject, consumerGroup, groupOnlineConsumers);
         }
+    }
+
+    public void reallocation(String subject, String consumerGroup) {
+        List<ClientMetaInfo> onlineConsumers = orderedMessageService.getOnlineOrderedConsumers(subject, consumerGroup);
+        reallocation(subject, consumerGroup, onlineConsumers);
     }
 
     public void reallocation(String subject, String consumerGroup, List<ClientMetaInfo> groupOnlineConsumers) {
@@ -100,6 +105,7 @@ public class PartitionAllocationTask {
 
         // 乐观锁更新
         if (orderedMessageService.updatePartitionAllocation(newAllocation, oldVersion)) {
+            // TODO(zhenwei.liu) 重分配成功后给 client 发个拉取通知?
             logger.info("分区重分配成功 subject {} group {} oldVersion {} detail {}",
                     subject, consumerGroup, oldVersion,
                     Arrays.toString(newAllocation.getAllocationDetail().getClientId2PhysicalPartitions().entrySet().toArray()));

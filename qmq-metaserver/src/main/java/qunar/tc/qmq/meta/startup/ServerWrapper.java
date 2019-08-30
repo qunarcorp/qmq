@@ -115,11 +115,11 @@ public class ServerWrapper implements Disposable {
         resources.add(brokerMetaManager);
         resources.add(metaNettyServer);
 
-        OrderedConsumerHeartbeatHandler orderedConsumerHeartbeatHandler = new OrderedConsumerHeartbeatHandler(cachedMetaInfoManager, clientMetaInfoStore);
-        EventDispatcher.register(orderedConsumerHeartbeatHandler);
-
         PartitionAllocationTask partitionAllocationTask = new PartitionAllocationTask(cachedMetaInfoManager);
         partitionAllocationTask.start();
+
+        OrderedConsumerHeartbeatHandler orderedConsumerHeartbeatHandler = new OrderedConsumerHeartbeatHandler(cachedMetaInfoManager, clientMetaInfoStore, partitionAllocationTask);
+        EventDispatcher.register(orderedConsumerHeartbeatHandler);
     }
 
     private SubjectRouter createSubjectRouter(CachedMetaInfoManager cachedMetaInfoManager, Store store) {

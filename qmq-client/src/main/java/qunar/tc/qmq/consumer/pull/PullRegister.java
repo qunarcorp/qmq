@@ -19,7 +19,6 @@ package qunar.tc.qmq.consumer.pull;
 import com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.base.OnOfflineState;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.broker.impl.BrokerServiceImpl;
 import qunar.tc.qmq.common.EnvProvider;
@@ -123,7 +122,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
 
     private PullEntry createAndSubmitPullEntry(String subject, String group, RegistParam param, PullStrategy pullStrategy) {
         PushConsumerImpl pushConsumer = new PushConsumerImpl(subject, group, param);
-        PullEntry pullEntry = new PullEntry(pushConsumer, pullService, ackService, brokerService, pullStrategy);
+        PullEntry pullEntry = new PullEntry(pushConsumer, pullService, ackService, metaInfoService, brokerService, pullStrategy);
         pullEntryMap.put(MapKeyBuilder.buildSubscribeKey(subject, group), pullEntry);
         pullExecutor.submit(pullEntry);
         return pullEntry;

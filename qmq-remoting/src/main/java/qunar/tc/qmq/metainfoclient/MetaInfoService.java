@@ -1,6 +1,6 @@
 package qunar.tc.qmq.metainfoclient;
 
-import qunar.tc.qmq.base.OnOfflineState;
+import qunar.tc.qmq.base.ClientRequestType;
 
 /**
  * @author zhenwei.liu
@@ -8,5 +8,5 @@ import qunar.tc.qmq.base.OnOfflineState;
  */
 public interface MetaInfoService {
 
-    void reportConsumerState(String subject, String consumerGroup, String clientId, OnOfflineState state);
+    void triggerConsumerMetaInfoRequest(boolean isOrdered, ClientRequestType requestType);
 }

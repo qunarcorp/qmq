@@ -18,6 +18,7 @@ package qunar.tc.qmq.consumer.pull;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
@@ -77,10 +78,12 @@ class PullEntry extends AbstractPullEntry implements Runnable {
     private final QmqCounter pullRunCounter;
     private final QmqCounter pauseCounter;
     private final String logType;
+    private final MetaInfoService metaInfoService;
     private final PullStrategy pullStrategy;
 
     private PullEntry() {
         super("", "", null, null, null);
+        metaInfoService = null;
         pushConsumer = null;
         pullBatchSize = pullTimeout = ackNosendLimit = null;
         pullRunCounter = null;
@@ -89,8 +92,9 @@ class PullEntry extends AbstractPullEntry implements Runnable {
         pullStrategy = null;
     }
 
-    PullEntry(PushConsumer pushConsumer, PullService pullService, AckService ackService, BrokerService brokerService, PullStrategy pullStrategy) {
+    PullEntry(PushConsumer pushConsumer, PullService pullService, AckService ackService, MetaInfoService metaInfoService, BrokerService brokerService, PullStrategy pullStrategy) {
         super(pushConsumer.subject(), pushConsumer.group(), pullService, ackService, brokerService);
+        this.metaInfoService = metaInfoService;
         String subject = pushConsumer.subject();
         String group = pushConsumer.group();
         this.pushConsumer = pushConsumer;
@@ -107,6 +111,12 @@ class PullEntry extends AbstractPullEntry implements Runnable {
         this.logType = "PullEntry=" + subject;
 
         this.consumerOnlineStateManager.registerConsumer(subject, group, pushConsumer.consumeParam().getConsumerId(), onlineSwitcher::isOnline);
+        this.onlineSwitcher.addListener(isOnline -> {
+            if (metaInfoService != null) {
+                // 上下线主动触发心跳
+                metaInfoService.triggerConsumerMetaInfoRequest(true, ClientRequestType.SWITCH_STATE);
+            }
+        });
     }
 
     void online(StatusSource src) {

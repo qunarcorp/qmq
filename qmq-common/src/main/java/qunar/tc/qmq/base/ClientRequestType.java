@@ -21,7 +21,7 @@ package qunar.tc.qmq.base;
  * @since 2017/10/16
  */
 public enum  ClientRequestType {
-    ONLINE(1), HEARTBEAT(2);
+    ONLINE(1), HEARTBEAT(2), SWITCH_STATE(3);
 
     private int code;
 

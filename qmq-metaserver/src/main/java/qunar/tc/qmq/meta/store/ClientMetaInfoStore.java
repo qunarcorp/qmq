@@ -40,5 +40,7 @@ public interface ClientMetaInfoStore {
      */
     List<ClientMetaInfo> queryClientsUpdateAfterDate(ClientType clientType, OnOfflineState onlineStatus, Date updateDate);
 
+    List<ClientMetaInfo> queryClientsUpdateAfterDate(String subject, String consumerGroup, ClientType clientType, OnOfflineState onlineStatus, Date updateDate);
+
     int updateClientOnlineState(ClientMetaInfo clientMetaInfo);
 }

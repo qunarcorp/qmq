@@ -176,6 +176,12 @@ public class DefaultOrderedMessageService implements OrderedMessageService {
         return clientMetaInfoStore.queryClientsUpdateAfterDate(ClientType.CONSUMER, OnOfflineState.ONLINE, updateTime);
     }
 
+    @Override
+    public List<ClientMetaInfo> getOnlineOrderedConsumers(String subject, String consumerGroup) {
+        Date updateTime = new Date(System.currentTimeMillis() - ORDERED_CLIENT_HEARTBEAT_INTERVAL_SECS * 1000);
+        return clientMetaInfoStore.queryClientsUpdateAfterDate(subject, consumerGroup, ClientType.CONSUMER, OnOfflineState.ONLINE, updateTime);
+    }
+
     private String createPartitionKey(Partition partition) {
         return createPartitionKey(partition.getSubject(), partition.getPhysicalPartition());
     }
