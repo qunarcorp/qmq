@@ -27,6 +27,7 @@ import qunar.tc.qmq.metrics.Metrics;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -35,7 +36,7 @@ import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_GROUP_ARRAY;
 /**
  * @author yiqun.fan create on 17-9-20.
  */
-class DefaultPullConsumer extends AbstractPullConsumer implements Runnable {
+class DefaultPullConsumer extends AbstractPullConsumer {
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultPullConsumer.class);
 
     private static final int POLL_TIMEOUT_MILLIS = 1000;
@@ -100,23 +101,6 @@ class DefaultPullConsumer extends AbstractPullConsumer implements Runnable {
             int fetchSize = preFetchSize - bufferSize;
             PullMessageFuture future = new PullMessageFuture(0, fetchSize, -1, false);
             requestQueue.offer(future);
-        }
-    }
-
-    @Override
-    public void run() {
-        PullMessageFuture future;
-        while (!isStop) {
-            try {
-                if (!onlineSwitcher.waitOn()) continue;
-
-                future = requestQueue.poll(POLL_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
-                if (future != null) doPull(future);
-            } catch (InterruptedException e) {
-                LOGGER.error("pullConsumer poll be interrupted. subject={}, group={}", subject(), group(), e);
-            } catch (Exception e) {
-                LOGGER.error("pullConsumer poll exception. subject={}, group={}", subject(), group(), e);
-            }
         }
     }
 
@@ -188,5 +172,30 @@ class DefaultPullConsumer extends AbstractPullConsumer implements Runnable {
     @Override
     public void close() {
         isStop = true;
+    }
+
+    @Override
+    public void startPull(ExecutorService executor) {
+        executor.submit(() -> {
+
+            PullMessageFuture future;
+            while (!isStop) {
+                try {
+                    if (!onlineSwitcher.waitOn()) continue;
+
+                    future = requestQueue.poll(POLL_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+                    if (future != null) doPull(future);
+                } catch (InterruptedException e) {
+                    LOGGER.error("pullConsumer poll be interrupted. subject={}, group={}", subject(), group(), e);
+                } catch (Exception e) {
+                    LOGGER.error("pullConsumer poll exception. subject={}, group={}", subject(), group(), e);
+                }
+            }
+        });
+    }
+
+    @Override
+    public void destroy() {
+        close();
     }
 }

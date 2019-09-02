@@ -17,6 +17,7 @@
 package qunar.tc.qmq.broker.impl;
 
 import com.google.common.base.Strings;
+import com.google.common.util.concurrent.SettableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.base.ClientRequestType;
@@ -37,6 +38,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Future;
 
 /**
  * @author yiqun.fan create on 17-8-18.
@@ -44,7 +46,7 @@ import java.util.concurrent.ConcurrentMap;
 public class BrokerServiceImpl implements BrokerService, MetaInfoClient.ResponseSubscriber {
     private static final Logger LOGGER = LoggerFactory.getLogger(BrokerServiceImpl.class);
 
-    private final ConcurrentMap<String, BrokerClusterInfo> clusterMap = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, SettableFuture<BrokerClusterInfo>> clusterMap = new ConcurrentHashMap<>();
 
     private final DefaultMetaInfoService metaInfoService;
     private String appCode;
@@ -55,9 +57,19 @@ public class BrokerServiceImpl implements BrokerService, MetaInfoClient.Response
     }
 
     private void updateOnDemand(String key, BrokerClusterInfo clusterInfo) {
-        BrokerClusterInfo oldClusterInfo = clusterMap.putIfAbsent(key, clusterInfo);
-        if (oldClusterInfo == null) {
+        SettableFuture<BrokerClusterInfo> oldFuture = clusterMap.get(key);
+
+        if (!oldFuture.isDone()) {
+            oldFuture.set(clusterInfo);
             return;
+        }
+
+        BrokerClusterInfo oldClusterInfo;
+        try {
+            oldClusterInfo = oldFuture.get();
+        } catch (Throwable t) {
+            // ignore
+            throw new RuntimeException(t);
         }
 
         if (isEquals(oldClusterInfo, clusterInfo)) {
@@ -84,7 +96,7 @@ public class BrokerServiceImpl implements BrokerService, MetaInfoClient.Response
         }
 
         BrokerClusterInfo updatedCluster = new BrokerClusterInfo(updated);
-        clusterMap.put(key, updatedCluster);
+        oldFuture.set(updatedCluster);
     }
 
     private boolean isEquals(BrokerClusterInfo oldClusterInfo, BrokerClusterInfo clusterInfo) {
@@ -100,11 +112,12 @@ public class BrokerServiceImpl implements BrokerService, MetaInfoClient.Response
         return true;
     }
 
-    private void logMetaInfo(MetaInfo metaInfo, BrokerClusterInfo cluster) {
-        if (cluster == null) {
-            LOGGER.error("meta server return empty broker, will retry in a few seconds. subject={}, client={}", metaInfo.getSubject(), metaInfo.getClientType());
+    private void logMetaInfo(MetaInfo metaInfo, boolean error) {
+        String msg = "meta server return empty broker, will retry in a few seconds. subject={}, client={}";
+        if (error) {
+            LOGGER.error(msg, metaInfo.getSubject(), metaInfo.getClientType());
         } else {
-            LOGGER.info("meta server return empty broker, will retry in a few seconds. subject={}, client={}", metaInfo.getSubject(), metaInfo.getClientType());
+            LOGGER.info(msg, metaInfo.getSubject(), metaInfo.getClientType());
         }
     }
 
@@ -122,7 +135,15 @@ public class BrokerServiceImpl implements BrokerService, MetaInfoClient.Response
     public BrokerClusterInfo getClusterBySubject(ClientType clientType, String subject, String group) {
         // 这个key上加group不兼容MetaInfoResponse
         String key = MapKeyBuilder.buildMetaInfoKey(clientType, subject);
-        return clusterMap.get(key);
+        Future<BrokerClusterInfo> future = clusterMap.computeIfAbsent(key, k -> {
+            metaInfoService.registerHeartbeat(subject, group, clientType, appCode);
+            return SettableFuture.create();
+        });
+        try {
+            return future.get();
+        } catch (Throwable t) {
+            throw new RuntimeException(t);
+        }
     }
 
     @Override
@@ -146,9 +167,9 @@ public class BrokerServiceImpl implements BrokerService, MetaInfoClient.Response
         if (metaInfo != null) {
             LOGGER.debug("meta info: {}", metaInfo);
             String key = MapKeyBuilder.buildMetaInfoKey(metaInfo.getClientType(), metaInfo.getSubject());
-            BrokerClusterInfo brokerClusterInfo = clusterMap.get(key);
+            SettableFuture<BrokerClusterInfo> clusterFuture = clusterMap.get(key);
             if (isEmptyCluster(metaInfo)) {
-                logMetaInfo(metaInfo, brokerClusterInfo);
+                logMetaInfo(metaInfo, !clusterFuture.isDone());
                 return;
             }
             updateOnDemand(key, metaInfo.getClusterInfo());

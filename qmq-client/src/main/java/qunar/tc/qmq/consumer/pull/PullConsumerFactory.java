@@ -16,7 +16,6 @@
 
 package qunar.tc.qmq.consumer.pull;
 
-import qunar.tc.qmq.PullConsumer;
 import qunar.tc.qmq.common.MapKeyBuilder;
 import qunar.tc.qmq.consumer.exception.CreatePullConsumerException;
 import qunar.tc.qmq.consumer.exception.DuplicateListenerException;
@@ -66,7 +65,11 @@ public class PullConsumerFactory {
         }
     }
 
-    private DefaultPullConsumer createDefaultPullConsumer(String subject, String group, boolean isBroadcast) {
-        return pullRegister.createDefaultPullConsumer(subject, group, isBroadcast);
+    private PullConsumer createDefaultPullConsumer(String subject, String group, boolean isBroadcast) {
+        try {
+            return pullRegister.registerPullConsumer(subject, group, isBroadcast).get();
+        } catch (Throwable e) {
+            throw new RuntimeException(e);
+        }
     }
 }

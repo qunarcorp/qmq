@@ -87,7 +87,7 @@ public class DefaultMetaInfoService implements MetaInfoService, MetaInfoClient.R
 
     private boolean registerHeartbeat(MetaInfoRequestParam param) {
         String key = createKey(param);
-        return heartbeatRequests.put(key, param) == null;
+        return heartbeatRequests.putIfAbsent(key, param) == null;
     }
 
     private String createKey(MetaInfoRequestParam param) {
@@ -117,9 +117,10 @@ public class DefaultMetaInfoService implements MetaInfoService, MetaInfoClient.R
         // 注册心跳
         DefaultMetaInfoService.MetaInfoRequestParam heartbeatParam =
                 DefaultMetaInfoService.buildRequestParam(clientType, subject, group, appCode);
-        this.registerHeartbeat(heartbeatParam);
-        // 注册一个手动触发一次心跳任务
-        triggerConsumerMetaInfoRequest(ClientRequestType.ONLINE);
+        if (this.registerHeartbeat(heartbeatParam)) {
+            // 注册一个手动触发一次心跳任务
+            triggerConsumerMetaInfoRequest(ClientRequestType.ONLINE);
+        }
     }
 
     private boolean isOrdered(MetaInfoResponse response) {

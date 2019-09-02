@@ -22,7 +22,9 @@ import qunar.tc.qmq.common.ClientIdProvider;
 import qunar.tc.qmq.common.ClientIdProviderFactory;
 import qunar.tc.qmq.common.EnvProvider;
 import qunar.tc.qmq.config.NettyClientConfigManager;
+import qunar.tc.qmq.config.OrderedMessageManager;
 import qunar.tc.qmq.consumer.handler.MessageDistributor;
+import qunar.tc.qmq.consumer.pull.PullConsumer;
 import qunar.tc.qmq.consumer.pull.PullConsumerFactory;
 import qunar.tc.qmq.consumer.pull.PullRegister;
 import qunar.tc.qmq.netty.client.NettyClient;
@@ -54,7 +56,7 @@ public class MessageConsumerProvider implements MessageConsumer {
 
     private boolean autoOnline = true;
 
-    public MessageConsumerProvider(String metaServer) {
+    public MessageConsumerProvider(OrderedMessageManager orderedMessageManager, String metaServer) {
         this.clientIdProvider = ClientIdProviderFactory.createDefault();
         this.pullRegister = new PullRegister(metaServer, orderedMessageManager);
         this.pullConsumerFactory = new PullConsumerFactory(this.pullRegister);

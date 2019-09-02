@@ -20,7 +20,6 @@ import com.google.common.util.concurrent.ListenableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.Message;
-import qunar.tc.qmq.PullConsumer;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.common.StatusSource;
 import qunar.tc.qmq.common.SwitchWaiter;
@@ -37,7 +36,6 @@ abstract class AbstractPullConsumer implements PullConsumer {
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractPullConsumer.class);
 
     private static final long MIN_PULL_TIMEOUT_MILLIS = 1000;  // 最短拉取超时时间是1秒
-    private static long MAX_PULL_TIMEOUT_MILLIS = Long.MAX_VALUE / 2;  // 最长拉取超时时间
 
     final SwitchWaiter onlineSwitcher = new SwitchWaiter(true);
 
@@ -113,12 +111,12 @@ abstract class AbstractPullConsumer implements PullConsumer {
     }
 
     @Override
-    public Future<List<Message>> pullFuture(int size, long timeoutMillis) {
-        return newFuture(size, checkAndGetTimeout(timeoutMillis), false);
+    public ListenableFuture<List<Message>> pullFuture(int size, long timeoutMillis) {
+        return newFuture(size, checkAndGetTimeout(timeoutMillis), DEFAULT_RESET_CREATE_TIME);
     }
 
     @Override
-    public Future<List<Message>> pullFuture(int size, long timeoutMillis, boolean isResetCreateTime) {
+    public ListenableFuture<List<Message>> pullFuture(int size, long timeoutMillis, boolean isResetCreateTime) {
         return newFuture(size, checkAndGetTimeout(timeoutMillis), isResetCreateTime);
     }
 

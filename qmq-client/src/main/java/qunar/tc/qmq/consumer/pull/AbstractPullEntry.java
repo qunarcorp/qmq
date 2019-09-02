@@ -40,7 +40,7 @@ import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_GROUP_ARRAY;
 /**
  * @author yiqun.fan create on 17-11-2.
  */
-abstract class AbstractPullEntry {
+abstract class AbstractPullEntry implements PullEntry {
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractPullEntry.class);
 
     private static final int MAX_MESSAGE_RETRY_THRESHOLD = 5;

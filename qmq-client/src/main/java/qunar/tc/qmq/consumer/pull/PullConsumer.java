@@ -14,7 +14,11 @@
  * limitations under the License.
  */
 
-package qunar.tc.qmq;
+package qunar.tc.qmq.consumer.pull;
+
+import com.google.common.util.concurrent.ListenableFuture;
+import qunar.tc.qmq.BaseConsumer;
+import qunar.tc.qmq.Message;
 
 import java.util.List;
 import java.util.concurrent.Future;
@@ -22,7 +26,10 @@ import java.util.concurrent.Future;
 /**
  * @author yiqun.fan create on 17-9-11.
  */
-public interface PullConsumer extends BaseConsumer, AutoCloseable {
+public interface PullConsumer extends BaseConsumer, AutoCloseable, PullClient {
+
+    long MAX_PULL_TIMEOUT_MILLIS = Long.MAX_VALUE / 2;  // 最长拉取超时时间
+    boolean DEFAULT_RESET_CREATE_TIME = false;
 
     void online();
 
@@ -84,19 +91,19 @@ public interface PullConsumer extends BaseConsumer, AutoCloseable {
      * 对于可靠消息处理完成后，必须调用Message的ack方法，然后再次拉取。
      * 对于非可靠消息，无需调用ack方法。
      */
-    Future<List<Message>> pullFuture(int size);
+    ListenableFuture<List<Message>> pullFuture(int size);
 
     /**
      * 实际的拉取时间可能超过timeoutMillis，所以必须等到isDone()返回true才可以丢弃返回的future，
      * 否则可能出现拉取到的消息没有被获取到。
-     * timeoutMillis的设置参考 qunar.tc.qmq.PullConsumer#pull(int, long) 的注释
+     * timeoutMillis的设置参考 qunar.tc.qmq.consumer.pull.PullConsumer#pull(int, long) 的注释
      * <p>
      * 对于可靠消息处理完成后，必须调用Message的ack方法，然后再次拉取。
      * 对于非可靠消息，无需调用ack方法。
      */
-    Future<List<Message>> pullFuture(int size, long timeoutMillis);
+    ListenableFuture<List<Message>> pullFuture(int size, long timeoutMillis);
 
-    Future<List<Message>> pullFuture(int size, long timeoutMillis, boolean isResetCreateTime);
+    ListenableFuture<List<Message>> pullFuture(int size, long timeoutMillis, boolean isResetCreateTime);
 
     String getClientId();
 }

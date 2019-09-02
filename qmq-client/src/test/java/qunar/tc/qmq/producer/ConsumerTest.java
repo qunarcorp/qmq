@@ -8,7 +8,6 @@ import qunar.tc.qmq.MessageListener;
 import qunar.tc.qmq.consumer.MessageConsumerProvider;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -23,7 +22,7 @@ public class ConsumerTest {
     private static final ExecutorService executor = Executors.newFixedThreadPool(3);
 
     public static void main(String[] args) throws Exception {
-        final MessageConsumerProvider provider = new MessageConsumerProvider("http://127.0.0.1:8080/meta/address");
+        final MessageConsumerProvider provider = new MessageConsumerProvider(orderedMessageManager, "http://127.0.0.1:8080/meta/address");
         provider.setAppCode("consumer_test");
         provider.init();
 
