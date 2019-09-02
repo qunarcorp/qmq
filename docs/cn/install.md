@@ -141,7 +141,7 @@ meta.server.endpoint=http://<metaserver address>/meta/address
 broker.port=20881
 # 可选，同步数据端口
 sync.port=20882
-# 可选，动态生效，从机同步请求超时时间
+# 可选，动态生效，slave向master同步请求的超时时间
 slave.sync.timeout=3000
 # 必填，数据存放目录
 store.root=/data
@@ -169,7 +169,7 @@ message.checkpoint.interval=100000
 put_need_retry_message.limiter=50
 # 可选，动态生效，从机一次最多拉取多少数据
 sync.batch.size=100000
-# 可选，动态生效，从机同步数据超时时间
+# 可选，动态生效，slave与master同步时，如果master没数据的时候，master会hold请求的最长时间，该时间不能比slave.sync.timeout长，一般不用修改
 message.sync.timeout.ms=10
 ```
 ## 启动
