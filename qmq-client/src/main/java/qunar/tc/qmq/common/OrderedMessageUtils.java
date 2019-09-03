@@ -30,8 +30,8 @@ public class OrderedMessageUtils {
         }
 
         String subject = message.getSubject();
-        int orderIdentifier = message.getOrderKey();
-        int logicalPartition = orderIdentifier % partitionMapping.getLogicalPartitionNum();
+        String orderKey = message.getOrderKey();
+        int logicalPartition = computeOrderIdentifier(orderKey) % partitionMapping.getLogicalPartitionNum();
         Partition partition = partitionMapping.getLogical2PhysicalPartition().get(logicalPartition);
         Preconditions.checkNotNull(partition,
                 "physical partition could not be found, subject %s, logicalPartition %s", subject, logicalPartition);
@@ -47,5 +47,15 @@ public class OrderedMessageUtils {
 
     public static String getOrderedMessageSubject(String subject, int physicalPartition) {
         return subject + "#" + physicalPartition;
+    }
+
+    private static int computeOrderIdentifier(String orderKey) {
+        int hash = 0;
+        if (orderKey.length() > 0) {
+            for (int i = 0; i < orderKey.length(); i++) {
+                hash = 31 * hash + orderKey.charAt(i);
+            }
+        }
+        return hash;
     }
 }

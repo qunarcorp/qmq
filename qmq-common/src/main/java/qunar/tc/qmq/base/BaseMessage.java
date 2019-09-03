@@ -301,19 +301,14 @@ public class BaseMessage implements Message, Serializable {
         return attrs.get(key.name());
     }
 
-    public void setOrderedKey(String key) {
-        int hash = 0;
-        if (key.length() > 0) {
-            for (int i = 0; i < key.length(); i++) {
-                hash = 31 * hash + key.charAt(i);
-            }
-        }
-        setProperty(keys.qmq_orderKey, hash);
+    @Override
+    public void setOrderKey(String key) {
+        setProperty(keys.qmq_orderKey, key);
     }
 
-    public Integer getOrderKey() {
-        Object property = getProperty(keys.qmq_orderKey);
-        return property == null ? null : (Integer) property;
+    @Override
+    public String getOrderKey() {
+        return getStringProperty(keys.qmq_orderKey);
     }
 
     public String getStringProperty(keys key) {

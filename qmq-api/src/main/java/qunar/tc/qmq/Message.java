@@ -153,6 +153,18 @@ public interface Message {
     void setDelayTime(long delayTime, TimeUnit timeUnit);
 
     /**
+     * 设置用于排序的key
+     * @param key
+     */
+    void setOrderKey(String key);
+
+    /**
+     * 获取用于排序的key
+     * @return
+     */
+    String getOrderKey();
+
+    /**
      * 第几次发送
      * 使用方应该监控该次数，如果不是刻意设计该次数不应该太多
      *
