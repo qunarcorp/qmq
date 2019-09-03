@@ -9,8 +9,6 @@ import qunar.tc.qmq.broker.BrokerLoadBalance;
 
 import java.util.List;
 
-import static qunar.tc.qmq.base.BaseMessage.keys.qmq_scheduleReceiveTime;
-
 /**
  * @author zhenwei.liu
  * @since 2019-08-20
@@ -27,7 +25,4 @@ public class OrderedMessageLoadBalance implements BrokerLoadBalance {
         return brokerGroup;
     }
 
-    private static boolean isDelay(BaseMessage message) {
-        return message.getProperty(qmq_scheduleReceiveTime) != null;
-    }
 }

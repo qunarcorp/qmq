@@ -7,6 +7,7 @@ import qunar.tc.qmq.broker.impl.OrderedMessageLoadBalance;
 import qunar.tc.qmq.meta.Partition;
 import qunar.tc.qmq.meta.PartitionMapping;
 import qunar.tc.qmq.producer.sender.OrderedQueueSender;
+import qunar.tc.qmq.utils.DelayUtil;
 
 /**
  * @author zhenwei.liu
@@ -16,7 +17,7 @@ public class OrderedMessageUtils {
 
     public static boolean isOrderedMessage(BaseMessage message) {
         // 延迟消息不走顺序逻辑
-        return message.getOrderKey() != null && message.getProperty(keys.qmq_scheduleReceiveTime) != null;
+        return message.getOrderKey() != null && !DelayUtil.isDelayMessage(message);
     }
 
     public static void initOrderedMessage(BaseMessage message, PartitionMapping partitionMapping) {
