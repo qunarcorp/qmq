@@ -3,7 +3,7 @@ package qunar.tc.qmq.producer.sender;
 import qunar.tc.qmq.ProduceMessage;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.base.BaseMessage.keys;
-import qunar.tc.qmq.producer.OrderedMessageUtils;
+import qunar.tc.qmq.common.OrderedMessageUtils;
 
 import java.util.List;
 

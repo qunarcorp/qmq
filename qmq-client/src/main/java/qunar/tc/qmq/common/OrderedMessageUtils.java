@@ -1,4 +1,4 @@
-package qunar.tc.qmq.producer;
+package qunar.tc.qmq.common;
 
 import com.google.common.base.Preconditions;
 import qunar.tc.qmq.base.BaseMessage;

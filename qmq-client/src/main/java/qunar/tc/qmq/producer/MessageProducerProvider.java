@@ -28,6 +28,7 @@ import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.common.ClientIdProvider;
 import qunar.tc.qmq.common.ClientIdProviderFactory;
 import qunar.tc.qmq.common.EnvProvider;
+import qunar.tc.qmq.common.OrderedMessageUtils;
 import qunar.tc.qmq.config.OrderedMessageManager;
 import qunar.tc.qmq.meta.PartitionMapping;
 import qunar.tc.qmq.metrics.Metrics;

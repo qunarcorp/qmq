@@ -36,7 +36,7 @@ import qunar.tc.qmq.consumer.register.RegistParam;
 import qunar.tc.qmq.metainfoclient.ConsumerStateChangedListener;
 import qunar.tc.qmq.metainfoclient.DefaultMetaInfoService;
 import qunar.tc.qmq.metainfoclient.MetaInfoClient;
-import qunar.tc.qmq.producer.OrderedMessageUtils;
+import qunar.tc.qmq.common.OrderedMessageUtils;
 import qunar.tc.qmq.protocol.MetaInfoResponse;
 import qunar.tc.qmq.protocol.consumer.ConsumerMetaInfoResponse;
 import qunar.tc.qmq.protocol.consumer.SubEnvIsolationPullFilter;
