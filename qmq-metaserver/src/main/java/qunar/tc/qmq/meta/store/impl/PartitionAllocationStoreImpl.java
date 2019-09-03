@@ -3,7 +3,7 @@ package qunar.tc.qmq.meta.store.impl;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
-import qunar.tc.qmq.meta.PartitionAllocation;
+import qunar.tc.qmq.PartitionAllocation;
 import qunar.tc.qmq.meta.store.PartitionAllocationStore;
 
 import java.sql.ResultSet;

@@ -21,8 +21,10 @@ import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.common.ClientType;
+import qunar.tc.qmq.StatusSource;
 
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 
 /**
  * @author yiqun.fan create on 17-9-21.
@@ -50,6 +52,26 @@ class PlainPullEntry extends AbstractPullEntry {
         output.addAll(received);
         pullStrategy.record(received.size() > 0);
         return PlainPullResult.NOMORE_MESSAGE;
+    }
+
+    @Override
+    public void startPull(ExecutorService executor) {
+
+    }
+
+    @Override
+    public void destroy() {
+
+    }
+
+    @Override
+    public void online(StatusSource statusSource) {
+
+    }
+
+    @Override
+    public void offline(StatusSource statusSource) {
+
     }
 
     enum PlainPullResult {

@@ -24,6 +24,7 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.util.internal.ConcurrentSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.PartitionAllocation;
 import qunar.tc.qmq.base.OnOfflineState;
 import qunar.tc.qmq.codec.Serializer;
 import qunar.tc.qmq.codec.Serializers;

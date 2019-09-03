@@ -1,6 +1,6 @@
 package qunar.tc.qmq.meta.order;
 
-import qunar.tc.qmq.meta.PartitionAllocation;
+import qunar.tc.qmq.PartitionAllocation;
 
 /**
  * @author zhenwei.liu

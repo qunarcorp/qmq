@@ -4,7 +4,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeMap;
 import qunar.tc.qmq.meta.Partition;
-import qunar.tc.qmq.meta.PartitionAllocation;
+import qunar.tc.qmq.PartitionAllocation;
 import qunar.tc.qmq.meta.PartitionMapping;
 
 import java.util.Map;

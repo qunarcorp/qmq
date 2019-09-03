@@ -18,7 +18,7 @@ package qunar.tc.qmq.consumer.register;
 
 import qunar.tc.qmq.MessageListener;
 import qunar.tc.qmq.SubscribeParam;
-import qunar.tc.qmq.common.StatusSource;
+import qunar.tc.qmq.StatusSource;
 import qunar.tc.qmq.protocol.consumer.PullFilter;
 import qunar.tc.qmq.protocol.consumer.TagPullFilter;
 

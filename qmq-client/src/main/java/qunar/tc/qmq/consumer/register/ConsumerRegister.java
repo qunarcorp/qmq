@@ -16,8 +16,8 @@
 
 package qunar.tc.qmq.consumer.register;
 
-import qunar.tc.qmq.consumer.pull.PullConsumer;
-import qunar.tc.qmq.consumer.pull.PullEntry;
+import qunar.tc.qmq.PullConsumer;
+import qunar.tc.qmq.PullEntry;
 
 import java.util.concurrent.Future;
 

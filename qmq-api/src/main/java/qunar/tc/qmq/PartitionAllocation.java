@@ -1,4 +1,4 @@
-package qunar.tc.qmq.meta;
+package qunar.tc.qmq;
 
 import java.util.Map;
 import java.util.Set;

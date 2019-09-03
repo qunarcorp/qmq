@@ -1,4 +1,4 @@
-package qunar.tc.qmq.consumer.pull;
+package qunar.tc.qmq;
 
 import java.util.concurrent.ExecutorService;
 
@@ -11,4 +11,8 @@ public interface PullClient {
     void startPull(ExecutorService executor);
 
     void destroy();
+
+    void online(StatusSource statusSource);
+
+    void offline(StatusSource statusSource);
 }

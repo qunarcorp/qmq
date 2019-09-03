@@ -1,4 +1,4 @@
-package qunar.tc.qmq.consumer.pull;
+package qunar.tc.qmq;
 
 import java.util.List;
 

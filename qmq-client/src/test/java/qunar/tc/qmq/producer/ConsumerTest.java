@@ -22,7 +22,7 @@ public class ConsumerTest {
     private static final ExecutorService executor = Executors.newFixedThreadPool(3);
 
     public static void main(String[] args) throws Exception {
-        final MessageConsumerProvider provider = new MessageConsumerProvider(orderedMessageManager, "http://127.0.0.1:8080/meta/address");
+        final MessageConsumerProvider provider = new MessageConsumerProvider("http://127.0.0.1:8080/meta/address");
         provider.setAppCode("consumer_test");
         provider.init();
 

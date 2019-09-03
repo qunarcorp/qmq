@@ -7,7 +7,7 @@ import qunar.tc.qmq.base.OnOfflineState;
 import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
 import qunar.tc.qmq.meta.Partition;
-import qunar.tc.qmq.meta.PartitionAllocation;
+import qunar.tc.qmq.PartitionAllocation;
 import qunar.tc.qmq.meta.PartitionMapping;
 import qunar.tc.qmq.meta.PartitionSet;
 import qunar.tc.qmq.meta.model.ClientMetaInfo;

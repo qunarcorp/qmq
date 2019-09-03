@@ -19,6 +19,7 @@ package qunar.tc.qmq.common;
 import com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.StatusSource;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -26,8 +27,8 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static qunar.tc.qmq.common.StatusSource.CODE;
-import static qunar.tc.qmq.common.StatusSource.OPS;
+import static qunar.tc.qmq.StatusSource.CODE;
+import static qunar.tc.qmq.StatusSource.OPS;
 
 /**
  * @author yiqun.fan create on 17-8-18.

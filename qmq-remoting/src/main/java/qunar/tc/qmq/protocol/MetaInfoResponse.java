@@ -18,7 +18,6 @@ package qunar.tc.qmq.protocol;
 
 import qunar.tc.qmq.meta.BrokerCluster;
 import qunar.tc.qmq.base.OnOfflineState;
-import qunar.tc.qmq.meta.PartitionAllocation;
 
 /**
  * @author yiqun.fan create on 17-8-31.

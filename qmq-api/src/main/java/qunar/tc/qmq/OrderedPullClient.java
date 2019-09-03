@@ -1,6 +1,4 @@
-package qunar.tc.qmq.consumer.pull;
-
-import qunar.tc.qmq.meta.PartitionAllocation;
+package qunar.tc.qmq;
 
 /**
  * @author zhenwei.liu

@@ -25,7 +25,7 @@ import qunar.tc.qmq.common.Disposable;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.meta.BrokerGroup;
 import qunar.tc.qmq.meta.BrokerGroupKind;
-import qunar.tc.qmq.meta.PartitionAllocation;
+import qunar.tc.qmq.PartitionAllocation;
 import qunar.tc.qmq.meta.PartitionMapping;
 import qunar.tc.qmq.meta.model.ReadonlyBrokerGroupSetting;
 import qunar.tc.qmq.meta.model.SubjectInfo;

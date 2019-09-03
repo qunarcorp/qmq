@@ -20,14 +20,14 @@ import com.google.common.util.concurrent.ListenableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.Message;
+import qunar.tc.qmq.PullConsumer;
 import qunar.tc.qmq.broker.BrokerService;
-import qunar.tc.qmq.common.StatusSource;
+import qunar.tc.qmq.StatusSource;
 import qunar.tc.qmq.common.SwitchWaiter;
 
 import java.util.List;
-import java.util.concurrent.Future;
 
-import static qunar.tc.qmq.common.StatusSource.CODE;
+import static qunar.tc.qmq.StatusSource.CODE;
 
 /**
  * @author yiqun.fan create on 17-10-19.

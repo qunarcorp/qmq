@@ -25,7 +25,7 @@ import qunar.tc.qmq.consumer.register.RegistParam;
 
 import java.util.concurrent.Executor;
 
-import static qunar.tc.qmq.common.StatusSource.CODE;
+import static qunar.tc.qmq.StatusSource.CODE;
 
 /**
  * @author miao.yang susing@gmail.com

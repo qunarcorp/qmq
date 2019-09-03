@@ -23,7 +23,7 @@ import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.common.ClientType;
-import qunar.tc.qmq.common.StatusSource;
+import qunar.tc.qmq.StatusSource;
 import qunar.tc.qmq.common.SwitchWaiter;
 import qunar.tc.qmq.config.PullSubjectsConfig;
 import qunar.tc.qmq.metainfoclient.ConsumerOnlineStateManager;
@@ -37,7 +37,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 

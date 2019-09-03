@@ -2,7 +2,7 @@ package qunar.tc.qmq.config;
 
 import com.google.common.collect.Maps;
 import qunar.tc.qmq.common.ClientType;
-import qunar.tc.qmq.meta.PartitionAllocation;
+import qunar.tc.qmq.PartitionAllocation;
 import qunar.tc.qmq.meta.PartitionMapping;
 import qunar.tc.qmq.metainfoclient.DefaultMetaInfoService;
 import qunar.tc.qmq.metainfoclient.MetaInfoClient;

@@ -14,11 +14,7 @@
  * limitations under the License.
  */
 
-package qunar.tc.qmq.consumer.pull;
-
-import com.google.common.util.concurrent.ListenableFuture;
-import qunar.tc.qmq.BaseConsumer;
-import qunar.tc.qmq.Message;
+package qunar.tc.qmq;
 
 import java.util.List;
 import java.util.concurrent.Future;
@@ -75,7 +71,7 @@ public interface PullConsumer extends BaseConsumer, AutoCloseable, PullClient {
      * 当broker上剩余的消息数小于size时，pull方法会阻塞至超时。
      * 实际调用时间可能大于timeoutMillis。
      * timeoutMillis最小值是1000，应尽量设置大的timeout。
-     *
+     * <p>
      * 如果timeoutMillis设置为小于0的时候，则表示不管队列里有没有消息都拉一下立即返回，
      * 这样实际返回的消息条数可能小于size，但是不会大于size
      * <p>
@@ -91,19 +87,19 @@ public interface PullConsumer extends BaseConsumer, AutoCloseable, PullClient {
      * 对于可靠消息处理完成后，必须调用Message的ack方法，然后再次拉取。
      * 对于非可靠消息，无需调用ack方法。
      */
-    ListenableFuture<List<Message>> pullFuture(int size);
+    Future<List<Message>> pullFuture(int size);
 
     /**
      * 实际的拉取时间可能超过timeoutMillis，所以必须等到isDone()返回true才可以丢弃返回的future，
      * 否则可能出现拉取到的消息没有被获取到。
-     * timeoutMillis的设置参考 qunar.tc.qmq.consumer.pull.PullConsumer#pull(int, long) 的注释
+     * timeoutMillis的设置参考 qunar.tc.qmq.PullConsumer#pull(int, long) 的注释
      * <p>
      * 对于可靠消息处理完成后，必须调用Message的ack方法，然后再次拉取。
      * 对于非可靠消息，无需调用ack方法。
      */
-    ListenableFuture<List<Message>> pullFuture(int size, long timeoutMillis);
+    Future<List<Message>> pullFuture(int size, long timeoutMillis);
 
-    ListenableFuture<List<Message>> pullFuture(int size, long timeoutMillis, boolean isResetCreateTime);
+    Future<List<Message>> pullFuture(int size, long timeoutMillis, boolean isResetCreateTime);
 
     String getClientId();
 }

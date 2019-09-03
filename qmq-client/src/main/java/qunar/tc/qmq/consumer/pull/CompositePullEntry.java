@@ -1,6 +1,8 @@
 package qunar.tc.qmq.consumer.pull;
 
-import qunar.tc.qmq.common.StatusSource;
+import qunar.tc.qmq.CompositePullClient;
+import qunar.tc.qmq.PullEntry;
+import qunar.tc.qmq.StatusSource;
 
 import java.util.List;
 import java.util.concurrent.ExecutorService;

@@ -1,6 +1,6 @@
 package qunar.tc.qmq.protocol.consumer;
 
-import qunar.tc.qmq.meta.PartitionAllocation;
+import qunar.tc.qmq.PartitionAllocation;
 import qunar.tc.qmq.protocol.MetaInfoResponse;
 
 /**

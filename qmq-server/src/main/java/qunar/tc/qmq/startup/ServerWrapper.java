@@ -32,6 +32,8 @@ import qunar.tc.qmq.meta.BrokerRegisterService;
 import qunar.tc.qmq.meta.BrokerRole;
 import qunar.tc.qmq.meta.MetaServerLocator;
 import qunar.tc.qmq.netty.NettyServer;
+import qunar.tc.qmq.order.DefaultOrderedMessageLockManager;
+import qunar.tc.qmq.order.OrderedMessageLockManager;
 import qunar.tc.qmq.processor.*;
 import qunar.tc.qmq.protocol.CommandCode;
 import qunar.tc.qmq.protocol.Datagram;
@@ -71,6 +73,7 @@ public class ServerWrapper implements Disposable {
     private MasterSyncNettyServer masterSyncNettyServer;
     private MasterSlaveSyncManager masterSlaveSyncManager;
     private BrokerRegisterService brokerRegisterService;
+    private OrderedMessageLockManager orderedMessageLockManager;
 
     private SubscriberStatusChecker subscriberStatusChecker;
 
@@ -216,7 +219,7 @@ public class ServerWrapper implements Disposable {
 
     private void startServerHandlers() {
         final ActorSystem actorSystem = new ActorSystem("qmq");
-
+        this.orderedMessageLockManager = new DefaultOrderedMessageLockManager();
         final PullMessageProcessor pullMessageProcessor = new PullMessageProcessor(config, actorSystem, messageStoreWrapper, subscriberStatusChecker, orderedMessageLockManager);
         this.storage.registerEventListener(ConsumerLogWroteEvent.class, pullMessageProcessor);
         final SendMessageProcessor sendMessageProcessor = new SendMessageProcessor(sendMessageWorker);

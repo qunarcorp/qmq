@@ -7,14 +7,14 @@ import java.util.List;
 
 /**
  * @author zhenwei.liu
- * @since 2019-09-02
+ * @since 2019-09-03
  */
-public class OrderedPullEntry extends CompositePullEntry<PartitionPullEntry> implements OrderedPullClient<PartitionPullEntry> {
+public class OrderedPullConsumer extends CompositePullConsumer<PartitionPullConsumer> implements OrderedPullClient<PartitionPullConsumer> {
 
     private PartitionAllocation partitionAllocation;
 
-    public OrderedPullEntry(List<PartitionPullEntry> pullEntries, PartitionAllocation partitionAllocation) {
-        super(pullEntries);
+    public OrderedPullConsumer(List<PartitionPullConsumer> consumers, PartitionAllocation partitionAllocation) {
+        super(consumers);
         this.partitionAllocation = partitionAllocation;
     }
 

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package qunar.tc.qmq.common;
+package qunar.tc.qmq;
 
 /**
  * Created by zhaohui.yu

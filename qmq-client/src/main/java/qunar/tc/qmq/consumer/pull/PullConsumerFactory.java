@@ -16,6 +16,7 @@
 
 package qunar.tc.qmq.consumer.pull;
 
+import qunar.tc.qmq.PullConsumer;
 import qunar.tc.qmq.common.MapKeyBuilder;
 import qunar.tc.qmq.consumer.exception.CreatePullConsumerException;
 import qunar.tc.qmq.consumer.exception.DuplicateListenerException;

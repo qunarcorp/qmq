@@ -21,7 +21,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.Message;
-import qunar.tc.qmq.consumer.pull.PullConsumer;
+import qunar.tc.qmq.PullConsumer;
 import qunar.tc.qmq.common.JsonHolder;
 import qunar.tc.qmq.consumer.MessageConsumerProvider;
 import qunar.tc.qmq.metrics.Metrics;
@@ -56,7 +56,7 @@ public class PullServlet extends HttpServlet {
 
     @Override
     public void init() throws ServletException {
-        consumer = new MessageConsumerProvider(orderedMessageManager, null); // TODO(zhenwei.liu) 这个 meta server 地址从哪儿来
+        consumer = new MessageConsumerProvider(null); // TODO(zhenwei.liu) 这个 meta server 地址从哪儿来
         consumer.init();
         writeExecutor = Executors.newCachedThreadPool();
     }

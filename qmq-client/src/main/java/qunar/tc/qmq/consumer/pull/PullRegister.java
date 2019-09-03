@@ -21,17 +21,16 @@ import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.SettableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.*;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.broker.impl.BrokerServiceImpl;
 import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.common.EnvProvider;
 import qunar.tc.qmq.common.MapKeyBuilder;
-import qunar.tc.qmq.common.StatusSource;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.consumer.exception.DuplicateListenerException;
 import qunar.tc.qmq.consumer.register.ConsumerRegister;
 import qunar.tc.qmq.consumer.register.RegistParam;
-import qunar.tc.qmq.meta.PartitionAllocation;
 import qunar.tc.qmq.metainfoclient.ConsumerStateChangedListener;
 import qunar.tc.qmq.metainfoclient.DefaultMetaInfoService;
 import qunar.tc.qmq.metainfoclient.MetaInfoClient;
@@ -47,7 +46,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
-import static qunar.tc.qmq.common.StatusSource.*;
+import static qunar.tc.qmq.StatusSource.*;
 
 /**
  * @author yiqun.fan create on 17-8-17.
@@ -59,7 +58,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
 
     private final Map<String, PullEntry> pullEntryMap = new HashMap<>();
 
-    private final Map<String, DefaultPullConsumer> pullConsumerMap = new HashMap<>();
+    private final Map<String, PullConsumer> pullConsumerMap = new HashMap<>();
 
     private final ExecutorService pullExecutor = Executors.newCachedThreadPool(new NamedThreadFactory("qmq-pull"));
 
@@ -224,16 +223,16 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         }
     }
 
-    private interface PullClientFactory {
-        PullClient createPullClient(String subject, String group, PullStrategy pullStrategy);
+    private interface PullClientFactory<T extends PullClient> {
+        T createPullClient(String subject, String group, PullStrategy pullStrategy);
     }
 
-    private interface PartitionPullClientFactory {
-        PartitionPullClient createPullClient(int partitionId, PullClient pullClient);
+    private interface PartitionPullClientFactory<T extends PartitionPullClient> {
+        T createPullClient(int partitionId, PullClient pullClient);
     }
 
-    private interface OrderedPullClientFactory {
-        OrderedPullClient createOrderedPullClient(List<? extends PartitionPullClient> clients, PartitionAllocation partitionAllocation);
+    private interface OrderedPullClientFactory<T extends OrderedPullClient> {
+        T createOrderedPullClient(List<? extends PartitionPullClient> clients, PartitionAllocation partitionAllocation);
     }
 
     private OrderedPullClient updateOrderedPullClient(
@@ -331,16 +330,30 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
     }
 
     private synchronized PullConsumer createPullConsumer(String subject, String group, boolean isBroadcast, ConsumerMetaInfoResponse response) {
-        DefaultPullConsumer pullConsumer = new DefaultPullConsumer(subject, group, isBroadcast, clientId, pullService, ackService, brokerService);
-        final String subscribeKey = MapKeyBuilder.buildSubscribeKey(pullConsumer.subject(), pullConsumer.group());
-        if (pullEntryMap.containsKey(subscribeKey)) {
-            throw new DuplicateListenerException(subscribeKey);
-        }
-        pullEntryMap.put(subscribeKey, DefaultPullEntry.EMPTY_PULL_ENTRY);
-        pullConsumerMap.put(subscribeKey, pullConsumer);
-        pullConsumer.startPull(pullExecutor);
+        String key = MapKeyBuilder.buildSubscribeKey(subject, group);
+        PullConsumer oldConsumer = pullConsumerMap.get(key);
 
-        return pullConsumer;
+        PullConsumer pc = (PullConsumer) createPullClient(
+                subject,
+                group,
+                null,
+                response,
+                oldConsumer,
+                (subject1, group1, pullStrategy) -> {
+                    DefaultPullConsumer pullConsumer = new DefaultPullConsumer(subject1, group1, isBroadcast, clientId, pullService, ackService, brokerService);
+                    pullConsumer.startPull(pullExecutor);
+                    return pullConsumer;
+                },
+                (partitionId, pullClient) -> new PartitionPullConsumer(partitionId, (PullConsumer) pullClient),
+                (OrderedPullClientFactory<OrderedPullConsumer>) (clients, partitionAllocation) -> new OrderedPullConsumer((List<PartitionPullConsumer>) clients, partitionAllocation)
+        );
+        if (pullEntryMap.containsKey(key)) {
+            throw new DuplicateListenerException(key);
+        }
+        pullEntryMap.put(key, DefaultPullEntry.EMPTY_PULL_ENTRY);
+        pullConsumerMap.put(key, pc);
+
+        return pc;
     }
 
     @Override
@@ -369,7 +382,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         final PullEntry retryPullEntry = pullEntryMap.get(MapKeyBuilder.buildSubscribeKey(retrySubject, group));
         changeOnOffline(retryPullEntry, isOnline, src);
 
-        final DefaultPullConsumer pullConsumer = pullConsumerMap.get(key);
+        PullConsumer pullConsumer = pullConsumerMap.get(key);
         if (pullConsumer == null) return;
 
         if (isOnline) {
@@ -404,7 +417,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         for (PullEntry pullEntry : pullEntryMap.values()) {
             pullEntry.offline(HEALTHCHECKER);
         }
-        for (DefaultPullConsumer pullConsumer : pullConsumerMap.values()) {
+        for (PullConsumer pullConsumer : pullConsumerMap.values()) {
             pullConsumer.offline(HEALTHCHECKER);
         }
         ackService.tryCleanAck();
@@ -416,7 +429,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         for (PullEntry pullEntry : pullEntryMap.values()) {
             pullEntry.online(HEALTHCHECKER);
         }
-        for (DefaultPullConsumer pullConsumer : pullConsumerMap.values()) {
+        for (PullConsumer pullConsumer : pullConsumerMap.values()) {
             pullConsumer.online(HEALTHCHECKER);
         }
         return true;
