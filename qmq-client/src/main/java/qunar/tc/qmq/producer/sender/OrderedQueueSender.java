@@ -4,14 +4,16 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.OrderStrategy;
 import qunar.tc.qmq.ProduceMessage;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.base.BaseMessage.keys;
 import qunar.tc.qmq.base.OrderStrategyManager;
 import qunar.tc.qmq.batch.OrderedExecutor;
 import qunar.tc.qmq.batch.OrderedProcessor;
+import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerService;
+import qunar.tc.qmq.broker.OrderStrategy;
+import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.common.OrderedMessageUtils;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.meta.PartitionMapping;
@@ -42,7 +44,6 @@ public class OrderedQueueSender extends AbstractQueueSender implements OrderedPr
     private LinkedBlockingQueue<ProduceMessage> messageQueue;
     private ThreadPoolExecutor executor; // 所有分区共享一个线程池
     private BrokerService brokerService;
-    private OrderStrategyManager orderStrategyManager;
     private int maxQueueSize;
     private int sendBatch;
     private QmqTimer timer;
@@ -59,7 +60,6 @@ public class OrderedQueueSender extends AbstractQueueSender implements OrderedPr
         this.messageQueue = new LinkedBlockingQueue<>(maxQueueSize);
         this.sendBatch = (int) Preconditions.checkNotNull(props.get(PropKey.SEND_BATCH));
         this.routerManager = (RouterManager) Preconditions.checkNotNull(props.get(PropKey.ROUTER_MANAGER));
-        this.orderStrategyManager = (OrderStrategyManager) Preconditions.checkNotNull(props.get(PropKey.ORDER_STRATEGY_MANAGER));
         this.executor = new ThreadPoolExecutor(1, sendThreads, 1L, TimeUnit.MINUTES,
                 new ArrayBlockingQueue<>(1), new NamedThreadFactory("batch-ordered-" + name + "-task", true));
         this.executor.setRejectedExecutionHandler(new ThreadPoolExecutor.DiscardPolicy());
@@ -114,9 +114,10 @@ public class OrderedQueueSender extends AbstractQueueSender implements OrderedPr
         String subject = produceMessage.getSubject();
         BaseMessage baseMessage = (BaseMessage) produceMessage.getBase();
         PartitionMapping partitionMapping = brokerService.getPartitionMapping(subject);
-        OrderedMessageUtils.initPartition(baseMessage, partitionMapping);
-        String key = baseMessage.getSubject() + "#" + baseMessage.getStringProperty(keys.qmq_physicalPartition);
-        return executorMap.computeIfAbsent(key, k -> new OrderedExecutor<>(k, sendBatch, maxQueueSize, this, executor));
+        BrokerClusterInfo brokerCluster = brokerService.getClusterBySubject(ClientType.PRODUCER, subject);
+        OrderedMessageUtils.initPartition(baseMessage, partitionMapping, brokerCluster);
+        String orderedSubject = OrderedMessageUtils.getOrderedMessageSubject(baseMessage.getSubject(), baseMessage.getIntProperty(keys.qmq_physicalPartition.name()));
+        return executorMap.computeIfAbsent(orderedSubject, k -> new OrderedExecutor<>(k, sendBatch, maxQueueSize, this, executor));
     }
 
     @Override
@@ -173,7 +174,7 @@ public class OrderedQueueSender extends AbstractQueueSender implements OrderedPr
     }
 
     private boolean shouldRetry(ProduceMessage message) {
-        OrderStrategy orderStrategy = orderStrategyManager.getOrderStrategy(message.getSubject());
+        OrderStrategy orderStrategy = OrderStrategyManager.getOrderStrategy(message.getSubject());
         if (Objects.equals(orderStrategy, OrderStrategy.STRICT)) {
             // 永远重试
             return true;

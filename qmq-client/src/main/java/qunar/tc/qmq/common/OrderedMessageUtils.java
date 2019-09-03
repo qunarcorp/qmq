@@ -3,11 +3,18 @@ package qunar.tc.qmq.common;
 import com.google.common.base.Preconditions;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.base.BaseMessage.keys;
+import qunar.tc.qmq.base.OrderStrategyManager;
+import qunar.tc.qmq.broker.BrokerClusterInfo;
+import qunar.tc.qmq.broker.BrokerGroupInfo;
+import qunar.tc.qmq.broker.OrderStrategy;
 import qunar.tc.qmq.broker.impl.OrderedMessageLoadBalance;
 import qunar.tc.qmq.meta.Partition;
 import qunar.tc.qmq.meta.PartitionMapping;
 import qunar.tc.qmq.producer.sender.OrderedQueueSender;
 import qunar.tc.qmq.utils.DelayUtil;
+
+import java.util.Collection;
+import java.util.Objects;
 
 /**
  * @author zhenwei.liu
@@ -28,7 +35,7 @@ public class OrderedMessageUtils {
         message.setProperty(keys.qmq_loadBalanceType, OrderedMessageLoadBalance.class.getName());
     }
 
-    public static void initPartition(BaseMessage message, PartitionMapping partitionMapping) {
+    public static void initPartition(BaseMessage message, PartitionMapping partitionMapping, BrokerClusterInfo brokerCluster) {
         if (partitionMapping == null) {
             throw new IllegalStateException(String.format("%s 顺序消息必须先申请分配 partition, 请联系管理员进行申请", message.getSubject()));
         }
@@ -37,18 +44,32 @@ public class OrderedMessageUtils {
         String orderKey = message.getOrderKey();
 
         int logicalPartition = computeOrderIdentifier(orderKey) % partitionMapping.getLogicalPartitionNum();
+        OrderStrategy orderStrategy = OrderStrategyManager.getOrderStrategy(subject);
         Partition partition = partitionMapping.getLogical2PhysicalPartition().get(logicalPartition);
-
         Preconditions.checkNotNull(partition,
                 "physical partition could not be found, subject %s, logicalPartition %s", subject, logicalPartition);
-        String brokerGroup = partition.getBrokerGroup();
+        String brokerGroupName = partition.getBrokerGroup();
+
+        BrokerGroupInfo realBrokerGroup = orderStrategy.getBrokerGroup(brokerGroupName, brokerCluster);
+        String realBrokerGroupName = realBrokerGroup.getGroupName();
 
         message.setProperty(keys.qmq_logicPartition, logicalPartition);
-        message.setProperty(keys.qmq_physicalPartition, partition.getPhysicalPartition());
-        message.setProperty(keys.qmq_partitionBroker, brokerGroup);
+        message.setProperty(keys.qmq_physicalPartition, getPhysicalPartitionByBrokerGroup(realBrokerGroupName, partitionMapping));
+        message.setProperty(keys.qmq_partitionBroker, realBrokerGroupName);
         message.setProperty(keys.qmq_partitionVersion, partitionMapping.getVersion());
 
     }
+
+    private static int getPhysicalPartitionByBrokerGroup(String groupName, PartitionMapping partitionMapping) {
+        Collection<Partition> partitions = partitionMapping.getLogical2PhysicalPartition().asMapOfRanges().values();
+        for (Partition partition : partitions) {
+            if (Objects.equals(partition.getBrokerGroup(), groupName)) {
+                return partition.getPhysicalPartition();
+            }
+        }
+        throw new IllegalArgumentException(String.format("无法找到 brokerGroup %s", groupName));
+    }
+
 
     public static String getOrderedMessageSubject(String subject, int physicalPartition) {
         return subject + "#" + physicalPartition;

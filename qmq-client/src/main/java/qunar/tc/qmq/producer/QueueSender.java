@@ -32,7 +32,6 @@ public interface QueueSender {
         SEND_THREADS,
         SEND_BATCH,
         ROUTER_MANAGER,
-        ORDER_STRATEGY_MANAGER,
         BROKER_SERVICE
     }
 
