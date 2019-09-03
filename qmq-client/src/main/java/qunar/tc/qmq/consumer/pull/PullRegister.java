@@ -28,6 +28,8 @@ import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.common.EnvProvider;
 import qunar.tc.qmq.common.MapKeyBuilder;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
+import qunar.tc.qmq.consumer.BufferedMessageExecutor;
+import qunar.tc.qmq.consumer.MessageExecutor;
 import qunar.tc.qmq.consumer.exception.DuplicateListenerException;
 import qunar.tc.qmq.consumer.register.ConsumerRegister;
 import qunar.tc.qmq.consumer.register.RegistParam;
@@ -314,8 +316,9 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
     }
 
     private PullEntry createDefaultPullEntry(String subject, String group, RegistParam param, PullStrategy pullStrategy) {
-        PushConsumerImpl pushConsumer = new PushConsumerImpl(subject, group, param);
-        PullEntry pullEntry = new DefaultPullEntry(pushConsumer, pullService, ackService, metaInfoService, brokerService, pullStrategy);
+        ConsumeParam consumeParam = new ConsumeParam(subject, group, param);
+        MessageExecutor messageExecutor = new BufferedMessageExecutor(subject, group, param);
+        PullEntry pullEntry = new DefaultPullEntry(messageExecutor, consumeParam, pullService, ackService, metaInfoService, brokerService, pullStrategy);
         pullEntry.startPull(pullExecutor);
         return pullEntry;
     }

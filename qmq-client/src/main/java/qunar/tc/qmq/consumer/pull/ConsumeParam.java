@@ -26,7 +26,7 @@ import java.util.List;
 /**
  * @author yiqun.fan create on 17-11-2.
  */
-class ConsumeParam {
+public class ConsumeParam {
     private final String subject;
     private final String group;
     private final String originSubject;

@@ -18,14 +18,15 @@ package qunar.tc.qmq.consumer.pull;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.StatusSource;
 import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.common.ClientType;
-import qunar.tc.qmq.StatusSource;
 import qunar.tc.qmq.common.SwitchWaiter;
 import qunar.tc.qmq.config.PullSubjectsConfig;
+import qunar.tc.qmq.consumer.MessageExecutor;
 import qunar.tc.qmq.metainfoclient.ConsumerOnlineStateManager;
 import qunar.tc.qmq.metainfoclient.DefaultConsumerOnlineStateManager;
 import qunar.tc.qmq.metainfoclient.MetaInfoService;
@@ -66,7 +67,7 @@ class DefaultPullEntry extends AbstractPullEntry {
     private static final long PAUSETIME_OF_NOAVAILABLE_BROKER = 100;
     private static final long PAUSETIME_OF_NOMESSAGE = 500;
 
-    private final PushConsumer pushConsumer;
+    private final MessageExecutor messageExecutor;
     private final AtomicReference<Integer> pullBatchSize;
     private final AtomicReference<Integer> pullTimeout;
     private final AtomicReference<Integer> ackNosendLimit;
@@ -79,26 +80,26 @@ class DefaultPullEntry extends AbstractPullEntry {
     private final QmqCounter pullRunCounter;
     private final QmqCounter pauseCounter;
     private final String logType;
-    private final MetaInfoService metaInfoService;
     private final PullStrategy pullStrategy;
+    private final ConsumeParam consumeParam;
 
     private DefaultPullEntry() {
         super("", "", null, null, null);
-        metaInfoService = null;
-        pushConsumer = null;
+        messageExecutor = null;
         pullBatchSize = pullTimeout = ackNosendLimit = null;
         pullRunCounter = null;
         pauseCounter = null;
         logType = "PullEntry=";
         pullStrategy = null;
+        consumeParam = null;
     }
 
-    DefaultPullEntry(PushConsumer pushConsumer, PullService pullService, AckService ackService, MetaInfoService metaInfoService, BrokerService brokerService, PullStrategy pullStrategy) {
-        super(pushConsumer.subject(), pushConsumer.group(), pullService, ackService, brokerService);
-        this.metaInfoService = metaInfoService;
-        String subject = pushConsumer.subject();
-        String group = pushConsumer.group();
-        this.pushConsumer = pushConsumer;
+    DefaultPullEntry(MessageExecutor messageExecutor, ConsumeParam consumeParam, PullService pullService, AckService ackService, MetaInfoService metaInfoService, BrokerService brokerService, PullStrategy pullStrategy) {
+        super(consumeParam.getSubject(), consumeParam.getGroup(), pullService, ackService, brokerService);
+        this.consumeParam = consumeParam;
+        String subject = consumeParam.getSubject();
+        String group = consumeParam.getGroup();
+        this.messageExecutor = messageExecutor;
         String realSubject = RetrySubjectUtils.getRealSubject(subject);
         this.pullBatchSize = PullSubjectsConfig.get().getPullBatchSize(realSubject);
         this.pullTimeout = PullSubjectsConfig.get().getPullTimeout(realSubject);
@@ -111,7 +112,7 @@ class DefaultPullEntry extends AbstractPullEntry {
 
         this.logType = "PullEntry=" + subject;
 
-        this.consumerOnlineStateManager.registerConsumer(subject, group, pushConsumer.consumeParam().getConsumerId(), onlineSwitcher::isOnline);
+        this.consumerOnlineStateManager.registerConsumer(subject, group, consumeParam.getConsumerId(), onlineSwitcher::isOnline);
         this.onlineSwitcher.addListener(isOnline -> {
             if (metaInfoService != null) {
                 // 上下线主动触发心跳
@@ -122,12 +123,12 @@ class DefaultPullEntry extends AbstractPullEntry {
 
     public void online(StatusSource src) {
         onlineSwitcher.on(src);
-        LOGGER.info("pullconsumer online. subject={}, group={}", pushConsumer.subject(), pushConsumer.group());
+        LOGGER.info("pullconsumer online. subject={}, group={}", consumeParam.getSubject(), consumeParam.getGroup());
     }
 
     public void offline(StatusSource src) {
         onlineSwitcher.off(src);
-        LOGGER.info("pullconsumer offline. subject={}, group={}", pushConsumer.subject(), pushConsumer.group());
+        LOGGER.info("pullconsumer offline. subject={}, group={}", consumeParam.getSubject(), consumeParam.getGroup());
     }
 
     public void destroy() {
@@ -142,12 +143,12 @@ class DefaultPullEntry extends AbstractPullEntry {
             while (isRunning.get()) {
                 try {
                     if (!preparePull()) {
-                        LOGGER.debug(logType, "preparePull false. subject={}, group={}", pushConsumer.subject(), pushConsumer.group());
+                        LOGGER.debug(logType, "preparePull false. subject={}, group={}", consumeParam.getSubject(), consumeParam.getGroup());
                         continue;
                     }
 
                     if (!resetDoPullParam(doPullParam)) {
-                        LOGGER.debug(logType, "buildDoPullParam false. subject={}, group={}", pushConsumer.subject(), pushConsumer.group());
+                        LOGGER.debug(logType, "buildDoPullParam false. subject={}, group={}", consumeParam.getSubject(), consumeParam.getGroup());
                         continue;
                     }
 
@@ -165,7 +166,7 @@ class DefaultPullEntry extends AbstractPullEntry {
 
     private boolean preparePull() {
         pullRunCounter.inc();
-        if (!pushConsumer.cleanLocalBuffer()) {
+        if (!messageExecutor.cleanUp()) {
             pause("wait consumer", PAUSETIME_OF_CLEAN_LAST_MESSAGE);
             return false;
         }
@@ -187,7 +188,7 @@ class DefaultPullEntry extends AbstractPullEntry {
                 continue;
             }
 
-            param.ackSendInfo = ackService.getAckSendInfo(param.broker, pushConsumer.subject(), pushConsumer.group());
+            param.ackSendInfo = ackService.getAckSendInfo(param.broker, consumeParam.getSubject(), consumeParam.getGroup());
             if (param.ackSendInfo.getToSendNum() <= ackNosendLimit.get()) {
                 brokersOfWaitAck.clear();
                 break;
@@ -199,7 +200,7 @@ class DefaultPullEntry extends AbstractPullEntry {
     }
 
     private BrokerClusterInfo getBrokerCluster() {
-        return brokerService.getClusterBySubject(ClientType.CONSUMER, pushConsumer.subject(), pushConsumer.group());
+        return brokerService.getClusterBySubject(ClientType.CONSUMER, consumeParam.getSubject(), consumeParam.getGroup());
     }
 
     private BrokerGroupInfo nextPullBrokerGroup(BrokerClusterInfo cluster) {
@@ -220,14 +221,14 @@ class DefaultPullEntry extends AbstractPullEntry {
     }
 
     private void doPull(DoPullParam param) {
-        List<PulledMessage> messages = pull(pushConsumer.consumeParam(), param.broker, pullBatchSize.get(), pullTimeout.get(), pushConsumer);
+        List<PulledMessage> messages = pull(consumeParam, param.broker, pullBatchSize.get(), pullTimeout.get(), messageExecutor.getMessageHandler());
         pullStrategy.record(messages.size() > 0);
-        pushConsumer.push(messages);
+        messageExecutor.execute(messages);
     }
 
     private void pause(String log, long timeMillis) {
-        final String subject = pushConsumer.subject();
-        final String group = pushConsumer.group();
+        final String subject = consumeParam.getSubject();
+        final String group = consumeParam.getGroup();
         this.pauseCounter.inc();
         LOGGER.debug(logType, "pull pause {} ms, {}. subject={}, group={}", timeMillis, log, subject, group);
         try {

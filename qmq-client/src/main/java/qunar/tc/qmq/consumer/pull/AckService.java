@@ -117,14 +117,14 @@ class AckService {
     private void preAckOnDemand(List<PulledMessage> messages, boolean isConsumeMostOnce) {
         for (PulledMessage message : messages) {
             if (isConsumeMostOnce) {
-                AckHelper.ackWithTrace(message, null);
+                message.ackWithTrace(null);
             }
         }
     }
 
     private void ackIgnoreMessages(List<PulledMessage> ignoreMessages) {
         for (PulledMessage message : ignoreMessages) {
-            AckHelper.ackWithTrace(message, null);
+            message.ackWithTrace(null);
         }
     }
 

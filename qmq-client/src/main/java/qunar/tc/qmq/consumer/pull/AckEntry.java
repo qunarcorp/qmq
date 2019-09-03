@@ -28,7 +28,7 @@ import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_GROUP_ARRAY;
 /**
  * @author yiqun.fan create on 17-7-20.
  */
-class AckEntry {
+public class AckEntry {
     private static final Logger LOGGER = LoggerFactory.getLogger(AckEntry.class);
 
     private final AckSendQueue ackSendQueue;
@@ -65,7 +65,7 @@ class AckEntry {
         completed();
     }
 
-    void nack(final int nextRetryCount, final BaseMessage message) {
+    public void nack(final int nextRetryCount, final BaseMessage message) {
         if (!completing.compareAndSet(false, true)) {
             return;
         }
@@ -84,7 +84,7 @@ class AckEntry {
         }
     }
 
-    void ackDelay(int nextRetryCount, long nextRetryTime, BaseMessage message) {
+    public void ackDelay(int nextRetryCount, long nextRetryTime, BaseMessage message) {
         if (!completing.compareAndSet(false, true)) return;
 
         try {
