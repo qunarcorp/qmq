@@ -25,12 +25,13 @@ import qunar.tc.qmq.MessageProducer;
 import qunar.tc.qmq.MessageSendStateListener;
 import qunar.tc.qmq.TransactionProvider;
 import qunar.tc.qmq.base.BaseMessage;
+import qunar.tc.qmq.broker.BrokerService;
+import qunar.tc.qmq.broker.impl.BrokerServiceImpl;
 import qunar.tc.qmq.common.ClientIdProvider;
 import qunar.tc.qmq.common.ClientIdProviderFactory;
 import qunar.tc.qmq.common.EnvProvider;
 import qunar.tc.qmq.common.OrderedMessageUtils;
-import qunar.tc.qmq.config.OrderedMessageManager;
-import qunar.tc.qmq.meta.PartitionMapping;
+import qunar.tc.qmq.metainfoclient.DefaultMetaInfoService;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.MetricsConstants;
 import qunar.tc.qmq.metrics.QmqTimer;
@@ -68,7 +69,7 @@ public class MessageProducerProvider implements MessageProducer {
 
     private MessageTracker messageTracker;
 
-    private OrderedMessageManager orderedMessageManager;
+    private String clientId;
 
     /**
      * 自动路由机房
@@ -76,7 +77,13 @@ public class MessageProducerProvider implements MessageProducer {
     public MessageProducerProvider(String metaServer) {
         this.idGenerator = new TimestampAndHostIdGenerator();
         this.clientIdProvider = ClientIdProviderFactory.createDefault();
-        this.routerManager = new NettyRouterManager(metaServer);
+
+        this.clientId = clientIdProvider.get();
+        DefaultMetaInfoService metaInfoService = new DefaultMetaInfoService(metaServer);
+        metaInfoService.setClientId(clientId);
+        metaInfoService.init();
+        BrokerService brokerService = new BrokerServiceImpl(metaInfoService);
+        this.routerManager = new NettyRouterManager(brokerService);
         this.tracer = GlobalTracer.get();
     }
 
@@ -87,7 +94,7 @@ public class MessageProducerProvider implements MessageProducer {
         this.routerManager.setAppCode(appCode);
 
         if (STARTED.compareAndSet(false, true)) {
-            routerManager.init(clientIdProvider.get());
+            routerManager.init(clientId);
         }
     }
 
@@ -127,8 +134,7 @@ public class MessageProducerProvider implements MessageProducer {
         }
 
         if (OrderedMessageUtils.isOrderedMessage((BaseMessage) message)) {
-            PartitionMapping partitionMapping = orderedMessageManager.getPartitionMapping(message.getSubject());
-            OrderedMessageUtils.initOrderedMessage((BaseMessage) message, partitionMapping);
+            OrderedMessageUtils.initOrderedMessage((BaseMessage) message);
         }
 
         String[] tagValues = null;

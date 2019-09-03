@@ -17,25 +17,34 @@
 package qunar.tc.qmq.broker.impl;
 
 import com.google.common.base.Strings;
+import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.SettableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.PartitionAllocation;
+import qunar.tc.qmq.Versionable;
 import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
+import qunar.tc.qmq.broker.OrderedMessageManager;
 import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.common.MapKeyBuilder;
 import qunar.tc.qmq.meta.BrokerCluster;
 import qunar.tc.qmq.meta.BrokerGroup;
 import qunar.tc.qmq.meta.BrokerState;
+import qunar.tc.qmq.meta.PartitionMapping;
 import qunar.tc.qmq.metainfoclient.DefaultMetaInfoService;
 import qunar.tc.qmq.metainfoclient.MetaInfo;
 import qunar.tc.qmq.metainfoclient.MetaInfoClient;
+import qunar.tc.qmq.metainfoclient.MetaInfoService;
 import qunar.tc.qmq.protocol.MetaInfoResponse;
+import qunar.tc.qmq.protocol.consumer.ConsumerMetaInfoResponse;
+import qunar.tc.qmq.protocol.producer.ProducerMetaInfoResponse;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Future;
@@ -43,20 +52,22 @@ import java.util.concurrent.Future;
 /**
  * @author yiqun.fan create on 17-8-18.
  */
-public class BrokerServiceImpl implements BrokerService, MetaInfoClient.ResponseSubscriber {
+public class BrokerServiceImpl implements BrokerService, OrderedMessageManager, MetaInfoClient.ResponseSubscriber {
     private static final Logger LOGGER = LoggerFactory.getLogger(BrokerServiceImpl.class);
 
+    private Map<String, SettableFuture<PartitionMapping>> partitionMap = Maps.newConcurrentMap();
+    private Map<String, SettableFuture<PartitionAllocation>> allocationMap = Maps.newConcurrentMap();
     private final ConcurrentMap<String, SettableFuture<BrokerClusterInfo>> clusterMap = new ConcurrentHashMap<>();
 
-    private final DefaultMetaInfoService metaInfoService;
+    private final MetaInfoService metaInfoService;
     private String appCode;
 
-    public BrokerServiceImpl(DefaultMetaInfoService metaInfoService) {
+    public BrokerServiceImpl(MetaInfoService metaInfoService) {
         this.metaInfoService = metaInfoService;
         this.metaInfoService.registerResponseSubscriber(this);
     }
 
-    private void updateOnDemand(String key, BrokerClusterInfo clusterInfo) {
+    private void updateBrokerCluster(String key, BrokerClusterInfo clusterInfo) {
         SettableFuture<BrokerClusterInfo> oldFuture = clusterMap.get(key);
 
         if (!oldFuture.isDone()) {
@@ -163,6 +174,9 @@ public class BrokerServiceImpl implements BrokerService, MetaInfoClient.Response
 
     @Override
     public void onResponse(MetaInfoResponse response) {
+        // update cache
+        updatePartitionCache(response);
+
         MetaInfo metaInfo = parseResponse(response);
         if (metaInfo != null) {
             LOGGER.debug("meta info: {}", metaInfo);
@@ -172,10 +186,49 @@ public class BrokerServiceImpl implements BrokerService, MetaInfoClient.Response
                 logMetaInfo(metaInfo, !clusterFuture.isDone());
                 return;
             }
-            updateOnDemand(key, metaInfo.getClusterInfo());
+            updateBrokerCluster(key, metaInfo.getClusterInfo());
         } else {
             LOGGER.warn("request meta info fail, will retry in a few seconds.");
         }
+    }
+
+    private void updatePartitionCache(MetaInfoResponse response) {
+        ClientType clientType = ClientType.of(response.getClientTypeCode());
+        String subject = response.getSubject();
+        String group = response.getConsumerGroup();
+        if (clientType.isProducer()) {
+            ProducerMetaInfoResponse producerResponse = (ProducerMetaInfoResponse) response;
+            updatePartitionCache(subject, partitionMap, producerResponse.getPartitionMapping());
+        } else if (clientType.isConsumer()) {
+            String key = createPartitionAllocationKey(subject, group);
+            ConsumerMetaInfoResponse consumerResponse = (ConsumerMetaInfoResponse) response;
+            updatePartitionCache(key, allocationMap, consumerResponse.getPartitionAllocation());
+        }
+
+    }
+
+    private <T extends Versionable> void updatePartitionCache(String key, Map<String, SettableFuture<T>> map, T newVal) {
+        if (newVal == null) return;
+        synchronized (key.intern()) {
+            SettableFuture<T> future = map.computeIfAbsent(key, k -> SettableFuture.create());
+            // 旧的存在, 对比版本
+            if (!future.isDone()) {
+                future.set(newVal);
+            } else {
+                try {
+                    T oldVal = future.get();
+                    int oldVersion = oldVal.getVersion();
+                    int newVersion = newVal.getVersion();
+                    future.set(newVersion > oldVersion ? newVal : oldVal);
+                } catch (Throwable t) {
+                    throw new RuntimeException(t);
+                }
+            }
+        }
+    }
+
+    private String createPartitionAllocationKey(String subject, String group) {
+        return subject + ":" + group;
     }
 
     private MetaInfo parseResponse(MetaInfoResponse response) {
@@ -222,5 +275,26 @@ public class BrokerServiceImpl implements BrokerService, MetaInfoClient.Response
 
     private ClientType parseClientType(MetaInfoResponse response) {
         return ClientType.of(response.getClientTypeCode());
+    }
+
+    @Override
+    public PartitionMapping getPartitionMapping(String subject) {
+        SettableFuture<PartitionMapping> future = partitionMap.computeIfAbsent(subject, key -> SettableFuture.create());
+        try {
+            return future.get();
+        } catch (Throwable t) {
+            throw new RuntimeException(t);
+        }
+    }
+
+    @Override
+    public PartitionAllocation getPartitionAllocation(String subject, String group) {
+        String key = createPartitionAllocationKey(subject, group);
+        SettableFuture<PartitionAllocation> future = allocationMap.computeIfAbsent(key, k -> SettableFuture.create());
+        try {
+            return future.get();
+        } catch (Throwable t) {
+            throw new RuntimeException(t);
+        }
     }
 }

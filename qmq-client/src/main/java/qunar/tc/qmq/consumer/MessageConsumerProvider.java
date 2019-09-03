@@ -22,7 +22,6 @@ import qunar.tc.qmq.common.ClientIdProvider;
 import qunar.tc.qmq.common.ClientIdProviderFactory;
 import qunar.tc.qmq.common.EnvProvider;
 import qunar.tc.qmq.config.NettyClientConfigManager;
-import qunar.tc.qmq.config.OrderedMessageManager;
 import qunar.tc.qmq.consumer.handler.MessageDistributor;
 import qunar.tc.qmq.PullConsumer;
 import qunar.tc.qmq.consumer.pull.PullConsumerFactory;

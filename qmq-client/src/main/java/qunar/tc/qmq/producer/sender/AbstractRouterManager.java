@@ -19,6 +19,7 @@ package qunar.tc.qmq.producer.sender;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import qunar.tc.qmq.Message;
+import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.producer.ConfigCenter;
 import qunar.tc.qmq.producer.QueueSender;
 import qunar.tc.qmq.producer.QueueSender.PropKey;
@@ -40,6 +41,12 @@ abstract class AbstractRouterManager implements RouterManager {
 
     private final AtomicBoolean STARTED = new AtomicBoolean(false);
 
+    protected BrokerService brokerService;
+
+    public AbstractRouterManager(BrokerService brokerService) {
+        this.brokerService = brokerService;
+    }
+
     @Override
     public void init(String clientId) {
         if (STARTED.compareAndSet(false, true)) {
@@ -51,6 +58,7 @@ abstract class AbstractRouterManager implements RouterManager {
             props.put(PropKey.SEND_THREADS, configs.getSendThreads());
             props.put(PropKey.SEND_BATCH, configs.getSendBatch());
             props.put(PropKey.ROUTER_MANAGER, this);
+            props.put(PropKey.BROKER_SERVICE, brokerService);
             this.sender.init(props);
         }
     }

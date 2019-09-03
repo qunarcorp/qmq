@@ -1,6 +1,7 @@
 package qunar.tc.qmq.meta;
 
 import com.google.common.collect.RangeMap;
+import qunar.tc.qmq.Versionable;
 
 /**
  * partition 映射, producer 使用
@@ -8,7 +9,7 @@ import com.google.common.collect.RangeMap;
  * @author zhenwei.liu
  * @since 2019-08-27
  */
-public class PartitionMapping {
+public class PartitionMapping implements Versionable {
 
     private String subject;
     private int logicalPartitionNum;

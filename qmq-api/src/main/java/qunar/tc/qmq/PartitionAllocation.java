@@ -9,7 +9,7 @@ import java.util.Set;
  * @author zhenwei.liu
  * @since 2019-08-19
  */
-public class PartitionAllocation {
+public class PartitionAllocation implements Versionable {
 
     private String subject;
     private String consumerGroup;

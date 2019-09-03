@@ -21,7 +21,7 @@ import qunar.tc.qmq.common.ClientType;
 /**
  * @author yiqun.fan create on 17-8-18.
  */
-public interface BrokerService {
+public interface BrokerService extends OrderedMessageManager {
 
     BrokerClusterInfo getClusterBySubject(ClientType clientType, String subject);
 

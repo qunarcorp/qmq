@@ -1,4 +1,4 @@
-package qunar.tc.qmq.config;
+package qunar.tc.qmq.broker;
 
 import qunar.tc.qmq.PartitionAllocation;
 import qunar.tc.qmq.meta.PartitionMapping;
