@@ -10,20 +10,20 @@ import java.util.ServiceLoader;
  * @author zhenwei.liu
  * @since 2019-08-20
  */
-public class MessagePreHandlerChain implements MessagePreHandler {
+public class SendMessagePreHandlerChain implements SendMessagePreHandler {
 
-    private final List<MessagePreHandler> handlers;
+    private final List<SendMessagePreHandler> handlers;
 
-    public MessagePreHandlerChain() {
+    public SendMessagePreHandlerChain() {
         this.handlers = Lists.newArrayList();
-        for (MessagePreHandler handler : ServiceLoader.load(MessagePreHandler.class)) {
+        for (SendMessagePreHandler handler : ServiceLoader.load(SendMessagePreHandler.class)) {
             handlers.add(handler);
         }
     }
 
     @Override
     public void handle(List<ProduceMessage> messages) {
-        for (MessagePreHandler handler : handlers) {
+        for (SendMessagePreHandler handler : handlers) {
             handler.handle(messages);
         }
     }

@@ -8,7 +8,7 @@ import java.util.List;
  * @author zhenwei.liu
  * @since 2019-08-20
  */
-public interface MessagePreHandler {
+public interface SendMessagePreHandler {
 
     void handle(List<ProduceMessage> messages);
 }

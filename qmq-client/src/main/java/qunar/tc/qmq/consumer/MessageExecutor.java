@@ -10,7 +10,7 @@ import java.util.List;
  */
 public interface MessageExecutor {
 
-    void execute(List<PulledMessage> messages);
+    boolean execute(List<PulledMessage> messages);
 
     MessageHandler getMessageHandler();
 

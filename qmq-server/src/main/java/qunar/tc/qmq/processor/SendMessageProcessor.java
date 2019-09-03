@@ -54,6 +54,7 @@ public class SendMessageProcessor extends AbstractRequestProcessor {
 
     @Override
     public CompletableFuture<Datagram> processRequest(ChannelHandlerContext ctx, RemotingCommand command) {
+        // TODO(zhenwei.liu) 这里需要处理顺序连续失败问题
         List<RawMessage> messages;
         try {
             messages = deserializeRawMessages(command);

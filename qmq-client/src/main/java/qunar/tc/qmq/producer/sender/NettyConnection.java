@@ -68,7 +68,7 @@ class NettyConnection implements Connection {
     private final QmqTimer sendMessageTimerMetrics;
 
     private BrokerLoadBalance brokerLoadBalance;
-    private MessagePreHandler messagePreHandler;
+    private SendMessagePreHandler sendMessagePreHandler;
 
     NettyConnection(String subject, ClientType clientType, NettyProducerClient producerClient,
                     BrokerService brokerService) {
@@ -81,7 +81,7 @@ class NettyConnection implements Connection {
         sendMessageTimerMetrics = Metrics.timer("qmq_client_send_msg_timer");
 
         this.brokerLoadBalance = new AdaptiveBrokerLoadBalance();
-        this.messagePreHandler = new MessagePreHandlerChain();
+        this.sendMessagePreHandler = new SendMessagePreHandlerChain();
     }
 
     public void init() {
@@ -165,7 +165,7 @@ class NettyConnection implements Connection {
             }
 
             lastSentBroker = target;
-            messagePreHandler.handle(messages);
+            sendMessagePreHandler.handle(messages);
             Datagram datagram = buildDatagram(messages);
             TraceUtil.setTag("broker", target.getGroupName());
             return sender.send(target, datagram);

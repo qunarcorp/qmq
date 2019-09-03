@@ -28,8 +28,8 @@ import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.common.EnvProvider;
 import qunar.tc.qmq.common.MapKeyBuilder;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
-import qunar.tc.qmq.consumer.BufferedMessageExecutor;
 import qunar.tc.qmq.consumer.MessageExecutor;
+import qunar.tc.qmq.consumer.MessageExecutorFactory;
 import qunar.tc.qmq.consumer.exception.DuplicateListenerException;
 import qunar.tc.qmq.consumer.register.ConsumerRegister;
 import qunar.tc.qmq.consumer.register.RegistParam;
@@ -185,7 +185,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         }
 
         pullEntry = (PullEntry) createPullClient(subject, group, pullStrategy, response, pullEntry,
-                (subject1, group1, pullStrategy1) -> createDefaultPullEntry(subject1, group1, param, pullStrategy1),
+                (subject1, group1, pullStrategy1, isOrdered) -> createDefaultPullEntry(subject1, group1, param, pullStrategy1, isOrdered),
                 (partitionId, pullClient) -> new PartitionPullEntry(partitionId, (PullEntry) pullClient),
                 (clients, partitionAllocation) -> new OrderedPullEntry((List<PartitionPullEntry>) clients, partitionAllocation)
         );
@@ -221,12 +221,12 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
             if (oldClient != null) {
                 return oldClient;
             }
-            return pullClientFactory.createPullClient(subject, group, pullStrategy);
+            return pullClientFactory.createPullClient(subject, group, pullStrategy, false);
         }
     }
 
     private interface PullClientFactory<T extends PullClient> {
-        T createPullClient(String subject, String group, PullStrategy pullStrategy);
+        T createPullClient(String subject, String group, PullStrategy pullStrategy, boolean isOrdered);
     }
 
     private interface PartitionPullClientFactory<T extends PartitionPullClient> {
@@ -234,7 +234,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
     }
 
     private interface OrderedPullClientFactory<T extends OrderedPullClient> {
-        T createOrderedPullClient(List<? extends PartitionPullClient> clients, PartitionAllocation partitionAllocation);
+        T createPullClient(List<? extends PartitionPullClient> clients, PartitionAllocation partitionAllocation);
     }
 
     private OrderedPullClient updateOrderedPullClient(
@@ -273,7 +273,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
             for (Integer newPartitionId : newPartitions) {
                 if (!oldPartitions.contains(newPartitionId)) {
                     String orderedSubject = OrderedMessageUtils.getOrderedMessageSubject(subject, newPartitionId);
-                    PullClient newDefaultClient = pullClientFactory.createPullClient(orderedSubject, group, pullStrategy);
+                    PullClient newDefaultClient = pullClientFactory.createPullClient(orderedSubject, group, pullStrategy, true);
                     PartitionPullClient newPartitionClient = partitionPullClientFactory.createPullClient(newPartitionId, newDefaultClient);
                     newPartitionClients.add(newPartitionClient);
                 }
@@ -288,7 +288,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
             ArrayList<PartitionPullClient> entries = Lists.newArrayList();
             entries.addAll(reusePartitionClients);
             entries.addAll(newPartitionClients);
-            return orderedPullClientFactory.createOrderedPullClient(entries, partitionAllocation);
+            return orderedPullClientFactory.createPullClient(entries, partitionAllocation);
         } else {
             // 当前版本比 response 中的高
             return oldClient;
@@ -308,16 +308,16 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         List<PartitionPullClient> partitionPullClients = Lists.newArrayList();
         for (Integer newPartitionId : partitionIds) {
             String orderedSubject = OrderedMessageUtils.getOrderedMessageSubject(subject, newPartitionId);
-            PullClient newDefaultClient = pullClientFactory.createPullClient(orderedSubject, group, pullStrategy);
+            PullClient newDefaultClient = pullClientFactory.createPullClient(orderedSubject, group, pullStrategy, true);
             PartitionPullClient newPartitionClient = partitionPullClientFactory.createPullClient(newPartitionId, newDefaultClient);
             partitionPullClients.add(newPartitionClient);
         }
-        return orderedPullClientFactory.createOrderedPullClient(partitionPullClients, partitionAllocation);
+        return orderedPullClientFactory.createPullClient(partitionPullClients, partitionAllocation);
     }
 
-    private PullEntry createDefaultPullEntry(String subject, String group, RegistParam param, PullStrategy pullStrategy) {
+    private PullEntry createDefaultPullEntry(String subject, String group, RegistParam param, PullStrategy pullStrategy, boolean isOrdered) {
         ConsumeParam consumeParam = new ConsumeParam(subject, group, param);
-        MessageExecutor messageExecutor = new BufferedMessageExecutor(subject, group, param);
+        MessageExecutor messageExecutor = MessageExecutorFactory.createExecutor(subject, group, pullExecutor, param.getMessageListener(), isOrdered);
         PullEntry pullEntry = new DefaultPullEntry(messageExecutor, consumeParam, pullService, ackService, metaInfoService, brokerService, pullStrategy);
         pullEntry.startPull(pullExecutor);
         return pullEntry;
@@ -342,7 +342,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
                 null,
                 response,
                 oldConsumer,
-                (subject1, group1, pullStrategy) -> {
+                (subject1, group1, pullStrategy, isOrdered) -> {
                     DefaultPullConsumer pullConsumer = new DefaultPullConsumer(subject1, group1, isBroadcast, clientId, pullService, ackService, brokerService);
                     pullConsumer.startPull(pullExecutor);
                     return pullConsumer;

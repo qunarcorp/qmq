@@ -11,7 +11,7 @@ import java.util.List;
  * @author zhenwei.liu
  * @since 2019-08-20
  */
-public class OrderedMessagePreHandler implements MessagePreHandler {
+public class OrderedSendMessagePreHandler implements SendMessagePreHandler {
 
     @Override
     public void handle(List<ProduceMessage> messages) {
