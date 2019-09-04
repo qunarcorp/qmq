@@ -22,9 +22,10 @@ public class AdaptiveQueueSender implements QueueSender {
     private Map<String, QueueSender> senderMap = Maps.newHashMap();
 
     public AdaptiveQueueSender() {
-        for (QueueSender sender : ServiceLoader.load(QueueSender.class)) {
-            senderMap.put(sender.getClass().getName(), sender);
-        }
+        OrderedQueueSender orderedQueueSender = new OrderedQueueSender();
+        RPCQueueSender rpcQueueSender = new RPCQueueSender();
+        senderMap.put(orderedQueueSender.getClass().getName(), orderedQueueSender);
+        senderMap.put(rpcQueueSender.getClass().getName(), rpcQueueSender);
     }
 
     @Override

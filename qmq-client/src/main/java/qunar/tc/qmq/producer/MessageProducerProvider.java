@@ -27,10 +27,10 @@ import qunar.tc.qmq.TransactionProvider;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.broker.impl.BrokerServiceImpl;
+import qunar.tc.qmq.broker.impl.OrderedBrokerLoadBalance;
 import qunar.tc.qmq.common.ClientIdProvider;
 import qunar.tc.qmq.common.ClientIdProviderFactory;
 import qunar.tc.qmq.common.EnvProvider;
-import qunar.tc.qmq.common.OrderedMessageUtils;
 import qunar.tc.qmq.metainfoclient.DefaultMetaInfoService;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.MetricsConstants;
@@ -38,6 +38,7 @@ import qunar.tc.qmq.metrics.QmqTimer;
 import qunar.tc.qmq.producer.idgenerator.IdGenerator;
 import qunar.tc.qmq.producer.idgenerator.TimestampAndHostIdGenerator;
 import qunar.tc.qmq.producer.sender.NettyRouterManager;
+import qunar.tc.qmq.producer.sender.OrderedQueueSender;
 import qunar.tc.qmq.producer.tx.MessageTracker;
 import qunar.tc.qmq.tracing.TraceUtil;
 
@@ -45,6 +46,8 @@ import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import static qunar.tc.qmq.common.OrderedMessageUtils.isOrderedMessage;
 
 /**
  * @author miao.yang susing@gmail.com
@@ -133,8 +136,9 @@ public class MessageProducerProvider implements MessageProducer {
             throw new RuntimeException("MessageProducerProvider未初始化，如果使用非Spring的方式请确认init()是否调用");
         }
 
-        if (OrderedMessageUtils.isOrderedMessage((BaseMessage) message)) {
-            OrderedMessageUtils.initOrderedMessage((BaseMessage) message);
+        if (isOrderedMessage(message)) {
+            message.setProperty(BaseMessage.keys.qmq_queueSenderType.name(), OrderedQueueSender.class.getName());
+            message.setProperty(BaseMessage.keys.qmq_loadBalanceType.name(), OrderedBrokerLoadBalance.class.getName());
         }
 
         String[] tagValues = null;

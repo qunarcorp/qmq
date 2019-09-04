@@ -17,8 +17,9 @@ public class OrderedSendMessagePreHandler implements SendMessagePreHandler {
     public void handle(List<ProduceMessage> messages) {
         messages.forEach(message -> {
             BaseMessage baseMessage = (BaseMessage) message.getBase();
-            int physicalPartition = baseMessage.getIntProperty(keys.qmq_physicalPartition.name());
-            baseMessage.setSubject(OrderedMessageUtils.getOrderedMessageSubject(baseMessage.getSubject(), physicalPartition));
+            // 消息发到 broker 后, 由 broker 自行修改主题
+//            int physicalPartition = baseMessage.getIntProperty(keys.qmq_physicalPartition.name());
+//            baseMessage.setSubject(OrderedMessageUtils.getOrderedMessageSubject(baseMessage.getSubject(), physicalPartition));
             baseMessage.removeProperty(keys.qmq_queueSenderType);
             baseMessage.removeProperty(keys.qmq_loadBalanceType);
         });

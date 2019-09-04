@@ -111,11 +111,7 @@ public class OrderedQueueSender extends AbstractQueueSender implements OrderedPr
     }
 
     private OrderedExecutor<ProduceMessage> getExecutor(ProduceMessage produceMessage) {
-        String subject = produceMessage.getSubject();
         BaseMessage baseMessage = (BaseMessage) produceMessage.getBase();
-        PartitionMapping partitionMapping = brokerService.getPartitionMapping(subject);
-        BrokerClusterInfo brokerCluster = brokerService.getClusterBySubject(ClientType.PRODUCER, subject);
-        OrderedMessageUtils.initPartition(baseMessage, partitionMapping, brokerCluster);
         String orderedSubject = OrderedMessageUtils.getOrderedMessageSubject(baseMessage.getSubject(), baseMessage.getIntProperty(keys.qmq_physicalPartition.name()));
         return executorMap.computeIfAbsent(orderedSubject, k -> new OrderedExecutor<>(k, sendBatch, maxQueueSize, this, executor));
     }

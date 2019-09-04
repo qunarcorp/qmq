@@ -48,7 +48,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_ARRAY;
 
@@ -80,7 +79,7 @@ class NettyConnection implements Connection {
         sendMessageCountMetrics = Metrics.counter("qmq_client_send_msg_count", SUBJECT_ARRAY, new String[]{subject});
         sendMessageTimerMetrics = Metrics.timer("qmq_client_send_msg_timer");
 
-        this.brokerLoadBalance = new AdaptiveBrokerLoadBalance();
+        this.brokerLoadBalance = AdaptiveBrokerLoadBalance.getInstance(brokerService);
         this.sendMessagePreHandler = new SendMessagePreHandlerChain();
     }
 
@@ -158,8 +157,7 @@ class NettyConnection implements Connection {
         long start = System.currentTimeMillis();
         try {
             BrokerClusterInfo cluster = brokerService.getClusterBySubject(clientType, subject);
-            List<BaseMessage> baseMessages = messages.stream().map(msg -> (BaseMessage) msg.getBase()).collect(Collectors.toList());
-            BrokerGroupInfo target = brokerLoadBalance.loadBalance(cluster, lastSentBroker, baseMessages);
+            BrokerGroupInfo target = brokerLoadBalance.loadBalance(cluster, lastSentBroker, (BaseMessage) messages.get(0).getBase());
             if (target == null) {
                 throw new ClientSendException(ClientSendException.SendErrorCode.CREATE_CHANNEL_FAIL);
             }
@@ -246,7 +244,7 @@ class NettyConnection implements Connection {
         for (ProduceMessage message : messages) {
             baseMessages.add((BaseMessage) message.getBase());
         }
-        return RemotingBuilder.buildRequestDatagram(CommandCode.SEND_MESSAGE, new MessagesPayloadHolder(baseMessages));
+        return RemotingBuilder.buildRequestDatagram(CommandCode.SEND_MESSAGE, new OrderedMessagesPayloadHolder(baseMessages));
     }
 
     @Override

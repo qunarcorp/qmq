@@ -16,6 +16,10 @@
 
 package qunar.tc.qmq.meta.processor;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Range;
+import com.google.common.collect.RangeMap;
+import com.google.common.collect.TreeRangeMap;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,10 +31,12 @@ import qunar.tc.qmq.codec.Serializers;
 import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.concurrent.ActorSystem;
 import qunar.tc.qmq.event.EventDispatcher;
-import qunar.tc.qmq.meta.*;
+import qunar.tc.qmq.meta.BrokerCluster;
+import qunar.tc.qmq.meta.BrokerGroup;
+import qunar.tc.qmq.meta.BrokerState;
+import qunar.tc.qmq.meta.PartitionMapping;
 import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 import qunar.tc.qmq.meta.cache.CachedOfflineStateManager;
-import qunar.tc.qmq.meta.route.ReadonlyBrokerGroupManager;
 import qunar.tc.qmq.meta.route.SubjectRouter;
 import qunar.tc.qmq.meta.store.Store;
 import qunar.tc.qmq.meta.utils.ClientLogUtils;
@@ -45,6 +51,7 @@ import qunar.tc.qmq.utils.SubjectUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * @author yunfeng.yang
@@ -57,12 +64,12 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
     private final ActorSystem actorSystem;
     private final Store store;
     private final CachedOfflineStateManager offlineStateManager;
-    private final ReadonlyBrokerGroupManager readonlyBrokerGroupManager;
+    private final BrokerFilterController brokerFilterController;
     private final CachedMetaInfoManager cachedMetaInfoManager;
 
-    ClientRegisterWorker(final SubjectRouter subjectRouter, final CachedOfflineStateManager offlineStateManager, final Store store, ReadonlyBrokerGroupManager readonlyBrokerGroupManager, CachedMetaInfoManager cachedMetaInfoManager) {
+    ClientRegisterWorker(final SubjectRouter subjectRouter, final CachedOfflineStateManager offlineStateManager, final Store store, CachedMetaInfoManager cachedMetaInfoManager) {
         this.subjectRouter = subjectRouter;
-        this.readonlyBrokerGroupManager = readonlyBrokerGroupManager;
+        this.brokerFilterController = new BrokerFilterController(cachedMetaInfoManager);
         this.cachedMetaInfoManager = cachedMetaInfoManager;
         this.actorSystem = new ActorSystem("qmq_meta");
         this.offlineStateManager = offlineStateManager;
@@ -77,12 +84,12 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
     public boolean process(ClientRegisterProcessor.ClientRegisterMessage message, ActorSystem.Actor<ClientRegisterProcessor.ClientRegisterMessage> self) {
         final MetaInfoRequest request = message.getMetaInfoRequest();
 
-        final MetaInfoResponse response = handleClientRegister(request);
+        final MetaInfoResponse response = handleClientRegister(message.getHeader(), request);
         writeResponse(message, response);
         return true;
     }
 
-    private MetaInfoResponse handleClientRegister(final MetaInfoRequest request) {
+    private MetaInfoResponse handleClientRegister(RemotingHeader header, MetaInfoRequest request) {
         String realSubject = RetrySubjectUtils.getRealSubject(request.getSubject());
         int clientRequestType = request.getRequestType();
         OnOfflineState onOfflineState = request.getOnlineState();
@@ -98,8 +105,7 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
             }
 
             final List<BrokerGroup> brokerGroups = subjectRouter.route(realSubject, request);
-            List<BrokerGroup> removedReadonlyGroups = readonlyBrokerGroupManager.disableReadonlyBrokerGroup(realSubject, request.getClientTypeCode(), brokerGroups);
-            final List<BrokerGroup> filteredBrokerGroups = filterBrokerGroups(removedReadonlyGroups);
+            final List<BrokerGroup> filteredBrokerGroups = brokerFilterController.filter(realSubject, request.getClientTypeCode(), brokerGroups, header.getVersion());
             final OnOfflineState clientState = offlineStateManager.queryClientState(request.getClientId(), request.getSubject(), request.getConsumerGroup());
 
             ClientLogUtils.log(realSubject,
@@ -118,24 +124,6 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
                 EventDispatcher.dispatch(request);
             }
         }
-    }
-
-    private List<BrokerGroup> filterBrokerGroups(final List<BrokerGroup> brokerGroups) {
-        return removeNrwBrokerGroup(brokerGroups);
-    }
-
-    private List<BrokerGroup> removeNrwBrokerGroup(final List<BrokerGroup> brokerGroups) {
-        if (brokerGroups.isEmpty()) {
-            return brokerGroups;
-        }
-
-        final List<BrokerGroup> result = new ArrayList<>();
-        for (final BrokerGroup brokerGroup : brokerGroups) {
-            if (brokerGroup.getBrokerState() != BrokerState.NRW) {
-                result.add(brokerGroup);
-            }
-        }
-        return result;
     }
 
     private MetaInfoResponse buildResponse(MetaInfoRequest clientRequest, long updateTime, OnOfflineState clientState, BrokerCluster brokerCluster) {
@@ -243,6 +231,87 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
             PartitionAllocation partitionAllocation = response.getPartitionAllocation();
             Serializer<PartitionAllocation> serializer = Serializers.getSerializer(PartitionAllocation.class);
             serializer.serialize(partitionAllocation, out);
+        }
+    }
+
+    private interface BrokerFilter {
+
+        List<BrokerGroup> filter(String subject, int clientTypeCode, List<BrokerGroup> brokerGroupInfo);
+    }
+
+    private static class BrokerFilterController {
+
+        private RangeMap<Short, BrokerFilter> brokerFilterMap = TreeRangeMap.create();
+
+        public BrokerFilterController(CachedMetaInfoManager cachedMetaInfoManager) {
+            brokerFilterMap.put(Range.closedOpen(Short.MIN_VALUE, RemotingHeader.VERSION_10), new DefaultBrokerFilter(cachedMetaInfoManager));
+            brokerFilterMap.put(Range.closedOpen(RemotingHeader.VERSION_10, Short.MAX_VALUE), new V10BrokerFilter());
+        }
+
+
+        public List<BrokerGroup> filter(String subject, int clientTypeCode, List<BrokerGroup> brokerGroups, short version) {
+            BrokerFilter brokerFilter = Preconditions.checkNotNull(brokerFilterMap.get(version), "版本 %s 无法找到 BrokerFilter");
+            return brokerFilter.filter(subject, clientTypeCode, brokerGroups);
+        }
+    }
+
+    private static class DefaultBrokerFilter implements BrokerFilter {
+
+        private CachedMetaInfoManager cachedMetaInfoManager;
+
+        public DefaultBrokerFilter(CachedMetaInfoManager cachedMetaInfoManager) {
+            this.cachedMetaInfoManager = cachedMetaInfoManager;
+        }
+
+        @Override
+        public List<BrokerGroup> filter(String subject, int clientTypeCode, List<BrokerGroup> brokerGroups) {
+            if (brokerGroups.isEmpty()) {
+                return brokerGroups;
+            }
+
+            final List<BrokerGroup> result = new ArrayList<>();
+            for (final BrokerGroup brokerGroup : brokerGroups) {
+                if (brokerGroup.getBrokerState() != BrokerState.NRW) {
+                    result.add(brokerGroup);
+                }
+            }
+
+            return filterReadonlyBrokerGroup(subject, clientTypeCode, result);
+        }
+
+        public List<BrokerGroup> filterReadonlyBrokerGroup(String realSubject, int clientTypeCode, List<BrokerGroup> brokerGroups) {
+            if (clientTypeCode != ClientType.PRODUCER.getCode()
+                    && clientTypeCode != ClientType.DELAY_PRODUCER.getCode()) {
+                return brokerGroups;
+            }
+
+            List<BrokerGroup> result = new ArrayList<>();
+            for (BrokerGroup brokerGroup : brokerGroups) {
+                if (isReadonlyForSubject(realSubject, brokerGroup.getGroupName())) {
+                    continue;
+                }
+
+                result.add(brokerGroup);
+            }
+
+            return result;
+        }
+
+        private boolean isReadonlyForSubject(final String subject, final String brokerGroup) {
+            final Set<String> subjects = cachedMetaInfoManager.getBrokerGroupReadonlySubjects(brokerGroup);
+            if (subjects == null) {
+                return false;
+            }
+
+            return subjects.contains(subject) || subjects.contains("*");
+        }
+    }
+
+    private static class V10BrokerFilter implements BrokerFilter {
+
+        @Override
+        public List<BrokerGroup> filter(String subject, int clientTypeCode, List<BrokerGroup> brokerGroups) {
+            return brokerGroups;
         }
     }
 }

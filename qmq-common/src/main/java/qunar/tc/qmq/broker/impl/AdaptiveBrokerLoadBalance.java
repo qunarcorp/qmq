@@ -1,14 +1,14 @@
 package qunar.tc.qmq.broker.impl;
 
 import com.google.common.collect.Maps;
-import java.util.List;
-import java.util.Map;
-import java.util.ServiceLoader;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.base.BaseMessage.keys;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerLoadBalance;
+import qunar.tc.qmq.broker.OrderedMessageManager;
+
+import java.util.Map;
 
 /**
  * @author zhenwei.liu
@@ -16,28 +16,40 @@ import qunar.tc.qmq.broker.BrokerLoadBalance;
  */
 public class AdaptiveBrokerLoadBalance implements BrokerLoadBalance {
 
-	private static final String DEFAULT_LOAD_BALANCE = PollBrokerLoadBalance.class.getName();
+    private static final String DEFAULT_LOAD_BALANCE = PollBrokerLoadBalance.class.getName();
+    private static volatile BrokerLoadBalance instance = null;
 
-	private Map<String, BrokerLoadBalance> loadBalanceMap = Maps.newHashMap();
+    private Map<String, BrokerLoadBalance> loadBalanceMap = Maps.newHashMap();
 
-	public AdaptiveBrokerLoadBalance() {
-		for (BrokerLoadBalance loadBalance : ServiceLoader.load(BrokerLoadBalance.class)) {
-			loadBalanceMap.put(loadBalance.getClass().getName(), loadBalance);
-		}
-	}
+    public static BrokerLoadBalance getInstance(OrderedMessageManager orderedMessageManager) {
+        if (instance == null) {
+            synchronized (AdaptiveBrokerLoadBalance.class) {
+                if (instance == null) {
+                    instance = new AdaptiveBrokerLoadBalance(orderedMessageManager);
+                }
+            }
+        }
+        return instance;
+    }
 
-	@Override
-	public BrokerGroupInfo loadBalance(BrokerClusterInfo cluster, BrokerGroupInfo lastGroup,
-			List<BaseMessage> messages) {
-		BaseMessage message = messages.get(0);
-		return selectLoadBalance(message).loadBalance(cluster, lastGroup, messages);
-	}
+    private AdaptiveBrokerLoadBalance(OrderedMessageManager orderedMessageManager) {
+        OrderedBrokerLoadBalance orderedBrokerLoadBalance = new OrderedBrokerLoadBalance(orderedMessageManager);
+        PollBrokerLoadBalance pollBrokerLoadBalance = new PollBrokerLoadBalance();
 
-	private BrokerLoadBalance selectLoadBalance(BaseMessage message) {
-		Object loadBalanceType = message.getProperty(keys.qmq_loadBalanceType);
-		if (loadBalanceType == null) {
-			return loadBalanceMap.get(DEFAULT_LOAD_BALANCE);
-		}
-		return loadBalanceMap.get(loadBalanceType.toString());
-	}
+        loadBalanceMap.put(orderedBrokerLoadBalance.getClass().getName(), orderedBrokerLoadBalance);
+        loadBalanceMap.put(pollBrokerLoadBalance.getClass().getName(), pollBrokerLoadBalance);
+    }
+
+    @Override
+    public BrokerGroupInfo loadBalance(BrokerClusterInfo cluster, BrokerGroupInfo lastGroup, BaseMessage message) {
+        return selectLoadBalance(message).loadBalance(cluster, lastGroup, message);
+    }
+
+    private BrokerLoadBalance selectLoadBalance(BaseMessage message) {
+        Object loadBalanceType = message.getProperty(keys.qmq_loadBalanceType);
+        if (loadBalanceType == null) {
+            return loadBalanceMap.get(DEFAULT_LOAD_BALANCE);
+        }
+        return loadBalanceMap.get(loadBalanceType.toString());
+    }
 }

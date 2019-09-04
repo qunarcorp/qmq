@@ -93,7 +93,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         this.brokerService.setAppCode(appCode);
     }
 
-    private abstract class PullClientCreator<T> implements MetaInfoClient.ResponseSubscriber {
+    private abstract class PullClientUpdater<T> implements MetaInfoClient.ResponseSubscriber {
 
         @Override
         public void onResponse(MetaInfoResponse response) {
@@ -107,12 +107,12 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         abstract T updateClient(ConsumerMetaInfoResponse response);
     }
 
-    private class PullEntryCreator extends PullClientCreator<PullEntry> {
+    private class PullEntryUpdater extends PullClientUpdater<PullEntry> {
 
         private SettableFuture<PullEntry> future;
         private RegistParam registParam;
 
-        public PullEntryCreator(RegistParam registParam, SettableFuture<PullEntry> future) {
+        public PullEntryUpdater(RegistParam registParam, SettableFuture<PullEntry> future) {
             this.registParam = registParam;
             this.future = future;
         }
@@ -127,12 +127,12 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         }
     }
 
-    private class PullConsumerCreator extends PullClientCreator<PullConsumer> {
+    private class PullConsumerUpdater extends PullClientUpdater<PullConsumer> {
 
         private SettableFuture<PullConsumer> future;
         private boolean isBroadcast;
 
-        public PullConsumerCreator(boolean isBroadcast, SettableFuture<PullConsumer> future) {
+        public PullConsumerUpdater(boolean isBroadcast, SettableFuture<PullConsumer> future) {
             this.future = future;
             this.isBroadcast = isBroadcast;
         }
@@ -151,7 +151,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
     public synchronized Future<PullEntry> registerPullEntry(String subject, String group, RegistParam param) {
         SettableFuture<PullEntry> future = SettableFuture.create();
         metaInfoService.registerHeartbeat(subject, group, ClientType.CONSUMER, appCode);
-        metaInfoService.registerResponseSubscriber(new PullEntryCreator(param, future));
+        metaInfoService.registerResponseSubscriber(new PullEntryUpdater(param, future));
         return future;
     }
 
@@ -306,6 +306,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
     ) {
         Set<Integer> partitionIds = partitionAllocation.getAllocationDetail().getClientId2PhysicalPartitions().get(clientId);
         List<PartitionPullClient> partitionPullClients = Lists.newArrayList();
+        // TODO(zhenwei.liu) 这里是否需要监听一个原始主题, 用来接收 delay
         for (Integer newPartitionId : partitionIds) {
             String orderedSubject = OrderedMessageUtils.getOrderedMessageSubject(subject, newPartitionId);
             PullClient newDefaultClient = pullClientFactory.createPullClient(orderedSubject, group, pullStrategy, true);
@@ -327,7 +328,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
     public Future<PullConsumer> registerPullConsumer(String subject, String group, boolean isBroadcast) {
         SettableFuture<PullConsumer> future = SettableFuture.create();
         metaInfoService.registerHeartbeat(subject, group, ClientType.CONSUMER, appCode);
-        metaInfoService.registerResponseSubscriber(new PullConsumerCreator(isBroadcast, future));
+        metaInfoService.registerResponseSubscriber(new PullConsumerUpdater(isBroadcast, future));
 
         return future;
     }

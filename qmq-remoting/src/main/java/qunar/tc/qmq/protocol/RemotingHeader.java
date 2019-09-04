@@ -39,7 +39,7 @@ public class RemotingHeader {
     public static final short VERSION_9 = 9;
 
     /**
-     * add partition info
+     * ordered message version
      */
     public static final short VERSION_10 = 10;
 

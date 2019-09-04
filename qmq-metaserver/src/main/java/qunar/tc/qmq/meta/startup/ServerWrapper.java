@@ -34,7 +34,6 @@ import qunar.tc.qmq.meta.processor.BrokerAcquireMetaProcessor;
 import qunar.tc.qmq.meta.processor.BrokerRegisterProcessor;
 import qunar.tc.qmq.meta.processor.ClientRegisterProcessor;
 import qunar.tc.qmq.meta.processor.OrderedSubjectQueryProcessor;
-import qunar.tc.qmq.meta.route.ReadonlyBrokerGroupManager;
 import qunar.tc.qmq.meta.route.SubjectRouter;
 import qunar.tc.qmq.meta.route.impl.DefaultSubjectRouter;
 import qunar.tc.qmq.meta.route.impl.DelayRouter;
@@ -80,8 +79,7 @@ public class ServerWrapper implements Disposable {
         final CachedMetaInfoManager cachedMetaInfoManager = new CachedMetaInfoManager(config, store, readonlyBrokerGroupSettingStore, DefaultOrderedMessageService.getInstance());
 
         final SubjectRouter subjectRouter = createSubjectRouter(cachedMetaInfoManager, store);
-        final ReadonlyBrokerGroupManager readonlyBrokerGroupManager = new ReadonlyBrokerGroupManager(cachedMetaInfoManager);
-        final ClientRegisterProcessor clientRegisterProcessor = new ClientRegisterProcessor(subjectRouter, CachedOfflineStateManager.SUPPLIER.get(), store, readonlyBrokerGroupManager, cachedMetaInfoManager);
+        final ClientRegisterProcessor clientRegisterProcessor = new ClientRegisterProcessor(subjectRouter, CachedOfflineStateManager.SUPPLIER.get(), store, cachedMetaInfoManager);
         final BrokerRegisterProcessor brokerRegisterProcessor = new BrokerRegisterProcessor(config, cachedMetaInfoManager, store);
         final BrokerAcquireMetaProcessor brokerAcquireMetaProcessor = new BrokerAcquireMetaProcessor(new BrokerStoreImpl(jdbcTemplate));
         OrderedSubjectQueryProcessor orderedSubjectQueryProcessor = new OrderedSubjectQueryProcessor(cachedMetaInfoManager);

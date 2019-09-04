@@ -1,2 +1,0 @@
-qunar.tc.qmq.broker.impl.OrderedMessageLoadBalance
-qunar.tc.qmq.broker.impl.PollBrokerLoadBalance

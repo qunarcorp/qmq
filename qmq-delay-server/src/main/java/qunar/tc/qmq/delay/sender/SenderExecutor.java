@@ -18,10 +18,8 @@ package qunar.tc.qmq.delay.sender;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import qunar.tc.qmq.broker.BrokerClusterInfo;
-import qunar.tc.qmq.broker.BrokerGroupInfo;
-import qunar.tc.qmq.broker.BrokerLoadBalance;
-import qunar.tc.qmq.broker.BrokerService;
+import qunar.tc.qmq.broker.*;
+import qunar.tc.qmq.broker.impl.AdaptiveBrokerLoadBalance;
 import qunar.tc.qmq.broker.impl.PollBrokerLoadBalance;
 import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.common.Disposable;
@@ -47,10 +45,10 @@ class SenderExecutor implements Disposable {
     private final DelayLogFacade store;
     private final int sendThreads;
 
-    SenderExecutor(final Sender sender, DelayLogFacade store, DynamicConfig sendConfig) {
+    SenderExecutor(final Sender sender, DelayLogFacade store, DynamicConfig sendConfig, OrderedMessageManager orderedMessageManager) {
         this.sender = sender;
         this.store = store;
-        this.brokerLoadBalance = PollBrokerLoadBalance.getInstance();
+        this.brokerLoadBalance = AdaptiveBrokerLoadBalance.getInstance(orderedMessageManager);
         this.sendThreads = sendConfig.getInt("delay.send.threads", DEFAULT_SEND_THREAD);
     }
 

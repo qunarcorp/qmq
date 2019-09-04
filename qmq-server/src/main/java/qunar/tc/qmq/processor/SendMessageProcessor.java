@@ -26,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.base.MessageHeader;
 import qunar.tc.qmq.base.RawMessage;
+import qunar.tc.qmq.common.OrderedMessageUtils;
 import qunar.tc.qmq.monitor.QMon;
 import qunar.tc.qmq.protocol.CommandCode;
 import qunar.tc.qmq.protocol.Datagram;
@@ -55,6 +56,7 @@ public class SendMessageProcessor extends AbstractRequestProcessor {
     @Override
     public CompletableFuture<Datagram> processRequest(ChannelHandlerContext ctx, RemotingCommand command) {
         // TODO(zhenwei.liu) 这里需要处理顺序连续失败问题
+        // TODO(zhenwei.liu) 在这里修改 ordered subject
         List<RawMessage> messages;
         try {
             messages = deserializeRawMessages(command);

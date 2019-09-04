@@ -23,7 +23,9 @@ import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.meta.BrokerGroup;
 import qunar.tc.qmq.meta.BrokerState;
 import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
+import qunar.tc.qmq.meta.loadbalance.AdaptiveLoadBalance;
 import qunar.tc.qmq.meta.loadbalance.LoadBalance;
+import qunar.tc.qmq.meta.loadbalance.OrderedLoadBalance;
 import qunar.tc.qmq.meta.loadbalance.RandomLoadBalance;
 import qunar.tc.qmq.meta.model.SubjectInfo;
 import qunar.tc.qmq.meta.model.SubjectRoute;
@@ -53,9 +55,19 @@ public class DefaultSubjectRouter implements SubjectRouter {
     public DefaultSubjectRouter(final DynamicConfig config, final CachedMetaInfoManager cachedMetaInfoManager, final Store store) {
         this.cachedMetaInfoManager = cachedMetaInfoManager;
         this.store = store;
-        this.loadBalance = new RandomLoadBalance<>();
+        this.loadBalance = createLoadBalance(cachedMetaInfoManager);
 
         config.addListener(conf -> minGroupNum = conf.getInt("min.group.num", DEFAULT_MIN_NUM));
+    }
+
+    private LoadBalance<String> createLoadBalance(CachedMetaInfoManager cachedMetaInfoManager) {
+        RandomLoadBalance<String> randomLoadBalance = new RandomLoadBalance<>();
+        OrderedLoadBalance orderedLoadBalance = new OrderedLoadBalance(cachedMetaInfoManager);
+        return new AdaptiveLoadBalance(
+                cachedMetaInfoManager,
+                randomLoadBalance,
+                orderedLoadBalance
+        );
     }
 
     @Override
@@ -72,7 +84,6 @@ public class DefaultSubjectRouter implements SubjectRouter {
     private List<BrokerGroup> doRoute(String subject, int clientTypeCode) {
         SubjectInfo subjectInfo = getOrCreateSubjectInfo(subject);
 
-        // TODO(zhenwei.liu) 这里 consumer 获取 broker 的逻辑
         //query assigned brokers
         final List<String> assignedBrokers = cachedMetaInfoManager.getGroups(subject);
 

@@ -57,7 +57,7 @@ public class SenderProcessor implements DelayProcessor, Processor<ScheduleIndex>
 
     public SenderProcessor(final DelayLogFacade store, final BrokerService brokerService, final Sender sender, final DynamicConfig config) {
         this.brokerService = brokerService;
-        this.senderExecutor = new SenderExecutor(sender, store, config);
+        this.senderExecutor = new SenderExecutor(sender, store, config, brokerService);
         this.facade = store;
         this.config = config;
     }
