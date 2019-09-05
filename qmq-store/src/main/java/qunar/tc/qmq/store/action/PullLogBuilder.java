@@ -45,7 +45,7 @@ public class PullLogBuilder implements FixedExecOrderEventBus.Listener<ActionEve
 
     private void buildPullLog(ActionEvent event) {
         final PullAction action = (PullAction) event.getAction();
-        if (action.isBroadcast()) return;
+        if (action.isExclusiveConsume()) return;
 
         if (action.getFirstSequence() - action.getLastSequence() > 0) return;
         storage.putPullLogs(action.subject(), action.group(), action.consumerId(), createMessages(action));

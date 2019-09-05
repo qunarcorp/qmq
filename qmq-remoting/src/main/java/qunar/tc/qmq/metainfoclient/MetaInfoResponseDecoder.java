@@ -24,12 +24,16 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.util.internal.ConcurrentSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.PartitionAllocation;
+import qunar.tc.qmq.ConsumerAllocation;
 import qunar.tc.qmq.base.OnOfflineState;
 import qunar.tc.qmq.codec.Serializer;
 import qunar.tc.qmq.codec.Serializers;
+import qunar.tc.qmq.codec.Types;
 import qunar.tc.qmq.common.ClientType;
-import qunar.tc.qmq.meta.*;
+import qunar.tc.qmq.meta.BrokerCluster;
+import qunar.tc.qmq.meta.BrokerGroup;
+import qunar.tc.qmq.meta.BrokerState;
+import qunar.tc.qmq.meta.PartitionMapping;
 import qunar.tc.qmq.protocol.CommandCode;
 import qunar.tc.qmq.protocol.Datagram;
 import qunar.tc.qmq.protocol.MetaInfoResponse;
@@ -38,8 +42,10 @@ import qunar.tc.qmq.protocol.consumer.ConsumerMetaInfoResponse;
 import qunar.tc.qmq.protocol.producer.ProducerMetaInfoResponse;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
 
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.TreeMap;
 
 /**
@@ -141,8 +147,11 @@ class MetaInfoResponseDecoder extends SimpleChannelInboundHandler<Datagram> {
                     ((ProducerMetaInfoResponse) response).setPartitionMapping(serializer.deserialize(buf, null));
                 } else {
                     response = new ConsumerMetaInfoResponse();
-                    Serializer<PartitionAllocation> serializer = Serializers.getSerializer(PartitionAllocation.class);
-                    ((ConsumerMetaInfoResponse) response).setPartitionAllocation(serializer.deserialize(buf, null));
+                    int allocationVersion = buf.readInt();
+                    Serializer<Set> serializer = Serializers.getSerializer(Set.class);
+                    Set partitions = serializer.deserialize(buf, Types.newParameterizedType(null, Set.class, new Type[]{Integer.class}));
+                    ConsumerAllocation consumerAllocation = new ConsumerAllocation(allocationVersion, partitions);
+                    ((ConsumerMetaInfoResponse)response).setConsumerAllocation(consumerAllocation);
                 }
 
                 response.setTimestamp(timestamp);

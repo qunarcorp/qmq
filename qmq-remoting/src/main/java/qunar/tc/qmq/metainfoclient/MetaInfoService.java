@@ -20,5 +20,4 @@ public interface MetaInfoService {
     ListenableFuture<MetaInfoResponse> request(String subject, String group, ClientType clientType, String appCode, ClientRequestType requestType);
 
     void registerResponseSubscriber(MetaInfoClient.ResponseSubscriber subscriber);
-
 }

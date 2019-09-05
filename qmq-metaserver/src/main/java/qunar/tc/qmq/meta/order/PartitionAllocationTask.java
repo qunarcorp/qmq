@@ -31,11 +31,6 @@ public class PartitionAllocationTask {
     );
 
     private OrderedMessageService orderedMessageService = DefaultOrderedMessageService.getInstance();
-    private CachedMetaInfoManager cachedMetaInfoManager;
-
-    public PartitionAllocationTask(CachedMetaInfoManager cachedMetaInfoManager) {
-        this.cachedMetaInfoManager = cachedMetaInfoManager;
-    }
 
     public void start() {
         executor.scheduleWithFixedDelay(() -> {
@@ -73,11 +68,9 @@ public class PartitionAllocationTask {
     }
 
     public void reallocation(String subject, String consumerGroup, List<ClientMetaInfo> groupOnlineConsumers) {
-        String key = subject + ":" + consumerGroup;
         Set<String> groupOnlineConsumerIds = groupOnlineConsumers.stream().map(ClientMetaInfo::getClientId).collect(Collectors.toSet());
 
-        Map<String, PartitionAllocation> allocationMap = cachedMetaInfoManager.getPartitionAllocations();
-        PartitionAllocation allocation = allocationMap.get(key);
+        PartitionAllocation allocation = orderedMessageService.getActivatedPartitionAllocation(subject, consumerGroup);
         if (allocation != null) {
             PartitionAllocation.AllocationDetail allocationDetail = allocation.getAllocationDetail();
             Set<String> allocationClientIds = allocationDetail.getClientId2PhysicalPartitions().keySet();
@@ -93,12 +86,8 @@ public class PartitionAllocationTask {
     }
 
     private void reallocation(String subject, String consumerGroup, List<String> groupOnlineConsumerIds, int oldVersion) {
-        PartitionMapping partitionMapping = cachedMetaInfoManager.getPartitionMapping(subject);
-        PartitionSet partitionSet = new PartitionSet();
-        partitionSet.setSubject(subject);
-        Collection<Partition> partitions = partitionMapping.getLogical2PhysicalPartition().asMapOfRanges().values();
-        partitionSet.setPhysicalPartitions(partitions.stream().map(Partition::getPhysicalPartition).collect(Collectors.toSet()));
-        partitionSet.setVersion(partitionMapping.getVersion());
+
+        PartitionSet partitionSet = orderedMessageService.getLatestPartitionSet(subject);
 
         // 重新分配
         PartitionAllocation newAllocation = orderedMessageService.allocatePartitions(partitionSet, groupOnlineConsumerIds, consumerGroup);
@@ -106,6 +95,7 @@ public class PartitionAllocationTask {
         // 乐观锁更新
         if (orderedMessageService.updatePartitionAllocation(newAllocation, oldVersion)) {
             // TODO(zhenwei.liu) 重分配成功后给 client 发个拉取通知?
+
             logger.info("分区重分配成功 subject {} group {} oldVersion {} detail {}",
                     subject, consumerGroup, oldVersion,
                     Arrays.toString(newAllocation.getAllocationDetail().getClientId2PhysicalPartitions().entrySet().toArray()));

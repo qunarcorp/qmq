@@ -14,9 +14,9 @@ import java.util.Set;
  */
 public class AllocationDetailSerializer extends ObjectSerializer<PartitionAllocation.AllocationDetail> {
 
-    private ParameterizedType mapType = Types.newParamterizedType(null, Map.class, new Type[] {
+    private ParameterizedType mapType = Types.newParameterizedType(null, Map.class, new Type[] {
        String.class,
-       Types.newParamterizedType(null, Set.class, new Type[] {
+       Types.newParameterizedType(null, Set.class, new Type[] {
                Integer.class
        })
     });

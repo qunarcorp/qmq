@@ -11,6 +11,7 @@ import qunar.tc.qmq.meta.store.PartitionStore;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -84,8 +85,8 @@ public class PartitionStoreImpl implements PartitionStore {
     }
 
     @Override
-    public List<Partition> getByPartitionIds(List<Integer> partitionIds) {
-        Map<String, List<Integer>> param = Collections.singletonMap("ids", partitionIds);
+    public List<Partition> getByPartitionIds(Collection<Integer> partitionIds) {
+        Map<String, Collection<Integer>> param = Collections.singletonMap("ids", partitionIds);
         return parameterTemplate.query(SELECT_BY_IDS, param, partitionRowMapper);
     }
 }

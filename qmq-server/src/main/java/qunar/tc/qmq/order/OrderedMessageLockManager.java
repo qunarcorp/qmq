@@ -6,7 +6,7 @@ package qunar.tc.qmq.order;
  */
 public interface OrderedMessageLockManager {
 
-    boolean acquireLock(String subject, String group, String clientId);
+    boolean acquireLock(String subject, String group, String clientId, int version);
 
     boolean releaseLock(String subject, String group, String clientId);
 }

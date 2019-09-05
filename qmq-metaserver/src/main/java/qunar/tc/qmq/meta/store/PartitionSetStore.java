@@ -14,5 +14,7 @@ public interface PartitionSetStore {
 
     PartitionSet getByVersion(String subject, String version);
 
+    PartitionSet getLatest(String subject);
+
     List<PartitionSet> getLatest();
 }

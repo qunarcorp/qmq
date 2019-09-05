@@ -13,5 +13,6 @@ public interface PartitionAllocationStore {
     int save(PartitionAllocation partitionAllocation);
     int update(PartitionAllocation partitionAllocation, int oldVersion);
 
+    PartitionAllocation getLatest(String subject, String group);
     List<PartitionAllocation> getLatest();
 }

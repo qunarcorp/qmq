@@ -93,7 +93,7 @@ public class ConsumerSequenceManager {
 
     }
 
-    public WritePutActionResult putPullActions(final String subject, final String group, final String consumerId, final boolean isBroadcast, final GetMessageResult getMessageResult) {
+    public WritePutActionResult putPullActions(final String subject, final String group, final String consumerId, final boolean isBroadcast, final boolean isOrdered, final GetMessageResult getMessageResult) {
         final OffsetRange consumerLogRange = getMessageResult.getConsumerLogRange();
         final ConsumerSequence consumerSequence = getOrCreateConsumerSequence(subject, group, consumerId);
 
@@ -111,7 +111,7 @@ public class ConsumerSequenceManager {
             final long lastPullSequence = isBroadcast ? lastConsumerLogSequence : consumerSequence.getPullSequence() + getMessageResult.getMessageNum();
 
             final Action action = new PullAction(subject, group, consumerId,
-                    System.currentTimeMillis(), isBroadcast,
+                    System.currentTimeMillis(), isBroadcast || isOrdered,
                     firstPullSequence, lastPullSequence,
                     firstConsumerLogSequence, lastConsumerLogSequence);
 

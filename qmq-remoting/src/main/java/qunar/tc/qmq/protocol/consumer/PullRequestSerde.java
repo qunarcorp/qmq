@@ -18,6 +18,7 @@ package qunar.tc.qmq.protocol.consumer;
 
 import io.netty.buffer.ByteBuf;
 import qunar.tc.qmq.TagType;
+import qunar.tc.qmq.protocol.RemotingHeader;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
 
 import java.util.ArrayList;
@@ -43,6 +44,8 @@ public class PullRequestSerde {
         out.writeLong(request.getPullOffsetLast());
         out.writeLong(request.getTimeoutMillis());
         out.writeByte(request.isBroadcast() ? 1 : 0);
+        out.writeBoolean(request.isOrdered());
+        out.writeInt(request.getOrderAllocationVersion());
 
         writeFilters(request.getFilters(), out);
     }
@@ -99,6 +102,8 @@ public class PullRequestSerde {
         final long pullOffsetLast = in.readLong();
         final long timeout = in.readLong();
         final byte broadcast = in.readByte();
+        boolean isOrdered = in.readBoolean();
+        int allocationVersion = in.readInt();
         final List<PullFilter> filters = readFilters(version, in);
 
         final PullRequest request = new PullRequest();
@@ -111,9 +116,17 @@ public class PullRequestSerde {
         request.setPullOffsetLast(pullOffsetLast);
         request.setTimeoutMillis(timeout);
         request.setBroadcast(broadcast != 0);
+        if (isOrderedVersion(version)) {
+            request.setOrdered(isOrdered);
+            request.setOrderAllocationVersion(allocationVersion);
+        }
         request.setFilters(filters);
         return request;
 
+    }
+
+    private boolean isOrderedVersion(int version) {
+        return version >= RemotingHeader.VERSION_10;
     }
 
     private List<PullFilter> readFilters(final int version, final ByteBuf in) {

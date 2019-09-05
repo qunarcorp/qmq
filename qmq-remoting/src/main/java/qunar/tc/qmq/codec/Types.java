@@ -9,7 +9,7 @@ import java.lang.reflect.Type;
  */
 public class Types {
 
-    public static ParameterizedType newParamterizedType(Type ownerType, Type rawType, Type[] argumentTypes) {
+    public static ParameterizedType newParameterizedType(Type ownerType, Type rawType, Type[] argumentTypes) {
         return new ParameterizedTypeImpl(ownerType, rawType, argumentTypes);
     }
 

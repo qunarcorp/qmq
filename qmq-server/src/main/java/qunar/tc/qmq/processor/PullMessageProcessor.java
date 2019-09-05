@@ -111,7 +111,7 @@ public class PullMessageProcessor extends AbstractRequestProcessor implements Fi
             String subject = pullRequest.getSubject();
             String group = pullRequest.getGroup();
             String consumerId = pullRequest.getConsumerId();
-            if (!orderedMessageLockManager.acquireLock(subject, group, consumerId)) {
+            if (!orderedMessageLockManager.acquireLock(subject, group, consumerId, pullRequest.getOrderAllocationVersion())) {
                 // 获取锁失败
                 return CompletableFuture.completedFuture(crateEmptyResult(command));
             }

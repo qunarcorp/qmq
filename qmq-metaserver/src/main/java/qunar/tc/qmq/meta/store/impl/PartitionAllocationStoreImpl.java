@@ -1,9 +1,10 @@
 package qunar.tc.qmq.meta.store.impl;
 
+import org.springframework.dao.support.DataAccessUtils;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
-import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
 import qunar.tc.qmq.PartitionAllocation;
+import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
 import qunar.tc.qmq.meta.store.PartitionAllocationStore;
 
 import java.sql.ResultSet;
@@ -25,6 +26,8 @@ public class PartitionAllocationStoreImpl implements PartitionAllocationStore {
             "where version = ? and subject = ? and consumer_group = ?";
 
     private static final String GET_LATEST_SQL = "select subject, consumer_group, allocation_detail, partition_set_version, version from partition_allocation";
+
+    private static final String GET_LATEST_BY_SUBJECT_GROUP_SQL = "select subject, consumer_group, allocation_detail, partition_set_version, version from partition_allocation where subject = ? and group = ?";
 
     private static final RowMapper<PartitionAllocation> partitionAllocationRowMapper = new RowMapper<PartitionAllocation>() {
         @Override
@@ -60,6 +63,11 @@ public class PartitionAllocationStoreImpl implements PartitionAllocationStore {
                 partitionAllocation.getSubject(),
                 partitionAllocation.getConsumerGroup()
         );
+    }
+
+    @Override
+    public PartitionAllocation getLatest(String subject, String group) {
+        return DataAccessUtils.singleResult(jdbcTemplate.query(GET_LATEST_BY_SUBJECT_GROUP_SQL, partitionAllocationRowMapper, subject, group));
     }
 
     @Override

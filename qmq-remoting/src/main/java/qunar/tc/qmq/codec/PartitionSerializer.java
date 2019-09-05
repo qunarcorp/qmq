@@ -14,7 +14,7 @@ import java.lang.reflect.Type;
  */
 public class PartitionSerializer extends ObjectSerializer<Partition> {
 
-    private ParameterizedType rangeType = Types.newParamterizedType(null, Range.class, new Type[]{
+    private ParameterizedType rangeType = Types.newParameterizedType(null, Range.class, new Type[]{
             Integer.class
     });
 

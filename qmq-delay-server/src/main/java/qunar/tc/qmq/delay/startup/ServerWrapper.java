@@ -45,6 +45,7 @@ import qunar.tc.qmq.metainfoclient.DefaultMetaInfoService;
 import qunar.tc.qmq.netty.DefaultConnectionEventHandler;
 import qunar.tc.qmq.netty.NettyServer;
 import qunar.tc.qmq.protocol.CommandCode;
+import qunar.tc.qmq.utils.NetworkUtils;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -104,7 +105,7 @@ public class ServerWrapper implements Disposable {
         String metaServerAddress = config.getString(META_SERVER_ENDPOINT);
         DefaultMetaInfoService metaInfoService = new DefaultMetaInfoService(metaServerAddress);
         metaInfoService.init();
-        BrokerService brokerService = new BrokerServiceImpl(metaInfoService);
+        BrokerService brokerService = new BrokerServiceImpl("delay-" + NetworkUtils.getLocalAddress(), metaInfoService);
         this.wheelTickManager = new WheelTickManager(storeConfig, brokerService, facade, sender);
 
         this.receiver = new Receiver(config, facade);

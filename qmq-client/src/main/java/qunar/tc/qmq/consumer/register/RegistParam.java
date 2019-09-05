@@ -88,4 +88,5 @@ public class RegistParam {
     public StatusSource getActionSrc() {
         return this.actionSrc;
     }
+
 }

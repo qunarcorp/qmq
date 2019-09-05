@@ -4,12 +4,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.AbstractMessageExecutor;
 import qunar.tc.qmq.MessageListener;
+import qunar.tc.qmq.base.BaseMessage;
+import qunar.tc.qmq.base.OrderStrategyManager;
+import qunar.tc.qmq.broker.OrderStrategy;
+import qunar.tc.qmq.common.ClientLifecycleManager;
 import qunar.tc.qmq.consumer.pull.PulledMessage;
 
 import java.util.List;
-import java.util.concurrent.BlockingQueue;
+import java.util.Objects;
+import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.Executor;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -19,18 +24,26 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class OrderedMessageExecutor extends AbstractMessageExecutor {
 
     private final static int MAX_QUEUE_SIZE = 10000;
+    private final static int MAX_RETRY = 3;
     private final AtomicBoolean started = new AtomicBoolean(false);
     private final Logger logger = LoggerFactory.getLogger(OrderedMessageExecutor.class);
 
-    private BlockingQueue<PulledMessage> messageQueue;
+    private ClientLifecycleManager lifecycleManager;
+    private BlockingDeque<PulledMessage> messageQueue;
     private MessageHandler messageHandler;
     private Executor executor;
+    private String subject;
+    private String group;
+    private volatile boolean stopped = false;
 
-    public OrderedMessageExecutor(String subject, String group, Executor executor, MessageListener messageListener) {
+    public OrderedMessageExecutor(String subject, String group, Executor executor, MessageListener messageListener, ClientLifecycleManager lifecycleManager) {
         super(subject, group);
+        this.subject = subject;
+        this.group = group;
         this.executor = executor;
+        this.lifecycleManager = lifecycleManager;
         this.messageHandler = new BaseMessageHandler(messageListener);
-        this.messageQueue = new LinkedBlockingQueue<>();
+        this.messageQueue = new LinkedBlockingDeque<>();
     }
 
     public void start() {
@@ -40,9 +53,25 @@ public class OrderedMessageExecutor extends AbstractMessageExecutor {
     }
 
     private void processMessages() {
-        while (true) {
+        OrderStrategy orderStrategy = OrderStrategyManager.getOrderStrategy(subject);
+        int retry = 0;
+        while (!stopped) {
+            PulledMessage message;
             try {
-                PulledMessage message = messageQueue.take();
+                message = messageQueue.take();
+            } catch (InterruptedException e) {
+                logger.error("获取 queue 消息被中断 subject {} group {}", subject, group, e.getMessage());
+                continue;
+            }
+            try {
+                int partition = message.getIntProperty(BaseMessage.keys.qmq_physicalPartition.name());
+                if (!lifecycleManager.isAlive(subject, group, partition)) {
+                    // 没有权限, 停一会再看
+                    Thread.sleep(10);
+                    messageQueue.putFirst(message);
+                    continue;
+                }
+
                 boolean originalAutoAck = message.isAutoAck();
                 MessageExecutionTask task = new MessageExecutionTask(message, null, messageHandler, getCreateToHandleTimer(), getHandleTimer(), getHandleFailCounter());
                 if (originalAutoAck) {
@@ -55,6 +84,14 @@ public class OrderedMessageExecutor extends AbstractMessageExecutor {
                     message.ack(null);
                 }
             } catch (Throwable t) {
+                if (Objects.equals(OrderStrategy.STRICT, orderStrategy) && retry < MAX_RETRY) {
+                    retry++;
+                    try {
+                        messageQueue.putFirst(message);
+                    } catch (InterruptedException e) {
+                        logger.error("消息重入 queue 被中断 subject {} group {} id {}", subject, group, message.getMessageId(), e);
+                    }
+                }
                 logger.error("消息处理失败 ", t);
             }
         }
@@ -77,5 +114,10 @@ public class OrderedMessageExecutor extends AbstractMessageExecutor {
     public boolean cleanUp() {
         // 如果堆积的消息数超过 maxQueueSize, 则不会再拉取消息
         return messageQueue.size() < MAX_QUEUE_SIZE;
+    }
+
+    @Override
+    public void destroy() {
+        stopped = true;
     }
 }

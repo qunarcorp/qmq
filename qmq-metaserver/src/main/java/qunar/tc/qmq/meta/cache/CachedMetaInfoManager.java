@@ -80,11 +80,6 @@ public class CachedMetaInfoManager implements Disposable {
     private volatile Map<String, SubjectInfo> cachedSubjectInfoMap = new HashMap<>();
 
     /**
-     * subject -> partitionAllocation
-     */
-    private volatile Map<String, PartitionAllocation> cachedPartitionAllocation = new HashMap<>();
-
-    /**
      * subject -> partitionMapping
      */
     private volatile Map<String, PartitionMapping> cachedPartitionMapping = new HashMap<>();
@@ -153,7 +148,6 @@ public class CachedMetaInfoManager implements Disposable {
         refreshSubjectInfoCache();
         refreshGroupsAndSubjects();
         refreshReadonlyBrokerGroupSettings();
-        refreshPartitionAllocation();
         refreshPartitionMapping();
     }
 
@@ -176,21 +170,14 @@ public class CachedMetaInfoManager implements Disposable {
         return cachedPartitionMapping.get(subject);
     }
 
-    public Map<String, PartitionMapping> getPartitionMappings() {
-        return Maps.newHashMap(cachedPartitionMapping);
-    }
-
-    private void refreshPartitionAllocation() {
-        this.cachedPartitionAllocation = orderedMessageService.getActivatedPartitionAllocations().stream().collect(Collectors.toMap(pa -> pa.getSubject() + ":" + pa.getConsumerGroup(), pa -> pa));
-    }
-
-    public PartitionAllocation getPartitionAllocation(String subject, String consumerGroup) {
-        return cachedPartitionAllocation.get(subject);
-    }
-
-    public Map<String, PartitionAllocation> getPartitionAllocations() {
-        return Maps.newHashMap(cachedPartitionAllocation);
-    }
+//    public PartitionAllocation getPartitionAllocation(String subject, String consumerGroup) {
+//        String key = subject + ":" + consumerGroup;
+//        return cachedPartitionAllocation.get(key);
+//    }
+//
+//    public Map<String, PartitionAllocation> getPartitionAllocations() {
+//        return Maps.newHashMap(cachedPartitionAllocation);
+//    }
 
     public Set<String> getBrokerGroupReadonlySubjects(final String brokerGroup) {
         return readonlyBrokerGroupSettings.get(brokerGroup);

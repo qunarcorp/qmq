@@ -27,6 +27,7 @@ public interface OrderedMessageService {
      * @return 分区分配列表
      */
     List<PartitionAllocation> getActivatedPartitionAllocations();
+    PartitionAllocation getActivatedPartitionAllocation(String subject, String group);
 
     /**
      * 获取最新的分区映射
@@ -34,6 +35,9 @@ public interface OrderedMessageService {
      * @return 分区映射
      */
     List<PartitionMapping> getLatestPartitionMappings();
+    PartitionMapping getLatestPartitionMapping(String subject);
+    PartitionSet getLatestPartitionSet(String subject);
+
 
     /**
      * 为 consumer 分配 partition

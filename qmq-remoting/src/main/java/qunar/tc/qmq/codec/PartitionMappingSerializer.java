@@ -8,7 +8,6 @@ import qunar.tc.qmq.utils.PayloadHolderUtils;
 
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
-import java.util.Map;
 
 /**
  * @author zhenwei.liu
@@ -16,7 +15,7 @@ import java.util.Map;
  */
 public class PartitionMappingSerializer extends ObjectSerializer<PartitionMapping> {
 
-    private ParameterizedType rangeMapType = Types.newParamterizedType(null, RangeMap.class, new Type[]{
+    private ParameterizedType rangeMapType = Types.newParameterizedType(null, RangeMap.class, new Type[]{
             Integer.class,
             Partition.class
     });

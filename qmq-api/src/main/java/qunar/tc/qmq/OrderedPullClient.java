@@ -6,5 +6,5 @@ package qunar.tc.qmq;
  */
 public interface OrderedPullClient<T extends PartitionPullClient> extends CompositePullClient<T> {
 
-    PartitionAllocation getPartitionAllocation();
+     ConsumerAllocation getConsumerAllocation();
 }

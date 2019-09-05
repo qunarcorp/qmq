@@ -127,7 +127,7 @@ public class DefaultMetaInfoService implements MetaInfoService, MetaInfoClient.R
         if (response instanceof ProducerMetaInfoResponse) {
             return ((ProducerMetaInfoResponse) response).getPartitionMapping() != null;
         } else if (response instanceof ConsumerMetaInfoResponse) {
-            return ((ConsumerMetaInfoResponse) response).getPartitionAllocation() != null;
+            return ((ConsumerMetaInfoResponse) response).getConsumerAllocation() != null;
         }
         throw new IllegalStateException(String.format("无法识别的 response %s", response.getClass()));
     }

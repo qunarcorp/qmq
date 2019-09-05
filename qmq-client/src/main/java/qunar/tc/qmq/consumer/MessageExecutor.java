@@ -15,4 +15,6 @@ public interface MessageExecutor {
     MessageHandler getMessageHandler();
 
     boolean cleanUp();
+
+    void destroy();
 }

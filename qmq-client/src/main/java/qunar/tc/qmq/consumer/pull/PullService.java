@@ -21,10 +21,14 @@ import com.google.common.util.concurrent.AbstractFuture;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.ConsumerAllocation;
+import qunar.tc.qmq.PartitionAllocation;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
+import qunar.tc.qmq.broker.OrderedMessageManager;
 import qunar.tc.qmq.config.PullSubjectsConfig;
 import qunar.tc.qmq.consumer.pull.exception.PullException;
+import qunar.tc.qmq.meta.PartitionMapping;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.netty.client.NettyClient;
 import qunar.tc.qmq.netty.client.ResponseFuture;
@@ -55,6 +59,11 @@ class PullService {
     private static final Logger LOGGER = LoggerFactory.getLogger(PullService.class);
 
     private final NettyClient client = NettyClient.getClient();
+    private final OrderedMessageManager orderedMessageManager;
+
+    public PullService(OrderedMessageManager orderedMessageManager) {
+        this.orderedMessageManager = orderedMessageManager;
+    }
 
     PullResult pull(final PullParam pullParam) throws ExecutionException, InterruptedException {
         final PullResultFuture result = new PullResultFuture(pullParam.getBrokerGroup());
@@ -64,6 +73,12 @@ class PullService {
 
     private void pull(final PullParam pullParam, final PullCallback callback) {
         final PullRequest request = buildPullRequest(pullParam);
+        String realSubject = RetrySubjectUtils.getRealSubject(pullParam.getSubject());
+        ConsumerAllocation allocation = orderedMessageManager.getConsumerAllocation(realSubject, pullParam.getGroup(), pullParam.getConsumerId());
+        if (allocation != null) {
+            request.setOrderAllocationVersion(allocation.getVersion());
+            request.setOrdered(true);
+        }
         Datagram datagram = RemotingBuilder.buildRequestDatagram(CommandCode.PULL_MESSAGE, new PullRequestPayloadHolder(request));
         long networkTripTimeout = pullParam.getRequestTimeoutMillis();
         long pullProcessTimeout = pullParam.getTimeoutMillis();

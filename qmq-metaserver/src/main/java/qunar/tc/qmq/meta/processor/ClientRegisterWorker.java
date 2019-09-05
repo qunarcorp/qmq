@@ -23,6 +23,7 @@ import com.google.common.collect.TreeRangeMap;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.ConsumerAllocation;
 import qunar.tc.qmq.PartitionAllocation;
 import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.base.OnOfflineState;
@@ -37,6 +38,8 @@ import qunar.tc.qmq.meta.BrokerState;
 import qunar.tc.qmq.meta.PartitionMapping;
 import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 import qunar.tc.qmq.meta.cache.CachedOfflineStateManager;
+import qunar.tc.qmq.meta.order.DefaultOrderedMessageService;
+import qunar.tc.qmq.meta.order.OrderedMessageService;
 import qunar.tc.qmq.meta.route.SubjectRouter;
 import qunar.tc.qmq.meta.store.Store;
 import qunar.tc.qmq.meta.utils.ClientLogUtils;
@@ -51,6 +54,7 @@ import qunar.tc.qmq.utils.SubjectUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -66,6 +70,7 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
     private final CachedOfflineStateManager offlineStateManager;
     private final BrokerFilterController brokerFilterController;
     private final CachedMetaInfoManager cachedMetaInfoManager;
+    private final OrderedMessageService orderedMessageService;
 
     ClientRegisterWorker(final SubjectRouter subjectRouter, final CachedOfflineStateManager offlineStateManager, final Store store, CachedMetaInfoManager cachedMetaInfoManager) {
         this.subjectRouter = subjectRouter;
@@ -74,6 +79,7 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
         this.actorSystem = new ActorSystem("qmq_meta");
         this.offlineStateManager = offlineStateManager;
         this.store = store;
+        this.orderedMessageService = DefaultOrderedMessageService.getInstance();
     }
 
     void register(ClientRegisterProcessor.ClientRegisterMessage message) {
@@ -135,9 +141,12 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
             PartitionMapping partitionMapping = cachedMetaInfoManager.getPartitionMapping(subject);
             ((ProducerMetaInfoResponse) response).setPartitionMapping(partitionMapping);
         } else {
-            PartitionAllocation partitionAllocation = cachedMetaInfoManager.getPartitionAllocation(subject, clientRequest.getConsumerGroup());
+            PartitionAllocation partitionAllocation = orderedMessageService.getActivatedPartitionAllocation(subject, clientRequest.getConsumerGroup());
             response = new ConsumerMetaInfoResponse();
-            ((ConsumerMetaInfoResponse) response).setPartitionAllocation(partitionAllocation);
+            Map<String, Set<Integer>> clientId2PhysicalPartitions = partitionAllocation.getAllocationDetail().getClientId2PhysicalPartitions();
+            Set<Integer> physicalPartitions = clientId2PhysicalPartitions.get(clientRequest.getClientId());
+            ConsumerAllocation consumerAllocation = new ConsumerAllocation(partitionAllocation.getVersion(), physicalPartitions);
+            ((ConsumerMetaInfoResponse) response).setConsumerAllocation(consumerAllocation);
         }
         response.setConsumerGroup(clientRequest.getConsumerGroup());
         response.setTimestamp(updateTime);
@@ -228,9 +237,8 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
         @Override
         public void writeBody(ByteBuf out) {
             super.writeBody(out);
-            PartitionAllocation partitionAllocation = response.getPartitionAllocation();
-            Serializer<PartitionAllocation> serializer = Serializers.getSerializer(PartitionAllocation.class);
-            serializer.serialize(partitionAllocation, out);
+            Serializer<ConsumerAllocation> serializer = Serializers.getSerializer(ConsumerAllocation.class);
+            serializer.serialize(response.getConsumerAllocation(), out);
         }
     }
 

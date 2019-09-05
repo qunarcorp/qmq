@@ -1,5 +1,6 @@
 package qunar.tc.qmq.broker;
 
+import qunar.tc.qmq.ConsumerAllocation;
 import qunar.tc.qmq.PartitionAllocation;
 import qunar.tc.qmq.meta.PartitionMapping;
 
@@ -11,5 +12,5 @@ public interface OrderedMessageManager {
 
     PartitionMapping getPartitionMapping(String subject);
 
-    PartitionAllocation getPartitionAllocation(String subject, String group);
+    ConsumerAllocation getConsumerAllocation(String subject, String group, String clientId);
 }

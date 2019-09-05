@@ -3,6 +3,7 @@ package qunar.tc.qmq.codec;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeMap;
+import qunar.tc.qmq.ConsumerAllocation;
 import qunar.tc.qmq.meta.Partition;
 import qunar.tc.qmq.PartitionAllocation;
 import qunar.tc.qmq.meta.PartitionMapping;
@@ -29,6 +30,7 @@ public class Serializers {
         serializerMap.put(Range.class, new RangeSerializer());
         serializerMap.put(Map.class, new MapSerializer());
         serializerMap.put(Set.class, new SetSerializer());
+        serializerMap.put(ConsumerAllocation.class, new ConsumerAllocationSerializer());
     }
 
     public static <T> Serializer<T> getSerializer(Class<T> clazz) {

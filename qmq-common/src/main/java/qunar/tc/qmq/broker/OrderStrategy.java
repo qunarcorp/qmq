@@ -9,7 +9,7 @@ import java.util.List;
 public interface OrderStrategy {
 
     OrderStrategy STRICT = new StrictOrderStrategy();
-    OrderStrategy BEST_TRIED = new BestTriedOrderStategy();
+    OrderStrategy BEST_TRIED = new BestTriedOrderStrategy();
 
     BrokerGroupInfo getBrokerGroup(String brokerGroupName, BrokerClusterInfo brokerCluster);
 
@@ -21,7 +21,7 @@ public interface OrderStrategy {
         }
     }
 
-    class BestTriedOrderStategy implements OrderStrategy {
+    class BestTriedOrderStrategy implements OrderStrategy {
 
         @Override
         public BrokerGroupInfo getBrokerGroup(String brokerGroupName, BrokerClusterInfo brokerCluster) {

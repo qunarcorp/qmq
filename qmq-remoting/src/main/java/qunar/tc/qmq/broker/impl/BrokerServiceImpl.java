@@ -21,6 +21,7 @@ import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.SettableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.ConsumerAllocation;
 import qunar.tc.qmq.PartitionAllocation;
 import qunar.tc.qmq.Versionable;
 import qunar.tc.qmq.base.ClientRequestType;
@@ -56,15 +57,17 @@ public class BrokerServiceImpl implements BrokerService, OrderedMessageManager, 
     private static final Logger LOGGER = LoggerFactory.getLogger(BrokerServiceImpl.class);
 
     private Map<String, SettableFuture<PartitionMapping>> partitionMap = Maps.newConcurrentMap();
-    private Map<String, SettableFuture<PartitionAllocation>> allocationMap = Maps.newConcurrentMap();
+    private Map<String, SettableFuture<ConsumerAllocation>> allocationMap = Maps.newConcurrentMap();
     private final ConcurrentMap<String, SettableFuture<BrokerClusterInfo>> clusterMap = new ConcurrentHashMap<>();
 
     private final MetaInfoService metaInfoService;
     private String appCode;
+    private String clientId;
 
-    public BrokerServiceImpl(MetaInfoService metaInfoService) {
+    public BrokerServiceImpl(String clientId, MetaInfoService metaInfoService) {
         this.metaInfoService = metaInfoService;
         this.metaInfoService.registerResponseSubscriber(this);
+        this.clientId = clientId;
     }
 
     private void updateBrokerCluster(String key, BrokerClusterInfo clusterInfo) {
@@ -200,9 +203,9 @@ public class BrokerServiceImpl implements BrokerService, OrderedMessageManager, 
             ProducerMetaInfoResponse producerResponse = (ProducerMetaInfoResponse) response;
             updatePartitionCache(subject, partitionMap, producerResponse.getPartitionMapping());
         } else if (clientType.isConsumer()) {
-            String key = createPartitionAllocationKey(subject, group);
+            String key = createConsumerAllocationKey(subject, group, clientId);
             ConsumerMetaInfoResponse consumerResponse = (ConsumerMetaInfoResponse) response;
-            updatePartitionCache(key, allocationMap, consumerResponse.getPartitionAllocation());
+            updatePartitionCache(key, allocationMap, consumerResponse.getConsumerAllocation());
         }
 
     }
@@ -227,8 +230,8 @@ public class BrokerServiceImpl implements BrokerService, OrderedMessageManager, 
         }
     }
 
-    private String createPartitionAllocationKey(String subject, String group) {
-        return subject + ":" + group;
+    private String createConsumerAllocationKey(String subject, String group, String clientId) {
+        return subject + ":" + group + ":" + clientId;
     }
 
     private MetaInfo parseResponse(MetaInfoResponse response) {
@@ -288,9 +291,9 @@ public class BrokerServiceImpl implements BrokerService, OrderedMessageManager, 
     }
 
     @Override
-    public PartitionAllocation getPartitionAllocation(String subject, String group) {
-        String key = createPartitionAllocationKey(subject, group);
-        SettableFuture<PartitionAllocation> future = allocationMap.computeIfAbsent(key, k -> SettableFuture.create());
+    public ConsumerAllocation getConsumerAllocation(String subject, String group, String clientId) {
+        String key = createConsumerAllocationKey(subject, group, clientId);
+        SettableFuture<ConsumerAllocation> future = allocationMap.computeIfAbsent(key, k -> SettableFuture.create());
         try {
             return future.get();
         } catch (Throwable t) {

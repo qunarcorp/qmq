@@ -3,11 +3,11 @@ package qunar.tc.qmq.meta.order;
 import com.google.common.collect.*;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.transaction.support.TransactionTemplate;
+import qunar.tc.qmq.PartitionAllocation;
 import qunar.tc.qmq.base.OnOfflineState;
 import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
 import qunar.tc.qmq.meta.Partition;
-import qunar.tc.qmq.PartitionAllocation;
 import qunar.tc.qmq.meta.PartitionMapping;
 import qunar.tc.qmq.meta.PartitionSet;
 import qunar.tc.qmq.meta.model.ClientMetaInfo;
@@ -98,6 +98,11 @@ public class DefaultOrderedMessageService implements OrderedMessageService {
     }
 
     @Override
+    public PartitionAllocation getActivatedPartitionAllocation(String subject, String group) {
+        return partitionAllocationStore.getLatest(subject, group);
+    }
+
+    @Override
     public List<PartitionAllocation> getActivatedPartitionAllocations() {
         return partitionAllocationStore.getLatest();
     }
@@ -128,27 +133,46 @@ public class DefaultOrderedMessageService implements OrderedMessageService {
         }
 
         for (PartitionSet partitionSet : latestPartitionSets) {
-            PartitionMapping partitionMapping = new PartitionMapping();
+            PartitionMapping partitionMapping = transformPartitionMapping(partitionSet, partitionMap);
             result.add(partitionMapping);
-
-            partitionMapping.setSubject(partitionSet.getSubject());
-            partitionMapping.setVersion(partitionSet.getVersion());
-
-            Set<Integer> physicalPartitions = partitionSet.getPhysicalPartitions();
-            RangeMap<Integer, Partition> logical2PhysicalPartition = TreeRangeMap.create();
-            int logicalPartitionNum = 0;
-            for (Integer physicalPartition : physicalPartitions) {
-                String partitionKey = createPartitionKey(partitionSet.getSubject(), physicalPartition);
-                Partition partition = partitionMap.get(partitionKey);
-                Range<Integer> logicalPartition = partition.getLogicalPartition();
-                logicalPartitionNum += (logicalPartition.upperEndpoint() - logicalPartition.lowerEndpoint());
-                logical2PhysicalPartition.put(logicalPartition, partition);
-            }
-            partitionMapping.setLogical2PhysicalPartition(logical2PhysicalPartition);
-            partitionMapping.setLogicalPartitionNum(logicalPartitionNum);
         }
 
         return result;
+    }
+
+    @Override
+    public PartitionMapping getLatestPartitionMapping(String subject) {
+        PartitionSet partitionSet = partitionSetStore.getLatest(subject);
+        List<Partition> partitionList = partitionStore.getByPartitionIds(partitionSet.getPhysicalPartitions());
+        Map<String, Partition> partitionMap = partitionList.stream().collect(Collectors.toMap(this::createPartitionKey, p -> p));
+        return transformPartitionMapping(partitionSet, partitionMap);
+    }
+
+    @Override
+    public PartitionSet getLatestPartitionSet(String subject) {
+        return partitionSetStore.getLatest(subject);
+    }
+
+    private PartitionMapping transformPartitionMapping(PartitionSet partitionSet, Map<String, Partition> partitionMap) {
+        PartitionMapping partitionMapping = new PartitionMapping();
+
+        partitionMapping.setSubject(partitionSet.getSubject());
+        partitionMapping.setVersion(partitionSet.getVersion());
+
+        Set<Integer> physicalPartitions = partitionSet.getPhysicalPartitions();
+        RangeMap<Integer, Partition> logical2PhysicalPartition = TreeRangeMap.create();
+        int logicalPartitionNum = 0;
+        for (Integer physicalPartition : physicalPartitions) {
+            String partitionKey = createPartitionKey(partitionSet.getSubject(), physicalPartition);
+            Partition partition = partitionMap.get(partitionKey);
+            Range<Integer> logicalPartition = partition.getLogicalPartition();
+            logicalPartitionNum += (logicalPartition.upperEndpoint() - logicalPartition.lowerEndpoint());
+            logical2PhysicalPartition.put(logicalPartition, partition);
+        }
+        partitionMapping.setLogical2PhysicalPartition(logical2PhysicalPartition);
+        partitionMapping.setLogicalPartitionNum(logicalPartitionNum);
+
+        return partitionMapping;
     }
 
     @Override

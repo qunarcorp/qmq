@@ -16,17 +16,9 @@
 
 package qunar.tc.qmq.store;
 
-import java.util.ArrayList;
-import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.base.ConsumerSequence;
-import qunar.tc.qmq.base.MessageHeader;
-import qunar.tc.qmq.base.PullMessageResult;
-import qunar.tc.qmq.base.RawMessage;
-import qunar.tc.qmq.base.ReceiveResult;
-import qunar.tc.qmq.base.ReceivingMessage;
-import qunar.tc.qmq.base.WritePutActionResult;
+import qunar.tc.qmq.base.*;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.consumer.ConsumerSequenceManager;
 import qunar.tc.qmq.monitor.QMon;
@@ -35,6 +27,9 @@ import qunar.tc.qmq.protocol.consumer.PullRequest;
 import qunar.tc.qmq.protocol.producer.MessageProducerCode;
 import qunar.tc.qmq.store.action.RangeAckAction;
 import qunar.tc.qmq.store.buffer.Buffer;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * @author yunfeng.yang
@@ -114,7 +109,8 @@ public class MessageStoreWrapper {
                     }
 
                     if (noPullFilter(pullRequest)) {
-                        final WritePutActionResult writeResult = consumerSequenceManager.putPullActions(subject, group, consumerId, isBroadcast, getMessageResult);
+                        boolean ordered = pullRequest.isOrdered();
+                        final WritePutActionResult writeResult = consumerSequenceManager.putPullActions(subject, group, consumerId, isBroadcast, ordered, getMessageResult);
                         if (writeResult.isSuccess()) {
                             consumeQueue.setNextSequence(getMessageResult.getNextBeginSequence());
                             return new PullMessageResult(writeResult.getPullLogOffset(), getMessageResult.getBuffers(), getMessageResult.getBufferTotalSize(), getMessageResult.getMessageNum());
@@ -154,7 +150,8 @@ public class MessageStoreWrapper {
         int index;
         for (index = 0; index < filterResult.size(); ++index) {
             GetMessageResult item = filterResult.get(index);
-            if (!putAction(item, consumeQueue, subject, group, consumerId, isBroadcast, retList)) break;
+            if (!putAction(item, consumeQueue, subject, group, consumerId, isBroadcast, pullRequest.isOrdered(), retList))
+                break;
         }
         releaseRemain(index, filterResult);
         if (retList.isEmpty()) return PullMessageResult.FILTER_EMPTY;
@@ -218,9 +215,9 @@ public class MessageStoreWrapper {
     }
 
     private boolean putAction(GetMessageResult range, ConsumeQueue consumeQueue,
-                              String subject, String group, String consumerId, boolean isBroadcast,
-                              List<PullMessageResult> retList) {
-        final WritePutActionResult writeResult = consumerSequenceManager.putPullActions(subject, group, consumerId, isBroadcast, range);
+                              String subject, String group, String consumerId, boolean isBroadcast, boolean isOrdered,
+                              List<PullMessageResult>retList) {
+        final WritePutActionResult writeResult = consumerSequenceManager.putPullActions(subject, group, consumerId, isBroadcast, isOrdered, range);
         if (writeResult.isSuccess()) {
             consumeQueue.setNextSequence(range.getNextBeginSequence());
             retList.add(new PullMessageResult(writeResult.getPullLogOffset(), range.getBuffers(), range.getBufferTotalSize(), range.getMessageNum()));

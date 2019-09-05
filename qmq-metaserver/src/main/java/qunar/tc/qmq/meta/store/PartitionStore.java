@@ -2,6 +2,7 @@ package qunar.tc.qmq.meta.store;
 
 import qunar.tc.qmq.meta.Partition;
 
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -14,5 +15,5 @@ public interface PartitionStore {
 
     int save(List<Partition> partitions);
 
-    List<Partition> getByPartitionIds(List<Integer> partitionIds);
+    List<Partition> getByPartitionIds(Collection<Integer> partitionIds);
 }

@@ -85,7 +85,7 @@ public class MessageProducerProvider implements MessageProducer {
         DefaultMetaInfoService metaInfoService = new DefaultMetaInfoService(metaServer);
         metaInfoService.setClientId(clientId);
         metaInfoService.init();
-        BrokerService brokerService = new BrokerServiceImpl(metaInfoService);
+        BrokerService brokerService = new BrokerServiceImpl(clientId, metaInfoService);
         this.routerManager = new NettyRouterManager(brokerService);
         this.tracer = GlobalTracer.get();
     }

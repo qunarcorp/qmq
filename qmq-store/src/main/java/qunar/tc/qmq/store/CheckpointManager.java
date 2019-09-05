@@ -200,7 +200,7 @@ public class CheckpointManager implements AutoCloseable {
         }
         final long lastMessageSequence = action.getLastMessageSequence();
         if (maxSequence < lastMessageSequence) {
-            updateMaxPulledMessageSequence(subject, group, action.isBroadcast(), lastMessageSequence);
+            updateMaxPulledMessageSequence(subject, group, action.isExclusiveConsume(), lastMessageSequence);
         }
     }
 
@@ -221,7 +221,7 @@ public class CheckpointManager implements AutoCloseable {
 
         final long lastSequence = action.getLastSequence();
         if (maxSequence < lastSequence) {
-            updateConsumerMaxPullLogSequence(subject, group, consumerId, action.isBroadcast(), lastSequence);
+            updateConsumerMaxPullLogSequence(subject, group, consumerId, action.isExclusiveConsume(), lastSequence);
         }
     }
 

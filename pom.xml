@@ -294,6 +294,11 @@
                 <version>2.8.5</version>
             </dependency>
             <dependency>
+                <groupId>net.jodah</groupId>
+                <artifactId>expiringmap</artifactId>
+                <version>0.5.9</version>
+            </dependency>
+            <dependency>
                 <groupId>org.hbase</groupId>
                 <artifactId>asynchbase</artifactId>
                 <version>${async.hbaseclient.version}</version>

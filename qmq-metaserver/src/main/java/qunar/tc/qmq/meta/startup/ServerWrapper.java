@@ -113,7 +113,7 @@ public class ServerWrapper implements Disposable {
         resources.add(brokerMetaManager);
         resources.add(metaNettyServer);
 
-        PartitionAllocationTask partitionAllocationTask = new PartitionAllocationTask(cachedMetaInfoManager);
+        PartitionAllocationTask partitionAllocationTask = new PartitionAllocationTask();
         partitionAllocationTask.start();
 
         OrderedConsumerHeartbeatHandler orderedConsumerHeartbeatHandler = new OrderedConsumerHeartbeatHandler(cachedMetaInfoManager, clientMetaInfoStore, partitionAllocationTask);

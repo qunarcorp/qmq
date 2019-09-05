@@ -27,6 +27,7 @@ import qunar.tc.qmq.broker.impl.BrokerServiceImpl;
 import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.common.EnvProvider;
 import qunar.tc.qmq.common.MapKeyBuilder;
+import qunar.tc.qmq.common.OrderedMessageUtils;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.consumer.MessageExecutor;
 import qunar.tc.qmq.consumer.MessageExecutorFactory;
@@ -36,7 +37,6 @@ import qunar.tc.qmq.consumer.register.RegistParam;
 import qunar.tc.qmq.metainfoclient.ConsumerStateChangedListener;
 import qunar.tc.qmq.metainfoclient.DefaultMetaInfoService;
 import qunar.tc.qmq.metainfoclient.MetaInfoClient;
-import qunar.tc.qmq.common.OrderedMessageUtils;
 import qunar.tc.qmq.protocol.MetaInfoResponse;
 import qunar.tc.qmq.protocol.consumer.ConsumerMetaInfoResponse;
 import qunar.tc.qmq.protocol.consumer.SubEnvIsolationPullFilter;
@@ -64,27 +64,30 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
 
     private final ExecutorService pullExecutor = Executors.newCachedThreadPool(new NamedThreadFactory("qmq-pull"));
 
-    private final DefaultMetaInfoService metaInfoService;
-    private final BrokerService brokerService;
-    private final PullService pullService;
-    private final AckService ackService;
+    private DefaultMetaInfoService metaInfoService;
+    private BrokerService brokerService;
+    private PullService pullService;
+    private AckService ackService;
 
     private String clientId;
     private String appCode;
+    private String metaServer;
     private int destroyWaitInSeconds;
 
     private EnvProvider envProvider;
 
     public PullRegister(String metaServer) {
-        this.metaInfoService = new DefaultMetaInfoService(metaServer);
-        this.brokerService = new BrokerServiceImpl(metaInfoService);
-        this.pullService = new PullService();
-        this.ackService = new AckService(this.brokerService);
+        this.metaServer = metaServer;
     }
 
     public void init() {
+        this.metaInfoService = new DefaultMetaInfoService(metaServer);
         this.metaInfoService.setClientId(clientId);
         this.metaInfoService.init();
+
+        this.brokerService = new BrokerServiceImpl(clientId, metaInfoService);
+        this.pullService = new PullService(brokerService);
+        this.ackService = new AckService(this.brokerService);
 
         this.ackService.setDestroyWaitInSeconds(destroyWaitInSeconds);
         this.ackService.setClientId(clientId);
@@ -210,12 +213,12 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
             PartitionPullClientFactory partitionPullClientFactory,
             OrderedPullClientFactory orderedPullClientFactory
     ) {
-        PartitionAllocation partitionAllocation = response.getPartitionAllocation();
-        if (partitionAllocation != null) {
+        ConsumerAllocation consumerAllocation = response.getConsumerAllocation();
+        if (consumerAllocation != null) {
             if (oldClient == null) {
-                return createNewOrderPullClient(subject, group, pullStrategy, partitionAllocation, pullClientFactory, partitionPullClientFactory, orderedPullClientFactory);
+                return createNewOrderPullClient(subject, group, pullStrategy, consumerAllocation, pullClientFactory, partitionPullClientFactory, orderedPullClientFactory);
             } else {
-                return updateOrderedPullClient(subject, group, pullStrategy, partitionAllocation, pullClientFactory, partitionPullClientFactory, orderedPullClientFactory, (OrderedPullClient) oldClient);
+                return updateOrderedPullClient(subject, group, pullStrategy, consumerAllocation, pullClientFactory, partitionPullClientFactory, orderedPullClientFactory, (OrderedPullClient) oldClient);
             }
         } else {
             if (oldClient != null) {
@@ -234,28 +237,28 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
     }
 
     private interface OrderedPullClientFactory<T extends OrderedPullClient> {
-        T createPullClient(List<? extends PartitionPullClient> clients, PartitionAllocation partitionAllocation);
+        T createPullClient(List<? extends PartitionPullClient> clients, ConsumerAllocation consumerAllocation);
     }
 
     private OrderedPullClient updateOrderedPullClient(
             String subject,
             String group,
             PullStrategy pullStrategy,
-            PartitionAllocation partitionAllocation,
+            ConsumerAllocation consumerAllocation,
             PullClientFactory pullClientFactory,
             PartitionPullClientFactory partitionPullClientFactory,
             OrderedPullClientFactory orderedPullClientFactory,
             OrderedPullClient<PartitionPullClient> oldClient
 
     ) {
-        PartitionAllocation oldPartitionAllocation = oldClient.getPartitionAllocation();
+        ConsumerAllocation oldAllocation = oldClient.getConsumerAllocation();
         List<PartitionPullClient> newPartitionClients = Lists.newArrayList(); // 新增的分区
         List<PartitionPullClient> reusePartitionClients = Lists.newArrayList(); // 可以复用的分区
         List<PartitionPullClient> stalePartitionClients = Lists.newArrayList(); // 需要关闭的分区
 
-        if (oldPartitionAllocation.getVersion() < partitionAllocation.getVersion()) {
+        if (oldAllocation.getVersion() < consumerAllocation.getVersion()) {
             // 更新
-            Set<Integer> newPartitions = oldClient.getPartitionAllocation().getAllocationDetail().getClientId2PhysicalPartitions().get(clientId);
+            Set<Integer> newPartitions = oldClient.getConsumerAllocation().getPhysicalPartitions();
             List<PartitionPullClient> oldPartitionClients = oldClient.getComponents();
             Set<Integer> oldPartitions = oldPartitionClients.stream().map(PartitionPullClient::getPartition).collect(Collectors.toSet());
 
@@ -288,7 +291,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
             ArrayList<PartitionPullClient> entries = Lists.newArrayList();
             entries.addAll(reusePartitionClients);
             entries.addAll(newPartitionClients);
-            return orderedPullClientFactory.createPullClient(entries, partitionAllocation);
+            return orderedPullClientFactory.createPullClient(entries, consumerAllocation);
         } else {
             // 当前版本比 response 中的高
             return oldClient;
@@ -299,21 +302,21 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
             String subject,
             String group,
             PullStrategy pullStrategy,
-            PartitionAllocation partitionAllocation,
+            ConsumerAllocation consumerAllocation,
             PullClientFactory pullClientFactory,
             PartitionPullClientFactory partitionPullClientFactory,
             OrderedPullClientFactory orderedPullClientFactory
     ) {
-        Set<Integer> partitionIds = partitionAllocation.getAllocationDetail().getClientId2PhysicalPartitions().get(clientId);
+        Set<Integer> physicalPartitions = consumerAllocation.getPhysicalPartitions();
         List<PartitionPullClient> partitionPullClients = Lists.newArrayList();
         // TODO(zhenwei.liu) 这里是否需要监听一个原始主题, 用来接收 delay
-        for (Integer newPartitionId : partitionIds) {
+        for (Integer newPartitionId : physicalPartitions) {
             String orderedSubject = OrderedMessageUtils.getOrderedMessageSubject(subject, newPartitionId);
             PullClient newDefaultClient = pullClientFactory.createPullClient(orderedSubject, group, pullStrategy, true);
             PartitionPullClient newPartitionClient = partitionPullClientFactory.createPullClient(newPartitionId, newDefaultClient);
             partitionPullClients.add(newPartitionClient);
         }
-        return orderedPullClientFactory.createPullClient(partitionPullClients, partitionAllocation);
+        return orderedPullClientFactory.createPullClient(partitionPullClients, consumerAllocation);
     }
 
     private PullEntry createDefaultPullEntry(String subject, String group, RegistParam param, PullStrategy pullStrategy, boolean isOrdered) {
@@ -349,7 +352,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
                     return pullConsumer;
                 },
                 (partitionId, pullClient) -> new PartitionPullConsumer(partitionId, (PullConsumer) pullClient),
-                (OrderedPullClientFactory<OrderedPullConsumer>) (clients, partitionAllocation) -> new OrderedPullConsumer((List<PartitionPullConsumer>) clients, partitionAllocation)
+                (OrderedPullClientFactory<OrderedPullConsumer>) (clients, consumerAllocation) -> new OrderedPullConsumer((List<PartitionPullConsumer>) clients, consumerAllocation)
         );
         if (pullEntryMap.containsKey(key)) {
             throw new DuplicateListenerException(key);

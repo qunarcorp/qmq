@@ -1,5 +1,6 @@
 package qunar.tc.qmq.consumer.pull;
 
+import qunar.tc.qmq.ConsumerAllocation;
 import qunar.tc.qmq.OrderedPullClient;
 import qunar.tc.qmq.PartitionAllocation;
 
@@ -11,15 +12,15 @@ import java.util.List;
  */
 public class OrderedPullEntry extends CompositePullEntry<PartitionPullEntry> implements OrderedPullClient<PartitionPullEntry> {
 
-    private PartitionAllocation partitionAllocation;
+    private ConsumerAllocation consumerAllocation;
 
-    public OrderedPullEntry(List<PartitionPullEntry> pullEntries, PartitionAllocation partitionAllocation) {
+    public OrderedPullEntry(List<PartitionPullEntry> pullEntries, ConsumerAllocation consumerAllocation) {
         super(pullEntries);
-        this.partitionAllocation = partitionAllocation;
+        this.consumerAllocation = consumerAllocation;
     }
 
     @Override
-    public PartitionAllocation getPartitionAllocation() {
-        return partitionAllocation;
+    public ConsumerAllocation getConsumerAllocation() {
+        return consumerAllocation;
     }
 }

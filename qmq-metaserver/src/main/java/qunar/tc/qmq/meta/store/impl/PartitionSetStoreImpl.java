@@ -22,6 +22,8 @@ public class PartitionSetStoreImpl implements PartitionSetStore {
 
     private static final String GET_BY_SUBJECT_VERSION_SQL =
             "select subject, physical_partitions, version from partition_set where subject = ? and version = ?";
+    private static final String GET_LATEST_BY_SUBJECT_SQL =
+            "select subject, physical_partitions, version from partition_set where subject = ? and version = max(version)";
     private static final String SAVE_SQL = "insert into partition_set (subject, physical_partitions, version) values(?, ?, ?)";
     private static final String GET_LATEST_SQL = "select p1.subject, p1.physical_partitions, p1.version from partition_set p1 " +
             "left join partition_set p2 on p1.subject = p2.subject and p1.version < p2.version where p2.version is NULL";
@@ -55,6 +57,12 @@ public class PartitionSetStoreImpl implements PartitionSetStore {
     public PartitionSet getByVersion(String subject, String version) {
         return DataAccessUtils.singleResult(template.query(GET_BY_SUBJECT_VERSION_SQL, partitionSetRowMapper, subject, version));
     }
+
+    @Override
+    public PartitionSet getLatest(String subject) {
+        return DataAccessUtils.singleResult(template.query(GET_LATEST_BY_SUBJECT_SQL, partitionSetRowMapper, subject));
+    }
+
 
     @Override
     public List<PartitionSet> getLatest() {
