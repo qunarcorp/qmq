@@ -95,7 +95,7 @@ public class MessageStoreWrapper {
         final String subject = pullRequest.getSubject();
         final String group = pullRequest.getGroup();
         final String consumerId = pullRequest.getConsumerId();
-        final boolean isBroadcast = pullRequest.isBroadcast();
+        final boolean isExclusiveConsume = pullRequest.isExclusiveConsume();
 
         final long start = System.currentTimeMillis();
         try {
@@ -110,7 +110,7 @@ public class MessageStoreWrapper {
 
                     if (noPullFilter(pullRequest)) {
                         boolean ordered = pullRequest.isOrdered();
-                        final WritePutActionResult writeResult = consumerSequenceManager.putPullActions(subject, group, consumerId, isBroadcast, ordered, getMessageResult);
+                        final WritePutActionResult writeResult = consumerSequenceManager.putPullActions(subject, group, consumerId, isExclusiveConsume, getMessageResult);
                         if (writeResult.isSuccess()) {
                             consumeQueue.setNextSequence(getMessageResult.getNextBeginSequence());
                             return new PullMessageResult(writeResult.getPullLogOffset(), getMessageResult.getBuffers(), getMessageResult.getBufferTotalSize(), getMessageResult.getMessageNum());
@@ -142,7 +142,7 @@ public class MessageStoreWrapper {
         final String subject = pullRequest.getSubject();
         final String group = pullRequest.getGroup();
         final String consumerId = pullRequest.getConsumerId();
-        final boolean isBroadcast = pullRequest.isBroadcast();
+        final boolean isExclusiveConsume = pullRequest.isExclusiveConsume();
 
         shiftRight(getMessageResult);
         List<GetMessageResult> filterResult = filter(pullRequest, getMessageResult);
@@ -150,7 +150,7 @@ public class MessageStoreWrapper {
         int index;
         for (index = 0; index < filterResult.size(); ++index) {
             GetMessageResult item = filterResult.get(index);
-            if (!putAction(item, consumeQueue, subject, group, consumerId, isBroadcast, pullRequest.isOrdered(), retList))
+            if (!putAction(item, consumeQueue, subject, group, consumerId, isExclusiveConsume, retList))
                 break;
         }
         releaseRemain(index, filterResult);
@@ -215,9 +215,9 @@ public class MessageStoreWrapper {
     }
 
     private boolean putAction(GetMessageResult range, ConsumeQueue consumeQueue,
-                              String subject, String group, String consumerId, boolean isBroadcast, boolean isOrdered,
+                              String subject, String group, String consumerId, boolean isExclusiveConsume,
                               List<PullMessageResult>retList) {
-        final WritePutActionResult writeResult = consumerSequenceManager.putPullActions(subject, group, consumerId, isBroadcast, isOrdered, range);
+        final WritePutActionResult writeResult = consumerSequenceManager.putPullActions(subject, group, consumerId, isExclusiveConsume, range);
         if (writeResult.isSuccess()) {
             consumeQueue.setNextSequence(range.getNextBeginSequence());
             retList.add(new PullMessageResult(writeResult.getPullLogOffset(), range.getBuffers(), range.getBufferTotalSize(), range.getMessageNum()));
@@ -370,7 +370,7 @@ public class MessageStoreWrapper {
     }
 
     private long getConsumerLogSequence(PullRequest pullRequest, long offset) {
-        if (pullRequest.isBroadcast()) return offset;
+        if (pullRequest.isExclusiveConsume()) return offset;
         return storage.getMessageSequenceByPullLog(pullRequest.getSubject(), pullRequest.getGroup(), pullRequest.getConsumerId(), offset);
     }
 

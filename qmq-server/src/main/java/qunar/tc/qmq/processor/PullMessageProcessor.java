@@ -126,7 +126,7 @@ public class PullMessageProcessor extends AbstractRequestProcessor implements Fi
 
     // TODO(keli.wang): how to handle broadcast subscriber correctly?
     private void subscribe(PullRequest pullRequest) {
-        if (pullRequest.isBroadcast()) return;
+        if (pullRequest.isExclusiveConsume()) return;
 
         final String subject = pullRequest.getSubject();
         final String group = pullRequest.getGroup();

@@ -22,15 +22,16 @@ import com.google.common.util.concurrent.SettableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ConsumerAllocation;
-import qunar.tc.qmq.PartitionAllocation;
 import qunar.tc.qmq.Versionable;
 import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.broker.OrderedMessageManager;
+import qunar.tc.qmq.common.ClientLifecycleManagerFactory;
 import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.common.MapKeyBuilder;
+import qunar.tc.qmq.common.OrderedClientLifecycleManager;
 import qunar.tc.qmq.meta.BrokerCluster;
 import qunar.tc.qmq.meta.BrokerGroup;
 import qunar.tc.qmq.meta.BrokerState;
@@ -46,6 +47,7 @@ import qunar.tc.qmq.protocol.producer.ProducerMetaInfoResponse;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Future;
@@ -180,6 +182,8 @@ public class BrokerServiceImpl implements BrokerService, OrderedMessageManager, 
         // update cache
         updatePartitionCache(response);
 
+        updateOrderedClientLifecycle(response);
+
         MetaInfo metaInfo = parseResponse(response);
         if (metaInfo != null) {
             LOGGER.debug("meta info: {}", metaInfo);
@@ -192,6 +196,26 @@ public class BrokerServiceImpl implements BrokerService, OrderedMessageManager, 
             updateBrokerCluster(key, metaInfo.getClusterInfo());
         } else {
             LOGGER.warn("request meta info fail, will retry in a few seconds.");
+        }
+    }
+
+    private void updateOrderedClientLifecycle(MetaInfoResponse response) {
+        if (!(response instanceof ConsumerMetaInfoResponse)) {
+            return;
+        }
+        String subject = response.getSubject();
+        PartitionMapping partitionMapping = getPartitionMapping(subject);
+        if (partitionMapping != null) {
+            ConsumerMetaInfoResponse consumerResponse = (ConsumerMetaInfoResponse) response;
+            String consumerGroup = consumerResponse.getConsumerGroup();
+            ConsumerAllocation consumerAllocation = consumerResponse.getConsumerAllocation();
+            int version = consumerAllocation.getVersion();
+            long expired = consumerAllocation.getExpired();
+            Set<Integer> physicalPartitions = consumerAllocation.getPhysicalPartitions();
+            OrderedClientLifecycleManager orderedClientLifecycleManager = ClientLifecycleManagerFactory.get();
+            for (Integer physicalPartition : physicalPartitions) {
+                orderedClientLifecycleManager.refreshLifecycle(subject, consumerGroup, physicalPartition, version, expired);
+            }
         }
     }
 

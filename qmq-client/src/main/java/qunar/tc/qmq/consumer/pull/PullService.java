@@ -22,13 +22,12 @@ import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ConsumerAllocation;
-import qunar.tc.qmq.PartitionAllocation;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.OrderedMessageManager;
+import qunar.tc.qmq.common.OrderedMessageUtils;
 import qunar.tc.qmq.config.PullSubjectsConfig;
 import qunar.tc.qmq.consumer.pull.exception.PullException;
-import qunar.tc.qmq.meta.PartitionMapping;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.netty.client.NettyClient;
 import qunar.tc.qmq.netty.client.ResponseFuture;
@@ -72,13 +71,10 @@ class PullService {
     }
 
     private void pull(final PullParam pullParam, final PullCallback callback) {
-        final PullRequest request = buildPullRequest(pullParam);
         String realSubject = RetrySubjectUtils.getRealSubject(pullParam.getSubject());
         ConsumerAllocation allocation = orderedMessageManager.getConsumerAllocation(realSubject, pullParam.getGroup(), pullParam.getConsumerId());
-        if (allocation != null) {
-            request.setOrderAllocationVersion(allocation.getVersion());
-            request.setOrdered(true);
-        }
+        final PullRequest request = buildPullRequest(pullParam, allocation);
+
         Datagram datagram = RemotingBuilder.buildRequestDatagram(CommandCode.PULL_MESSAGE, new PullRequestPayloadHolder(request));
         long networkTripTimeout = pullParam.getRequestTimeoutMillis();
         long pullProcessTimeout = pullParam.getTimeoutMillis();
@@ -92,7 +88,7 @@ class PullService {
         }
     }
 
-    private PullRequest buildPullRequest(PullParam pullParam) {
+    private PullRequest buildPullRequest(PullParam pullParam, ConsumerAllocation allocation) {
         PullRequest request = new PullRequest();
         request.setSubject(pullParam.getSubject());
         request.setGroup(pullParam.getGroup());
@@ -102,7 +98,13 @@ class PullService {
         request.setPullOffsetBegin(pullParam.getMinPullOffset());
         request.setPullOffsetLast(pullParam.getMaxPullOffset());
         request.setConsumerId(pullParam.getConsumerId());
-        request.setBroadcast(pullParam.isBroadcast());
+        boolean isOrdered = false;
+        if (allocation != null) {
+            isOrdered = true;
+            request.setOrderAllocationVersion(allocation.getVersion());
+        }
+        request.setOrdered(isOrdered);
+        request.setExclusiveConsume(pullParam.isBroadcast() || isOrdered);
         request.setFilters(pullParam.getFilters());
         return request;
     }
@@ -203,11 +205,32 @@ class PullService {
                 message.setSubject(subject);
                 message.setAttrs(attrs);
                 message.setProperty(BaseMessage.keys.qmq_pullOffset, pullLogOffset);
+
+                resolveOrderedMessage(message);
+
                 result.add(message);
 
                 pullLogOffset++;
             }
             return result;
+        }
+
+        private void resolveOrderedMessage(BaseMessage message) {
+            String orderKey = message.getOrderKey();
+            if (orderKey != null) {
+                getRidOfOrderedSuffix(message);
+                getRidOfRetrySuffix(message);
+            }
+        }
+
+        private void getRidOfOrderedSuffix(BaseMessage message) {
+            String realSubject = OrderedMessageUtils.getRealSubject(message);
+            message.setSubject(realSubject);
+        }
+
+        private void getRidOfRetrySuffix(BaseMessage message) {
+            String realSubject = RetrySubjectUtils.getRealSubject(message.getSubject());
+            message.setSubject(realSubject);
         }
 
         private void readTags(ByteBuf input, BaseMessage message, byte flag) {

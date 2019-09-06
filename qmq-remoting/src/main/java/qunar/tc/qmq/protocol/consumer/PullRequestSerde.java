@@ -43,7 +43,7 @@ public class PullRequestSerde {
         out.writeLong(request.getPullOffsetBegin());
         out.writeLong(request.getPullOffsetLast());
         out.writeLong(request.getTimeoutMillis());
-        out.writeByte(request.isBroadcast() ? 1 : 0);
+        out.writeByte(request.isExclusiveConsume() ? 1 : 0);
         out.writeBoolean(request.isOrdered());
         out.writeInt(request.getOrderAllocationVersion());
 
@@ -101,7 +101,7 @@ public class PullRequestSerde {
         final long pullOffsetBegin = in.readLong();
         final long pullOffsetLast = in.readLong();
         final long timeout = in.readLong();
-        final byte broadcast = in.readByte();
+        final byte exclusiveConsume = in.readByte();
         boolean isOrdered = in.readBoolean();
         int allocationVersion = in.readInt();
         final List<PullFilter> filters = readFilters(version, in);
@@ -115,7 +115,7 @@ public class PullRequestSerde {
         request.setPullOffsetBegin(pullOffsetBegin);
         request.setPullOffsetLast(pullOffsetLast);
         request.setTimeoutMillis(timeout);
-        request.setBroadcast(broadcast != 0);
+        request.setExclusiveConsume(exclusiveConsume != 0);
         if (isOrderedVersion(version)) {
             request.setOrdered(isOrdered);
             request.setOrderAllocationVersion(allocationVersion);

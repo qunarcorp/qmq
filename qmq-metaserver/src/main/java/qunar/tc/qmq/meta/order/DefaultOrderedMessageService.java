@@ -19,6 +19,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static qunar.tc.qmq.common.OrderedConstants.ORDERED_CLIENT_HEARTBEAT_INTERVAL_SECS;
+import static qunar.tc.qmq.common.OrderedConstants.ORDERED_CONSUMER_LOCK_LEASE_SECS;
 
 /**
  * @author zhenwei.liu
@@ -196,14 +197,19 @@ public class DefaultOrderedMessageService implements OrderedMessageService {
 
     @Override
     public List<ClientMetaInfo> getOnlineOrderedConsumers() {
-        Date updateTime = new Date(System.currentTimeMillis() - ORDERED_CLIENT_HEARTBEAT_INTERVAL_SECS * 1000);
+        Date updateTime = new Date(System.currentTimeMillis() - ORDERED_CONSUMER_LOCK_LEASE_SECS * 1000);
         return clientMetaInfoStore.queryClientsUpdateAfterDate(ClientType.CONSUMER, OnOfflineState.ONLINE, updateTime);
     }
 
     @Override
     public List<ClientMetaInfo> getOnlineOrderedConsumers(String subject, String consumerGroup) {
-        Date updateTime = new Date(System.currentTimeMillis() - ORDERED_CLIENT_HEARTBEAT_INTERVAL_SECS * 1000);
+        Date updateTime = new Date(System.currentTimeMillis() - ORDERED_CONSUMER_LOCK_LEASE_SECS * 1000);
         return clientMetaInfoStore.queryClientsUpdateAfterDate(subject, consumerGroup, ClientType.CONSUMER, OnOfflineState.ONLINE, updateTime);
+    }
+
+    @Override
+    public long getExpiredMills(long startMills) {
+        return startMills + ORDERED_CONSUMER_LOCK_LEASE_SECS * 1000;
     }
 
     private String createPartitionKey(Partition partition) {

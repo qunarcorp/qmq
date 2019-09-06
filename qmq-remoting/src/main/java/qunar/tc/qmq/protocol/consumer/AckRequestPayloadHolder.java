@@ -37,6 +37,6 @@ public class AckRequestPayloadHolder implements PayloadHolder {
         PayloadHolderUtils.writeString(request.getConsumerId(), out);
         out.writeLong(request.getPullOffsetBegin());
         out.writeLong(request.getPullOffsetLast());
-        out.writeByte(request.isBroadcast());
+        out.writeByte(request.getIsExclusiveConsume());
     }
 }

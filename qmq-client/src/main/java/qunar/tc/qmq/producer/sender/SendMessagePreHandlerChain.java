@@ -2,6 +2,7 @@ package qunar.tc.qmq.producer.sender;
 
 import com.google.common.collect.Lists;
 import qunar.tc.qmq.ProduceMessage;
+import qunar.tc.qmq.broker.BrokerService;
 
 import java.util.List;
 import java.util.ServiceLoader;
@@ -25,6 +26,13 @@ public class SendMessagePreHandlerChain implements SendMessagePreHandler {
     public void handle(List<ProduceMessage> messages) {
         for (SendMessagePreHandler handler : handlers) {
             handler.handle(messages);
+        }
+    }
+
+    @Override
+    public void init(BrokerService brokerService) {
+        for (SendMessagePreHandler handler : handlers) {
+            handler.init(brokerService);
         }
     }
 }

@@ -26,7 +26,7 @@ public class AckRequest {
     private String consumerId;
     private long pullOffsetBegin;
     private long pullOffsetLast;
-    private byte isBroadcast = UNSET;
+    private byte isExclusiveConsume = UNSET;
 
     public String getSubject() {
         return subject;
@@ -68,11 +68,12 @@ public class AckRequest {
         this.pullOffsetLast = pullOffsetLast;
     }
 
-    public void setBroadcast(byte isBroadcast) {
-        this.isBroadcast = isBroadcast;
+    public byte getIsExclusiveConsume() {
+        return isExclusiveConsume;
     }
 
-    public byte isBroadcast() {
-        return isBroadcast;
+    public AckRequest setIsExclusiveConsume(byte isExclusiveConsume) {
+        this.isExclusiveConsume = isExclusiveConsume;
+        return this;
     }
 }

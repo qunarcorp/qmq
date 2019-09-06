@@ -145,7 +145,7 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
             response = new ConsumerMetaInfoResponse();
             Map<String, Set<Integer>> clientId2PhysicalPartitions = partitionAllocation.getAllocationDetail().getClientId2PhysicalPartitions();
             Set<Integer> physicalPartitions = clientId2PhysicalPartitions.get(clientRequest.getClientId());
-            ConsumerAllocation consumerAllocation = new ConsumerAllocation(partitionAllocation.getVersion(), physicalPartitions);
+            ConsumerAllocation consumerAllocation = new ConsumerAllocation(partitionAllocation.getVersion(), physicalPartitions, orderedMessageService.getExpiredMills(System.currentTimeMillis()));
             ((ConsumerMetaInfoResponse) response).setConsumerAllocation(consumerAllocation);
         }
         response.setConsumerGroup(clientRequest.getConsumerGroup());

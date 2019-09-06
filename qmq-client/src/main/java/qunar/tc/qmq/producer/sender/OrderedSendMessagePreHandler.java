@@ -3,7 +3,9 @@ package qunar.tc.qmq.producer.sender;
 import qunar.tc.qmq.ProduceMessage;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.base.BaseMessage.keys;
+import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.common.OrderedMessageUtils;
+import qunar.tc.qmq.meta.PartitionMapping;
 
 import java.util.List;
 
@@ -13,15 +15,27 @@ import java.util.List;
  */
 public class OrderedSendMessagePreHandler implements SendMessagePreHandler {
 
+    private BrokerService brokerService;
+
     @Override
     public void handle(List<ProduceMessage> messages) {
-        messages.forEach(message -> {
+        for (ProduceMessage message : messages) {
             BaseMessage baseMessage = (BaseMessage) message.getBase();
-            // 消息发到 broker 后, 由 broker 自行修改主题
-//            int physicalPartition = baseMessage.getIntProperty(keys.qmq_physicalPartition.name());
-//            baseMessage.setSubject(OrderedMessageUtils.getOrderedMessageSubject(baseMessage.getSubject(), physicalPartition));
+            String subject = baseMessage.getSubject();
+
+            // 顺序主题必须设置 order key 再发送
+            PartitionMapping partitionMapping = brokerService.getPartitionMapping(subject);
+            if (partitionMapping != null) {
+
+            }
+
             baseMessage.removeProperty(keys.qmq_queueSenderType);
             baseMessage.removeProperty(keys.qmq_loadBalanceType);
-        });
+        }
+    }
+
+    @Override
+    public void init(BrokerService brokerService) {
+        this.brokerService = brokerService;
     }
 }

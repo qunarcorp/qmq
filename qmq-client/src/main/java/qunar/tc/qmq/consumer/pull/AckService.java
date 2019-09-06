@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
+import qunar.tc.qmq.broker.OrderedMessageManager;
 import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.common.MapKeyBuilder;
 import qunar.tc.qmq.consumer.pull.exception.AckException;
@@ -59,6 +60,7 @@ class AckService {
     private final BrokerService brokerService;
     private final SendMessageBack sendMessageBack;
     private final DelayMessageService delayMessageService;
+    private final OrderedMessageManager orderedMessageManager;
 
     private String clientId;
 
@@ -68,6 +70,7 @@ class AckService {
     private int destroyWaitInSeconds = 5;
 
     AckService(BrokerService brokerService) {
+        this.orderedMessageManager = brokerService;
         this.brokerService = brokerService;
         this.sendMessageBack = new SendMessageBackImpl(brokerService);
         this.delayMessageService = new DelayMessageService(brokerService, sendMessageBack);
@@ -172,7 +175,9 @@ class AckService {
         request.setConsumerId(clientId);
         request.setPullOffsetBegin(ack.getPullOffsetBegin());
         request.setPullOffsetLast(ack.getPullOffsetLast());
-        request.setBroadcast((byte) (ack.isBroadcast() ? 1 : 0));
+        boolean isOrdered = orderedMessageManager.getPartitionMapping(subject) != null;
+        boolean isExclusiveConsume = ack.isBroadcast() || isOrdered;
+        request.setIsExclusiveConsume((byte) (isExclusiveConsume ? 1 : 0));
         return request;
     }
 

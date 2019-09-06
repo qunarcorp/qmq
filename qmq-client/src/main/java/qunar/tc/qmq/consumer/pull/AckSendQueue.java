@@ -23,8 +23,10 @@ import io.netty.util.TimerTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.base.BaseMessage;
+import qunar.tc.qmq.base.OrderStrategyManager;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
+import qunar.tc.qmq.broker.OrderStrategy;
 import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.common.TimerUtil;
 import qunar.tc.qmq.config.PullSubjectsConfig;
@@ -34,6 +36,7 @@ import qunar.tc.qmq.metrics.QmqMeter;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -139,11 +142,14 @@ class AckSendQueue implements TimerTask {
     }
 
     void sendBackAndCompleteNack(final int nextRetryCount, final BaseMessage message, final AckEntry ackEntry) {
-        final String sendSubject = nextRetryCount > message.getMaxRetryNum() ? deadRetrySubject : retrySubject;
+        String subject = message.getSubject();
+        OrderStrategy orderStrategy = OrderStrategyManager.getOrderStrategy(subject);
+        boolean isDeadRetryMessage = (nextRetryCount > message.getMaxRetryNum()) || Objects.equals(orderStrategy, OrderStrategy.STRICT);
+        final String sendSubject = isDeadRetryMessage ? deadRetrySubject : retrySubject;
         if (deadRetrySubject.equals(sendSubject)) {
             deadQueueCount.inc();
             LOGGER.warn("process message retry num {} >= {}, and dead retry. subject={}, group={}, msgId={}",
-                    nextRetryCount - 1, message.getMaxRetryNum(), subject, group, message.getMessageId());
+                    nextRetryCount - 1, message.getMaxRetryNum(), this.subject, group, message.getMessageId());
         }
         message.setSubject(sendSubject);
         sendMessageBack.sendBackAndCompleteNack(nextRetryCount, message, ackEntry);

@@ -93,12 +93,12 @@ public class ConsumerSequenceManager {
 
     }
 
-    public WritePutActionResult putPullActions(final String subject, final String group, final String consumerId, final boolean isBroadcast, final boolean isOrdered, final GetMessageResult getMessageResult) {
+    public WritePutActionResult putPullActions(final String subject, final String group, final String consumerId, final boolean isExclusiveConsume, final GetMessageResult getMessageResult) {
         final OffsetRange consumerLogRange = getMessageResult.getConsumerLogRange();
         final ConsumerSequence consumerSequence = getOrCreateConsumerSequence(subject, group, consumerId);
 
         if (consumerLogRange.getEnd() - consumerLogRange.getBegin() + 1 != getMessageResult.getMessageNum()) {
-            LOG.debug("consumer offset range error, subject:{}, group:{}, consumerId:{}, isBroadcast:{}, getMessageResult:{}", subject, group, consumerId, isBroadcast, getMessageResult);
+            LOG.debug("consumer offset range error, subject:{}, group:{}, consumerId:{}, isBroadcast:{}, getMessageResult:{}", subject, group, consumerId, isExclusiveConsume, getMessageResult);
             QMon.consumerLogOffsetRangeError(subject, group);
         }
         consumerSequence.pullLock();
@@ -107,11 +107,11 @@ public class ConsumerSequenceManager {
             final long firstConsumerLogSequence = consumerLogRange.getEnd() - getMessageResult.getMessageNum() + 1;
             final long lastConsumerLogSequence = consumerLogRange.getEnd();
 
-            final long firstPullSequence = isBroadcast ? firstConsumerLogSequence : consumerSequence.getPullSequence() + 1;
-            final long lastPullSequence = isBroadcast ? lastConsumerLogSequence : consumerSequence.getPullSequence() + getMessageResult.getMessageNum();
+            final long firstPullSequence = isExclusiveConsume ? firstConsumerLogSequence : consumerSequence.getPullSequence() + 1;
+            final long lastPullSequence = isExclusiveConsume ? lastConsumerLogSequence : consumerSequence.getPullSequence() + getMessageResult.getMessageNum();
 
             final Action action = new PullAction(subject, group, consumerId,
-                    System.currentTimeMillis(), isBroadcast || isOrdered,
+                    System.currentTimeMillis(), isExclusiveConsume,
                     firstPullSequence, lastPullSequence,
                     firstConsumerLogSequence, lastConsumerLogSequence);
 
@@ -154,7 +154,7 @@ public class ConsumerSequenceManager {
                 final long firstNotAckedPullSequence = confirmedAckSequence + 1;
                 final long lastLostPullSequence = firstPullSequence - 1;
                 //如果是广播的话，put need retry也是没有意义的
-                if (!ackEntry.isBroadcast()) {
+                if (!ackEntry.isExclusiveConsume()) {
                     LOG.error("lost ack count, ackEntry:{}, consumerSequence:{}", ackEntry, consumerSequence);
                     putNeedRetryMessages(subject, group, consumerId, firstNotAckedPullSequence, lastLostPullSequence);
                 }

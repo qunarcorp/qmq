@@ -1,6 +1,7 @@
 package qunar.tc.qmq.producer.sender;
 
 import qunar.tc.qmq.ProduceMessage;
+import qunar.tc.qmq.broker.BrokerService;
 
 import java.util.List;
 
@@ -11,4 +12,6 @@ import java.util.List;
 public interface SendMessagePreHandler {
 
     void handle(List<ProduceMessage> messages);
+
+    void init(BrokerService brokerService);
 }

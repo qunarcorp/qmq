@@ -24,10 +24,7 @@ import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.*;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.broker.impl.BrokerServiceImpl;
-import qunar.tc.qmq.common.ClientType;
-import qunar.tc.qmq.common.EnvProvider;
-import qunar.tc.qmq.common.MapKeyBuilder;
-import qunar.tc.qmq.common.OrderedMessageUtils;
+import qunar.tc.qmq.common.*;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.consumer.MessageExecutor;
 import qunar.tc.qmq.consumer.MessageExecutorFactory;
@@ -68,6 +65,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
     private BrokerService brokerService;
     private PullService pullService;
     private AckService ackService;
+    private OrderedClientLifecycleManager orderedClientLifecycleManager;
 
     private String clientId;
     private String appCode;
@@ -88,6 +86,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         this.brokerService = new BrokerServiceImpl(clientId, metaInfoService);
         this.pullService = new PullService(brokerService);
         this.ackService = new AckService(this.brokerService);
+        this.orderedClientLifecycleManager = ClientLifecycleManagerFactory.get();
 
         this.ackService.setDestroyWaitInSeconds(destroyWaitInSeconds);
         this.ackService.setClientId(clientId);

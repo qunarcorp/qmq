@@ -136,11 +136,6 @@ public class MessageProducerProvider implements MessageProducer {
             throw new RuntimeException("MessageProducerProvider未初始化，如果使用非Spring的方式请确认init()是否调用");
         }
 
-        if (isOrderedMessage(message)) {
-            message.setProperty(BaseMessage.keys.qmq_queueSenderType.name(), OrderedQueueSender.class.getName());
-            message.setProperty(BaseMessage.keys.qmq_loadBalanceType.name(), OrderedBrokerLoadBalance.class.getName());
-        }
-
         String[] tagValues = null;
         long startTime = System.currentTimeMillis();
         Tracer.SpanBuilder spanBuilder = tracer.buildSpan("Qmq.Produce.Send")
@@ -189,6 +184,12 @@ public class MessageProducerProvider implements MessageProducer {
     }
 
     private ProduceMessageImpl initProduceMessage(Message message, MessageSendStateListener listener) {
+
+        if (isOrderedMessage(message)) {
+            message.setProperty(BaseMessage.keys.qmq_queueSenderType.name(), OrderedQueueSender.class.getName());
+            message.setProperty(BaseMessage.keys.qmq_loadBalanceType.name(), OrderedBrokerLoadBalance.class.getName());
+        }
+
         BaseMessage base = (BaseMessage) message;
         routerManager.validateMessage(message);
         ProduceMessageImpl pm = new ProduceMessageImpl(base, routerManager.getSender());

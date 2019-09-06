@@ -30,7 +30,7 @@ public class PullRequest {
     private long pullOffsetBegin;
     private long pullOffsetLast;
     private String consumerId;
-    private boolean isBroadcast;
+    private boolean isExclusiveConsume;
     private boolean isOrdered = false;
     private int orderAllocationVersion = -1;
     private List<PullFilter> filters;
@@ -99,12 +99,13 @@ public class PullRequest {
         this.consumerId = consumerId;
     }
 
-    public boolean isBroadcast() {
-        return isBroadcast;
+    public boolean isExclusiveConsume() {
+        return isExclusiveConsume;
     }
 
-    public void setBroadcast(boolean broadcast) {
-        isBroadcast = broadcast;
+    public PullRequest setExclusiveConsume(boolean exclusiveConsume) {
+        isExclusiveConsume = exclusiveConsume;
+        return this;
     }
 
     public List<PullFilter> getFilters() {
@@ -144,7 +145,7 @@ public class PullRequest {
                 ", pullOffsetBegin=" + pullOffsetBegin +
                 ", pullOffsetLast=" + pullOffsetLast +
                 ", consumerId='" + consumerId + '\'' +
-                ", isBroadcast=" + isBroadcast +
+                ", isExclusiveConsume=" + isExclusiveConsume +
                 '}';
     }
 

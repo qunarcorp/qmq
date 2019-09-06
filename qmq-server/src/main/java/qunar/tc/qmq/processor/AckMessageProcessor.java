@@ -83,7 +83,7 @@ public class AckMessageProcessor extends AbstractRequestProcessor {
         request.setPullOffsetBegin(input.readLong());
         request.setPullOffsetLast(input.readLong());
         if (command.getHeader().getVersion() >= RemotingHeader.VERSION_8) {
-            request.setBroadcast(input.readByte());
+            request.setIsExclusiveConsume(input.readByte());
         }
         return request;
     }
@@ -117,7 +117,7 @@ public class AckMessageProcessor extends AbstractRequestProcessor {
         private final ChannelHandlerContext ctx;
         private final RemotingHeader requestHeader;
         private final long ackBegin;
-        private final byte isBroadcast;
+        private final byte isExclusiveConsume;
 
         AckEntry(AckRequest ackRequest, ChannelHandlerContext ctx, RemotingHeader requestHeader) {
             this.subject = ackRequest.getSubject();
@@ -125,7 +125,7 @@ public class AckMessageProcessor extends AbstractRequestProcessor {
             this.consumerId = ackRequest.getConsumerId();
             this.firstPullLogOffset = ackRequest.getPullOffsetBegin();
             this.lastPullLogOffset = ackRequest.getPullOffsetLast();
-            this.isBroadcast = ackRequest.isBroadcast();
+            this.isExclusiveConsume = ackRequest.getIsExclusiveConsume();
 
             this.ctx = ctx;
             this.requestHeader = requestHeader;
@@ -164,8 +164,8 @@ public class AckMessageProcessor extends AbstractRequestProcessor {
             return ackBegin;
         }
 
-        public boolean isBroadcast() {
-            return isBroadcast == 1;
+        public boolean isExclusiveConsume() {
+            return isExclusiveConsume == 1;
         }
 
         @Override

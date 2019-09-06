@@ -58,6 +58,11 @@ public class BufferedMessageExecutor extends AbstractMessageExecutor {
     }
 
     @Override
+    public void destroy() {
+        cleanUp();
+    }
+
+    @Override
     public boolean execute(List<PulledMessage> messages) {
         for (int i = 0; i < messages.size(); i++) {
             final PulledMessage message = messages.get(i);

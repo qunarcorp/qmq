@@ -43,6 +43,5 @@ public class PartitionPullEntry implements PullEntry, PartitionPullClient {
     @Override
     public void destroy() {
         pullEntry.destroy();
-        // TODO(zhenwei.liu) 这里需要主动释放锁
     }
 }

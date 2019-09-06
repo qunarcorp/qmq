@@ -17,6 +17,7 @@ public class ConsumerAllocationSerializer extends ObjectSerializer<ConsumerAlloc
     @Override
     void doSerialize(ConsumerAllocation consumerAllocation, ByteBuf buf) {
         buf.writeInt(consumerAllocation.getVersion());
+        buf.writeLong(consumerAllocation.getExpired());
         Set<Integer> physicalPartitions = consumerAllocation.getPhysicalPartitions();
         Serializer<Set> serializer = getSerializer(physicalPartitions.getClass());
         serializer.serialize(physicalPartitions, buf);
@@ -25,8 +26,9 @@ public class ConsumerAllocationSerializer extends ObjectSerializer<ConsumerAlloc
     @Override
     ConsumerAllocation doDeserialize(ByteBuf buf, Type type) {
         int allocationVersion = buf.readInt();
+        long expired = buf.readLong();
         Serializer<Set> serializer = getSerializer(Set.class);
         Set<Integer> physicalPartitions = serializer.deserialize(buf, physicalPartitionsType);
-        return new ConsumerAllocation(allocationVersion, physicalPartitions);
+        return new ConsumerAllocation(allocationVersion, physicalPartitions, expired);
     }
 }

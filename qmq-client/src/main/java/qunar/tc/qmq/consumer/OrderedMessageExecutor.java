@@ -7,7 +7,7 @@ import qunar.tc.qmq.MessageListener;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.base.OrderStrategyManager;
 import qunar.tc.qmq.broker.OrderStrategy;
-import qunar.tc.qmq.common.ClientLifecycleManager;
+import qunar.tc.qmq.common.OrderedClientLifecycleManager;
 import qunar.tc.qmq.consumer.pull.PulledMessage;
 
 import java.util.List;
@@ -28,7 +28,7 @@ public class OrderedMessageExecutor extends AbstractMessageExecutor {
     private final AtomicBoolean started = new AtomicBoolean(false);
     private final Logger logger = LoggerFactory.getLogger(OrderedMessageExecutor.class);
 
-    private ClientLifecycleManager lifecycleManager;
+    private OrderedClientLifecycleManager lifecycleManager;
     private BlockingDeque<PulledMessage> messageQueue;
     private MessageHandler messageHandler;
     private Executor executor;
@@ -36,7 +36,7 @@ public class OrderedMessageExecutor extends AbstractMessageExecutor {
     private String group;
     private volatile boolean stopped = false;
 
-    public OrderedMessageExecutor(String subject, String group, Executor executor, MessageListener messageListener, ClientLifecycleManager lifecycleManager) {
+    public OrderedMessageExecutor(String subject, String group, Executor executor, MessageListener messageListener, OrderedClientLifecycleManager lifecycleManager) {
         super(subject, group);
         this.subject = subject;
         this.group = group;

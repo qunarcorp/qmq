@@ -133,6 +133,7 @@ class DefaultPullEntry extends AbstractPullEntry {
 
     public void destroy() {
         isRunning.set(false);
+        messageExecutor.destroy();
     }
 
     @Override
