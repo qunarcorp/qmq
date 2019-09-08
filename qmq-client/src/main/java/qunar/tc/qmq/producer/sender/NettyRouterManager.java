@@ -20,9 +20,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.Message;
 import qunar.tc.qmq.broker.BrokerService;
-import qunar.tc.qmq.broker.impl.BrokerServiceImpl;
-import qunar.tc.qmq.metainfoclient.DefaultMetaInfoService;
-import qunar.tc.qmq.metainfoclient.MetaInfoService;
 import qunar.tc.qmq.tracing.TraceUtil;
 
 import java.util.Map;
@@ -47,7 +44,7 @@ public class NettyRouterManager extends AbstractRouterManager {
 
         NettyProducerClient producerClient = new NettyProducerClient();
         producerClient.start();
-        setRouter(new NettyRouter(producerClient, this.brokerService));
+        setConnectionCache(new NettyConnectionCache(producerClient, this.brokerService));
     }
 
     @Override

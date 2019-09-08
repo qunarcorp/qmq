@@ -51,4 +51,8 @@ public interface ProduceMessage extends Retriable {
     void setRouteKey(Object routeKey);
 
     Object getRouteKey();
+
+    void setMessageGroup(MessageGroup messageGroup);
+
+    MessageGroup getMessageGroup();
 }

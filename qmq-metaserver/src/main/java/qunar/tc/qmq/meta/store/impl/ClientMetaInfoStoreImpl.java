@@ -19,7 +19,7 @@ package qunar.tc.qmq.meta.store.impl;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import qunar.tc.qmq.base.OnOfflineState;
-import qunar.tc.qmq.common.ClientType;
+import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
 import qunar.tc.qmq.meta.model.ClientMetaInfo;
 import qunar.tc.qmq.meta.store.ClientMetaInfoStore;

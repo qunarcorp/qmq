@@ -2,21 +2,22 @@ package qunar.tc.qmq.producer.sender;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
+import com.google.common.collect.RangeMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.MessageGroup;
 import qunar.tc.qmq.ProduceMessage;
 import qunar.tc.qmq.base.BaseMessage;
-import qunar.tc.qmq.base.BaseMessage.keys;
 import qunar.tc.qmq.base.OrderStrategyManager;
 import qunar.tc.qmq.batch.OrderedExecutor;
 import qunar.tc.qmq.batch.OrderedProcessor;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
+import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.broker.OrderStrategy;
-import qunar.tc.qmq.common.ClientType;
-import qunar.tc.qmq.common.OrderedMessageUtils;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
-import qunar.tc.qmq.meta.PartitionMapping;
+import qunar.tc.qmq.meta.Partition;
+import qunar.tc.qmq.meta.ProducerMapping;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.QmqTimer;
 import qunar.tc.qmq.producer.SendErrorHandler;
@@ -47,9 +48,10 @@ public class OrderedQueueSender extends AbstractQueueSender implements OrderedPr
     private int maxQueueSize;
     private int sendBatch;
     private QmqTimer timer;
+    private MessageGroupResolver messageGroupResolver;
 
     // subject-physicalPartition => executor
-    private Map<String, OrderedExecutor<ProduceMessage>> executorMap = Maps.newConcurrentMap();
+    private Map<MessageGroup, OrderedExecutor<ProduceMessage>> executorMap = Maps.newConcurrentMap();
 
     @Override
     public void init(Map<PropKey, Object> props) {
@@ -112,8 +114,13 @@ public class OrderedQueueSender extends AbstractQueueSender implements OrderedPr
 
     private OrderedExecutor<ProduceMessage> getExecutor(ProduceMessage produceMessage) {
         BaseMessage baseMessage = (BaseMessage) produceMessage.getBase();
-        String orderedSubject = OrderedMessageUtils.getOrderedMessageSubject(baseMessage.getSubject(), baseMessage.getIntProperty(keys.qmq_physicalPartition.name()));
-        return executorMap.computeIfAbsent(orderedSubject, k -> new OrderedExecutor<>(k, sendBatch, maxQueueSize, this, executor));
+        MessageGroup messageGroup = messageGroupResolver.resolveGroup(baseMessage);
+        produceMessage.setMessageGroup(messageGroup);
+        return getExecutor(messageGroup);
+    }
+
+    private OrderedExecutor<ProduceMessage> getExecutor(MessageGroup messageGroup) {
+        return executorMap.computeIfAbsent(messageGroup, group -> new OrderedExecutor<>(group.toString(), sendBatch, maxQueueSize, this, executor));
     }
 
     @Override
@@ -131,9 +138,33 @@ public class OrderedQueueSender extends AbstractQueueSender implements OrderedPr
                     public void error(ProduceMessage pm, Exception e) {
                         // TODO(zhenwei.liu) 未来需要处理 partition 分裂消息
                         // 重试交给 executor 处理
+                        String subject = pm.getSubject();
+                        OrderStrategy orderStrategy = OrderStrategyManager.getOrderStrategy(subject);
                         pm.reset();
-                        if (!shouldRetry(pm)) {
+                        if (!(orderStrategy.needRetry(pm))) {
                             executor.removeItem(pm);
+                        } else {
+                            MessageGroup messageGroup = pm.getMessageGroup();
+                            BrokerClusterInfo brokerCluster = brokerService.getClusterBySubject(messageGroup.getClientType(), subject);
+                            String currentGroup = messageGroup.getBrokerGroup();
+                            BrokerGroupInfo retryGroup = orderStrategy.resolveBrokerGroup(currentGroup, brokerCluster);
+                            String retryGroupName = retryGroup.getGroupName();
+                            if (!Objects.equals(currentGroup, retryGroupName)) {
+                                // 重试的 group 不相同. 则选择其他 executorGroup
+                                ProducerMapping producerMapping = brokerService.getPartitionMapping(subject);
+                                RangeMap<Integer, Partition> logical2PhysicalPartition = producerMapping.getLogical2PhysicalPartition();
+                                for (Partition partition : logical2PhysicalPartition.asMapOfRanges().values()) {
+                                    if (Objects.equals(partition.getBrokerGroup(), retryGroupName)) {
+                                        int retryPartition = partition.getPhysicalPartition();
+                                        messageGroup.setBrokerGroup(retryGroupName);
+                                        messageGroup.setPartition(retryPartition);
+                                    } else {
+                                        throw new IllegalStateException(String.format("重试时无法找到 partition %s", retryGroupName));
+                                    }
+                                }
+                                executor.removeItem(pm);
+                                getExecutor(messageGroup).addItem(pm);
+                            }
                         }
                     }
 
@@ -167,18 +198,5 @@ public class OrderedQueueSender extends AbstractQueueSender implements OrderedPr
         } finally {
             timer.update(System.currentTimeMillis() - start, TimeUnit.MILLISECONDS);
         }
-    }
-
-    private boolean shouldRetry(ProduceMessage message) {
-        OrderStrategy orderStrategy = OrderStrategyManager.getOrderStrategy(message.getSubject());
-        if (Objects.equals(orderStrategy, OrderStrategy.STRICT)) {
-            // 永远重试
-            return true;
-        } else if (Objects.equals(orderStrategy, OrderStrategy.BEST_TRIED) &&
-                (message.getTries() < message.getMaxTries())) {
-            // 重试次数内重试
-            return true;
-        }
-        return false;
     }
 }

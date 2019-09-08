@@ -17,7 +17,7 @@
 package qunar.tc.qmq.metainfoclient;
 
 import qunar.tc.qmq.broker.BrokerClusterInfo;
-import qunar.tc.qmq.common.ClientType;
+import qunar.tc.qmq.ClientType;
 
 /**
  * @author yiqun.fan create on 17-8-31.

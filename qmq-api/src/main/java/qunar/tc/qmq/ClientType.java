@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-package qunar.tc.qmq.common;
-
-import com.google.common.collect.ImmutableMap;
+package qunar.tc.qmq;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -30,14 +28,14 @@ public enum ClientType {
     OTHER(3),
     DELAY_PRODUCER(4);
 
-    private static final ImmutableMap<Integer, ClientType> INSTANCES;
+    private static final Map<Integer, ClientType> INSTANCES;
 
     static {
         final Map<Integer, ClientType> result = new HashMap<>();
         for (final ClientType type : values()) {
             result.put(type.getCode(), type);
         }
-        INSTANCES = ImmutableMap.copyOf(result);
+        INSTANCES = result;
     }
 
     private int code;

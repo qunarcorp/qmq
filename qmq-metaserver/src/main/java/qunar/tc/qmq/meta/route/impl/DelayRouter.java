@@ -18,7 +18,7 @@ package qunar.tc.qmq.meta.route.impl;
 
 import qunar.tc.qmq.meta.BrokerGroup;
 import qunar.tc.qmq.meta.BrokerState;
-import qunar.tc.qmq.common.ClientType;
+import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 import qunar.tc.qmq.meta.route.SubjectRouter;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
@@ -51,17 +51,7 @@ public class DelayRouter implements SubjectRouter {
 
     private List<BrokerGroup> doRoute() {
         final List<BrokerGroup> delayGroups = cachedMetaInfoManager.getDelayNewGroups();
-        final List<BrokerGroup> filterDelayGroups = filterNrwBrokers(delayGroups);
-        return select(filterDelayGroups);
-    }
-
-    private List<BrokerGroup> filterNrwBrokers(final List<BrokerGroup> groups) {
-        if (groups.isEmpty()) {
-            return groups;
-        }
-
-        return groups.stream().filter(group -> group.getBrokerState() != BrokerState.NRW)
-                .collect(Collectors.toList());
+        return select(delayGroups);
     }
 
     private List<BrokerGroup> select(final List<BrokerGroup> groups) {

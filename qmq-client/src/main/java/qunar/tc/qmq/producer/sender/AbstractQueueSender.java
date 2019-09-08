@@ -16,12 +16,12 @@ public abstract class AbstractQueueSender implements QueueSender {
 
     protected RouterManager routerManager;
 
-    protected Collection<MessageSenderGroup> groupBy(List<ProduceMessage> list) {
+    protected Collection<MessageSenderGroup> groupBy(List<ProduceMessage> messages) {
         Map<Connection, MessageSenderGroup> map = Maps.newHashMap();
-        for (int i = 0; i < list.size(); ++i) {
-            ProduceMessage produceMessage = list.get(i);
+        for (int i = 0; i < messages.size(); ++i) {
+            ProduceMessage produceMessage = messages.get(i);
             produceMessage.startSendTrace();
-            Connection connection = routerManager.routeOf(produceMessage.getBase());
+            Connection connection = routerManager.routeOf(produceMessage.getMessageGroup());
             MessageSenderGroup group = map.get(connection);
             if (group == null) {
                 group = new MessageSenderGroup(connection);

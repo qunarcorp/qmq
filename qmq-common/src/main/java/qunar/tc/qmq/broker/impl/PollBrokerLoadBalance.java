@@ -16,8 +16,6 @@
 
 package qunar.tc.qmq.broker.impl;
 
-import qunar.tc.qmq.base.BaseMessage;
-import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerLoadBalance;
 
@@ -29,12 +27,8 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 public class PollBrokerLoadBalance implements BrokerLoadBalance {
 
-    public PollBrokerLoadBalance() {
-    }
-
     @Override
-    public BrokerGroupInfo loadBalance(BrokerClusterInfo cluster, BrokerGroupInfo lastGroup, BaseMessage message) {
-        List<BrokerGroupInfo> groups = cluster.getGroups();
+    public BrokerGroupInfo loadBalance(List<BrokerGroupInfo> groups, BrokerGroupInfo lastGroup) {
         if (lastGroup == null || lastGroup.getGroupIndex() < 0 || lastGroup.getGroupIndex() >= groups.size()) {
             BrokerGroupInfo group;
             for (int i = 0; i < groups.size(); i++) {

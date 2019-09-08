@@ -20,7 +20,7 @@ import qunar.tc.qmq.Message;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
-import qunar.tc.qmq.common.ClientType;
+import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.StatusSource;
 
 import java.util.List;

@@ -16,12 +16,12 @@
 
 package qunar.tc.qmq.broker;
 
-import qunar.tc.qmq.base.BaseMessage;
+import java.util.List;
 
 /**
  * @author yiqun.fan create on 17-8-18.
  */
 public interface BrokerLoadBalance {
 
-    BrokerGroupInfo loadBalance(BrokerClusterInfo cluster, BrokerGroupInfo lastGroup, BaseMessage message);
+    BrokerGroupInfo loadBalance(List<BrokerGroupInfo> brokerGroups, BrokerGroupInfo lastGroup);
 }

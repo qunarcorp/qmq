@@ -60,12 +60,11 @@ public class BaseMessage implements Message, Serializable {
         qmq_env,
         qmq_subEnv,
         qmq_orderKey,
+        qmq_orderStrategy,
         qmq_logicPartition,
         qmq_physicalPartition,
         qmq_partitionVersion,
-        qmq_partitionBroker,
-        qmq_queueSenderType,
-        qmq_loadBalanceType
+        qmq_partitionBroker
     }
 
     private static final Set<String> keyNames = Sets.newHashSet();

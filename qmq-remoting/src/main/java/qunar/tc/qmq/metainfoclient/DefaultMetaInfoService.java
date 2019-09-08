@@ -22,7 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.base.OnOfflineState;
-import qunar.tc.qmq.common.ClientType;
+import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.meta.MetaServerLocator;
 import qunar.tc.qmq.metrics.Metrics;
@@ -123,6 +123,7 @@ public class DefaultMetaInfoService implements MetaInfoService, MetaInfoClient.R
         }
     }
 
+    // TODO(zhenwei.liu) 如果自动分配分区, 如何区分是否是顺序, 会不会造成大量的数据库更新
     private boolean isOrdered(MetaInfoResponse response) {
         if (response instanceof ProducerMetaInfoResponse) {
             return ((ProducerMetaInfoResponse) response).getPartitionMapping() != null;
@@ -165,6 +166,7 @@ public class DefaultMetaInfoService implements MetaInfoService, MetaInfoClient.R
         );
     }
 
+    // TODO(zhenwei.liu) 这里需要设置 request 的类型是否为 ordered
     @Override
     public ListenableFuture<MetaInfoResponse> request(String subject, String group, ClientType clientType, String appCode, ClientRequestType requestType) {
         MetaInfoRequest request = new MetaInfoRequest();

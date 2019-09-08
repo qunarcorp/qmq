@@ -4,7 +4,11 @@ import com.google.common.collect.RangeMap;
 import qunar.tc.qmq.Versionable;
 
 /**
- * partition 映射, producer 使用
+ * partition 映射, producer 使用, 分如下三种情况
+ *
+ * 1. delay_producer: partitionMapping 为 null
+ * 2. producer: partitionMapping 包含该主题的所有分区信息, 随机往所有分区发
+ * 3. ordered_producer: partitionMapping 包含该主题的所有分区信息, 按 order_key 往特定分区发
  *
  * @author zhenwei.liu
  * @since 2019-08-27

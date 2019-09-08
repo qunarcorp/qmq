@@ -21,21 +21,23 @@ import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerLoadBalance;
 import qunar.tc.qmq.broker.BrokerService;
-import qunar.tc.qmq.broker.impl.AdaptiveBrokerLoadBalance;
-import qunar.tc.qmq.broker.impl.PollBrokerLoadBalance;
-import qunar.tc.qmq.common.ClientType;
+import qunar.tc.qmq.broker.impl.BrokerLoadBalanceFactory;
 import qunar.tc.qmq.common.TimerUtil;
 import qunar.tc.qmq.consumer.pull.exception.SendMessageBackException;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.netty.client.NettyClient;
 import qunar.tc.qmq.netty.client.ResponseFuture;
 import qunar.tc.qmq.netty.exception.ClientSendException;
-import qunar.tc.qmq.protocol.*;
+import qunar.tc.qmq.protocol.CommandCode;
+import qunar.tc.qmq.protocol.Datagram;
+import qunar.tc.qmq.protocol.OrderedMessagesPayloadHolder;
+import qunar.tc.qmq.protocol.QMQSerializer;
 import qunar.tc.qmq.protocol.producer.MessageProducerCode;
 import qunar.tc.qmq.protocol.producer.SendResult;
 import qunar.tc.qmq.util.RemotingBuilder;
@@ -63,7 +65,7 @@ class SendMessageBackImpl implements SendMessageBack {
 
     SendMessageBackImpl(BrokerService brokerService) {
         this.brokerService = brokerService;
-        this.brokerLoadBalance = AdaptiveBrokerLoadBalance.getInstance(brokerService);
+        this.brokerLoadBalance = BrokerLoadBalanceFactory.get();
     }
 
     @Override
@@ -179,13 +181,13 @@ class SendMessageBackImpl implements SendMessageBack {
                 }
             }
         };
-        final BrokerGroupInfo brokerGroup = brokerLoadBalance.loadBalance(brokerCluster, null, message);
+        final BrokerGroupInfo brokerGroup = brokerLoadBalance.loadBalance(brokerCluster.getGroups(), null);
         sendBack(brokerGroup, message, callback, ClientType.PRODUCER);
     }
 
     private void sendBackAndCompleteNack(final BaseMessage message, final SendMessageBack.Callback callback) {
         final BrokerClusterInfo brokerCluster = brokerService.getClusterBySubject(ClientType.PRODUCER, message.getSubject());
-        final BrokerGroupInfo brokerGroup = brokerLoadBalance.loadBalance(brokerCluster, null, message);
+        final BrokerGroupInfo brokerGroup = brokerLoadBalance.loadBalance(brokerCluster.getGroups(), null);
         sendBack(brokerGroup, message, callback, ClientType.PRODUCER);
     }
 

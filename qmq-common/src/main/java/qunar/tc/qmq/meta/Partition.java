@@ -9,7 +9,7 @@ import com.google.common.collect.Range;
 public class Partition {
 
     public enum Status {
-        RW, R
+        RW, R, NRW
     }
 
     private String subject;

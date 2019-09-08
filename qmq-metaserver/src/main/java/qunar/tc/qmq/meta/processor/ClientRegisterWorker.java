@@ -16,20 +16,19 @@
 
 package qunar.tc.qmq.meta.processor;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Range;
-import com.google.common.collect.RangeMap;
-import com.google.common.collect.TreeRangeMap;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.ConsumerAllocation;
 import qunar.tc.qmq.PartitionAllocation;
 import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.base.OnOfflineState;
 import qunar.tc.qmq.codec.Serializer;
 import qunar.tc.qmq.codec.Serializers;
-import qunar.tc.qmq.common.ClientType;
+import qunar.tc.qmq.common.OrderedConstants;
+import qunar.tc.qmq.common.VersionableComponentManager;
 import qunar.tc.qmq.concurrent.ActorSystem;
 import qunar.tc.qmq.event.EventDispatcher;
 import qunar.tc.qmq.meta.BrokerCluster;
@@ -68,18 +67,22 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
     private final ActorSystem actorSystem;
     private final Store store;
     private final CachedOfflineStateManager offlineStateManager;
-    private final BrokerFilterController brokerFilterController;
     private final CachedMetaInfoManager cachedMetaInfoManager;
     private final OrderedMessageService orderedMessageService;
 
     ClientRegisterWorker(final SubjectRouter subjectRouter, final CachedOfflineStateManager offlineStateManager, final Store store, CachedMetaInfoManager cachedMetaInfoManager) {
         this.subjectRouter = subjectRouter;
-        this.brokerFilterController = new BrokerFilterController(cachedMetaInfoManager);
         this.cachedMetaInfoManager = cachedMetaInfoManager;
         this.actorSystem = new ActorSystem("qmq_meta");
         this.offlineStateManager = offlineStateManager;
         this.store = store;
         this.orderedMessageService = DefaultOrderedMessageService.getInstance();
+
+        VersionableComponentManager.registerComponent(BrokerFilter.class, Range.closedOpen(Integer.MIN_VALUE, (int) RemotingHeader.VERSION_10), new DefaultBrokerFilter(cachedMetaInfoManager));
+        VersionableComponentManager.registerComponent(BrokerFilter.class, Range.closedOpen((int) RemotingHeader.VERSION_10, Integer.MAX_VALUE), new BrokerFilterV10());
+
+        VersionableComponentManager.registerComponent(ResponseBuilder.class, Range.closedOpen(Integer.MIN_VALUE, (int) RemotingHeader.VERSION_10), new DefaultResponseBuilder());
+        VersionableComponentManager.registerComponent(ResponseBuilder.class, Range.closedOpen((int) RemotingHeader.VERSION_10, Integer.MAX_VALUE), new ResponseBuilderV10());
     }
 
     void register(ClientRegisterProcessor.ClientRegisterMessage message) {
@@ -102,7 +105,7 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
 
         if (SubjectUtils.isInValid(realSubject)) {
             onOfflineState = OnOfflineState.OFFLINE;
-            return buildResponse(request, -2, onOfflineState, new BrokerCluster(new ArrayList<>()));
+            return buildResponse(header, request, -2, onOfflineState, new BrokerCluster(new ArrayList<>()));
         }
 
         try {
@@ -111,18 +114,19 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
             }
 
             final List<BrokerGroup> brokerGroups = subjectRouter.route(realSubject, request);
-            final List<BrokerGroup> filteredBrokerGroups = brokerFilterController.filter(realSubject, request.getClientTypeCode(), brokerGroups, header.getVersion());
+            BrokerFilter brokerFilter = VersionableComponentManager.getComponent(BrokerFilter.class, header.getVersion());
+            final List<BrokerGroup> filteredBrokerGroups = brokerFilter.filter(realSubject, request.getClientTypeCode(), brokerGroups);
             final OnOfflineState clientState = offlineStateManager.queryClientState(request.getClientId(), request.getSubject(), request.getConsumerGroup());
 
             ClientLogUtils.log(realSubject,
                     "client register response, request:{}, realSubject:{}, brokerGroups:{}, clientState:{}",
                     request, realSubject, filteredBrokerGroups, clientState);
 
-            return buildResponse(request, offlineStateManager.getLastUpdateTimestamp(), clientState, new BrokerCluster(filteredBrokerGroups));
+            return buildResponse(header, request, offlineStateManager.getLastUpdateTimestamp(), clientState, new BrokerCluster(filteredBrokerGroups));
         } catch (Exception e) {
             LOG.error("process exception. {}", request, e);
             onOfflineState = OnOfflineState.OFFLINE;
-            return buildResponse(request, -2, onOfflineState, new BrokerCluster(new ArrayList<>()));
+            return buildResponse(header, request, -2, onOfflineState, new BrokerCluster(new ArrayList<>()));
         } finally {
             if (ClientRequestType.HEARTBEAT.getCode() == clientRequestType || ClientRequestType.SWITCH_STATE.getCode() == clientRequestType) {
                 // 上线的时候如果出现异常可能会将客户端上线状态改为下线
@@ -132,52 +136,84 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
         }
     }
 
-    private MetaInfoResponse buildResponse(MetaInfoRequest clientRequest, long updateTime, OnOfflineState clientState, BrokerCluster brokerCluster) {
-        ClientType clientType = ClientType.of(clientRequest.getRequestType());
-        MetaInfoResponse response;
-        String subject = clientRequest.getSubject();
-        if (clientType.isProducer()) {
-            response = new ProducerMetaInfoResponse();
-            PartitionMapping partitionMapping = cachedMetaInfoManager.getPartitionMapping(subject);
-            ((ProducerMetaInfoResponse) response).setPartitionMapping(partitionMapping);
-        } else {
-            PartitionAllocation partitionAllocation = orderedMessageService.getActivatedPartitionAllocation(subject, clientRequest.getConsumerGroup());
-            response = new ConsumerMetaInfoResponse();
-            Map<String, Set<Integer>> clientId2PhysicalPartitions = partitionAllocation.getAllocationDetail().getClientId2PhysicalPartitions();
-            Set<Integer> physicalPartitions = clientId2PhysicalPartitions.get(clientRequest.getClientId());
-            ConsumerAllocation consumerAllocation = new ConsumerAllocation(partitionAllocation.getVersion(), physicalPartitions, orderedMessageService.getExpiredMills(System.currentTimeMillis()));
-            ((ConsumerMetaInfoResponse) response).setConsumerAllocation(consumerAllocation);
-        }
-        response.setConsumerGroup(clientRequest.getConsumerGroup());
-        response.setTimestamp(updateTime);
-        response.setOnOfflineState(clientState);
-        response.setSubject(clientRequest.getSubject());
-        response.setClientTypeCode(clientRequest.getClientTypeCode());
-        response.setBrokerCluster(brokerCluster);
-        return response;
+    private MetaInfoResponse buildResponse(RemotingHeader header, MetaInfoRequest clientRequest, long updateTime, OnOfflineState clientState, BrokerCluster brokerCluster) {
+        short version = header.getVersion();
+        ResponseBuilder component = VersionableComponentManager.getComponent(ResponseBuilder.class, version);
+        return component.buildResponse(clientRequest, updateTime, clientState, brokerCluster);
     }
 
     private void writeResponse(final ClientRegisterProcessor.ClientRegisterMessage message, final MetaInfoResponse response) {
         final RemotingHeader header = message.getHeader();
-        final MetaInfoResponsePayloadHolder payloadHolder = createPayloadHolder(message, response);
+        final PayloadHolder payloadHolder = createPayloadHolder(message, response);
         final Datagram datagram = RemotingBuilder.buildResponseDatagram(CommandCode.SUCCESS, header, payloadHolder);
         message.getCtx().writeAndFlush(datagram);
     }
 
-    private MetaInfoResponsePayloadHolder createPayloadHolder(ClientRegisterProcessor.ClientRegisterMessage message, MetaInfoResponse response) {
+    private PayloadHolder createPayloadHolder(final ClientRegisterProcessor.ClientRegisterMessage message, final MetaInfoResponse response) {
         RemotingHeader header = message.getHeader();
         short version = header.getVersion();
         if (version >= RemotingHeader.VERSION_10) {
-            if (response instanceof ProducerMetaInfoResponse) {
-                return new ProducerMetaInfoResponsePayloadHolderV10((ProducerMetaInfoResponse) response);
-            } else if (response instanceof ConsumerMetaInfoResponse) {
-                return new ConsumerMetaInfoResponsePayloadHolderV10((ConsumerMetaInfoResponse) response);
-            } else {
-                throw new IllegalArgumentException(String.format("不支持的类型 %s", response.getClass()));
-            }
+            return new MetaInfoResponsePayloadHolderV10(response);
+        } else {
+            return new MetaInfoResponsePayloadHolder(response);
         }
-        return new MetaInfoResponsePayloadHolder(response);
+
     }
+
+    private interface ResponseBuilder {
+
+        MetaInfoResponse buildResponse(MetaInfoRequest clientRequest, long updateTime, OnOfflineState clientState, BrokerCluster brokerCluster);
+    }
+
+    private class DefaultResponseBuilder implements ResponseBuilder {
+
+        @Override
+        public MetaInfoResponse buildResponse(MetaInfoRequest clientRequest, long updateTime, OnOfflineState clientState, BrokerCluster brokerCluster) {
+            MetaInfoResponse response = new MetaInfoResponse();
+            response.setConsumerGroup(clientRequest.getConsumerGroup());
+            response.setTimestamp(updateTime);
+            response.setOnOfflineState(clientState);
+            response.setSubject(clientRequest.getSubject());
+            response.setClientTypeCode(clientRequest.getClientTypeCode());
+            response.setBrokerCluster(brokerCluster);
+            return response;
+        }
+    }
+
+    private class ResponseBuilderV10 implements ResponseBuilder {
+
+        @Override
+        public MetaInfoResponse buildResponse(MetaInfoRequest clientRequest, long updateTime, OnOfflineState clientState, BrokerCluster brokerCluster) {
+            ClientType clientType = ClientType.of(clientRequest.getRequestType());
+            MetaInfoResponse response;
+            String subject = clientRequest.getSubject();
+            if (clientType.isProducer()) {
+                response = new ProducerMetaInfoResponse();
+                PartitionMapping partitionMapping = cachedMetaInfoManager.getPartitionMapping(clientType, subject);
+                if (partitionMapping == null) {
+                    // 首次请求, 需要自动创建分区信息并更新缓存
+                    orderedMessageService.registerOrderedMessage(subject, OrderedConstants.DEFAULT_PHYSICAL_PARTITION_NUM);
+                    cachedMetaInfoManager.executeRefreshTask();
+                }
+                ((ProducerMetaInfoResponse) response).setPartitionMapping(partitionMapping);
+            } else {
+                PartitionAllocation partitionAllocation = orderedMessageService.getActivatedPartitionAllocation(subject, clientRequest.getConsumerGroup());
+                response = new ConsumerMetaInfoResponse();
+                Map<String, Set<Integer>> clientId2PhysicalPartitions = partitionAllocation.getAllocationDetail().getClientId2PhysicalPartitions();
+                Set<Integer> physicalPartitions = clientId2PhysicalPartitions.get(clientRequest.getClientId());
+                ConsumerAllocation consumerAllocation = new ConsumerAllocation(partitionAllocation.getVersion(), physicalPartitions, orderedMessageService.getExpiredMills(System.currentTimeMillis()));
+                ((ConsumerMetaInfoResponse) response).setConsumerAllocation(consumerAllocation);
+            }
+            response.setConsumerGroup(clientRequest.getConsumerGroup());
+            response.setTimestamp(updateTime);
+            response.setOnOfflineState(clientState);
+            response.setSubject(clientRequest.getSubject());
+            response.setClientTypeCode(clientRequest.getClientTypeCode());
+            response.setBrokerCluster(brokerCluster);
+            return response;
+        }
+    }
+
 
     private static class MetaInfoResponsePayloadHolder implements PayloadHolder {
         private final MetaInfoResponse response;
@@ -207,11 +243,11 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
         }
     }
 
-    private static class ProducerMetaInfoResponsePayloadHolderV10 extends MetaInfoResponsePayloadHolder implements PayloadHolder {
+    private static class MetaInfoResponsePayloadHolderV10 extends MetaInfoResponsePayloadHolder implements PayloadHolder {
 
-        private final ProducerMetaInfoResponse response;
+        private final MetaInfoResponse response;
 
-        ProducerMetaInfoResponsePayloadHolderV10(ProducerMetaInfoResponse response) {
+        MetaInfoResponsePayloadHolderV10(MetaInfoResponse response) {
             super(response);
             this.response = response;
         }
@@ -219,48 +255,23 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
         @Override
         public void writeBody(ByteBuf out) {
             super.writeBody(out);
-            PartitionMapping partitionMapping = response.getPartitionMapping();
-            Serializer<PartitionMapping> serializer = Serializers.getSerializer(PartitionMapping.class);
-            serializer.serialize(partitionMapping, out);
-        }
-    }
+            if (response instanceof ProducerMetaInfoResponse) {
+                ProducerMetaInfoResponse producerResponse = (ProducerMetaInfoResponse) response;
+                PartitionMapping partitionMapping = producerResponse.getPartitionMapping();
+                Serializer<PartitionMapping> serializer = Serializers.getSerializer(PartitionMapping.class);
+                serializer.serialize(partitionMapping, out);
+            } else if (response instanceof ConsumerMetaInfoResponse) {
+                ConsumerMetaInfoResponse consumerResponse = (ConsumerMetaInfoResponse) response;
+                Serializer<ConsumerAllocation> serializer = Serializers.getSerializer(ConsumerAllocation.class);
+                serializer.serialize(consumerResponse.getConsumerAllocation(), out);
+            }
 
-    private static class ConsumerMetaInfoResponsePayloadHolderV10 extends MetaInfoResponsePayloadHolder implements PayloadHolder {
-
-        private final ConsumerMetaInfoResponse response;
-
-        ConsumerMetaInfoResponsePayloadHolderV10(ConsumerMetaInfoResponse response) {
-            super(response);
-            this.response = response;
-        }
-
-        @Override
-        public void writeBody(ByteBuf out) {
-            super.writeBody(out);
-            Serializer<ConsumerAllocation> serializer = Serializers.getSerializer(ConsumerAllocation.class);
-            serializer.serialize(response.getConsumerAllocation(), out);
         }
     }
 
     private interface BrokerFilter {
 
         List<BrokerGroup> filter(String subject, int clientTypeCode, List<BrokerGroup> brokerGroupInfo);
-    }
-
-    private static class BrokerFilterController {
-
-        private RangeMap<Short, BrokerFilter> brokerFilterMap = TreeRangeMap.create();
-
-        public BrokerFilterController(CachedMetaInfoManager cachedMetaInfoManager) {
-            brokerFilterMap.put(Range.closedOpen(Short.MIN_VALUE, RemotingHeader.VERSION_10), new DefaultBrokerFilter(cachedMetaInfoManager));
-            brokerFilterMap.put(Range.closedOpen(RemotingHeader.VERSION_10, Short.MAX_VALUE), new V10BrokerFilter());
-        }
-
-
-        public List<BrokerGroup> filter(String subject, int clientTypeCode, List<BrokerGroup> brokerGroups, short version) {
-            BrokerFilter brokerFilter = Preconditions.checkNotNull(brokerFilterMap.get(version), "版本 %s 无法找到 BrokerFilter");
-            return brokerFilter.filter(subject, clientTypeCode, brokerGroups);
-        }
     }
 
     private static class DefaultBrokerFilter implements BrokerFilter {
@@ -315,7 +326,7 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
         }
     }
 
-    private static class V10BrokerFilter implements BrokerFilter {
+    private static class BrokerFilterV10 implements BrokerFilter {
 
         @Override
         public List<BrokerGroup> filter(String subject, int clientTypeCode, List<BrokerGroup> brokerGroups) {

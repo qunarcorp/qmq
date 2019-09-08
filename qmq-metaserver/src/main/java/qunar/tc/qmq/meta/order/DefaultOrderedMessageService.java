@@ -1,24 +1,23 @@
 package qunar.tc.qmq.meta.order;
 
 import com.google.common.collect.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.transaction.support.TransactionTemplate;
+import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.PartitionAllocation;
 import qunar.tc.qmq.base.OnOfflineState;
-import qunar.tc.qmq.common.ClientType;
+import qunar.tc.qmq.common.OrderedConstants;
 import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
-import qunar.tc.qmq.meta.Partition;
-import qunar.tc.qmq.meta.PartitionMapping;
-import qunar.tc.qmq.meta.PartitionSet;
+import qunar.tc.qmq.meta.*;
 import qunar.tc.qmq.meta.model.ClientMetaInfo;
-import qunar.tc.qmq.meta.model.SubjectInfo;
 import qunar.tc.qmq.meta.store.*;
 import qunar.tc.qmq.meta.store.impl.*;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static qunar.tc.qmq.common.OrderedConstants.ORDERED_CLIENT_HEARTBEAT_INTERVAL_SECS;
 import static qunar.tc.qmq.common.OrderedConstants.ORDERED_CONSUMER_LOCK_LEASE_SECS;
 
 /**
@@ -26,6 +25,8 @@ import static qunar.tc.qmq.common.OrderedConstants.ORDERED_CONSUMER_LOCK_LEASE_S
  * @since 2019-08-22
  */
 public class DefaultOrderedMessageService implements OrderedMessageService {
+
+    private static final Logger logger = LoggerFactory.getLogger(DefaultOrderedMessageService.class);
 
     private Store store = new DatabaseStore();
     private ClientMetaInfoStore clientMetaInfoStore = new ClientMetaInfoStoreImpl();
@@ -48,54 +49,65 @@ public class DefaultOrderedMessageService implements OrderedMessageService {
 
     @Override
     public void registerOrderedMessage(String subject, int physicalPartitionNum) {
+        synchronized (subject.intern()) {
+            PartitionSet oldPartitionSet = partitionSetStore.getLatest(subject);
+            if (oldPartitionSet == null) {
+                synchronized (subject.intern()) {
+                    int logicalPartitionNum = OrderedConstants.DEFAULT_LOGICAL_PARTITION_NUM;
+                    int defaultPhysicalPartitionNum = OrderedConstants.DEFAULT_PHYSICAL_PARTITION_NUM;
+                    physicalPartitionNum = physicalPartitionNum == 0 ? defaultPhysicalPartitionNum : physicalPartitionNum;
+                    List<String> brokerGroups = store.getAllBrokerGroups().stream()
+                            .filter(brokerGroup -> Objects.equals(brokerGroup.getKind(), BrokerGroupKind.NORMAL))
+                            .map(BrokerGroup::getGroupName)
+                            .collect(Collectors.toList());
 
-        SubjectInfo subjectInfo = store.getSubjectInfo(subject);
-        if (subjectInfo != null) {
-            throw new IllegalArgumentException(String.format("subject %s 已存在", subject));
+                    // 初始化 physical/logical partition 列表
+                    List<Integer> physicalPartitionList = createIntList(physicalPartitionNum);
+                    List<Integer> logicalPartitionList = createIntList(logicalPartitionNum);
+
+                    // logical => physical mapping
+                    Map<Integer, List<Integer>> physical2LogicalPartitionMap = rangeMapper.map(physicalPartitionList, logicalPartitionList);
+
+                    // physical => brokerGroup mapping
+                    Map<Integer, String> physical2BrokerGroupMap = itemMapper.map(physicalPartitionList, brokerGroups);
+
+                    List<Partition> partitions = Lists.newArrayList();
+                    for (Map.Entry<Integer, List<Integer>> entry : physical2LogicalPartitionMap.entrySet()) {
+                        Integer physicalPartition = entry.getKey();
+                        List<Integer> logicalPartitions = entry.getValue();
+                        Range<Integer> logicalPartitionRange =
+                                Range.closedOpen(logicalPartitions.get(0), logicalPartitions.get(logicalPartitions.size() - 1) + 1);
+
+                        Partition partition = new Partition();
+                        partition.setSubject(subject);
+                        partition.setLogicalPartition(logicalPartitionRange);
+                        partition.setPhysicalPartition(physicalPartition);
+                        partition.setStatus(Partition.Status.RW);
+                        partition.setBrokerGroup(physical2BrokerGroupMap.get(physicalPartition));
+
+                        partitions.add(partition);
+                    }
+
+                    PartitionSet partitionSet = new PartitionSet();
+                    partitionSet.setSubject(subject);
+                    partitionSet.setVersion(0);
+                    partitionSet.setPhysicalPartitions(partitions.stream().map(Partition::getPhysicalPartition).collect(Collectors.toSet()));
+
+                    transactionTemplate.execute(transactionStatus -> {
+                        try {
+                            partitionStore.save(partitions);
+                            partitionSetStore.save(partitionSet);
+                            return null;
+                        } catch (DuplicateKeyException e) {
+                            // 并发问题, 忽略
+                            logger.warn("subject {} 创建分区信息重复", subject);
+                            return null;
+                        }
+                    });
+                }
+            }
+
         }
-
-        int logicalPartitionNum = OrderedMessageConfig.getDefaultLogicalPartitionNum();
-        int defaultPhysicalPartitionNum = OrderedMessageConfig.getDefaultPhysicalPartitionNum();
-        physicalPartitionNum = physicalPartitionNum == 0 ? defaultPhysicalPartitionNum : physicalPartitionNum;
-        List<String> brokerGroups = OrderedMessageConfig.getBrokerGroups();
-
-        // 初始化 physical/logical partition 列表
-        List<Integer> physicalPartitionList = createIntList(physicalPartitionNum);
-        List<Integer> logicalPartitionList = createIntList(logicalPartitionNum);
-
-        // logical => physical mapping
-        Map<Integer, List<Integer>> physical2LogicalPartitionMap = rangeMapper.map(physicalPartitionList, logicalPartitionList);
-
-        // physical => brokerGroup mapping
-        Map<Integer, String> physical2BrokerGroupMap = itemMapper.map(physicalPartitionList, brokerGroups);
-
-        List<Partition> partitions = Lists.newArrayList();
-        for (Map.Entry<Integer, List<Integer>> entry : physical2LogicalPartitionMap.entrySet()) {
-            Integer physicalPartition = entry.getKey();
-            List<Integer> logicalPartitions = entry.getValue();
-            Range<Integer> logicalPartitionRange =
-                    Range.closedOpen(logicalPartitions.get(0), logicalPartitions.get(logicalPartitions.size() - 1) + 1);
-
-            Partition partition = new Partition();
-            partition.setSubject(subject);
-            partition.setLogicalPartition(logicalPartitionRange);
-            partition.setPhysicalPartition(physicalPartition);
-            partition.setStatus(Partition.Status.RW);
-            partition.setBrokerGroup(physical2BrokerGroupMap.get(physicalPartition));
-
-            partitions.add(partition);
-        }
-
-        PartitionSet partitionSet = new PartitionSet();
-        partitionSet.setSubject(subject);
-        partitionSet.setVersion(0);
-        partitionSet.setPhysicalPartitions(partitions.stream().map(Partition::getPhysicalPartition).collect(Collectors.toSet()));
-
-        transactionTemplate.execute(transactionStatus -> {
-            partitionStore.save(partitions);
-            partitionSetStore.save(partitionSet);
-            return null;
-        });
     }
 
     @Override

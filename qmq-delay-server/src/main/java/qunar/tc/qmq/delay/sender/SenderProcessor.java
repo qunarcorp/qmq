@@ -19,10 +19,10 @@ package qunar.tc.qmq.delay.sender;
 import com.google.common.collect.Sets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.batch.BatchExecutor;
 import qunar.tc.qmq.batch.Processor;
 import qunar.tc.qmq.broker.BrokerService;
-import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.delay.DelayLogFacade;
 import qunar.tc.qmq.delay.ScheduleIndex;
@@ -57,7 +57,7 @@ public class SenderProcessor implements DelayProcessor, Processor<ScheduleIndex>
 
     public SenderProcessor(final DelayLogFacade store, final BrokerService brokerService, final Sender sender, final DynamicConfig config) {
         this.brokerService = brokerService;
-        this.senderExecutor = new SenderExecutor(sender, store, config, brokerService);
+        this.senderExecutor = new SenderExecutor(sender, store, config);
         this.facade = store;
         this.config = config;
     }

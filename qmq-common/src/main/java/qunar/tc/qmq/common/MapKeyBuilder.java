@@ -18,6 +18,7 @@ package qunar.tc.qmq.common;
 
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
+import qunar.tc.qmq.ClientType;
 
 import java.util.ArrayList;
 import java.util.List;

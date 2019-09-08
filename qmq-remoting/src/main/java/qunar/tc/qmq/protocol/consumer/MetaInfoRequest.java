@@ -19,7 +19,7 @@ package qunar.tc.qmq.protocol.consumer;
 import com.google.common.base.Strings;
 import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.base.OnOfflineState;
-import qunar.tc.qmq.common.ClientType;
+import qunar.tc.qmq.ClientType;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -35,6 +35,7 @@ public class MetaInfoRequest {
     private static final String CONSUMER_GROUP = "consumerGroup";
     private static final String REQUEST_TYPE = "requestType";
     private static final String ONLINE_STATE = "onlineState";
+    private static final String IS_ORDERED = "isOrdered";
 
     private final Map<String, String> attrs;
 
@@ -48,6 +49,14 @@ public class MetaInfoRequest {
 
     Map<String, String> getAttrs() {
         return attrs;
+    }
+
+    public boolean isOrdered() {
+        return Boolean.valueOf(attrs.get(IS_ORDERED));
+    }
+
+    public void setIsOrdered(boolean isOrdered) {
+        attrs.put(IS_ORDERED, Boolean.toString(isOrdered));
     }
 
     public String getSubject() {

@@ -21,6 +21,7 @@ import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.SettableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.ConsumerAllocation;
 import qunar.tc.qmq.Versionable;
 import qunar.tc.qmq.base.ClientRequestType;
@@ -29,13 +30,9 @@ import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.broker.OrderedMessageManager;
 import qunar.tc.qmq.common.ClientLifecycleManagerFactory;
-import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.common.MapKeyBuilder;
 import qunar.tc.qmq.common.OrderedClientLifecycleManager;
-import qunar.tc.qmq.meta.BrokerCluster;
-import qunar.tc.qmq.meta.BrokerGroup;
-import qunar.tc.qmq.meta.BrokerState;
-import qunar.tc.qmq.meta.PartitionMapping;
+import qunar.tc.qmq.meta.*;
 import qunar.tc.qmq.metainfoclient.DefaultMetaInfoService;
 import qunar.tc.qmq.metainfoclient.MetaInfo;
 import qunar.tc.qmq.metainfoclient.MetaInfoClient;
@@ -204,7 +201,7 @@ public class BrokerServiceImpl implements BrokerService, OrderedMessageManager, 
             return;
         }
         String subject = response.getSubject();
-        PartitionMapping partitionMapping = getPartitionMapping(subject);
+        PartitionMapping partitionMapping = getPartitionMapping(ClientType.of(response.getClientTypeCode()), subject);
         if (partitionMapping != null) {
             ConsumerMetaInfoResponse consumerResponse = (ConsumerMetaInfoResponse) response;
             String consumerGroup = consumerResponse.getConsumerGroup();
@@ -224,8 +221,9 @@ public class BrokerServiceImpl implements BrokerService, OrderedMessageManager, 
         String subject = response.getSubject();
         String group = response.getConsumerGroup();
         if (clientType.isProducer()) {
+            String key = createProducerPartitionMappingKey(ClientType.of(response.getClientTypeCode()), subject);
             ProducerMetaInfoResponse producerResponse = (ProducerMetaInfoResponse) response;
-            updatePartitionCache(subject, partitionMap, producerResponse.getPartitionMapping());
+            updatePartitionCache(key, partitionMap, producerResponse.getPartitionMapping());
         } else if (clientType.isConsumer()) {
             String key = createConsumerAllocationKey(subject, group, clientId);
             ConsumerMetaInfoResponse consumerResponse = (ConsumerMetaInfoResponse) response;
@@ -258,6 +256,10 @@ public class BrokerServiceImpl implements BrokerService, OrderedMessageManager, 
         return subject + ":" + group + ":" + clientId;
     }
 
+    private String createProducerPartitionMappingKey(ClientType clientType, String subject) {
+        return clientType.name() + ":" + subject;
+    }
+
     private MetaInfo parseResponse(MetaInfoResponse response) {
         if (response == null) return null;
 
@@ -273,30 +275,26 @@ public class BrokerServiceImpl implements BrokerService, OrderedMessageManager, 
             return new MetaInfo(subject, clientType, new BrokerClusterInfo());
         }
 
-        List<BrokerGroup> validBrokers = new ArrayList<>(groups.size());
-        for (BrokerGroup group : groups) {
-            if (inValid(group)) continue;
-
-            BrokerState state = group.getBrokerState();
-            if (clientType.isConsumer() && state.canRead()) {
-                validBrokers.add(group);
-            } else if (clientType.isProducer() && state.canWrite()) {
-                validBrokers.add(group);
+        List<BrokerGroupInfo> groupInfos = new ArrayList<>(groups.size());
+        for (int i = 0; i < groups.size(); i++) {
+            BrokerGroup bg = groups.get(i);
+            if (isInvalid(bg)) {
+                continue;
             }
-        }
-        if (validBrokers.isEmpty()) {
-            return new MetaInfo(subject, clientType, new BrokerClusterInfo());
-        }
-        List<BrokerGroupInfo> groupInfos = new ArrayList<>(validBrokers.size());
-        for (int i = 0; i < validBrokers.size(); i++) {
-            BrokerGroup bg = validBrokers.get(i);
-            groupInfos.add(new BrokerGroupInfo(i, bg.getGroupName(), bg.getMaster(), bg.getSlaves()));
+            BrokerGroupInfo brokerGroupInfo = new BrokerGroupInfo(i, bg.getGroupName(), bg.getMaster(), bg.getSlaves());
+            brokerGroupInfo.setAvailable(isAvailable(bg, clientType));
+            groupInfos.add(brokerGroupInfo);
         }
         BrokerClusterInfo clusterInfo = new BrokerClusterInfo(groupInfos);
         return new MetaInfo(subject, clientType, clusterInfo);
     }
 
-    private boolean inValid(BrokerGroup group) {
+    private boolean isAvailable(BrokerGroup brokerGroup, ClientType clientType) {
+        BrokerState state = brokerGroup.getBrokerState();
+        return (clientType.isConsumer() && state.canRead()) || (clientType.isProducer() && state.canWrite());
+    }
+
+    private boolean isInvalid(BrokerGroup group) {
         return group == null || Strings.isNullOrEmpty(group.getGroupName()) || Strings.isNullOrEmpty(group.getMaster());
     }
 
@@ -305,8 +303,9 @@ public class BrokerServiceImpl implements BrokerService, OrderedMessageManager, 
     }
 
     @Override
-    public PartitionMapping getPartitionMapping(String subject) {
-        SettableFuture<PartitionMapping> future = partitionMap.computeIfAbsent(subject, key -> SettableFuture.create());
+    public PartitionMapping getPartitionMapping(ClientType clientType, String subject) {
+        String producerKey = createProducerPartitionMappingKey(clientType, subject);
+        SettableFuture<PartitionMapping> future = partitionMap.computeIfAbsent(producerKey, key -> SettableFuture.create());
         try {
             return future.get();
         } catch (Throwable t) {

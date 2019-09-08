@@ -21,6 +21,7 @@ import io.opentracing.Tracer;
 import io.opentracing.util.GlobalTracer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.MessageGroup;
 import qunar.tc.qmq.MessageSendStateListener;
 import qunar.tc.qmq.MessageStore;
 import qunar.tc.qmq.ProduceMessage;
@@ -86,6 +87,7 @@ class ProduceMessageImpl implements ProduceMessage {
 
     //如果使用了分库分表等，用于临时记录分库分表的路由信息，确保在发送消息成功后能够根据路由信息找到插入的db
     private transient Object routeKey;
+    private MessageGroup messageGroup;
 
     public ProduceMessageImpl(BaseMessage base, QueueSender sender) {
         this.base = base;
@@ -341,5 +343,14 @@ class ProduceMessageImpl implements ProduceMessage {
     @Override
     public int getMaxTries() {
         return sendTryCount;
+    }
+
+    public void setMessageGroup(MessageGroup messageGroup) {
+        this.messageGroup = messageGroup;
+    }
+
+    @Override
+    public MessageGroup getMessageGroup() {
+        return messageGroup;
     }
 }

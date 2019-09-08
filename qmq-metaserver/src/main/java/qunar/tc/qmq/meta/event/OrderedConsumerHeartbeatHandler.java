@@ -2,7 +2,7 @@ package qunar.tc.qmq.meta.event;
 
 import com.google.common.eventbus.Subscribe;
 import qunar.tc.qmq.base.ClientRequestType;
-import qunar.tc.qmq.common.ClientType;
+import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.meta.PartitionMapping;
 import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 import qunar.tc.qmq.meta.model.ClientMetaInfo;
@@ -33,11 +33,10 @@ public class OrderedConsumerHeartbeatHandler implements HeartbeatHandler {
         String consumerGroup = request.getConsumerGroup();
         int requestType = request.getRequestType();
 
-        PartitionMapping partitionMapping = cachedMetaInfoManager.getPartitionMapping(subject);
         int clientTypeCode = request.getClientTypeCode();
         ClientType clientType = ClientType.of(clientTypeCode);
 
-        if (partitionMapping != null && clientType.isConsumer()) {
+        if (request.isOrdered() && clientType.isConsumer()) {
             if (ClientRequestType.HEARTBEAT.getCode() == requestType || ClientRequestType.SWITCH_STATE.getCode() == requestType) {
                 // 更新在线状态
                 ClientMetaInfo clientMetaInfo = new ClientMetaInfo();

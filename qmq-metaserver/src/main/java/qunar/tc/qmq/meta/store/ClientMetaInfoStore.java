@@ -17,7 +17,7 @@
 package qunar.tc.qmq.meta.store;
 
 import qunar.tc.qmq.base.OnOfflineState;
-import qunar.tc.qmq.common.ClientType;
+import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.meta.model.ClientMetaInfo;
 
 import java.util.Date;

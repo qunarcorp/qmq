@@ -25,12 +25,9 @@ import com.google.common.util.concurrent.SettableFuture;
 import io.netty.buffer.ByteBuf;
 import qunar.tc.qmq.ProduceMessage;
 import qunar.tc.qmq.base.BaseMessage;
-import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
-import qunar.tc.qmq.broker.BrokerLoadBalance;
 import qunar.tc.qmq.broker.BrokerService;
-import qunar.tc.qmq.broker.impl.AdaptiveBrokerLoadBalance;
-import qunar.tc.qmq.common.ClientType;
+import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.QmqCounter;
 import qunar.tc.qmq.metrics.QmqTimer;
@@ -61,25 +58,23 @@ class NettyConnection implements Connection {
     private final NettyProducerClient producerClient;
     private final BrokerService brokerService;
 
-    private volatile BrokerGroupInfo lastSentBroker;
-
     private final QmqCounter sendMessageCountMetrics;
     private final QmqTimer sendMessageTimerMetrics;
 
-    private BrokerLoadBalance brokerLoadBalance;
     private SendMessagePreHandler sendMessagePreHandler;
+    private BrokerGroupInfo target;
 
     NettyConnection(String subject, ClientType clientType, NettyProducerClient producerClient,
-                    BrokerService brokerService) {
+                    BrokerService brokerService, BrokerGroupInfo target) {
         this.subject = subject;
         this.clientType = clientType;
         this.producerClient = producerClient;
         this.brokerService = brokerService;
 
         sendMessageCountMetrics = Metrics.counter("qmq_client_send_msg_count", SUBJECT_ARRAY, new String[]{subject});
+        this.target = target;
         sendMessageTimerMetrics = Metrics.timer("qmq_client_send_msg_timer");
 
-        this.brokerLoadBalance = AdaptiveBrokerLoadBalance.getInstance(brokerService);
         this.sendMessagePreHandler = new SendMessagePreHandlerChain();
     }
 
@@ -156,13 +151,6 @@ class NettyConnection implements Connection {
         sendMessageCountMetrics.inc(messages.size());
         long start = System.currentTimeMillis();
         try {
-            BrokerClusterInfo cluster = brokerService.getClusterBySubject(clientType, subject);
-            BrokerGroupInfo target = brokerLoadBalance.loadBalance(cluster, lastSentBroker, (BaseMessage) messages.get(0).getBase());
-            if (target == null) {
-                throw new ClientSendException(ClientSendException.SendErrorCode.CREATE_CHANNEL_FAIL);
-            }
-
-            lastSentBroker = target;
             sendMessagePreHandler.handle(messages);
             Datagram datagram = buildDatagram(messages);
             TraceUtil.setTag("broker", target.getGroupName());
@@ -245,11 +233,6 @@ class NettyConnection implements Connection {
             baseMessages.add((BaseMessage) message.getBase());
         }
         return RemotingBuilder.buildRequestDatagram(CommandCode.SEND_MESSAGE, new OrderedMessagesPayloadHolder(baseMessages));
-    }
-
-    @Override
-    public String url() {
-        return "newqmq://" + subject;
     }
 
     @Override

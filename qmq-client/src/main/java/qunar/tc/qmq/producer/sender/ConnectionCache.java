@@ -16,9 +16,9 @@
 
 package qunar.tc.qmq.producer.sender;
 
-import qunar.tc.qmq.Message;
+import qunar.tc.qmq.MessageGroup;
 
-public interface Router {
+public interface ConnectionCache {
 
-    Connection route(Message message);
+    Connection getConnection(MessageGroup messageGroup);
 }

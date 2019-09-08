@@ -19,6 +19,7 @@ package qunar.tc.qmq.producer.sender;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import qunar.tc.qmq.Message;
+import qunar.tc.qmq.MessageGroup;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.producer.ConfigCenter;
 import qunar.tc.qmq.producer.QueueSender;
@@ -35,7 +36,7 @@ abstract class AbstractRouterManager implements RouterManager {
 
     private static final ConfigCenter configs = ConfigCenter.getInstance();
 
-    private Router router;
+    private ConnectionCache connectionCache;
 
     private QueueSender sender;
 
@@ -51,7 +52,7 @@ abstract class AbstractRouterManager implements RouterManager {
     public void init(String clientId) {
         if (STARTED.compareAndSet(false, true)) {
             doInit(clientId);
-            this.sender = new AdaptiveQueueSender();
+            this.sender = new OrderedQueueSender();
             HashMap<PropKey, Object> props = Maps.newHashMap();
             props.put(PropKey.SENDER_NAME, "qmq-sender");
             props.put(PropKey.MAX_QUEUE_SIZE, configs.getMaxQueueSize());
@@ -69,11 +70,11 @@ abstract class AbstractRouterManager implements RouterManager {
 
     @Override
     public String registryOf(Message message) {
-        return router.route(message).url();
+        return "newqmq://" + message.getSubject();
     }
 
-    void setRouter(Router router) {
-        this.router = router;
+    void setConnectionCache(ConnectionCache connectionCache) {
+        this.connectionCache = connectionCache;
     }
 
     @Override
@@ -82,8 +83,8 @@ abstract class AbstractRouterManager implements RouterManager {
     }
 
     @Override
-    public Connection routeOf(Message message) {
-        Connection connection = router.route(message);
+    public Connection routeOf(MessageGroup messageGroup) {
+        Connection connection = connectionCache.getConnection(messageGroup);
         Preconditions.checkState(connection != NopRoute.NOP_CONNECTION, "与broker连接失败，可能是配置错误，请联系TCDev");
         return connection;
     }

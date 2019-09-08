@@ -31,8 +31,6 @@ import java.util.Map;
  */
 public interface Connection {
 
-    String url();
-
     Map<String, MessageException> send(List<ProduceMessage> messages) throws Exception;
 
     ListenableFuture<Map<String, MessageException>> sendAsync(List<ProduceMessage> messages) throws Exception;

@@ -19,13 +19,13 @@ package qunar.tc.qmq.consumer.pull;
 import com.google.common.util.concurrent.SettableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerLoadBalance;
 import qunar.tc.qmq.broker.BrokerService;
-import qunar.tc.qmq.broker.impl.AdaptiveBrokerLoadBalance;
-import qunar.tc.qmq.common.ClientType;
+import qunar.tc.qmq.broker.impl.BrokerLoadBalanceFactory;
 import qunar.tc.qmq.consumer.pull.exception.SendMessageBackException;
 import qunar.tc.qmq.service.exceptions.MessageException;
 
@@ -49,7 +49,7 @@ class DelayMessageService {
     DelayMessageService(BrokerService brokerService, SendMessageBack sendMessageBack) {
         this.brokerService = brokerService;
         this.sendMessageBack = sendMessageBack;
-        brokerLoadBalance = AdaptiveBrokerLoadBalance.getInstance(brokerService);
+        brokerLoadBalance = BrokerLoadBalanceFactory.get();
     }
 
     boolean sendDelayMessage(int nextRetryCount, long nextRetryTime, BaseMessage message, String group) throws MessageException {
@@ -79,7 +79,7 @@ class DelayMessageService {
         int result = SEND_FAIL;
         for (int i = 0; i < groups.size(); i++) {
             try {
-                BrokerGroupInfo brokerGroup = brokerLoadBalance.loadBalance(brokerCluster, lastSentBrokerGroup, message);
+                BrokerGroupInfo brokerGroup = brokerLoadBalance.loadBalance(brokerCluster.getGroups(), lastSentBrokerGroup);
                 result = doSend(message, brokerGroup);
                 lastSentBrokerGroup = brokerGroup;
                 if (SEND_SUCCESS == result) return result;

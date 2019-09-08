@@ -16,7 +16,7 @@
 
 package qunar.tc.qmq.broker;
 
-import qunar.tc.qmq.common.ClientType;
+import qunar.tc.qmq.ClientType;
 
 /**
  * @author yiqun.fan create on 17-8-18.

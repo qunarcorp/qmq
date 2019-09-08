@@ -17,6 +17,7 @@
 package qunar.tc.qmq.producer.sender;
 
 import qunar.tc.qmq.Message;
+import qunar.tc.qmq.MessageGroup;
 import qunar.tc.qmq.producer.QueueSender;
 
 public interface RouterManager {
@@ -27,7 +28,7 @@ public interface RouterManager {
 
     String registryOf(Message message);
 
-    Connection routeOf(Message message);
+    Connection routeOf(MessageGroup messageGroup);
 
     QueueSender getSender();
 

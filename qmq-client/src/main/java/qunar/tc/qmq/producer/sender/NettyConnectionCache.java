@@ -16,10 +16,10 @@
 
 package qunar.tc.qmq.producer.sender;
 
-import qunar.tc.qmq.Message;
+import qunar.tc.qmq.MessageGroup;
+import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerService;
-import qunar.tc.qmq.common.ClientType;
-import qunar.tc.qmq.utils.DelayUtil;
+import qunar.tc.qmq.ClientType;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -27,28 +27,30 @@ import java.util.concurrent.ConcurrentMap;
 /**
  * @author zhenyu.nie created on 2017 2017/7/5 16:29
  */
-class NettyRouter implements Router {
+class NettyConnectionCache implements ConnectionCache {
 
     private final NettyProducerClient producerClient;
     private final BrokerService brokerService;
 
-    private final ConcurrentMap<String, NettyConnection> cached;
+    private final ConcurrentMap<MessageGroup, NettyConnection> cached;
 
-    NettyRouter(NettyProducerClient producerClient, BrokerService brokerService) {
+    NettyConnectionCache(NettyProducerClient producerClient, BrokerService brokerService) {
         this.producerClient = producerClient;
         this.brokerService = brokerService;
         this.cached = new ConcurrentHashMap<>();
     }
 
     @Override
-    public Connection route(Message message) {
-        ClientType clientType = DelayUtil.isDelayMessage(message) ? ClientType.DELAY_PRODUCER : ClientType.PRODUCER;
-        String key = clientType.getCode() + "|" + message.getSubject();
-        NettyConnection connection = cached.get(key);
+    public Connection getConnection(MessageGroup messageGroup) {
+        NettyConnection connection = cached.get(messageGroup);
         if (connection != null) return connection;
 
-        connection = new NettyConnection(message.getSubject(), clientType, producerClient, brokerService);
-        NettyConnection old = cached.putIfAbsent(key, connection);
+        String subject = messageGroup.getSubject();
+        ClientType clientType = messageGroup.getClientType();
+        String brokerGroup = messageGroup.getBrokerGroup();
+        BrokerClusterInfo cluster = brokerService.getClusterBySubject(clientType, subject);
+        connection = new NettyConnection(subject, clientType, producerClient, brokerService, cluster.getGroupByName(brokerGroup));
+        NettyConnection old = cached.putIfAbsent(messageGroup, connection);
         if (old == null) {
             connection.init();
             return connection;

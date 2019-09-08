@@ -23,6 +23,8 @@ import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
+ * TODO(zhenwei.liu) 在自动分配 producer 分区的情况下, 应该需要返回所有的 brokerGroup
+ *
  * @author yunfeng.yang
  * @since 2017/8/30
  */

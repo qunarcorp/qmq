@@ -21,6 +21,7 @@ import com.google.common.collect.*;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.common.Disposable;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.meta.BrokerGroup;
@@ -166,18 +167,13 @@ public class CachedMetaInfoManager implements Disposable {
         this.cachedPartitionMapping = orderedMessageService.getLatestPartitionMappings().stream().collect(Collectors.toMap(PartitionMapping::getSubject, p -> p));
     }
 
-    public PartitionMapping getPartitionMapping(String subject) {
-        return cachedPartitionMapping.get(subject);
+    public PartitionMapping getPartitionMapping(ClientType clientType, String subject) {
+        if (clientType == ClientType.PRODUCER) {
+            return cachedPartitionMapping.get(subject);
+        } else {
+            return null;
+        }
     }
-
-//    public PartitionAllocation getPartitionAllocation(String subject, String consumerGroup) {
-//        String key = subject + ":" + consumerGroup;
-//        return cachedPartitionAllocation.get(key);
-//    }
-//
-//    public Map<String, PartitionAllocation> getPartitionAllocations() {
-//        return Maps.newHashMap(cachedPartitionAllocation);
-//    }
 
     public Set<String> getBrokerGroupReadonlySubjects(final String brokerGroup) {
         return readonlyBrokerGroupSettings.get(brokerGroup);

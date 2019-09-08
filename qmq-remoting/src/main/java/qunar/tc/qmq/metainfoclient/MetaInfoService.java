@@ -2,7 +2,7 @@ package qunar.tc.qmq.metainfoclient;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import qunar.tc.qmq.base.ClientRequestType;
-import qunar.tc.qmq.common.ClientType;
+import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.protocol.MetaInfoResponse;
 
 /**
