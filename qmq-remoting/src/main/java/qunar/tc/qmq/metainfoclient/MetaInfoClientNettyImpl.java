@@ -25,6 +25,7 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.util.internal.ConcurrentSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.base.OnOfflineState;
 import qunar.tc.qmq.meta.MetaServerLocator;
 import qunar.tc.qmq.netty.NettyClientConfig;
@@ -73,7 +74,7 @@ class MetaInfoClientNettyImpl extends MetaServerNettyClient implements MetaInfoC
     public ListenableFuture<MetaInfoResponse> sendMetaInfoRequest(final MetaInfoRequest request) {
         try {
             SettableFuture<MetaInfoResponse> future = SettableFuture.create();
-            MetaInfoResponseDecoder responseDecoder = new MetaInfoResponseDecoder(future, responseSubscribers);
+            MetaInfoResponseDecoder responseDecoder = new MetaInfoResponseDecoder(ClientType.of(request.getClientTypeCode()), future, responseSubscribers);
             sendRequest(
                     CommandCode.CLIENT_REGISTER,
                     META_INFO_RESPONSE_DECODER_NAME,

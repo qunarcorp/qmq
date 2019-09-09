@@ -28,7 +28,7 @@ import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 import qunar.tc.qmq.meta.cache.CachedOfflineStateManager;
 import qunar.tc.qmq.meta.event.OrderedConsumerHeartbeatHandler;
 import qunar.tc.qmq.meta.management.*;
-import qunar.tc.qmq.meta.order.DefaultOrderedMessageService;
+import qunar.tc.qmq.meta.order.DefaultPartitionService;
 import qunar.tc.qmq.meta.order.PartitionAllocationTask;
 import qunar.tc.qmq.meta.processor.BrokerAcquireMetaProcessor;
 import qunar.tc.qmq.meta.processor.BrokerRegisterProcessor;
@@ -75,7 +75,7 @@ public class ServerWrapper implements Disposable {
         brokerMetaManager.init(brokerStore);
 
         final ReadonlyBrokerGroupSettingStore readonlyBrokerGroupSettingStore = new ReadonlyBrokerGroupSettingStoreImpl(jdbcTemplate);
-        final CachedMetaInfoManager cachedMetaInfoManager = new CachedMetaInfoManager(config, store, readonlyBrokerGroupSettingStore, DefaultOrderedMessageService.getInstance());
+        final CachedMetaInfoManager cachedMetaInfoManager = new CachedMetaInfoManager(config, store, readonlyBrokerGroupSettingStore, DefaultPartitionService.getInstance());
 
         final SubjectRouter subjectRouter = createSubjectRouter(cachedMetaInfoManager, store);
         final ClientRegisterProcessor clientRegisterProcessor = new ClientRegisterProcessor(subjectRouter, CachedOfflineStateManager.SUPPLIER.get(), store, cachedMetaInfoManager);

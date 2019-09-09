@@ -52,7 +52,7 @@ class PullParam {
     }
 
     public String getGroup() {
-        return consumeParam.getGroup();
+        return consumeParam.getConsumerGroup();
     }
 
     public String getOriginSubject() {

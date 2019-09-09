@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS `subject_route`
 (
   `id`                INT(11) UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键',
   `subject_info`      VARCHAR(100)     NOT NULL DEFAULT '' COMMENT '主题',
-  `broker_group_json` VARCHAR(300)     NOT NULL DEFAULT '' COMMENT 'broker group name信息，json存储',
+  `broker_group_json` VARCHAR(300)     NOT NULL DEFAULT '' COMMENT 'broker consumerGroup name信息，json存储',
   `version`           INT              NOT NULL DEFAULT 0 COMMENT '版本信息',
   `create_time`       TIMESTAMP        NOT NULL DEFAULT '1970-01-01 08:00:01'
     COMMENT '创建时间',
@@ -153,8 +153,8 @@ CREATE TABLE `partition_set` (
 CREATE TABLE `partition_allocation` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT COMMENT '主键',
   `subject` varchar(100) COLLATE utf8_bin NOT NULL COMMENT '主题',
-  `consumer_group` varchar(128) COLLATE utf8_bin NOT NULL COMMENT 'group id',
-  `allocation_detail` varchar(16384) COLLATE utf8_bin NOT NULL COMMENT '该 group 下所有 client 分配的物理分区, JSON',
+  `consumer_group` varchar(128) COLLATE utf8_bin NOT NULL COMMENT 'consumerGroup id',
+  `allocation_detail` varchar(16384) COLLATE utf8_bin NOT NULL COMMENT '该 consumerGroup 下所有 client 分配的物理分区, JSON',
   `partition_set_version` int(11) NOT NULL COMMENT '扩容/缩容版本号, 该版本只有扩容缩容会变更',
   `version` int(11) NOT NULL COMMENT '本次分配的版本号, 用于做分配乐观锁',
   PRIMARY KEY (`id`),

@@ -21,24 +21,20 @@ import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ClientType;
-import qunar.tc.qmq.ConsumerAllocation;
+import qunar.tc.qmq.ConsumeMode;
 import qunar.tc.qmq.PartitionAllocation;
 import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.base.OnOfflineState;
 import qunar.tc.qmq.codec.Serializer;
 import qunar.tc.qmq.codec.Serializers;
-import qunar.tc.qmq.common.OrderedConstants;
 import qunar.tc.qmq.common.VersionableComponentManager;
 import qunar.tc.qmq.concurrent.ActorSystem;
 import qunar.tc.qmq.event.EventDispatcher;
-import qunar.tc.qmq.meta.BrokerCluster;
-import qunar.tc.qmq.meta.BrokerGroup;
-import qunar.tc.qmq.meta.BrokerState;
-import qunar.tc.qmq.meta.PartitionMapping;
+import qunar.tc.qmq.meta.*;
 import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 import qunar.tc.qmq.meta.cache.CachedOfflineStateManager;
-import qunar.tc.qmq.meta.order.DefaultOrderedMessageService;
-import qunar.tc.qmq.meta.order.OrderedMessageService;
+import qunar.tc.qmq.meta.order.DefaultPartitionService;
+import qunar.tc.qmq.meta.order.PartitionService;
 import qunar.tc.qmq.meta.route.SubjectRouter;
 import qunar.tc.qmq.meta.store.Store;
 import qunar.tc.qmq.meta.utils.ClientLogUtils;
@@ -47,7 +43,6 @@ import qunar.tc.qmq.protocol.consumer.ConsumerMetaInfoResponse;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
 import qunar.tc.qmq.protocol.producer.ProducerMetaInfoResponse;
 import qunar.tc.qmq.util.RemotingBuilder;
-import qunar.tc.qmq.utils.PayloadHolderUtils;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
 import qunar.tc.qmq.utils.SubjectUtils;
 
@@ -68,7 +63,7 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
     private final Store store;
     private final CachedOfflineStateManager offlineStateManager;
     private final CachedMetaInfoManager cachedMetaInfoManager;
-    private final OrderedMessageService orderedMessageService;
+    private final PartitionService partitionService;
 
     ClientRegisterWorker(final SubjectRouter subjectRouter, final CachedOfflineStateManager offlineStateManager, final Store store, CachedMetaInfoManager cachedMetaInfoManager) {
         this.subjectRouter = subjectRouter;
@@ -76,7 +71,7 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
         this.actorSystem = new ActorSystem("qmq_meta");
         this.offlineStateManager = offlineStateManager;
         this.store = store;
-        this.orderedMessageService = DefaultOrderedMessageService.getInstance();
+        this.partitionService = DefaultPartitionService.getInstance();
 
         VersionableComponentManager.registerComponent(BrokerFilter.class, Range.closedOpen(Integer.MIN_VALUE, (int) RemotingHeader.VERSION_10), new DefaultBrokerFilter(cachedMetaInfoManager));
         VersionableComponentManager.registerComponent(BrokerFilter.class, Range.closedOpen((int) RemotingHeader.VERSION_10, Integer.MAX_VALUE), new BrokerFilterV10());
@@ -136,10 +131,10 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
         }
     }
 
-    private MetaInfoResponse buildResponse(RemotingHeader header, MetaInfoRequest clientRequest, long updateTime, OnOfflineState clientState, BrokerCluster brokerCluster) {
+    private MetaInfoResponse buildResponse(RemotingHeader header, MetaInfoRequest request, long updateTime, OnOfflineState clientState, BrokerCluster brokerCluster) {
         short version = header.getVersion();
         ResponseBuilder component = VersionableComponentManager.getComponent(ResponseBuilder.class, version);
-        return component.buildResponse(clientRequest, updateTime, clientState, brokerCluster);
+        return component.buildResponse(request, updateTime, clientState, brokerCluster);
     }
 
     private void writeResponse(final ClientRegisterProcessor.ClientRegisterMessage message, final MetaInfoResponse response) {
@@ -168,54 +163,56 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
     private class DefaultResponseBuilder implements ResponseBuilder {
 
         @Override
-        public MetaInfoResponse buildResponse(MetaInfoRequest clientRequest, long updateTime, OnOfflineState clientState, BrokerCluster brokerCluster) {
-            MetaInfoResponse response = new MetaInfoResponse();
-            response.setConsumerGroup(clientRequest.getConsumerGroup());
-            response.setTimestamp(updateTime);
-            response.setOnOfflineState(clientState);
-            response.setSubject(clientRequest.getSubject());
-            response.setClientTypeCode(clientRequest.getClientTypeCode());
-            response.setBrokerCluster(brokerCluster);
-            return response;
+        public MetaInfoResponse buildResponse(MetaInfoRequest request, long updateTime, OnOfflineState clientState, BrokerCluster brokerCluster) {
+            return new MetaInfoResponse(
+                    updateTime,
+                    request.getSubject(),
+                    request.getConsumerGroup(),
+                    clientState,
+                    request.getClientTypeCode(),
+                    brokerCluster
+            );
         }
     }
 
     private class ResponseBuilderV10 implements ResponseBuilder {
 
         @Override
-        public MetaInfoResponse buildResponse(MetaInfoRequest clientRequest, long updateTime, OnOfflineState clientState, BrokerCluster brokerCluster) {
-            ClientType clientType = ClientType.of(clientRequest.getRequestType());
-            MetaInfoResponse response;
-            String subject = clientRequest.getSubject();
+        public MetaInfoResponse buildResponse(MetaInfoRequest request, long updateTime, OnOfflineState clientState, BrokerCluster brokerCluster) {
+            ClientType clientType = ClientType.of(request.getRequestType());
+            String subject = request.getSubject();
+            String consumerGroup = request.getConsumerGroup();
+            int clientTypeCode = request.getClientTypeCode();
             if (clientType.isProducer()) {
-                response = new ProducerMetaInfoResponse();
-                PartitionMapping partitionMapping = cachedMetaInfoManager.getPartitionMapping(clientType, subject);
-                if (partitionMapping == null) {
-                    // 首次请求, 需要自动创建分区信息并更新缓存
-                    orderedMessageService.registerOrderedMessage(subject, OrderedConstants.DEFAULT_PHYSICAL_PARTITION_NUM);
-                    cachedMetaInfoManager.executeRefreshTask();
+                // 从数据库缓存中获取分区信息
+                ProducerAllocation producerAllocation = cachedMetaInfoManager.getProducerAllocation(clientType, subject);
+                if (producerAllocation == null) {
+                    // 没有分区信息, 自动根据 subject-broker 信息创建一个零时的虚拟分区
+                    producerAllocation = partitionService.getDefaultProducerAllocation(subject, brokerCluster);
                 }
-                ((ProducerMetaInfoResponse) response).setPartitionMapping(partitionMapping);
+                return new ProducerMetaInfoResponse(updateTime, subject, consumerGroup, clientState, clientTypeCode, brokerCluster, producerAllocation);
             } else {
-                PartitionAllocation partitionAllocation = orderedMessageService.getActivatedPartitionAllocation(subject, clientRequest.getConsumerGroup());
-                response = new ConsumerMetaInfoResponse();
+                PartitionAllocation partitionAllocation = partitionService.getActivatedPartitionAllocation(subject, consumerGroup);
                 Map<String, Set<Integer>> clientId2PhysicalPartitions = partitionAllocation.getAllocationDetail().getClientId2PhysicalPartitions();
-                Set<Integer> physicalPartitions = clientId2PhysicalPartitions.get(clientRequest.getClientId());
-                ConsumerAllocation consumerAllocation = new ConsumerAllocation(partitionAllocation.getVersion(), physicalPartitions, orderedMessageService.getExpiredMills(System.currentTimeMillis()));
-                ((ConsumerMetaInfoResponse) response).setConsumerAllocation(consumerAllocation);
+                Set<Integer> physicalPartitions = clientId2PhysicalPartitions.get(request.getClientId());
+                ConsumeMode consumeMode = getConsumeMode(request);
+                // TODO(zhenwei.liu) partition 分配, 需要根据 consumer 是否是独占消费来分配返回的 broker
+                ConsumerAllocation consumerAllocation = new ConsumerAllocation(partitionAllocation.getVersion(), physicalPartitions, partitionService.getExpiredMills(System.currentTimeMillis()), consumeMode);
+                return new ConsumerMetaInfoResponse(updateTime, subject, consumerGroup, clientState, clientTypeCode, brokerCluster, consumerAllocation);
             }
-            response.setConsumerGroup(clientRequest.getConsumerGroup());
-            response.setTimestamp(updateTime);
-            response.setOnOfflineState(clientState);
-            response.setSubject(clientRequest.getSubject());
-            response.setClientTypeCode(clientRequest.getClientTypeCode());
-            response.setBrokerCluster(brokerCluster);
-            return response;
         }
+    }
+
+    private ConsumeMode getConsumeMode(MetaInfoRequest request) {
+        if (request.isBroadcast()) {
+            return ConsumeMode.EXCLUSIVE;
+        }
+        return request.getConsumeMode();
     }
 
 
     private static class MetaInfoResponsePayloadHolder implements PayloadHolder {
+
         private final MetaInfoResponse response;
 
         MetaInfoResponsePayloadHolder(MetaInfoResponse response) {
@@ -224,48 +221,31 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
 
         @Override
         public void writeBody(ByteBuf out) {
-            out.writeLong(response.getTimestamp());
-            PayloadHolderUtils.writeString(response.getSubject(), out);
-            PayloadHolderUtils.writeString(response.getConsumerGroup(), out);
-            out.writeByte(response.getOnOfflineState().code());
-            out.writeByte(response.getClientTypeCode());
-            out.writeShort(response.getBrokerCluster().getBrokerGroups().size());
-            writeBrokerCluster(out);
+            Serializer<MetaInfoResponse> serializer = Serializers.getSerializer(MetaInfoResponse.class);
+            serializer.serialize(response, out);
         }
 
-        private void writeBrokerCluster(ByteBuf out) {
-            for (BrokerGroup brokerGroup : response.getBrokerCluster().getBrokerGroups()) {
-                PayloadHolderUtils.writeString(brokerGroup.getGroupName(), out);
-                PayloadHolderUtils.writeString(brokerGroup.getMaster(), out);
-                out.writeLong(brokerGroup.getUpdateTime());
-                out.writeByte(brokerGroup.getBrokerState().getCode());
-            }
+        public MetaInfoResponse getResponse() {
+            return response;
         }
     }
 
     private static class MetaInfoResponsePayloadHolderV10 extends MetaInfoResponsePayloadHolder implements PayloadHolder {
 
-        private final MetaInfoResponse response;
-
         MetaInfoResponsePayloadHolderV10(MetaInfoResponse response) {
             super(response);
-            this.response = response;
         }
 
         @Override
         public void writeBody(ByteBuf out) {
-            super.writeBody(out);
+            MetaInfoResponse response = getResponse();
             if (response instanceof ProducerMetaInfoResponse) {
-                ProducerMetaInfoResponse producerResponse = (ProducerMetaInfoResponse) response;
-                PartitionMapping partitionMapping = producerResponse.getPartitionMapping();
-                Serializer<PartitionMapping> serializer = Serializers.getSerializer(PartitionMapping.class);
-                serializer.serialize(partitionMapping, out);
+                Serializer<ProducerMetaInfoResponse> serializer = Serializers.getSerializer(ProducerMetaInfoResponse.class);
+                serializer.serialize((ProducerMetaInfoResponse) response, out);
             } else if (response instanceof ConsumerMetaInfoResponse) {
-                ConsumerMetaInfoResponse consumerResponse = (ConsumerMetaInfoResponse) response;
-                Serializer<ConsumerAllocation> serializer = Serializers.getSerializer(ConsumerAllocation.class);
-                serializer.serialize(consumerResponse.getConsumerAllocation(), out);
+                Serializer<ConsumerMetaInfoResponse> serializer = Serializers.getSerializer(ConsumerMetaInfoResponse.class);
+                serializer.serialize((ConsumerMetaInfoResponse) response, out);
             }
-
         }
     }
 

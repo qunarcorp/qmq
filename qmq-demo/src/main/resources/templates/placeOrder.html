@@ -18,13 +18,13 @@
     <div class="qmq-demo mx-auto">
         <h1>QMQ Demo Test Page</h1>
         <form action="/order/placeOrder" method="post" style="margin-top: 5px">
-            <div class="form-group">
+            <div class="form-consumerGroup">
                 <label for="inputOrderId">OrderId(数字):</label>
                 <input type="text" class="form-control" id="inputOrderId" aria-describedby="orderIdHelp"
                        placeholder="Order Id" name="orderId" />
                 <small id="orderIdHelp" class="form-text text-muted">OrderId必须输入数字，如果输入字母会提交失败，消息也不会发送出去</small>
             </div>
-            <div class="form-group">
+            <div class="form-consumerGroup">
                 <label for="inputName">Name</label>
                 <input type="text" class="form-control" id="inputName" placeholder="name" name="name" />
             </div>

@@ -1,6 +1,8 @@
 package qunar.tc.qmq.protocol.producer;
 
-import qunar.tc.qmq.meta.PartitionMapping;
+import qunar.tc.qmq.base.OnOfflineState;
+import qunar.tc.qmq.meta.BrokerCluster;
+import qunar.tc.qmq.meta.ProducerAllocation;
 import qunar.tc.qmq.protocol.MetaInfoResponse;
 
 /**
@@ -9,14 +11,14 @@ import qunar.tc.qmq.protocol.MetaInfoResponse;
  */
 public class ProducerMetaInfoResponse extends MetaInfoResponse {
 
-    private PartitionMapping partitionMapping;
+    private ProducerAllocation producerAllocation;
 
-    public PartitionMapping getPartitionMapping() {
-        return partitionMapping;
+    public ProducerMetaInfoResponse(long timestamp, String subject, String consumerGroup, OnOfflineState onOfflineState, int clientTypeCode, BrokerCluster brokerCluster, ProducerAllocation producerAllocation) {
+        super(timestamp, subject, consumerGroup, onOfflineState, clientTypeCode, brokerCluster);
+        this.producerAllocation = producerAllocation;
     }
 
-    public ProducerMetaInfoResponse setPartitionMapping(PartitionMapping partitionMapping) {
-        this.partitionMapping = partitionMapping;
-        return this;
+    public ProducerAllocation getProducerAllocation() {
+        return producerAllocation;
     }
 }

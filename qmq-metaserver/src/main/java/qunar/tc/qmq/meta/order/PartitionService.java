@@ -1,8 +1,9 @@
 package qunar.tc.qmq.meta.order;
 
 import qunar.tc.qmq.PartitionAllocation;
-import qunar.tc.qmq.meta.PartitionMapping;
+import qunar.tc.qmq.meta.BrokerCluster;
 import qunar.tc.qmq.meta.PartitionSet;
+import qunar.tc.qmq.meta.ProducerAllocation;
 import qunar.tc.qmq.meta.model.ClientMetaInfo;
 
 import java.util.List;
@@ -11,15 +12,17 @@ import java.util.List;
  * @author zhenwei.liu
  * @since 2019-08-22
  */
-public interface OrderedMessageService {
+public interface PartitionService {
 
     /**
      * 注册新的顺序消息主题
      *
-     * @param subject 主题
+     * @param subject              主题
      * @param physicalPartitionNum 物理分区数量
      */
-    void registerOrderedMessage(String subject, int physicalPartitionNum);
+    boolean registerOrderedMessage(String subject, int physicalPartitionNum);
+
+    ProducerAllocation getDefaultProducerAllocation(String subject, BrokerCluster brokerCluster);
 
     /**
      * 获取正在生效的分区分配列表
@@ -27,6 +30,7 @@ public interface OrderedMessageService {
      * @return 分区分配列表
      */
     List<PartitionAllocation> getActivatedPartitionAllocations();
+
     PartitionAllocation getActivatedPartitionAllocation(String subject, String group);
 
     /**
@@ -34,14 +38,17 @@ public interface OrderedMessageService {
      *
      * @return 分区映射
      */
-    List<PartitionMapping> getLatestPartitionMappings();
-    PartitionMapping getLatestPartitionMapping(String subject);
+    List<ProducerAllocation> getLatestProducerAllocations();
+
+    ProducerAllocation getLatestProducerAllocation(String subject);
+
     PartitionSet getLatestPartitionSet(String subject);
 
 
     /**
      * 为 consumer 分配 partition
-     * @param partitionSet 待分配的 partition
+     *
+     * @param partitionSet       待分配的 partition
      * @param onlineConsumerList online  consumer list
      * @return 分配结果
      */
@@ -51,7 +58,7 @@ public interface OrderedMessageService {
      * 更新分区分配信息
      *
      * @param newAllocation 新的分配信息
-     * @param baseVersion 分配比对的版本号, 用于做乐观锁
+     * @param baseVersion   分配比对的版本号, 用于做乐观锁
      * @return 更新结果, 若返回 false, 有可能是乐观锁更新失败
      */
     boolean updatePartitionAllocation(PartitionAllocation newAllocation, int baseVersion);

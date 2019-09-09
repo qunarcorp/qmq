@@ -60,11 +60,11 @@ public class OrderedMessageExecutor extends AbstractMessageExecutor {
             try {
                 message = messageQueue.take();
             } catch (InterruptedException e) {
-                logger.error("获取 queue 消息被中断 subject {} group {}", subject, group, e.getMessage());
+                logger.error("获取 queue 消息被中断 subject {} group {} {}", subject, group, e.getMessage());
                 continue;
             }
             try {
-                int partition = message.getIntProperty(BaseMessage.keys.qmq_physicalPartition.name());
+                int partition = message.getIntProperty(BaseMessage.keys.qmq_subjectSuffix.name());
                 if (!lifecycleManager.isAlive(subject, group, partition)) {
                     // 没有权限, 停一会再看
                     Thread.sleep(10);

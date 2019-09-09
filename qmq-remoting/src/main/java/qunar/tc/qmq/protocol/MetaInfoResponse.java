@@ -30,52 +30,37 @@ public class MetaInfoResponse {
     private int clientTypeCode;
     private BrokerCluster brokerCluster;
 
-    public long getTimestamp() {
-        return timestamp;
+    public MetaInfoResponse(long timestamp, String subject, String consumerGroup, OnOfflineState onOfflineState, int clientTypeCode, BrokerCluster brokerCluster) {
+        this.timestamp = timestamp;
+        this.subject = subject;
+        this.consumerGroup = consumerGroup;
+        this.onOfflineState = onOfflineState;
+        this.clientTypeCode = clientTypeCode;
+        this.brokerCluster = brokerCluster;
     }
 
-    public void setTimestamp(long timestamp) {
-        this.timestamp = timestamp;
+    public long getTimestamp() {
+        return timestamp;
     }
 
     public String getSubject() {
         return subject;
     }
 
-    public void setSubject(String subject) {
-        this.subject = subject;
-    }
-
     public String getConsumerGroup() {
         return consumerGroup;
-    }
-
-    public void setConsumerGroup(String consumerGroup) {
-        this.consumerGroup = consumerGroup;
     }
 
     public OnOfflineState getOnOfflineState() {
         return onOfflineState;
     }
 
-    public void setOnOfflineState(OnOfflineState onOfflineState) {
-        this.onOfflineState = onOfflineState;
-    }
-
     public int getClientTypeCode() {
         return clientTypeCode;
     }
 
-    public void setClientTypeCode(int clientTypeCode) {
-        this.clientTypeCode = clientTypeCode;
-    }
-
     public BrokerCluster getBrokerCluster() {
         return brokerCluster;
-    }
-
-    public void setBrokerCluster(BrokerCluster brokerCluster) {
-        this.brokerCluster = brokerCluster;
     }
 
     @Override

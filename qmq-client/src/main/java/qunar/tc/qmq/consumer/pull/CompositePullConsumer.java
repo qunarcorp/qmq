@@ -7,10 +7,7 @@ import com.google.common.util.concurrent.AsyncFunction;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import org.springframework.util.CollectionUtils;
-import qunar.tc.qmq.CompositePullClient;
-import qunar.tc.qmq.Message;
-import qunar.tc.qmq.PullConsumer;
-import qunar.tc.qmq.StatusSource;
+import qunar.tc.qmq.*;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -22,12 +19,12 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @author zhenwei.liu
  * @since 2019-09-02
  */
-public class CompositePullConsumer<T extends PullConsumer> implements PullConsumer, CompositePullClient<T> {
+public class CompositePullConsumer<T extends PullConsumer> extends AbstractPullClient implements PullConsumer, CompositePullClient<T> {
 
     private List<T> consumers;
 
-    public CompositePullConsumer(List<T> consumers) {
-        Preconditions.checkArgument(!CollectionUtils.isEmpty(consumers));
+    public CompositePullConsumer(String subject, String group, int partition, int version, ConsumeMode consumeMode, List<T> consumers) {
+        super(subject, group, partition, version, consumeMode);
         this.consumers = consumers;
     }
 

@@ -8,6 +8,18 @@ import java.util.concurrent.ExecutorService;
  */
 public interface PullClient {
 
+    String getSubject();
+
+    String getConsumerGroup();
+
+    String getSubjectSuffix();
+
+    String getBrokerGroup();
+
+    int getVersion();
+
+    ConsumeMode getConsumeMode();
+
     void startPull(ExecutorService executor);
 
     void destroy();

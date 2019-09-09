@@ -25,7 +25,7 @@ public class OrderedLoadBalance extends AbstractLoadBalance<String> {
     @Override
     List<String> doSelect(String subject, List<String> brokerGroups, int minNum) {
         // 无视传入的 broker, 按照配置的直接返回
-        PartitionMapping partitionMapping = cachedMetaInfoManager.getPartitionMapping(subject);
+        PartitionMapping partitionMapping = cachedMetaInfoManager.getProducerAllocation(subject);
         if (partitionMapping == null) {
             throw new IllegalArgumentException(String.format("subject %s 无法获取 partition 信息", subject));
         }

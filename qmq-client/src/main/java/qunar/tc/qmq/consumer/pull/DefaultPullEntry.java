@@ -18,12 +18,13 @@ package qunar.tc.qmq.consumer.pull;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.ClientType;
+import qunar.tc.qmq.ConsumeMode;
 import qunar.tc.qmq.StatusSource;
 import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
-import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.common.SwitchWaiter;
 import qunar.tc.qmq.config.PullSubjectsConfig;
 import qunar.tc.qmq.consumer.MessageExecutor;
@@ -84,7 +85,7 @@ class DefaultPullEntry extends AbstractPullEntry {
     private final ConsumeParam consumeParam;
 
     private DefaultPullEntry() {
-        super("", "", null, null, null);
+        super("", "", "", ConsumeMode.SHARED, "", -1, null, null, null);
         messageExecutor = null;
         pullBatchSize = pullTimeout = ackNosendLimit = null;
         pullRunCounter = null;
@@ -94,11 +95,11 @@ class DefaultPullEntry extends AbstractPullEntry {
         consumeParam = null;
     }
 
-    DefaultPullEntry(MessageExecutor messageExecutor, ConsumeParam consumeParam, PullService pullService, AckService ackService, MetaInfoService metaInfoService, BrokerService brokerService, PullStrategy pullStrategy) {
-        super(consumeParam.getSubject(), consumeParam.getGroup(), pullService, ackService, brokerService);
+    DefaultPullEntry(MessageExecutor messageExecutor, ConsumeParam consumeParam, String brokerGroup, String subjectSuffix, int version, PullService pullService, AckService ackService, MetaInfoService metaInfoService, BrokerService brokerService, PullStrategy pullStrategy) {
+        super(consumeParam.getSubject(), consumeParam.getConsumerGroup(), brokerGroup,  consumeParam.getConsumeMode(), subjectSuffix, version, pullService, ackService, brokerService);
         this.consumeParam = consumeParam;
         String subject = consumeParam.getSubject();
-        String group = consumeParam.getGroup();
+        String group = consumeParam.getConsumerGroup();
         this.messageExecutor = messageExecutor;
         String realSubject = RetrySubjectUtils.getRealSubject(subject);
         this.pullBatchSize = PullSubjectsConfig.get().getPullBatchSize(realSubject);
@@ -123,12 +124,12 @@ class DefaultPullEntry extends AbstractPullEntry {
 
     public void online(StatusSource src) {
         onlineSwitcher.on(src);
-        LOGGER.info("pullconsumer online. subject={}, group={}", consumeParam.getSubject(), consumeParam.getGroup());
+        LOGGER.info("pullconsumer online. subject={}, group={}", consumeParam.getSubject(), consumeParam.getConsumerGroup());
     }
 
     public void offline(StatusSource src) {
         onlineSwitcher.off(src);
-        LOGGER.info("pullconsumer offline. subject={}, group={}", consumeParam.getSubject(), consumeParam.getGroup());
+        LOGGER.info("pullconsumer offline. subject={}, group={}", consumeParam.getSubject(), consumeParam.getConsumerGroup());
     }
 
     public void destroy() {
@@ -144,12 +145,12 @@ class DefaultPullEntry extends AbstractPullEntry {
             while (isRunning.get()) {
                 try {
                     if (!preparePull()) {
-                        LOGGER.debug(logType, "preparePull false. subject={}, group={}", consumeParam.getSubject(), consumeParam.getGroup());
+                        LOGGER.debug(logType, "preparePull false. subject={}, group={}", consumeParam.getSubject(), consumeParam.getConsumerGroup());
                         continue;
                     }
 
                     if (!resetDoPullParam(doPullParam)) {
-                        LOGGER.debug(logType, "buildDoPullParam false. subject={}, group={}", consumeParam.getSubject(), consumeParam.getGroup());
+                        LOGGER.debug(logType, "buildDoPullParam false. subject={}, group={}", consumeParam.getSubject(), consumeParam.getConsumerGroup());
                         continue;
                     }
 
@@ -189,7 +190,7 @@ class DefaultPullEntry extends AbstractPullEntry {
                 continue;
             }
 
-            param.ackSendInfo = ackService.getAckSendInfo(param.broker, consumeParam.getSubject(), consumeParam.getGroup());
+            param.ackSendInfo = ackService.getAckSendInfo(param.broker, consumeParam.getSubject(), consumeParam.getConsumerGroup());
             if (param.ackSendInfo.getToSendNum() <= ackNosendLimit.get()) {
                 brokersOfWaitAck.clear();
                 break;
@@ -201,24 +202,7 @@ class DefaultPullEntry extends AbstractPullEntry {
     }
 
     private BrokerClusterInfo getBrokerCluster() {
-        return brokerService.getClusterBySubject(ClientType.CONSUMER, consumeParam.getSubject(), consumeParam.getGroup());
-    }
-
-    private BrokerGroupInfo nextPullBrokerGroup(BrokerClusterInfo cluster) {
-        //没有分配到brokers
-        List<BrokerGroupInfo> groups = cluster.getGroups();
-        if (groups.isEmpty()) return null;
-
-        final int brokerSize = groups.size();
-        for (int cnt = 0; cnt < brokerSize; cnt++) {
-            BrokerGroupInfo broker = loadBalance.select(cluster);
-            if (broker == null) return null;
-            if (brokersOfWaitAck.contains(broker.getGroupName())) continue;
-
-            return broker;
-        }
-        // 没有可用的brokers
-        return null;
+        return brokerService.getClusterBySubject(ClientType.CONSUMER, consumeParam.getSubject(), consumeParam.getConsumerGroup());
     }
 
     private void doPull(DoPullParam param) {
@@ -229,7 +213,7 @@ class DefaultPullEntry extends AbstractPullEntry {
 
     private void pause(String log, long timeMillis) {
         final String subject = consumeParam.getSubject();
-        final String group = consumeParam.getGroup();
+        final String group = consumeParam.getConsumerGroup();
         this.pauseCounter.inc();
         LOGGER.debug(logType, "pull pause {} ms, {}. subject={}, group={}", timeMillis, log, subject, group);
         try {
@@ -240,8 +224,6 @@ class DefaultPullEntry extends AbstractPullEntry {
     }
 
     private static final class DoPullParam {
-        private volatile BrokerClusterInfo cluster = null;
-        private volatile BrokerGroupInfo broker = null;
         private volatile AckSendInfo ackSendInfo = null;
     }
 }

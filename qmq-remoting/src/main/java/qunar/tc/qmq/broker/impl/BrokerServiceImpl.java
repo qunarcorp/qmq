@@ -22,13 +22,13 @@ import com.google.common.util.concurrent.SettableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ClientType;
-import qunar.tc.qmq.ConsumerAllocation;
+import qunar.tc.qmq.meta.ConsumerAllocation;
 import qunar.tc.qmq.Versionable;
 import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
-import qunar.tc.qmq.broker.OrderedMessageManager;
+import qunar.tc.qmq.broker.ClientMetaManager;
 import qunar.tc.qmq.common.ClientLifecycleManagerFactory;
 import qunar.tc.qmq.common.MapKeyBuilder;
 import qunar.tc.qmq.common.OrderedClientLifecycleManager;
@@ -52,11 +52,11 @@ import java.util.concurrent.Future;
 /**
  * @author yiqun.fan create on 17-8-18.
  */
-public class BrokerServiceImpl implements BrokerService, OrderedMessageManager, MetaInfoClient.ResponseSubscriber {
+public class BrokerServiceImpl implements BrokerService, ClientMetaManager, MetaInfoClient.ResponseSubscriber {
     private static final Logger LOGGER = LoggerFactory.getLogger(BrokerServiceImpl.class);
 
-    private Map<String, SettableFuture<PartitionMapping>> partitionMap = Maps.newConcurrentMap();
-    private Map<String, SettableFuture<ConsumerAllocation>> allocationMap = Maps.newConcurrentMap();
+    private Map<String, SettableFuture<ProducerAllocation>> producerAllocationMap = Maps.newConcurrentMap();
+    private Map<String, SettableFuture<ConsumerAllocation>> consumerAllocationMap = Maps.newConcurrentMap();
     private final ConcurrentMap<String, SettableFuture<BrokerClusterInfo>> clusterMap = new ConcurrentHashMap<>();
 
     private final MetaInfoService metaInfoService;
@@ -201,8 +201,8 @@ public class BrokerServiceImpl implements BrokerService, OrderedMessageManager, 
             return;
         }
         String subject = response.getSubject();
-        PartitionMapping partitionMapping = getPartitionMapping(ClientType.of(response.getClientTypeCode()), subject);
-        if (partitionMapping != null) {
+        ProducerAllocation producerAllocation = getProducerAllocation(ClientType.of(response.getClientTypeCode()), subject);
+        if (producerAllocation != null) {
             ConsumerMetaInfoResponse consumerResponse = (ConsumerMetaInfoResponse) response;
             String consumerGroup = consumerResponse.getConsumerGroup();
             ConsumerAllocation consumerAllocation = consumerResponse.getConsumerAllocation();
@@ -223,11 +223,11 @@ public class BrokerServiceImpl implements BrokerService, OrderedMessageManager, 
         if (clientType.isProducer()) {
             String key = createProducerPartitionMappingKey(ClientType.of(response.getClientTypeCode()), subject);
             ProducerMetaInfoResponse producerResponse = (ProducerMetaInfoResponse) response;
-            updatePartitionCache(key, partitionMap, producerResponse.getPartitionMapping());
+            updatePartitionCache(key, producerAllocationMap, producerResponse.getProducerAllocation());
         } else if (clientType.isConsumer()) {
             String key = createConsumerAllocationKey(subject, group, clientId);
             ConsumerMetaInfoResponse consumerResponse = (ConsumerMetaInfoResponse) response;
-            updatePartitionCache(key, allocationMap, consumerResponse.getConsumerAllocation());
+            updatePartitionCache(key, consumerAllocationMap, consumerResponse.getConsumerAllocation());
         }
 
     }
@@ -303,9 +303,9 @@ public class BrokerServiceImpl implements BrokerService, OrderedMessageManager, 
     }
 
     @Override
-    public PartitionMapping getPartitionMapping(ClientType clientType, String subject) {
+    public ProducerAllocation getProducerAllocation(ClientType clientType, String subject) {
         String producerKey = createProducerPartitionMappingKey(clientType, subject);
-        SettableFuture<PartitionMapping> future = partitionMap.computeIfAbsent(producerKey, key -> SettableFuture.create());
+        SettableFuture<ProducerAllocation> future = producerAllocationMap.computeIfAbsent(producerKey, key -> SettableFuture.create());
         try {
             return future.get();
         } catch (Throwable t) {
@@ -316,7 +316,7 @@ public class BrokerServiceImpl implements BrokerService, OrderedMessageManager, 
     @Override
     public ConsumerAllocation getConsumerAllocation(String subject, String group, String clientId) {
         String key = createConsumerAllocationKey(subject, group, clientId);
-        SettableFuture<ConsumerAllocation> future = allocationMap.computeIfAbsent(key, k -> SettableFuture.create());
+        SettableFuture<ConsumerAllocation> future = consumerAllocationMap.computeIfAbsent(key, k -> SettableFuture.create());
         try {
             return future.get();
         } catch (Throwable t) {

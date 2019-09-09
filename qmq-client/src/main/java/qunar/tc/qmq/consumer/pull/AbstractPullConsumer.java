@@ -82,7 +82,7 @@ abstract class AbstractPullConsumer implements PullConsumer {
 
     @Override
     public String group() {
-        return consumeParam.getGroup();
+        return consumeParam.getConsumerGroup();
     }
 
     @Override

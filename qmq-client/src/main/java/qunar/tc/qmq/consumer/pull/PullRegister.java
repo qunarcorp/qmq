@@ -31,6 +31,8 @@ import qunar.tc.qmq.consumer.MessageExecutorFactory;
 import qunar.tc.qmq.consumer.exception.DuplicateListenerException;
 import qunar.tc.qmq.consumer.register.ConsumerRegister;
 import qunar.tc.qmq.consumer.register.RegistParam;
+import qunar.tc.qmq.meta.ConsumerAllocation;
+import qunar.tc.qmq.meta.SubjectLocation;
 import qunar.tc.qmq.metainfoclient.ConsumerStateChangedListener;
 import qunar.tc.qmq.metainfoclient.DefaultMetaInfoService;
 import qunar.tc.qmq.metainfoclient.MetaInfoClient;
@@ -123,7 +125,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         public PullEntry updateClient(ConsumerMetaInfoResponse response) {
             String subject = response.getSubject();
             String group = response.getConsumerGroup();
-            PullEntry pullEntry = PullRegister.this.createPullEntry(subject, group, registParam, response);
+            PullEntry pullEntry = PullRegister.this.updatePullEntry(subject, group, registParam, response);
             future.set(pullEntry);
             return pullEntry;
         }
@@ -157,7 +159,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         return future;
     }
 
-    private synchronized PullEntry createPullEntry(String subject, String group, RegistParam param, ConsumerMetaInfoResponse response) {
+    private synchronized PullEntry updatePullEntry(String subject, String group, RegistParam param, ConsumerMetaInfoResponse response) {
         String env;
         String subEnv;
         if (envProvider != null && !Strings.isNullOrEmpty(env = envProvider.env(subject))) {
@@ -168,86 +170,74 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
             param.addFilter(new SubEnvIsolationPullFilter(env, subEnv));
         }
 
-        PullEntry pullEntry = registerPullEntry(subject, group, param, new AlwaysPullStrategy(), response);
+        ConsumerAllocation consumerAllocation = response.getConsumerAllocation();
+        int version = consumerAllocation.getVersion();
+        ConsumeMode consumeMode = consumerAllocation.getConsumeMode();
+
+        PullEntry pullEntry = updatePullEntry(subject, group, param, new AlwaysPullStrategy(), response);
         if (RetrySubjectUtils.isDeadRetrySubject(subject)) return pullEntry;
-        PullEntry retryPullEntry = registerPullEntry(RetrySubjectUtils.buildRetrySubject(subject, group), group, param, new WeightPullStrategy(), response);
-        return new CompositePullEntry<>(Lists.newArrayList(pullEntry, retryPullEntry));
+        PullEntry retryPullEntry = updatePullEntry(RetrySubjectUtils.buildRetrySubject(subject, group), group, param, new WeightPullStrategy(), response);
+
+        return new CompositePullEntry<>(subject, group, consumeMode, PartitionConstants.EMPTY_SUBJECT_SUFFIX, version, Lists.newArrayList(pullEntry, retryPullEntry));
     }
 
     private String toSubEnvIsolationGroup(final String originGroup, final String env, final String subEnv) {
         return originGroup + "_" + env + "_" + subEnv;
     }
 
-    private PullEntry registerPullEntry(String subject, String group, RegistParam param, PullStrategy pullStrategy, ConsumerMetaInfoResponse response) {
+    private PullEntry updatePullEntry(String subject, String group, RegistParam param, PullStrategy pullStrategy, ConsumerMetaInfoResponse response) {
         String subscribeKey = MapKeyBuilder.buildSubscribeKey(subject, group);
-        PullEntry pullEntry = pullEntryMap.get(subscribeKey);
+        PullEntry oldEntry = pullEntryMap.get(subscribeKey);
 
-        if (pullEntry == DefaultPullEntry.EMPTY_PULL_ENTRY) {
+        if (oldEntry == DefaultPullEntry.EMPTY_PULL_ENTRY) {
             throw new DuplicateListenerException(subscribeKey);
         }
 
-        pullEntry = (PullEntry) createPullClient(subject, group, pullStrategy, response, pullEntry,
+        oldEntry = (PullEntry) createPullClient(subject, group, pullStrategy, response, oldEntry,
                 (subject1, group1, pullStrategy1, isOrdered) -> createDefaultPullEntry(subject1, group1, param, pullStrategy1, isOrdered),
-                (partitionId, pullClient) -> new PartitionPullEntry(partitionId, (PullEntry) pullClient),
-                (clients, partitionAllocation) -> new OrderedPullEntry((List<PartitionPullEntry>) clients, partitionAllocation)
-        );
-        pullEntryMap.put(subscribeKey, pullEntry);
+                );
+        pullEntryMap.put(subscribeKey, oldEntry);
 
         if (isOnline) {
-            pullEntry.online(param.getActionSrc());
+            oldEntry.online(param.getActionSrc());
         } else {
-            pullEntry.offline(param.getActionSrc());
+            oldEntry.offline(param.getActionSrc());
         }
 
-        return pullEntry;
+        return oldEntry;
     }
 
     private PullClient createPullClient(
             String subject,
-            String group,
+            String consumerGroup,
             PullStrategy pullStrategy,
             ConsumerMetaInfoResponse response,
             PullClient oldClient,
-            PullClientFactory pullClientFactory,
-            PartitionPullClientFactory partitionPullClientFactory,
-            OrderedPullClientFactory orderedPullClientFactory
+            PullClientFactory pullClientFactory
     ) {
-        ConsumerAllocation consumerAllocation = response.getConsumerAllocation();
-        if (consumerAllocation != null) {
-            if (oldClient == null) {
-                return createNewOrderPullClient(subject, group, pullStrategy, consumerAllocation, pullClientFactory, partitionPullClientFactory, orderedPullClientFactory);
-            } else {
-                return updateOrderedPullClient(subject, group, pullStrategy, consumerAllocation, pullClientFactory, partitionPullClientFactory, orderedPullClientFactory, (OrderedPullClient) oldClient);
-            }
+
+        if (oldClient == null) {
+            return createNewPullClient(subject, consumerGroup, pullStrategy, consumerAllocation, pullClientFactory, partitionPullClientFactory, orderedPullClientFactory);
         } else {
-            if (oldClient != null) {
-                return oldClient;
-            }
-            return pullClientFactory.createPullClient(subject, group, pullStrategy, false);
+            return updatePullClient(subject, consumerGroup, pullStrategy, consumerAllocation, pullClientFactory, partitionPullClientFactory, orderedPullClientFactory, (OrderedPullClient) oldClient);
         }
     }
 
     private interface PullClientFactory<T extends PullClient> {
-        T createPullClient(String subject, String group, PullStrategy pullStrategy, boolean isOrdered);
+        T createPullClient(String subject, String consumerGroup, ConsumeMode consumeMode, String subjectPrefix, int version, PullStrategy pullStrategy);
     }
 
-    private interface PartitionPullClientFactory<T extends PartitionPullClient> {
-        T createPullClient(int partitionId, PullClient pullClient);
+    private interface CompositePullClientFactory<T extends CompositePullClient> {
+        T createPullClient(String subject, String consumerGroup, ConsumeMode consumeMode, String subjectPrefix, int version, List<PullClient> clientList);
     }
 
-    private interface OrderedPullClientFactory<T extends OrderedPullClient> {
-        T createPullClient(List<? extends PartitionPullClient> clients, ConsumerAllocation consumerAllocation);
-    }
-
-    private OrderedPullClient updateOrderedPullClient(
+    private PullClient updatePullClient(
             String subject,
             String group,
             PullStrategy pullStrategy,
             ConsumerAllocation consumerAllocation,
             PullClientFactory pullClientFactory,
-            PartitionPullClientFactory partitionPullClientFactory,
-            OrderedPullClientFactory orderedPullClientFactory,
-            OrderedPullClient<PartitionPullClient> oldClient
+            OrderedPullClient oldClient
 
     ) {
         ConsumerAllocation oldAllocation = oldClient.getConsumerAllocation();
@@ -274,7 +264,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
 
             for (Integer newPartitionId : newPartitions) {
                 if (!oldPartitions.contains(newPartitionId)) {
-                    String orderedSubject = OrderedMessageUtils.getOrderedMessageSubject(subject, newPartitionId);
+                    String orderedSubject = PartitionMessageUtils.getOrderedMessageSubject(subject, newPartitionId);
                     PullClient newDefaultClient = pullClientFactory.createPullClient(orderedSubject, group, pullStrategy, true);
                     PartitionPullClient newPartitionClient = partitionPullClientFactory.createPullClient(newPartitionId, newDefaultClient);
                     newPartitionClients.add(newPartitionClient);
@@ -297,28 +287,28 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         }
     }
 
-    private OrderedPullClient createNewOrderPullClient(
+    private PullClient createNewPullClient(
             String subject,
-            String group,
+            String consumerGroup,
             PullStrategy pullStrategy,
             ConsumerAllocation consumerAllocation,
             PullClientFactory pullClientFactory,
-            PartitionPullClientFactory partitionPullClientFactory,
-            OrderedPullClientFactory orderedPullClientFactory
+            CompositePullClientFactory compositePullClientFactory
     ) {
-        Set<Integer> physicalPartitions = consumerAllocation.getPhysicalPartitions();
-        List<PartitionPullClient> partitionPullClients = Lists.newArrayList();
-        // TODO(zhenwei.liu) 这里是否需要监听一个原始主题, 用来接收 delay
-        for (Integer newPartitionId : physicalPartitions) {
-            String orderedSubject = OrderedMessageUtils.getOrderedMessageSubject(subject, newPartitionId);
-            PullClient newDefaultClient = pullClientFactory.createPullClient(orderedSubject, group, pullStrategy, true);
-            PartitionPullClient newPartitionClient = partitionPullClientFactory.createPullClient(newPartitionId, newDefaultClient);
-            partitionPullClients.add(newPartitionClient);
+        List<SubjectLocation> subjectLocations = consumerAllocation.getSubjectLocations();
+        List<PullClient> clientList = Lists.newArrayList();
+        ConsumeMode consumeMode = consumerAllocation.getConsumeMode();
+        int version = consumerAllocation.getVersion();
+        for (SubjectLocation subjectLocation : subjectLocations) {
+            String subjectSuffix = subjectLocation.getSubjectSuffix();
+
+            PullClient newDefaultClient = pullClientFactory.createPullClient(subject, consumerGroup, consumeMode, subjectSuffix, version, pullStrategy);
+            clientList.add(newDefaultClient);
         }
-        return orderedPullClientFactory.createPullClient(partitionPullClients, consumerAllocation);
+        return compositePullClientFactory.createPullClient(subject, consumerGroup, consumeMode, PartitionConstants.EMPTY_SUBJECT_SUFFIX, version, consumerAllocation);
     }
 
-    private PullEntry createDefaultPullEntry(String subject, String group, RegistParam param, PullStrategy pullStrategy, boolean isOrdered) {
+    private PullEntry createDefaultPullEntry(String subject, String group, RegistParam param, PullStrategy pullStrategy) {
         ConsumeParam consumeParam = new ConsumeParam(subject, group, param);
         MessageExecutor messageExecutor = MessageExecutorFactory.createExecutor(subject, group, pullExecutor, param.getMessageListener(), isOrdered);
         PullEntry pullEntry = new DefaultPullEntry(messageExecutor, consumeParam, pullService, ackService, metaInfoService, brokerService, pullStrategy);

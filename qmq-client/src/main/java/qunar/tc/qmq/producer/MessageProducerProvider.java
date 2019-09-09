@@ -38,7 +38,6 @@ import qunar.tc.qmq.metrics.QmqTimer;
 import qunar.tc.qmq.producer.idgenerator.IdGenerator;
 import qunar.tc.qmq.producer.idgenerator.TimestampAndHostIdGenerator;
 import qunar.tc.qmq.producer.sender.NettyRouterManager;
-import qunar.tc.qmq.producer.sender.OrderedQueueSender;
 import qunar.tc.qmq.producer.tx.MessageTracker;
 import qunar.tc.qmq.tracing.TraceUtil;
 
@@ -47,7 +46,7 @@ import javax.annotation.PreDestroy;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static qunar.tc.qmq.common.OrderedMessageUtils.isOrderedMessage;
+import static qunar.tc.qmq.common.PartitionMessageUtils.isOrderedMessage;
 
 /**
  * @author miao.yang susing@gmail.com
@@ -184,11 +183,6 @@ public class MessageProducerProvider implements MessageProducer {
     }
 
     private ProduceMessageImpl initProduceMessage(Message message, MessageSendStateListener listener) {
-
-        if (isOrderedMessage(message)) {
-            message.setProperty(BaseMessage.keys.qmq_queueSenderType.name(), OrderedQueueSender.class.getName());
-            message.setProperty(BaseMessage.keys.qmq_loadBalanceType.name(), OrderedBrokerLoadBalance.class.getName());
-        }
 
         BaseMessage base = (BaseMessage) message;
         routerManager.validateMessage(message);

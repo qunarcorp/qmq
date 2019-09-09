@@ -5,6 +5,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.RangeMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.MessageGroup;
 import qunar.tc.qmq.ProduceMessage;
 import qunar.tc.qmq.base.BaseMessage;
@@ -16,8 +17,8 @@ import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.broker.OrderStrategy;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
-import qunar.tc.qmq.meta.Partition;
-import qunar.tc.qmq.meta.ProducerMapping;
+import qunar.tc.qmq.meta.ProducerAllocation;
+import qunar.tc.qmq.meta.SubjectLocation;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.QmqTimer;
 import qunar.tc.qmq.producer.SendErrorHandler;
@@ -145,19 +146,20 @@ public class OrderedQueueSender extends AbstractQueueSender implements OrderedPr
                             executor.removeItem(pm);
                         } else {
                             MessageGroup messageGroup = pm.getMessageGroup();
-                            BrokerClusterInfo brokerCluster = brokerService.getClusterBySubject(messageGroup.getClientType(), subject);
+                            ClientType clientType = messageGroup.getClientType();
+                            BrokerClusterInfo brokerCluster = brokerService.getClusterBySubject(clientType, subject);
                             String currentGroup = messageGroup.getBrokerGroup();
                             BrokerGroupInfo retryGroup = orderStrategy.resolveBrokerGroup(currentGroup, brokerCluster);
                             String retryGroupName = retryGroup.getGroupName();
                             if (!Objects.equals(currentGroup, retryGroupName)) {
                                 // 重试的 group 不相同. 则选择其他 executorGroup
-                                ProducerMapping producerMapping = brokerService.getPartitionMapping(subject);
-                                RangeMap<Integer, Partition> logical2PhysicalPartition = producerMapping.getLogical2PhysicalPartition();
-                                for (Partition partition : logical2PhysicalPartition.asMapOfRanges().values()) {
-                                    if (Objects.equals(partition.getBrokerGroup(), retryGroupName)) {
-                                        int retryPartition = partition.getPhysicalPartition();
+                                ProducerAllocation producerAllocation = brokerService.getProducerAllocation(clientType, subject);
+                                RangeMap<Integer, SubjectLocation> logical2SubjectLocation = producerAllocation.getLogical2SubjectLocation();
+                                for (SubjectLocation subjectLocation : logical2SubjectLocation.asMapOfRanges().values()) {
+                                    if (Objects.equals(subjectLocation.getBrokerGroup(), retryGroupName)) {
+                                        String retrySuffix = subjectLocation.getSubjectSuffix();
                                         messageGroup.setBrokerGroup(retryGroupName);
-                                        messageGroup.setPartition(retryPartition);
+                                        messageGroup.setSubjectSuffix(retrySuffix);
                                     } else {
                                         throw new IllegalStateException(String.format("重试时无法找到 partition %s", retryGroupName));
                                     }

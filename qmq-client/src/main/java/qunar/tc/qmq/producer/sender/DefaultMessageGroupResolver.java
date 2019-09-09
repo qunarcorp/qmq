@@ -9,16 +9,16 @@ import qunar.tc.qmq.MessageGroup;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.base.OrderStrategyManager;
 import qunar.tc.qmq.broker.*;
-import qunar.tc.qmq.common.OrderedConstants;
-import qunar.tc.qmq.meta.Partition;
-import qunar.tc.qmq.meta.PartitionMapping;
+import qunar.tc.qmq.common.PartitionConstants;
+import qunar.tc.qmq.meta.ProducerAllocation;
+import qunar.tc.qmq.meta.SubjectLocation;
 import qunar.tc.qmq.utils.DelayUtil;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 
-import static qunar.tc.qmq.common.OrderedConstants.EMPTY_PARTITION;
+import static qunar.tc.qmq.common.PartitionConstants.EMPTY_SUBJECT_SUFFIX;
 
 /**
  * @author zhenwei.liu
@@ -41,26 +41,26 @@ public class DefaultMessageGroupResolver implements MessageGroupResolver {
         String subject = message.getSubject();
         String orderKey = message.getOrderKey();
         ClientType clientType = DelayUtil.isDelayMessage(message) ? ClientType.DELAY_PRODUCER : ClientType.PRODUCER;
-        PartitionMapping partitionMapping = brokerService.getPartitionMapping(clientType, subject);
+        ProducerAllocation producerAllocation = brokerService.getProducerAllocation(clientType, subject);
         BrokerClusterInfo brokerCluster = brokerService.getClusterBySubject(clientType, subject);
 
         if (DelayUtil.isDelayMessage(message)) {
             // delay 消息直接选择 broker
-            return resolveNonOrderedMessageGroup(clientType, subject, brokerCluster);
+            return resolveDelayMessageGroup(clientType, subject, brokerCluster);
         } else {
             int logicalPartition;
             if (orderKey == null) {
                 // 无序消息 orderKey 为 null, 此时从所有 BrokerGroup 中随机选择
-                logicalPartition = ThreadLocalRandom.current().nextInt(0, OrderedConstants.DEFAULT_LOGICAL_PARTITION_NUM);
+                logicalPartition = ThreadLocalRandom.current().nextInt(0, PartitionConstants.DEFAULT_LOGICAL_PARTITION_NUM);
             } else {
-                logicalPartition = computeOrderIdentifier(orderKey) % partitionMapping.getLogicalPartitionNum();
+                logicalPartition = computeOrderIdentifier(orderKey) % PartitionConstants.DEFAULT_LOGICAL_PARTITION_NUM;
             }
 
-            Partition partition = partitionMapping.getLogical2PhysicalPartition().get(logicalPartition);
-            Preconditions.checkNotNull(partition,
-                    "无法找到 physical partition, subject %s, logicalPartition %s", subject, logicalPartition);
-            String brokerGroup = partition.getBrokerGroup();
-            int physicalPartition = partition.getPhysicalPartition();
+            SubjectLocation subjectLocation = producerAllocation.getLogical2SubjectLocation().get(logicalPartition);
+            Preconditions.checkNotNull(subjectLocation,
+                    "无法找到逻辑分区对应的 broker, subject %s, logicalPartition %s", subject, logicalPartition);
+            String brokerGroup = subjectLocation.getBrokerGroup();
+            String subjectSuffix = subjectLocation.getSubjectSuffix();
 
             OrderStrategy orderStrategy = OrderStrategyManager.getOrderStrategy(subject);
             if (Objects.equals(orderStrategy, OrderStrategy.BEST_TRIED)) {
@@ -70,25 +70,25 @@ public class DefaultMessageGroupResolver implements MessageGroupResolver {
                     throw new IllegalStateException(String.format("没有可用的 broker subject %s clientType %s", subject, clientType));
                 } else {
                     brokerGroup = availableBroker.getGroupName();
-                    physicalPartition = getPhysicalPartitionByBrokerGroup(partitionMapping, brokerGroup);
+                    subjectSuffix = getSubjectSuffixByBrokerGroup(producerAllocation, brokerGroup);
                 }
             }
 
             message.setProperty(BaseMessage.keys.qmq_orderStrategy.name(), orderStrategy.name());
             message.setProperty(BaseMessage.keys.qmq_logicPartition.name(), logicalPartition);
-            message.setProperty(BaseMessage.keys.qmq_physicalPartition.name(), physicalPartition);
+            message.setProperty(BaseMessage.keys.qmq_subjectSuffix.name(), subjectSuffix);
             message.setProperty(BaseMessage.keys.qmq_partitionBroker.name(), brokerGroup);
-            message.setProperty(BaseMessage.keys.qmq_partitionVersion.name(), partitionMapping.getVersion());
+            message.setProperty(BaseMessage.keys.qmq_partitionVersion.name(), producerAllocation.getVersion());
 
-            return new MessageGroup(clientType, subject, physicalPartition, brokerGroup);
+            return new MessageGroup(clientType, subject, subjectSuffix, brokerGroup);
         }
     }
 
-    private int getPhysicalPartitionByBrokerGroup(PartitionMapping partitionMapping, String brokerGroupName) {
-        Collection<Partition> partitions = partitionMapping.getLogical2PhysicalPartition().asMapOfRanges().values();
-        for (Partition partition : partitions) {
-            if (Objects.equals(brokerGroupName, partition.getBrokerGroup())) {
-                return partition.getPhysicalPartition();
+    private String getSubjectSuffixByBrokerGroup(ProducerAllocation producerAllocation, String brokerGroupName) {
+        Collection<SubjectLocation> subjectLocations = producerAllocation.getLogical2SubjectLocation().asMapOfRanges().values();
+        for (SubjectLocation subjectLocation : subjectLocations) {
+            if (Objects.equals(brokerGroupName, subjectLocation.getBrokerGroup())) {
+                return subjectLocation.getSubjectSuffix();
             }
         }
         throw new IllegalArgumentException(String.format("无法找到 broker %s 对应的 partition", brokerGroupName));
@@ -109,14 +109,13 @@ public class DefaultMessageGroupResolver implements MessageGroupResolver {
         return null;
     }
 
-    private MessageGroup resolveNonOrderedMessageGroup(ClientType clientType, String subject, BrokerClusterInfo brokerCluster) {
-        int partition = EMPTY_PARTITION;
-        MessageSendContextManager.ContextKey key = new MessageSendContextManager.ContextKey(clientType, subject, partition);
+    private MessageGroup resolveDelayMessageGroup(ClientType clientType, String subject, BrokerClusterInfo brokerCluster) {
+        MessageSendContextManager.ContextKey key = new MessageSendContextManager.ContextKey(clientType, subject, EMPTY_SUBJECT_SUFFIX);
         MessageSendContextManager.MessageSendContext context = messageSendContextManager.getContext(key);
         String lastSentBrokerName = context.getLastSentBroker();
         BrokerGroupInfo lastSentBrokerGroupInfo = Strings.isNullOrEmpty(lastSentBrokerName) ? null : brokerCluster.getGroupByName(lastSentBrokerName);
         BrokerGroupInfo brokerGroup = brokerLoadBalance.loadBalance(brokerCluster.getGroups(), lastSentBrokerGroupInfo);
-        return new MessageGroup(clientType, subject, partition, brokerGroup.getGroupName());
+        return new MessageGroup(clientType, subject, EMPTY_SUBJECT_SUFFIX, brokerGroup.getGroupName());
     }
 
     private static int computeOrderIdentifier(String orderKey) {

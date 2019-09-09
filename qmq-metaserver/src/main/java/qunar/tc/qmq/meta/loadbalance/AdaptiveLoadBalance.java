@@ -24,7 +24,7 @@ public class AdaptiveLoadBalance implements LoadBalance<String> {
     @Override
     public List<String> select(String subject, List<String> brokerGroups, int minNum) {
         // TODO(zhenwei.liu) 这里应该不需要判断是否顺序了, 是否应该全部返回 broker 列表
-        PartitionMapping partitionMapping = cachedMetaInfoManager.getPartitionMapping(subject);
+        PartitionMapping partitionMapping = cachedMetaInfoManager.getProducerAllocation(subject);
         if (partitionMapping == null) {
             return defaultLoadBalance.select(subject, brokerGroups, minNum);
         } else {

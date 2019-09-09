@@ -24,12 +24,12 @@ public interface MessageSendContextManager {
     class ContextKey {
         private ClientType clientType;
         private String subject;
-        private int partition;
+        private String subjectSuffix;
 
-        public ContextKey(ClientType clientType, String subject, int partition) {
+        public ContextKey(ClientType clientType, String subject, String subjectSuffix) {
             this.clientType = clientType;
             this.subject = subject;
-            this.partition = partition;
+            this.subjectSuffix = subjectSuffix;
         }
 
         public ClientType getClientType() {
@@ -40,8 +40,8 @@ public interface MessageSendContextManager {
             return subject;
         }
 
-        public int getPartition() {
-            return partition;
+        public String getSubjectSuffix() {
+            return subjectSuffix;
         }
     }
 

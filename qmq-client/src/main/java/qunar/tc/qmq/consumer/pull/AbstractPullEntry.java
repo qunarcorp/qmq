@@ -19,6 +19,7 @@ package qunar.tc.qmq.consumer.pull;
 import com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.ConsumeMode;
 import qunar.tc.qmq.PullEntry;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
@@ -41,7 +42,7 @@ import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_GROUP_ARRAY;
 /**
  * @author yiqun.fan create on 17-11-2.
  */
-abstract class AbstractPullEntry implements PullEntry {
+abstract class AbstractPullEntry extends AbstractPullClient implements PullEntry {
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractPullEntry.class);
 
     private static final int MAX_MESSAGE_RETRY_THRESHOLD = 5;
@@ -58,7 +59,8 @@ abstract class AbstractPullEntry implements PullEntry {
     private final QmqCounter pullWorkCounter;
     private final QmqCounter pullFailCounter;
 
-    AbstractPullEntry(String subject, String group, PullService pullService, AckService ackService, BrokerService brokerService) {
+    AbstractPullEntry(String subject, String consumerGroup, String brokerGroup, ConsumeMode consumeMode, String subjectPrefix, int version, PullService pullService, AckService ackService, BrokerService brokerService) {
+        super(subject, consumerGroup, brokerGroup, consumeMode, subjectPrefix, version);
         this.pullService = pullService;
         this.ackService = ackService;
         this.brokerService = brokerService;
@@ -66,14 +68,14 @@ abstract class AbstractPullEntry implements PullEntry {
 
         pullRequestTimeout = PullSubjectsConfig.get().getPullRequestTimeout(subject);
 
-        String[] values = new String[]{subject, group};
+        String[] values = new String[]{subject, consumerGroup};
         this.pullWorkCounter = Metrics.counter("qmq_pull_work_count", SUBJECT_GROUP_ARRAY, values);
         this.pullFailCounter = Metrics.counter("qmq_pull_fail_count", SUBJECT_GROUP_ARRAY, values);
     }
 
     protected List<PulledMessage> pull(ConsumeParam consumeParam, BrokerGroupInfo group, int pullSize, int pullTimeout, AckHook ackHook) {
         pullWorkCounter.inc();
-        AckSendInfo ackSendInfo = ackService.getAckSendInfo(group, consumeParam.getSubject(), consumeParam.getGroup());
+        AckSendInfo ackSendInfo = ackService.getAckSendInfo(group, consumeParam.getSubject(), consumeParam.getConsumerGroup());
         final PullParam pullParam = buildPullParam(consumeParam, group, ackSendInfo, pullSize, pullTimeout);
         try {
             PullResult pullResult = pullService.pull(pullParam);

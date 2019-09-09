@@ -62,7 +62,7 @@ public class BaseMessage implements Message, Serializable {
         qmq_orderKey,
         qmq_orderStrategy,
         qmq_logicPartition,
-        qmq_physicalPartition,
+        qmq_subjectSuffix,
         qmq_partitionVersion,
         qmq_partitionBroker
     }

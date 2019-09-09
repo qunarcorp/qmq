@@ -21,13 +21,14 @@ import com.google.common.util.concurrent.AbstractFuture;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.ConsumerAllocation;
+import qunar.tc.qmq.ConsumeMode;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
-import qunar.tc.qmq.broker.OrderedMessageManager;
-import qunar.tc.qmq.common.OrderedMessageUtils;
+import qunar.tc.qmq.broker.ClientMetaManager;
+import qunar.tc.qmq.common.PartitionMessageUtils;
 import qunar.tc.qmq.config.PullSubjectsConfig;
 import qunar.tc.qmq.consumer.pull.exception.PullException;
+import qunar.tc.qmq.meta.ConsumerAllocation;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.netty.client.NettyClient;
 import qunar.tc.qmq.netty.client.ResponseFuture;
@@ -35,15 +36,13 @@ import qunar.tc.qmq.protocol.CommandCode;
 import qunar.tc.qmq.protocol.Datagram;
 import qunar.tc.qmq.protocol.consumer.PullRequest;
 import qunar.tc.qmq.protocol.consumer.PullRequestPayloadHolder;
+import qunar.tc.qmq.protocol.consumer.PullRequestV10;
 import qunar.tc.qmq.util.RemotingBuilder;
 import qunar.tc.qmq.utils.Flags;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
 
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -58,10 +57,10 @@ class PullService {
     private static final Logger LOGGER = LoggerFactory.getLogger(PullService.class);
 
     private final NettyClient client = NettyClient.getClient();
-    private final OrderedMessageManager orderedMessageManager;
+    private final ClientMetaManager clientMetaManager;
 
-    public PullService(OrderedMessageManager orderedMessageManager) {
-        this.orderedMessageManager = orderedMessageManager;
+    public PullService(ClientMetaManager clientMetaManager) {
+        this.clientMetaManager = clientMetaManager;
     }
 
     PullResult pull(final PullParam pullParam) throws ExecutionException, InterruptedException {
@@ -72,7 +71,7 @@ class PullService {
 
     private void pull(final PullParam pullParam, final PullCallback callback) {
         String realSubject = RetrySubjectUtils.getRealSubject(pullParam.getSubject());
-        ConsumerAllocation allocation = orderedMessageManager.getConsumerAllocation(realSubject, pullParam.getGroup(), pullParam.getConsumerId());
+        ConsumerAllocation allocation = clientMetaManager.getConsumerAllocation(realSubject, pullParam.getGroup(), pullParam.getConsumerId());
         final PullRequest request = buildPullRequest(pullParam, allocation);
 
         Datagram datagram = RemotingBuilder.buildRequestDatagram(CommandCode.PULL_MESSAGE, new PullRequestPayloadHolder(request));
@@ -89,24 +88,19 @@ class PullService {
     }
 
     private PullRequest buildPullRequest(PullParam pullParam, ConsumerAllocation allocation) {
-        PullRequest request = new PullRequest();
-        request.setSubject(pullParam.getSubject());
-        request.setGroup(pullParam.getGroup());
-        request.setRequestNum(pullParam.getPullBatchSize());
-        request.setTimeoutMillis(pullParam.getTimeoutMillis());
-        request.setOffset(pullParam.getConsumeOffset());
-        request.setPullOffsetBegin(pullParam.getMinPullOffset());
-        request.setPullOffsetLast(pullParam.getMaxPullOffset());
-        request.setConsumerId(pullParam.getConsumerId());
-        boolean isOrdered = false;
-        if (allocation != null) {
-            isOrdered = true;
-            request.setOrderAllocationVersion(allocation.getVersion());
-        }
-        request.setOrdered(isOrdered);
-        request.setExclusiveConsume(pullParam.isBroadcast() || isOrdered);
-        request.setFilters(pullParam.getFilters());
-        return request;
+        return new PullRequestV10(
+                pullParam.getSubject(),
+                pullParam.getGroup(),
+                pullParam.getPullBatchSize(),
+                pullParam.getTimeoutMillis(),
+                pullParam.getConsumeOffset(),
+                pullParam.getMinPullOffset(),
+                pullParam.getMaxPullOffset(),
+                pullParam.getConsumerId(),
+                Objects.equals(ConsumeMode.EXCLUSIVE, allocation.getConsumeMode()),
+                pullParam.getFilters(),
+                allocation.getVersion()
+        );
     }
 
     public interface PullCallback {
@@ -206,7 +200,7 @@ class PullService {
                 message.setAttrs(attrs);
                 message.setProperty(BaseMessage.keys.qmq_pullOffset, pullLogOffset);
 
-                resolveOrderedMessage(message);
+                resolveRealMessageSubject(message);
 
                 result.add(message);
 
@@ -215,16 +209,13 @@ class PullService {
             return result;
         }
 
-        private void resolveOrderedMessage(BaseMessage message) {
-            String orderKey = message.getOrderKey();
-            if (orderKey != null) {
-                getRidOfOrderedSuffix(message);
-                getRidOfRetrySuffix(message);
-            }
+        private void resolveRealMessageSubject(BaseMessage message) {
+            getRidOfPartitionSuffix(message);
+            getRidOfRetrySuffix(message);
         }
 
-        private void getRidOfOrderedSuffix(BaseMessage message) {
-            String realSubject = OrderedMessageUtils.getRealSubject(message);
+        private void getRidOfPartitionSuffix(BaseMessage message) {
+            String realSubject = PartitionMessageUtils.getRealSubject(message);
             message.setSubject(realSubject);
         }
 

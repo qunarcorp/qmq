@@ -16,6 +16,7 @@
 
 package qunar.tc.qmq.consumer.register;
 
+import qunar.tc.qmq.ConsumeMode;
 import qunar.tc.qmq.MessageListener;
 import qunar.tc.qmq.SubscribeParam;
 import qunar.tc.qmq.StatusSource;
@@ -35,6 +36,7 @@ public class RegistParam {
     private final boolean isConsumeMostOnce;
     private boolean isBroadcast = false;
     private final String clientId;
+    private final ConsumeMode consumeMode;
     private final List<PullFilter> filters;
 
     private volatile StatusSource actionSrc = StatusSource.HEALTHCHECKER;
@@ -44,6 +46,7 @@ public class RegistParam {
         this.messageListener = messageListener;
         this.isConsumeMostOnce = subscribeParam.isConsumeMostOnce();
         this.clientId = clientId;
+        this.consumeMode = subscribeParam.getConsumeMode();
         final ArrayList<PullFilter> filters = new ArrayList<>();
         filters.add(new TagPullFilter(subscribeParam.getTagType(), subscribeParam.getTags()));
         this.filters = filters;
@@ -89,4 +92,7 @@ public class RegistParam {
         return this.actionSrc;
     }
 
+    public ConsumeMode getConsumeMode() {
+        return consumeMode;
+    }
 }

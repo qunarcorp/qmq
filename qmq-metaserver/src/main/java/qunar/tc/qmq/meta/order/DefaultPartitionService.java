@@ -8,7 +8,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.PartitionAllocation;
 import qunar.tc.qmq.base.OnOfflineState;
-import qunar.tc.qmq.common.OrderedConstants;
+import qunar.tc.qmq.common.PartitionConstants;
 import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
 import qunar.tc.qmq.meta.*;
 import qunar.tc.qmq.meta.model.ClientMetaInfo;
@@ -18,15 +18,15 @@ import qunar.tc.qmq.meta.store.impl.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static qunar.tc.qmq.common.OrderedConstants.ORDERED_CONSUMER_LOCK_LEASE_SECS;
+import static qunar.tc.qmq.common.PartitionConstants.ORDERED_CONSUMER_LOCK_LEASE_SECS;
 
 /**
  * @author zhenwei.liu
  * @since 2019-08-22
  */
-public class DefaultOrderedMessageService implements OrderedMessageService {
+public class DefaultPartitionService implements PartitionService {
 
-    private static final Logger logger = LoggerFactory.getLogger(DefaultOrderedMessageService.class);
+    private static final Logger logger = LoggerFactory.getLogger(DefaultPartitionService.class);
 
     private Store store = new DatabaseStore();
     private ClientMetaInfoStore clientMetaInfoStore = new ClientMetaInfoStoreImpl();
@@ -38,13 +38,13 @@ public class DefaultOrderedMessageService implements OrderedMessageService {
     private RangeMapper rangeMapper = new AverageRangeMapper();
     private ItemMapper itemMapper = new AverageItemMapper();
 
-    private static DefaultOrderedMessageService instance = new DefaultOrderedMessageService();
+    private static DefaultPartitionService instance = new DefaultPartitionService();
 
-    public static DefaultOrderedMessageService getInstance() {
+    public static DefaultPartitionService getInstance() {
         return instance;
     }
 
-    private DefaultOrderedMessageService() {
+    private DefaultPartitionService() {
     }
 
     @Override
@@ -53,8 +53,8 @@ public class DefaultOrderedMessageService implements OrderedMessageService {
             PartitionSet oldPartitionSet = partitionSetStore.getLatest(subject);
             if (oldPartitionSet == null) {
                 synchronized (subject.intern()) {
-                    int logicalPartitionNum = OrderedConstants.DEFAULT_LOGICAL_PARTITION_NUM;
-                    int defaultPhysicalPartitionNum = OrderedConstants.DEFAULT_PHYSICAL_PARTITION_NUM;
+                    int logicalPartitionNum = PartitionConstants.DEFAULT_LOGICAL_PARTITION_NUM;
+                    int defaultPhysicalPartitionNum = PartitionConstants.DEFAULT_PHYSICAL_PARTITION_NUM;
                     physicalPartitionNum = physicalPartitionNum == 0 ? defaultPhysicalPartitionNum : physicalPartitionNum;
                     List<String> brokerGroups = store.getAllBrokerGroups().stream()
                             .filter(brokerGroup -> Objects.equals(brokerGroup.getKind(), BrokerGroupKind.NORMAL))
@@ -108,6 +108,26 @@ public class DefaultOrderedMessageService implements OrderedMessageService {
             }
 
         }
+    }
+
+    @Override
+    public ProducerAllocation getDefaultProducerAllocation(String subject, BrokerCluster brokerCluster) {
+        int version = -1;
+        List<BrokerGroup> brokerGroups = brokerCluster.getBrokerGroups();
+        int logicalPartitionNum = PartitionConstants.DEFAULT_LOGICAL_PARTITION_NUM;
+        int step = (int) Math.ceil((double) logicalPartitionNum / brokerGroups.size());
+        TreeRangeMap<Integer, SubjectLocation> logicalRangeMap = TreeRangeMap.create();
+        int startRange = 0;
+        for (BrokerGroup brokerGroup : brokerGroups) {
+            int endRange = startRange + step;
+            if (endRange > logicalPartitionNum) {
+                endRange = logicalPartitionNum;
+            }
+            Range<Integer> logicalRange = Range.closedOpen(startRange, endRange);
+            startRange = endRange;
+            logicalRangeMap.put(logicalRange, new SubjectLocation(PartitionConstants.EMPTY_SUBJECT_SUFFIX, brokerGroup.getGroupName()));
+        }
+        return new ProducerAllocation(subject, version, logicalRangeMap);
     }
 
     @Override

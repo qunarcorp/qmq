@@ -26,11 +26,13 @@ public class SubscribeParam {
     private final boolean consumeMostOnce;
     private final TagType tagType;
     private boolean isBroadcast;
+    private final ConsumeMode consumeMode;
     private final Set<String> tags;
 
-    private SubscribeParam(boolean consumeMostOnce, boolean isBroadcast, TagType tagType, Set<String> tags) {
+    private SubscribeParam(boolean consumeMostOnce, boolean isBroadcast, TagType tagType, ConsumeMode consumeMode, Set<String> tags) {
         this.consumeMostOnce = consumeMostOnce;
         this.isBroadcast = isBroadcast;
+        this.consumeMode = consumeMode;
         this.tags = tags;
         this.tagType = tagType;
     }
@@ -55,14 +57,19 @@ public class SubscribeParam {
         this.isBroadcast = isBroadcast;
     }
 
+    public ConsumeMode getConsumeMode() {
+        return consumeMode;
+    }
+
     public static final class SubscribeParamBuilder {
         private boolean consumeMostOnce = false;
         private Set<String> tags = Collections.emptySet();
         private TagType tagType = TagType.NO_TAG;
         private boolean isBroadcast = false;
+        private ConsumeMode consumeMode = ConsumeMode.SHARED;
 
         public SubscribeParam create() {
-            return new SubscribeParam(consumeMostOnce, isBroadcast, tagType, tags);
+            return new SubscribeParam(consumeMostOnce, isBroadcast, tagType, consumeMode, tags);
         }
 
         public SubscribeParamBuilder setConsumeMostOnce(boolean consumeMostOnce) {
@@ -87,6 +94,10 @@ public class SubscribeParam {
         public SubscribeParamBuilder setBroadcast(boolean isBroadcast) {
             this.isBroadcast = isBroadcast;
             return this;
+        }
+
+        public ConsumeMode getConsumeMode() {
+            return consumeMode;
         }
     }
 }

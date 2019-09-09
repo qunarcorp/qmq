@@ -20,25 +20,26 @@ import com.google.common.base.Strings;
 import com.google.common.util.concurrent.ListenableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.ClientType;
+import qunar.tc.qmq.ConsumeMode;
 import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.base.OnOfflineState;
-import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.meta.MetaServerLocator;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.protocol.MetaInfoResponse;
 import qunar.tc.qmq.protocol.consumer.ConsumerMetaInfoResponse;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
-import qunar.tc.qmq.protocol.producer.ProducerMetaInfoResponse;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
 
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static qunar.tc.qmq.common.OrderedConstants.ORDERED_CLIENT_HEARTBEAT_INTERVAL_SECS;
+import static qunar.tc.qmq.common.PartitionConstants.ORDERED_CLIENT_HEARTBEAT_INTERVAL_SECS;
 import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_GROUP_ARRAY;
 
 /**
@@ -123,14 +124,11 @@ public class DefaultMetaInfoService implements MetaInfoService, MetaInfoClient.R
         }
     }
 
-    // TODO(zhenwei.liu) 如果自动分配分区, 如何区分是否是顺序, 会不会造成大量的数据库更新
-    private boolean isOrdered(MetaInfoResponse response) {
-        if (response instanceof ProducerMetaInfoResponse) {
-            return ((ProducerMetaInfoResponse) response).getPartitionMapping() != null;
-        } else if (response instanceof ConsumerMetaInfoResponse) {
-            return ((ConsumerMetaInfoResponse) response).getConsumerAllocation() != null;
+    private boolean isExclusive(MetaInfoResponse response) {
+        if (response instanceof ConsumerMetaInfoResponse) {
+            return Objects.equals(((ConsumerMetaInfoResponse) response).getConsumeMode(), ConsumeMode.EXCLUSIVE);
         }
-        throw new IllegalStateException(String.format("无法识别的 response %s", response.getClass()));
+        return false;
     }
 
     private void heartbeat(ConcurrentHashMap<String, MetaInfoRequestParam> requestMap) {
@@ -238,7 +236,7 @@ public class DefaultMetaInfoService implements MetaInfoService, MetaInfoClient.R
     public void onResponse(MetaInfoResponse response) {
         updateConsumerState(response);
         String heartbeatKey = createKey(response.getSubject(), response.getConsumerGroup());
-        if (isOrdered(response)) {
+        if (isExclusive(response)) {
             // 转移 order 心跳请求到 order map
             MetaInfoRequestParam param = heartbeatRequests.remove(heartbeatKey);
             if (param != null) {

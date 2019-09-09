@@ -17,7 +17,10 @@
 package qunar.tc.qmq.meta.cache;
 
 import com.google.common.base.Strings;
-import com.google.common.collect.*;
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
+import com.google.common.collect.SetMultimap;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,12 +29,11 @@ import qunar.tc.qmq.common.Disposable;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.meta.BrokerGroup;
 import qunar.tc.qmq.meta.BrokerGroupKind;
-import qunar.tc.qmq.PartitionAllocation;
-import qunar.tc.qmq.meta.PartitionMapping;
+import qunar.tc.qmq.meta.ProducerAllocation;
 import qunar.tc.qmq.meta.model.ReadonlyBrokerGroupSetting;
 import qunar.tc.qmq.meta.model.SubjectInfo;
 import qunar.tc.qmq.meta.model.SubjectRoute;
-import qunar.tc.qmq.meta.order.OrderedMessageService;
+import qunar.tc.qmq.meta.order.PartitionService;
 import qunar.tc.qmq.meta.store.ReadonlyBrokerGroupSettingStore;
 import qunar.tc.qmq.meta.store.Store;
 
@@ -56,7 +58,7 @@ public class CachedMetaInfoManager implements Disposable {
 
     private final Store store;
     private final ReadonlyBrokerGroupSettingStore readonlyBrokerGroupSettingStore;
-    private final OrderedMessageService orderedMessageService;
+    private final PartitionService partitionService;
     private final long refreshPeriodSeconds;
 
     /**
@@ -83,18 +85,18 @@ public class CachedMetaInfoManager implements Disposable {
     /**
      * subject -> partitionMapping
      */
-    private volatile Map<String, PartitionMapping> cachedPartitionMapping = new HashMap<>();
+    private volatile Map<String, ProducerAllocation> cachedProducerAllocations = new HashMap<>();
 
     /**
      * brokerGroupName -> Subject List
      */
     private volatile SetMultimap<String, String> readonlyBrokerGroupSettings = HashMultimap.create();
 
-    public CachedMetaInfoManager(DynamicConfig config, Store store, ReadonlyBrokerGroupSettingStore readonlyBrokerGroupSettingStore, OrderedMessageService orderedMessageService) {
+    public CachedMetaInfoManager(DynamicConfig config, Store store, ReadonlyBrokerGroupSettingStore readonlyBrokerGroupSettingStore, PartitionService partitionService) {
         this.refreshPeriodSeconds = config.getLong("refresh.period.seconds", DEFAULT_REFRESH_PERIOD_SECONDS);
         this.store = store;
         this.readonlyBrokerGroupSettingStore = readonlyBrokerGroupSettingStore;
-        this.orderedMessageService = orderedMessageService;
+        this.partitionService = partitionService;
         refresh();
         initRefreshTask();
     }
@@ -164,12 +166,12 @@ public class CachedMetaInfoManager implements Disposable {
     }
 
     private void refreshPartitionMapping() {
-        this.cachedPartitionMapping = orderedMessageService.getLatestPartitionMappings().stream().collect(Collectors.toMap(PartitionMapping::getSubject, p -> p));
+        this.cachedProducerAllocations = partitionService.getLatestProducerAllocations().stream().collect(Collectors.toMap(ProducerAllocation::getSubject, p -> p));
     }
 
-    public PartitionMapping getPartitionMapping(ClientType clientType, String subject) {
+    public ProducerAllocation getProducerAllocation(ClientType clientType, String subject) {
         if (clientType == ClientType.PRODUCER) {
-            return cachedPartitionMapping.get(subject);
+            return cachedProducerAllocations.get(subject);
         } else {
             return null;
         }

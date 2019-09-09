@@ -26,7 +26,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.base.MessageHeader;
 import qunar.tc.qmq.base.RawMessage;
-import qunar.tc.qmq.common.OrderedMessageUtils;
 import qunar.tc.qmq.monitor.QMon;
 import qunar.tc.qmq.protocol.CommandCode;
 import qunar.tc.qmq.protocol.Datagram;
