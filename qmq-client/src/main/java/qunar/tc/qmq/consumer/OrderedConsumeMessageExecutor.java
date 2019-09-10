@@ -2,16 +2,15 @@ package qunar.tc.qmq.consumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.AbstractMessageExecutor;
+import qunar.tc.qmq.AbstractConsumeMessageExecutor;
 import qunar.tc.qmq.MessageListener;
 import qunar.tc.qmq.base.BaseMessage;
-import qunar.tc.qmq.base.OrderStrategyManager;
-import qunar.tc.qmq.broker.OrderStrategy;
-import qunar.tc.qmq.common.OrderedClientLifecycleManager;
+import qunar.tc.qmq.common.ExclusiveConsumerLifecycleManager;
 import qunar.tc.qmq.consumer.pull.PulledMessage;
+import qunar.tc.qmq.producer.sender.OrderStrategy;
+import qunar.tc.qmq.producer.sender.OrderStrategyManager;
 
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -21,25 +20,25 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * @author zhenwei.liu
  * @since 2019-09-03
  */
-public class OrderedMessageExecutor extends AbstractMessageExecutor {
+public class OrderedConsumeMessageExecutor extends AbstractConsumeMessageExecutor {
 
     private final static int MAX_QUEUE_SIZE = 10000;
     private final static int MAX_RETRY = 3;
     private final AtomicBoolean started = new AtomicBoolean(false);
-    private final Logger logger = LoggerFactory.getLogger(OrderedMessageExecutor.class);
+    private final Logger logger = LoggerFactory.getLogger(OrderedConsumeMessageExecutor.class);
 
-    private OrderedClientLifecycleManager lifecycleManager;
+    private ExclusiveConsumerLifecycleManager lifecycleManager;
     private BlockingDeque<PulledMessage> messageQueue;
     private MessageHandler messageHandler;
     private Executor executor;
     private String subject;
-    private String group;
+    private String consumerGroup;
     private volatile boolean stopped = false;
 
-    public OrderedMessageExecutor(String subject, String group, Executor executor, MessageListener messageListener, OrderedClientLifecycleManager lifecycleManager) {
-        super(subject, group);
+    public OrderedConsumeMessageExecutor(String subject, String consumerGroup, Executor executor, MessageListener messageListener, ExclusiveConsumerLifecycleManager lifecycleManager) {
+        super(subject, consumerGroup);
         this.subject = subject;
-        this.group = group;
+        this.consumerGroup = consumerGroup;
         this.executor = executor;
         this.lifecycleManager = lifecycleManager;
         this.messageHandler = new BaseMessageHandler(messageListener);
@@ -54,18 +53,18 @@ public class OrderedMessageExecutor extends AbstractMessageExecutor {
 
     private void processMessages() {
         OrderStrategy orderStrategy = OrderStrategyManager.getOrderStrategy(subject);
-        int retry = 0;
         while (!stopped) {
             PulledMessage message;
             try {
                 message = messageQueue.take();
             } catch (InterruptedException e) {
-                logger.error("获取 queue 消息被中断 subject {} group {} {}", subject, group, e.getMessage());
+                logger.error("获取 queue 消息被中断 subject {} group {} {}", subject, consumerGroup, e.getMessage());
                 continue;
             }
             try {
-                int partition = message.getIntProperty(BaseMessage.keys.qmq_subjectSuffix.name());
-                if (!lifecycleManager.isAlive(subject, group, partition)) {
+                String partitionName = message.getStringProperty(BaseMessage.keys.qmq_partitionName);
+                String brokerGroup = message.getStringProperty(BaseMessage.keys.qmq_partitionBroker);
+                if (!lifecycleManager.isAlive(subject, consumerGroup, brokerGroup, partitionName)) {
                     // 没有权限, 停一会再看
                     Thread.sleep(10);
                     messageQueue.putFirst(message);
@@ -84,25 +83,29 @@ public class OrderedMessageExecutor extends AbstractMessageExecutor {
                     message.ack(null);
                 }
             } catch (Throwable t) {
-                if (Objects.equals(OrderStrategy.STRICT, orderStrategy) && retry < MAX_RETRY) {
-                    retry++;
-                    try {
-                        messageQueue.putFirst(message);
-                    } catch (InterruptedException e) {
-                        logger.error("消息重入 queue 被中断 subject {} group {} id {}", subject, group, message.getMessageId(), e);
-                    }
-                }
+                orderStrategy.onConsumeFailed(message, this);
                 logger.error("消息处理失败 ", t);
             }
         }
     }
 
     @Override
-    public boolean execute(List<PulledMessage> messages) {
+    public boolean consume(List<PulledMessage> messages) {
         for (PulledMessage message : messages) {
             messageQueue.offer(message);
         }
         return true;
+    }
+
+    @Override
+    public boolean requeueFirst(PulledMessage message) {
+        try {
+            messageQueue.putFirst(message);
+            return true;
+        } catch (InterruptedException e) {
+            logger.error("消息重入 queue 被中断 subject {} group {} id {}", subject, consumerGroup, message.getMessageId(), e);
+            return false;
+        }
     }
 
     @Override

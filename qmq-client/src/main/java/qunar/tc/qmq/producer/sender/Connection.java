@@ -18,9 +18,6 @@ package qunar.tc.qmq.producer.sender;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import qunar.tc.qmq.ProduceMessage;
-import qunar.tc.qmq.netty.exception.BrokerRejectException;
-import qunar.tc.qmq.netty.exception.ClientSendException;
-import qunar.tc.qmq.netty.exception.RemoteException;
 import qunar.tc.qmq.service.exceptions.MessageException;
 
 import java.util.List;

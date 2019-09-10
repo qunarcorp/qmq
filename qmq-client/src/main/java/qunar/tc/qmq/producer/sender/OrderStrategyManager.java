@@ -1,7 +1,6 @@
-package qunar.tc.qmq.base;
+package qunar.tc.qmq.producer.sender;
 
 import com.google.common.collect.Maps;
-import qunar.tc.qmq.broker.OrderStrategy;
 
 import java.util.Map;
 

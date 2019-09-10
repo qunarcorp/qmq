@@ -10,21 +10,21 @@ import java.util.concurrent.TimeUnit;
  * @author zhenwei.liu
  * @since 2019-09-05
  */
-public class DefaultOrderedClientLifecycleManager implements OrderedClientLifecycleManager {
+public class DefaultExclusiveConsumerLifecycleManager implements ExclusiveConsumerLifecycleManager {
 
     private static final Joiner keyJoiner = Joiner.on(":");
     private ExpiringMap<String, Integer> cache = ExpiringMap.create();
 
     @Override
-    public boolean isAlive(String subject, String group, int physicalPartition) {
-        String key = createKey(subject, group, physicalPartition);
+    public boolean isAlive(String subject, String consumerGroup, String brokerGroup, String partitionName) {
+        String key = createKey(subject, consumerGroup, brokerGroup, partitionName);
         Integer oldVersion = cache.get(key);
         return oldVersion != null;
     }
 
     @Override
-    public boolean refreshLifecycle(String subject, String group, int physicalPartition, int version, long expired) {
-        String key = createKey(subject, group, physicalPartition);
+    public boolean refreshLifecycle(String subject, String consumerGroup, String brokerGroup, String partitionName, int version, long expired) {
+        String key = createKey(subject, consumerGroup, brokerGroup, partitionName);
         synchronized (key.intern()) {
             Integer oldVersion = cache.get(key);
             if (oldVersion == null || oldVersion <= version) {
@@ -35,7 +35,7 @@ public class DefaultOrderedClientLifecycleManager implements OrderedClientLifecy
         return false;
     }
 
-    private static String createKey(String subject, String group, int physicalPartition) {
-        return keyJoiner.join(subject, group, physicalPartition);
+    private static String createKey(String subject, String consumerGroup, String brokerGroup, String partitionName) {
+        return keyJoiner.join(subject, consumerGroup, brokerGroup, partitionName);
     }
 }

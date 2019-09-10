@@ -134,8 +134,7 @@ public class MessagesPayloadHolder implements PayloadHolder {
     }
 
     protected void writeSubject(BaseMessage message, ByteBuf out) {
-        String subjectSuffix = message.getStringProperty(BaseMessage.keys.qmq_subjectSuffix.name());
-        String subject = message.getSubject() + subjectSuffix;
-        PayloadHolderUtils.writeString(subject, out);
+        String partitionName = message.getStringProperty(BaseMessage.keys.qmq_partitionName.name());
+        PayloadHolderUtils.writeString(partitionName, out);
     }
 }

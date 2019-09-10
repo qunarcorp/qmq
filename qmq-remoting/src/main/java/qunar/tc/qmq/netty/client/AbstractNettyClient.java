@@ -28,6 +28,7 @@ import io.netty.util.concurrent.DefaultEventExecutorGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.config.NettyClientConfigManager;
 import qunar.tc.qmq.netty.NettyClientConfig;
 import qunar.tc.qmq.netty.exception.ClientSendException;
 
@@ -51,6 +52,10 @@ public abstract class AbstractNettyClient {
 
     public boolean isStarted() {
         return started.get();
+    }
+
+    public synchronized void start() {
+        this.start(NettyClientConfigManager.get().getDefaultClientConfig());
     }
 
     public synchronized void start(NettyClientConfig config) {

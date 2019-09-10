@@ -1,111 +1,98 @@
 package qunar.tc.qmq.producer.sender;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
-import com.google.common.collect.RangeMap;
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.MessageGroup;
 import qunar.tc.qmq.ProduceMessage;
 import qunar.tc.qmq.base.BaseMessage;
-import qunar.tc.qmq.base.OrderStrategyManager;
-import qunar.tc.qmq.batch.OrderedExecutor;
-import qunar.tc.qmq.batch.OrderedProcessor;
-import qunar.tc.qmq.broker.BrokerClusterInfo;
-import qunar.tc.qmq.broker.BrokerGroupInfo;
-import qunar.tc.qmq.broker.BrokerService;
-import qunar.tc.qmq.broker.OrderStrategy;
+import qunar.tc.qmq.batch.MessageProcessor;
+import qunar.tc.qmq.batch.OrderedSendMessageExecutor;
+import qunar.tc.qmq.batch.SendMessageExecutor;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
-import qunar.tc.qmq.meta.ProducerAllocation;
-import qunar.tc.qmq.meta.SubjectLocation;
 import qunar.tc.qmq.metrics.Metrics;
+import qunar.tc.qmq.metrics.MetricsConstants;
 import qunar.tc.qmq.metrics.QmqTimer;
-import qunar.tc.qmq.producer.SendErrorHandler;
+import qunar.tc.qmq.producer.ConfigCenter;
+import qunar.tc.qmq.producer.QueueSender;
+import qunar.tc.qmq.service.exceptions.BlockMessageException;
+import qunar.tc.qmq.service.exceptions.DuplicateMessageException;
 import qunar.tc.qmq.service.exceptions.MessageException;
 
-import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 用于发送顺序消息, 对顺序消息来说, 每个 subject-physicalPartition 需要一个独立队列处理
+ * 消息发送队列管理器, 每个队列由一个 MessageGroup 代表
  *
  * @author zhenwei.liu
  * @since 2019-08-20
  */
-public class OrderedQueueSender extends AbstractQueueSender implements OrderedProcessor<ProduceMessage>, Runnable {
+public class OrderedQueueSender implements QueueSender, MessageProcessor {
 
     private static final Logger logger = LoggerFactory.getLogger(OrderedQueueSender.class);
+    private static final String SEND_MESSAGE_THROWABLE_COUNTER = "qmq_client_producer_send_message_Throwable";
 
-    private LinkedBlockingQueue<ProduceMessage> messageQueue;
     private ThreadPoolExecutor executor; // 所有分区共享一个线程池
-    private BrokerService brokerService;
     private int maxQueueSize;
     private int sendBatch;
     private QmqTimer timer;
+    private ConnectionManager connectionManager;
     private MessageGroupResolver messageGroupResolver;
 
     // subject-physicalPartition => executor
-    private Map<MessageGroup, OrderedExecutor<ProduceMessage>> executorMap = Maps.newConcurrentMap();
+    private Map<MessageGroup, OrderedSendMessageExecutor> executorMap = Maps.newConcurrentMap();
 
-    @Override
-    public void init(Map<PropKey, Object> props) {
-        String name = (String) Preconditions.checkNotNull(props.get(PropKey.SENDER_NAME));
-        int sendThreads = (int) Preconditions.checkNotNull(props.get(PropKey.SEND_THREADS));
+    public OrderedQueueSender(ConnectionManager connectionManager, MessageGroupResolver messageGroupResolver) {
+        this.connectionManager = connectionManager;
+        this.messageGroupResolver = messageGroupResolver;
+
+        ConfigCenter configs = ConfigCenter.getInstance();
+
+        String name = "qmq-sender";
+        int sendThreads = configs.getSendThreads();
         this.timer = Metrics.timer("qmq_client_send_ordered_task_timer");
-        this.maxQueueSize = (int) Preconditions.checkNotNull(props.get(PropKey.MAX_QUEUE_SIZE));
-        this.messageQueue = new LinkedBlockingQueue<>(maxQueueSize);
-        this.sendBatch = (int) Preconditions.checkNotNull(props.get(PropKey.SEND_BATCH));
-        this.routerManager = (RouterManager) Preconditions.checkNotNull(props.get(PropKey.ROUTER_MANAGER));
+        this.maxQueueSize = configs.getMaxQueueSize();
+        this.sendBatch = configs.getSendBatch();
+        // TODO(zhenwei.liu) 动态选择最大线程数
         this.executor = new ThreadPoolExecutor(1, sendThreads, 1L, TimeUnit.MINUTES,
                 new ArrayBlockingQueue<>(1), new NamedThreadFactory("batch-ordered-" + name + "-task", true));
         this.executor.setRejectedExecutionHandler(new ThreadPoolExecutor.DiscardPolicy());
-        this.brokerService = (BrokerService) Preconditions.checkNotNull(props.get(PropKey.BROKER_SERVICE));
-        new Thread(this, "ordered-queue-sender").start();
+    }
+
+    // TODO(zhenwei.liu) 落库成功, 入队失败的消息会乱序
+    @Override
+    public boolean offer(ProduceMessage pm) {
+        return getExecutor(pm).addMessage(pm);
     }
 
     @Override
-    public boolean offer(ProduceMessage pm) {
-        return messageQueue.offer(pm);
+    public boolean offer(ProduceMessage pm, MessageGroup messageGroup) {
+        return getExecutor(messageGroup).addMessage(pm);
     }
 
     @Override
     public boolean offer(ProduceMessage pm, long millisecondWait) {
-        boolean inserted;
-        try {
-            inserted = messageQueue.offer(pm, millisecondWait, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) {
-            return false;
-        }
-        return inserted;
+        return getExecutor(pm).addMessage(pm, millisecondWait);
     }
 
-    @Override
-    public void run() {
-        while (true) {
-            try {
-                ProduceMessage message = messageQueue.take();
-                getExecutor(message).addItem(message);
-            } catch (Throwable t) {
-                logger.error("消息发送失败", t);
-            }
-        }
-    }
-
-    /**
-     * 顺序消息不支持同步等待, 必须入队异步执行
-     *
-     * @param pm 消息
-     */
     @Override
     public void send(ProduceMessage pm) {
-        this.offer(pm);
+        OrderedSendMessageExecutor executor = getExecutor(pm);
+        process(Collections.singletonList(pm), executor);
+    }
+
+    @Override
+    public void send(ProduceMessage pm, MessageGroup messageGroup) {
+        OrderedSendMessageExecutor executor = getExecutor(messageGroup);
+        process(Collections.singletonList(pm), executor);
     }
 
     @Override
@@ -113,92 +100,103 @@ public class OrderedQueueSender extends AbstractQueueSender implements OrderedPr
         this.executor.shutdown();
     }
 
-    private OrderedExecutor<ProduceMessage> getExecutor(ProduceMessage produceMessage) {
+    private OrderedSendMessageExecutor getExecutor(ProduceMessage produceMessage) {
         BaseMessage baseMessage = (BaseMessage) produceMessage.getBase();
         MessageGroup messageGroup = messageGroupResolver.resolveGroup(baseMessage);
         produceMessage.setMessageGroup(messageGroup);
         return getExecutor(messageGroup);
     }
 
-    private OrderedExecutor<ProduceMessage> getExecutor(MessageGroup messageGroup) {
-        return executorMap.computeIfAbsent(messageGroup, group -> new OrderedExecutor<>(group.toString(), sendBatch, maxQueueSize, this, executor));
+    private OrderedSendMessageExecutor getExecutor(MessageGroup messageGroup) {
+        return executorMap.computeIfAbsent(messageGroup, group -> new OrderedSendMessageExecutor(messageGroup, sendBatch, maxQueueSize, this, executor));
     }
 
     @Override
-    public void process(List<ProduceMessage> produceMessages, OrderedExecutor<ProduceMessage> executor) {
+    public void process(List<ProduceMessage> produceMessages, OrderedSendMessageExecutor executor) {
         long start = System.currentTimeMillis();
+        MessageGroup messageGroup = executor.getMessageGroup();
         try {
-            //按照路由分组发送
-            Collection<MessageSenderGroup> messages = groupBy(produceMessages);
-            for (MessageSenderGroup group : messages) {
-                QmqTimer timer = Metrics.timer("qmq_client_producer_send_broker_time");
-                long startTime = System.currentTimeMillis();
-                group.sendAsync(new SendErrorHandler() {
-
-                    @Override
-                    public void error(ProduceMessage pm, Exception e) {
-                        // TODO(zhenwei.liu) 未来需要处理 partition 分裂消息
-                        // 重试交给 executor 处理
-                        String subject = pm.getSubject();
-                        OrderStrategy orderStrategy = OrderStrategyManager.getOrderStrategy(subject);
-                        pm.reset();
-                        if (!(orderStrategy.needRetry(pm))) {
-                            executor.removeItem(pm);
-                        } else {
-                            MessageGroup messageGroup = pm.getMessageGroup();
-                            ClientType clientType = messageGroup.getClientType();
-                            BrokerClusterInfo brokerCluster = brokerService.getClusterBySubject(clientType, subject);
-                            String currentGroup = messageGroup.getBrokerGroup();
-                            BrokerGroupInfo retryGroup = orderStrategy.resolveBrokerGroup(currentGroup, brokerCluster);
-                            String retryGroupName = retryGroup.getGroupName();
-                            if (!Objects.equals(currentGroup, retryGroupName)) {
-                                // 重试的 group 不相同. 则选择其他 executorGroup
-                                ProducerAllocation producerAllocation = brokerService.getProducerAllocation(clientType, subject);
-                                RangeMap<Integer, SubjectLocation> logical2SubjectLocation = producerAllocation.getLogical2SubjectLocation();
-                                for (SubjectLocation subjectLocation : logical2SubjectLocation.asMapOfRanges().values()) {
-                                    if (Objects.equals(subjectLocation.getBrokerGroup(), retryGroupName)) {
-                                        String retrySuffix = subjectLocation.getSubjectSuffix();
-                                        messageGroup.setBrokerGroup(retryGroupName);
-                                        messageGroup.setSubjectSuffix(retrySuffix);
-                                    } else {
-                                        throw new IllegalStateException(String.format("重试时无法找到 partition %s", retryGroupName));
-                                    }
-                                }
-                                executor.removeItem(pm);
-                                getExecutor(messageGroup).addItem(pm);
-                            }
-                        }
-                    }
-
-                    @Override
-                    public void failed(ProduceMessage pm, Exception e) {
-                        // server busy, 无序处理, 不再重试
-                        executor.removeItem(pm);
-                        pm.failed();
-                    }
-
-                    @Override
-                    public void block(ProduceMessage pm, MessageException ex) {
-                        // 权限问题, 无序处理, 不再重试
-                        executor.removeItem(pm);
-                        pm.block();
-                    }
-
-                    @Override
-                    public void finish(ProduceMessage pm, Exception e) {
-                        executor.removeItem(pm);
-                        pm.finish();
-                    }
-
-                    @Override
-                    public void postHandle(List<ProduceMessage> sourceMessages) {
-                        executor.reset();
-                    }
-                });
-                timer.update(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
-            }
+            QmqTimer timer = Metrics.timer("qmq_client_producer_send_broker_time");
+            long startTime = System.currentTimeMillis();
+            OrderStrategy orderStrategy = OrderStrategyManager.getOrderStrategy(messageGroup.getSubject());
+            Connection connection = connectionManager.getConnection(messageGroup);
+            sendMessage(connection, produceMessages, executor, orderStrategy);
+            timer.update(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            e.printStackTrace();
         } finally {
             timer.update(System.currentTimeMillis() - start, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    private void sendMessage(Connection connection, List<ProduceMessage> messages, SendMessageExecutor executor, OrderStrategy orderStrategy) {
+        try {
+            ListenableFuture<Map<String, MessageException>> future = connection.sendAsync(messages);
+            Futures.addCallback(future, new FutureCallback<Map<String, MessageException>>() {
+                @Override
+                public void onSuccess(Map<String, MessageException> result) {
+                    onSendFinish(messages, result, executor, orderStrategy);
+                }
+
+                @Override
+                public void onFailure(Throwable t) {
+                    Exception ex;
+                    if (!(t instanceof Exception)) {
+                        ex = new RuntimeException(t);
+                    } else {
+                        ex = (Exception) t;
+                    }
+                    onSendError(messages, executor, orderStrategy, ex);
+                }
+            });
+        } catch (Exception e) {
+            onSendError(messages, executor, orderStrategy, e);
+        }
+    }
+
+    private void onSendFinish(List<ProduceMessage> messages, Map<String, MessageException> result, SendMessageExecutor executor, OrderStrategy orderStrategy) {
+        try {
+            if (result == null) {
+                for (ProduceMessage pm : messages) {
+                    Metrics.counter(SEND_MESSAGE_THROWABLE_COUNTER, MetricsConstants.SUBJECT_ARRAY, new String[]{pm.getSubject()});
+                    orderStrategy.onSendError(pm, this, executor, new MessageException(pm.getMessageId(), "return null"));
+                }
+                return;
+            }
+
+            if (result.isEmpty())
+                result = Collections.emptyMap();
+
+            for (ProduceMessage pm : messages) {
+                MessageException ex = result.get(pm.getMessageId());
+                if (ex == null || ex instanceof DuplicateMessageException) {
+                    orderStrategy.onSendSuccessful(pm, this, executor, ex);
+                } else {
+                    //如果是消息被拒绝，说明broker已经限速，不立即重试;
+                    if (ex.isBrokerBusy()) {
+                        orderStrategy.onSendSuccessful(pm, this, executor, ex);
+                    } else if (ex instanceof BlockMessageException) {
+                        //如果是block的,证明还没有被授权,也不重试,task也不重试,需要手工恢复
+                        orderStrategy.onSendBlocked(pm, this, executor, ex);
+                    } else {
+                        Metrics.counter(SEND_MESSAGE_THROWABLE_COUNTER, MetricsConstants.SUBJECT_ARRAY, new String[]{pm.getSubject()});
+                        orderStrategy.onSendError(pm, this, executor, ex);
+                    }
+                }
+            }
+        } finally {
+            orderStrategy.onSendFinished(messages, this, executor);
+        }
+    }
+
+    private void onSendError(List<ProduceMessage> messages, SendMessageExecutor executor, OrderStrategy orderStrategy, Exception ex) {
+        try {
+            for (ProduceMessage pm : messages) {
+                Metrics.counter(SEND_MESSAGE_THROWABLE_COUNTER, MetricsConstants.SUBJECT_ARRAY, new String[]{pm.getSubject()}).inc();
+                orderStrategy.onSendError(pm, this, executor, ex);
+            }
+        } finally {
+            orderStrategy.onSendFinished(messages, this, executor);
         }
     }
 }

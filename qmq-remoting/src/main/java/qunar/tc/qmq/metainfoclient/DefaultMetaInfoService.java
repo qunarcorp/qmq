@@ -126,7 +126,7 @@ public class DefaultMetaInfoService implements MetaInfoService, MetaInfoClient.R
 
     private boolean isExclusive(MetaInfoResponse response) {
         if (response instanceof ConsumerMetaInfoResponse) {
-            return Objects.equals(((ConsumerMetaInfoResponse) response).getConsumeMode(), ConsumeMode.EXCLUSIVE);
+            return Objects.equals(((ConsumerMetaInfoResponse) response).getConsumerAllocation().getConsumeMode(), ConsumeMode.EXCLUSIVE);
         }
         return false;
     }

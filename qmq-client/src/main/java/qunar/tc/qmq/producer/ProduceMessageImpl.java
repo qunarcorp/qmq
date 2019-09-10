@@ -163,7 +163,7 @@ class ProduceMessageImpl implements ProduceMessage {
 
     @Override
     public void reset() {
-        LOGGER.error("消息状态重置 {}:{} tries:maxRetries {}:{}", getSubject(), getMessageId(), tries, getMaxTries());
+        LOGGER.info("消息状态重置 {}:{} tries:maxRetries {}:{}", getSubject(), getMessageId(), tries, getMaxTries());
         state.set(INIT);
     }
 

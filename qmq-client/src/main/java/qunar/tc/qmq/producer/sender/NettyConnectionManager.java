@@ -20,6 +20,7 @@ import qunar.tc.qmq.MessageGroup;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.ClientType;
+import qunar.tc.qmq.netty.client.NettyClient;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -27,15 +28,15 @@ import java.util.concurrent.ConcurrentMap;
 /**
  * @author zhenyu.nie created on 2017 2017/7/5 16:29
  */
-class NettyConnectionCache implements ConnectionCache {
+public class NettyConnectionManager implements ConnectionManager {
 
-    private final NettyProducerClient producerClient;
+    private final NettyClient client;
     private final BrokerService brokerService;
 
     private final ConcurrentMap<MessageGroup, NettyConnection> cached;
 
-    NettyConnectionCache(NettyProducerClient producerClient, BrokerService brokerService) {
-        this.producerClient = producerClient;
+    public NettyConnectionManager(NettyClient client, BrokerService brokerService) {
+        this.client = client;
         this.brokerService = brokerService;
         this.cached = new ConcurrentHashMap<>();
     }
@@ -49,7 +50,7 @@ class NettyConnectionCache implements ConnectionCache {
         ClientType clientType = messageGroup.getClientType();
         String brokerGroup = messageGroup.getBrokerGroup();
         BrokerClusterInfo cluster = brokerService.getClusterBySubject(clientType, subject);
-        connection = new NettyConnection(subject, clientType, producerClient, brokerService, cluster.getGroupByName(brokerGroup));
+        connection = new NettyConnection(subject, clientType, client, brokerService, cluster.getGroupByName(brokerGroup));
         NettyConnection old = cached.putIfAbsent(messageGroup, connection);
         if (old == null) {
             connection.init();

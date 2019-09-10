@@ -1,104 +1,38 @@
-/*
- * Copyright 2018 Qunar, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package qunar.tc.qmq.protocol.consumer;
 
 import java.util.List;
 
 /**
- * @author yiqun.fan create on 17-7-4.
+ * @author zhenwei.liu
+ * @since 2019-09-10
  */
-public abstract class PullRequest {
-    private String subject;
-    private String group;
-    private int requestNum;
-    private long timeoutMillis;
-    private long offset;
-    private long pullOffsetBegin;
-    private long pullOffsetLast;
-    private String consumerId;
-    private boolean isExclusiveConsume;
-    private List<PullFilter> filters;
+public interface PullRequest {
 
-    public PullRequest(String subject, String group, int requestNum, long timeoutMillis, long offset, long pullOffsetBegin, long pullOffsetLast, String consumerId, boolean isExclusiveConsume, List<PullFilter> filters) {
-        this.subject = subject;
-        this.group = group;
-        this.requestNum = requestNum;
-        this.timeoutMillis = timeoutMillis;
-        this.offset = offset;
-        this.pullOffsetBegin = pullOffsetBegin;
-        this.pullOffsetLast = pullOffsetLast;
-        this.consumerId = consumerId;
-        this.isExclusiveConsume = isExclusiveConsume;
-        this.filters = filters;
-    }
+    String getSubject();
 
-    public String getSubject() {
-        return subject;
-    }
+    String getGroup();
 
-    public String getGroup() {
-        return group;
-    }
+    int getRequestNum();
 
-    public int getRequestNum() {
-        return requestNum;
-    }
+    void setRequestNum(int requestNum);
 
-    public long getTimeoutMillis() {
-        return timeoutMillis;
-    }
+    long getTimeoutMillis();
 
-    public long getOffset() {
-        return offset;
-    }
+    long getOffset();
 
-    public long getPullOffsetBegin() {
-        return pullOffsetBegin;
-    }
+    long getPullOffsetBegin();
 
-    public long getPullOffsetLast() {
-        return pullOffsetLast;
-    }
+    long getPullOffsetLast();
 
-    public String getConsumerId() {
-        return consumerId;
-    }
+    String getConsumerId();
 
-    public boolean isExclusiveConsume() {
-        return isExclusiveConsume;
-    }
+    boolean isExclusiveConsume();
 
-    public List<PullFilter> getFilters() {
-        return filters;
-    }
+    List<PullFilter> getFilters();
 
-    @Override
-    public String toString() {
-        return "PullRequest{" +
-                "subject='" + subject + '\'' +
-                ", group='" + group + '\'' +
-                ", requestNum=" + requestNum +
-                ", timeoutMillis=" + timeoutMillis +
-                ", offset=" + offset +
-                ", pullOffsetBegin=" + pullOffsetBegin +
-                ", pullOffsetLast=" + pullOffsetLast +
-                ", consumerId='" + consumerId + '\'' +
-                ", isExclusiveConsume=" + isExclusiveConsume +
-                ", filters=" + filters +
-                '}';
-    }
+    void setFilters(List<PullFilter> filters);
+
+    int getConsumerAllocationVersion();
+
+    String getPartitionName();
 }

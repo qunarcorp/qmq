@@ -11,5 +11,4 @@ public class PartitionConstants {
     public static final long ORDERED_CLIENT_HEARTBEAT_INTERVAL_SECS = 3;
     public static final long ORDERED_CONSUMER_LOCK_LEASE_SECS = ORDERED_CLIENT_HEARTBEAT_INTERVAL_SECS * 3;
 
-    public static final String EMPTY_SUBJECT_SUFFIX = "";
 }

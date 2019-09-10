@@ -15,11 +15,12 @@
  */
 package qunar.tc.qmq.producer;
 
-import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import io.opentracing.Scope;
 import io.opentracing.Tracer;
 import io.opentracing.util.GlobalTracer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.Message;
 import qunar.tc.qmq.MessageProducer;
 import qunar.tc.qmq.MessageSendStateListener;
@@ -27,7 +28,6 @@ import qunar.tc.qmq.TransactionProvider;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.broker.impl.BrokerServiceImpl;
-import qunar.tc.qmq.broker.impl.OrderedBrokerLoadBalance;
 import qunar.tc.qmq.common.ClientIdProvider;
 import qunar.tc.qmq.common.ClientIdProviderFactory;
 import qunar.tc.qmq.common.EnvProvider;
@@ -35,18 +35,20 @@ import qunar.tc.qmq.metainfoclient.DefaultMetaInfoService;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.MetricsConstants;
 import qunar.tc.qmq.metrics.QmqTimer;
+import qunar.tc.qmq.netty.client.NettyClient;
 import qunar.tc.qmq.producer.idgenerator.IdGenerator;
 import qunar.tc.qmq.producer.idgenerator.TimestampAndHostIdGenerator;
-import qunar.tc.qmq.producer.sender.NettyRouterManager;
+import qunar.tc.qmq.producer.sender.ConnectionManager;
+import qunar.tc.qmq.producer.sender.DefaultMessageGroupResolver;
+import qunar.tc.qmq.producer.sender.NettyConnectionManager;
+import qunar.tc.qmq.producer.sender.OrderedQueueSender;
 import qunar.tc.qmq.producer.tx.MessageTracker;
 import qunar.tc.qmq.tracing.TraceUtil;
 
-import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import static qunar.tc.qmq.common.PartitionMessageUtils.isOrderedMessage;
 
 /**
  * @author miao.yang susing@gmail.com
@@ -54,13 +56,17 @@ import static qunar.tc.qmq.common.PartitionMessageUtils.isOrderedMessage;
  */
 public class MessageProducerProvider implements MessageProducer {
 
+    private static final Logger logger = LoggerFactory.getLogger(MessageProducerProvider.class);
+
+    private static final int _32K = (32 * 1024) / 4;
+
     private static final ConfigCenter configs = ConfigCenter.getInstance();
 
     private final IdGenerator idGenerator;
 
     private final AtomicBoolean STARTED = new AtomicBoolean(false);
 
-    private final NettyRouterManager routerManager;
+    private final QueueSender queueSender;
 
     private ClientIdProvider clientIdProvider;
     private EnvProvider envProvider;
@@ -76,7 +82,8 @@ public class MessageProducerProvider implements MessageProducer {
     /**
      * 自动路由机房
      */
-    public MessageProducerProvider(String metaServer) {
+    public MessageProducerProvider(String appCode, String metaServer) {
+        this.appCode = appCode;
         this.idGenerator = new TimestampAndHostIdGenerator();
         this.clientIdProvider = ClientIdProviderFactory.createDefault();
 
@@ -84,20 +91,13 @@ public class MessageProducerProvider implements MessageProducer {
         DefaultMetaInfoService metaInfoService = new DefaultMetaInfoService(metaServer);
         metaInfoService.setClientId(clientId);
         metaInfoService.init();
-        BrokerService brokerService = new BrokerServiceImpl(clientId, metaInfoService);
-        this.routerManager = new NettyRouterManager(brokerService);
+        BrokerService brokerService = new BrokerServiceImpl(appCode, clientId, metaInfoService);
+        NettyClient client = NettyClient.getClient();
+        client.start();
+        ConnectionManager connectionManager = new NettyConnectionManager(client, brokerService);
+        DefaultMessageGroupResolver messageGroupResolver = new DefaultMessageGroupResolver(brokerService);
+        this.queueSender = new OrderedQueueSender(connectionManager, messageGroupResolver);
         this.tracer = GlobalTracer.get();
-    }
-
-    @PostConstruct
-    public void init() {
-        Preconditions.checkNotNull(appCode, "appCode唯一标识一个应用");
-
-        this.routerManager.setAppCode(appCode);
-
-        if (STARTED.compareAndSet(false, true)) {
-            routerManager.init(clientId);
-        }
     }
 
     @Override
@@ -185,20 +185,39 @@ public class MessageProducerProvider implements MessageProducer {
     private ProduceMessageImpl initProduceMessage(Message message, MessageSendStateListener listener) {
 
         BaseMessage base = (BaseMessage) message;
-        routerManager.validateMessage(message);
-        ProduceMessageImpl pm = new ProduceMessageImpl(base, routerManager.getSender());
+        validateMessage(message);
+        ProduceMessageImpl pm = new ProduceMessageImpl(base, queueSender);
         pm.setSendTryCount(configs.getSendTryCount());
         pm.setSendStateListener(listener);
         pm.setSyncSend(configs.isSyncSend());
 
-        String value = routerManager.registryOf(message);
-        TraceUtil.setTag("registry", value, tracer);
+        TraceUtil.setTag("registry", registryOf(message), tracer);
         return pm;
+    }
+
+    private String registryOf(Message message) {
+        return "newqmq://" + message.getSubject();
+    }
+
+    private void validateMessage(Message message) {
+        Map<String, Object> attrs = message.getAttrs();
+        if (attrs == null) return;
+        for (Map.Entry<String, Object> entry : attrs.entrySet()) {
+            if (entry.getValue() == null) return;
+            if (!(entry.getValue() instanceof String)) return;
+
+            String value = (String) entry.getValue();
+            if (value.length() > _32K) {
+                TraceUtil.recordEvent("big_message");
+                String msg = entry.getKey() + "的value长度超过32K，请使用Message.setLargeString方法设置，并且使用Message.getLargeString方法获取";
+                logger.error(msg, new RuntimeException());
+            }
+        }
     }
 
     @PreDestroy
     public void destroy() {
-        routerManager.destroy();
+        queueSender.destroy();
     }
 
     /**
@@ -241,13 +260,6 @@ public class MessageProducerProvider implements MessageProducer {
 
     public void setEnvProvider(EnvProvider envProvider) {
         this.envProvider = envProvider;
-    }
-
-    /**
-     * 为了方便维护应用与消息主题之间的关系，每个应用提供一个唯一的标识
-     */
-    public void setAppCode(String appCode) {
-        this.appCode = appCode;
     }
 
     public void setTransactionProvider(TransactionProvider transactionProvider) {

@@ -1,6 +1,5 @@
 package qunar.tc.qmq.meta.loadbalance;
 
-import qunar.tc.qmq.meta.PartitionMapping;
 import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 
 import java.util.List;

@@ -6,16 +6,16 @@ package qunar.tc.qmq.meta;
  */
 public class SubjectLocation {
 
-    private String subjectSuffix;
+    private String partitionName;
     private String brokerGroup;
 
-    public SubjectLocation(String subjectSuffix, String brokerGroup) {
-        this.subjectSuffix = subjectSuffix;
+    public SubjectLocation(String partitionName, String brokerGroup) {
+        this.partitionName = partitionName;
         this.brokerGroup = brokerGroup;
     }
 
-    public String getSubjectSuffix() {
-        return subjectSuffix;
+    public String getPartitionName() {
+        return partitionName;
     }
 
     public String getBrokerGroup() {

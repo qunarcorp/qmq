@@ -109,7 +109,6 @@ public class MessageStoreWrapper {
                     }
 
                     if (noPullFilter(pullRequest)) {
-                        boolean ordered = pullRequest.isOrdered();
                         final WritePutActionResult writeResult = consumerSequenceManager.putPullActions(subject, group, consumerId, isExclusiveConsume, getMessageResult);
                         if (writeResult.isSuccess()) {
                             consumeQueue.setNextSequence(getMessageResult.getNextBeginSequence());

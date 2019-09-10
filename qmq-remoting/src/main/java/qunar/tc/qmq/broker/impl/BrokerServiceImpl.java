@@ -22,7 +22,6 @@ import com.google.common.util.concurrent.SettableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ClientType;
-import qunar.tc.qmq.meta.ConsumerAllocation;
 import qunar.tc.qmq.Versionable;
 import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
@@ -30,8 +29,8 @@ import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.broker.ClientMetaManager;
 import qunar.tc.qmq.common.ClientLifecycleManagerFactory;
+import qunar.tc.qmq.common.ExclusiveConsumerLifecycleManager;
 import qunar.tc.qmq.common.MapKeyBuilder;
-import qunar.tc.qmq.common.OrderedClientLifecycleManager;
 import qunar.tc.qmq.meta.*;
 import qunar.tc.qmq.metainfoclient.DefaultMetaInfoService;
 import qunar.tc.qmq.metainfoclient.MetaInfo;
@@ -44,7 +43,6 @@ import qunar.tc.qmq.protocol.producer.ProducerMetaInfoResponse;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Future;
@@ -63,7 +61,8 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager, Meta
     private String appCode;
     private String clientId;
 
-    public BrokerServiceImpl(String clientId, MetaInfoService metaInfoService) {
+    public BrokerServiceImpl(String appCode, String clientId, MetaInfoService metaInfoService) {
+        this.appCode = appCode;
         this.metaInfoService = metaInfoService;
         this.metaInfoService.registerResponseSubscriber(this);
         this.clientId = clientId;
@@ -170,11 +169,6 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager, Meta
     }
 
     @Override
-    public void setAppCode(String appCode) {
-        this.appCode = appCode;
-    }
-
-    @Override
     public void onResponse(MetaInfoResponse response) {
         // update cache
         updatePartitionCache(response);
@@ -208,10 +202,10 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager, Meta
             ConsumerAllocation consumerAllocation = consumerResponse.getConsumerAllocation();
             int version = consumerAllocation.getVersion();
             long expired = consumerAllocation.getExpired();
-            Set<Integer> physicalPartitions = consumerAllocation.getPhysicalPartitions();
-            OrderedClientLifecycleManager orderedClientLifecycleManager = ClientLifecycleManagerFactory.get();
-            for (Integer physicalPartition : physicalPartitions) {
-                orderedClientLifecycleManager.refreshLifecycle(subject, consumerGroup, physicalPartition, version, expired);
+            List<SubjectLocation> subjectLocations = consumerAllocation.getSubjectLocations();
+            ExclusiveConsumerLifecycleManager exclusiveConsumerLifecycleManager = ClientLifecycleManagerFactory.get();
+            for (SubjectLocation subjectLocation : subjectLocations) {
+                exclusiveConsumerLifecycleManager.refreshLifecycle(subject, consumerGroup, subjectLocation.getBrokerGroup(), subjectLocation.getPartitionName(), version, expired);
             }
         }
     }

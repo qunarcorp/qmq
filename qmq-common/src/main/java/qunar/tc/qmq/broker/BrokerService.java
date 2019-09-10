@@ -30,6 +30,4 @@ public interface BrokerService extends ClientMetaManager {
     void refresh(ClientType clientType, String subject);
 
     void refresh(ClientType clientType, String subject, String group);
-
-    void setAppCode(String appCode);
 }

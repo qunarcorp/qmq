@@ -14,14 +14,14 @@ public class SubjectLocationSerializer extends ObjectSerializer<SubjectLocation>
 
     @Override
     void doSerialize(SubjectLocation subjectLocation, ByteBuf buf) {
-        PayloadHolderUtils.writeString(subjectLocation.getSubjectSuffix(), buf);
+        PayloadHolderUtils.writeString(subjectLocation.getPartitionName(), buf);
         PayloadHolderUtils.writeString(subjectLocation.getBrokerGroup(), buf);
     }
 
     @Override
     SubjectLocation doDeserialize(ByteBuf buf, Type type) {
-        String subjectSuffix = PayloadHolderUtils.readString(buf);
+        String partitionName = PayloadHolderUtils.readString(buf);
         String brokerGroup = PayloadHolderUtils.readString(buf);
-        return new SubjectLocation(subjectSuffix, brokerGroup);
+        return new SubjectLocation(partitionName, brokerGroup);
     }
 }

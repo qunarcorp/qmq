@@ -35,7 +35,8 @@ import static qunar.tc.qmq.protocol.RemotingHeader.VERSION_9;
 public class PullRequestSerde {
 
     public void write(final PullRequest request, final ByteBuf out) {
-        PayloadHolderUtils.writeString(request.getSubject(), out);
+        String subject = request instanceof PullRequestV10 ? ((PullRequestV10) request).getPartitionName() : request.getSubject();
+        PayloadHolderUtils.writeString(subject, out);
         PayloadHolderUtils.writeString(request.getGroup(), out);
         PayloadHolderUtils.writeString(request.getConsumerId(), out);
 
@@ -48,7 +49,9 @@ public class PullRequestSerde {
         writeFilters(request.getFilters(), out);
 
         if (request instanceof PullRequestV10) {
-            out.writeInt(((PullRequestV10) request).getConsumerAllocationVersion());
+            PullRequestV10 requestV10 = (PullRequestV10) request;
+            out.writeInt(requestV10.getConsumerAllocationVersion());
+            PayloadHolderUtils.writeString(requestV10.getPartitionName(), out);
         }
     }
 
@@ -109,6 +112,7 @@ public class PullRequestSerde {
         final PullRequest request;
         if (isV10Version(version)) {
             int allocationVersion = in.readInt();
+            String partitionName = PayloadHolderUtils.readString(in);
             request = new PullRequestV10(
                     subject,
                     group,
@@ -120,8 +124,8 @@ public class PullRequestSerde {
                     consumerId,
                     isExclusiveConsume,
                     filters,
-                    allocationVersion
-            );
+                    allocationVersion,
+                    partitionName);
         } else {
             request = new PullRequestV10(
                     subject,
@@ -134,8 +138,8 @@ public class PullRequestSerde {
                     consumerId,
                     isExclusiveConsume,
                     filters,
-                    -1
-            );
+                    -1,
+                    subject);
         }
         return request;
 

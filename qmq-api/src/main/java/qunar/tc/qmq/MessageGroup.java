@@ -11,13 +11,13 @@ public class MessageGroup {
     private ClientType clientType;
     private String subject;
     // 主题后缀, 由 meta server 决定, 旧版本的客户端
-    private String subjectSuffix;
+    private String partitionName;
     private String brokerGroup;
 
-    public MessageGroup(ClientType clientType, String subject, String subjectSuffix, String brokerGroup) {
+    public MessageGroup(ClientType clientType, String subject, String partitionName, String brokerGroup) {
         this.clientType = clientType;
         this.subject = subject;
-        this.subjectSuffix = subjectSuffix;
+        this.partitionName = partitionName;
         this.brokerGroup = brokerGroup;
     }
 
@@ -31,8 +31,8 @@ public class MessageGroup {
         return this;
     }
 
-    public MessageGroup setSubjectSuffix(String subjectSuffix) {
-        this.subjectSuffix = subjectSuffix;
+    public MessageGroup setPartitionName(String partitionName) {
+        this.partitionName = partitionName;
         return this;
     }
 
@@ -49,8 +49,8 @@ public class MessageGroup {
         return subject;
     }
 
-    public String getSubjectSuffix() {
-        return subjectSuffix;
+    public String getPartitionName() {
+        return partitionName;
     }
 
     public String getBrokerGroup() {
@@ -64,17 +64,17 @@ public class MessageGroup {
         MessageGroup that = (MessageGroup) o;
         return clientType == that.clientType &&
                 Objects.equals(subject, that.subject) &&
-                Objects.equals(subjectSuffix, that.subjectSuffix) &&
+                Objects.equals(partitionName, that.partitionName) &&
                 Objects.equals(brokerGroup, that.brokerGroup);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(clientType, subject, subjectSuffix, brokerGroup);
+        return Objects.hash(clientType, subject, partitionName, brokerGroup);
     }
 
     @Override
     public String toString() {
-        return clientType + ":" + subject + ":" + subjectSuffix + ":" + brokerGroup;
+        return clientType + ":" + subject + ":" + partitionName + ":" + brokerGroup;
     }
 }

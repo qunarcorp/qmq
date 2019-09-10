@@ -6,9 +6,9 @@ package qunar.tc.qmq.common;
  */
 public class ClientLifecycleManagerFactory {
 
-    private static final OrderedClientLifecycleManager instance = new DefaultOrderedClientLifecycleManager();
+    private static final ExclusiveConsumerLifecycleManager instance = new DefaultExclusiveConsumerLifecycleManager();
 
-    public static OrderedClientLifecycleManager get() {
+    public static ExclusiveConsumerLifecycleManager get() {
         return instance;
     }
 }

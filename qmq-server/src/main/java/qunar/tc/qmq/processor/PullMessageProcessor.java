@@ -107,7 +107,7 @@ public class PullMessageProcessor extends AbstractRequestProcessor implements Fi
             return CompletableFuture.completedFuture(crateEmptyResult(command));
         }
 
-        if (pullRequest.isOrdered()) {
+        if (pullRequest.isExclusiveConsume()) {
             String subject = pullRequest.getSubject();
             String group = pullRequest.getGroup();
             String consumerId = pullRequest.getConsumerId();

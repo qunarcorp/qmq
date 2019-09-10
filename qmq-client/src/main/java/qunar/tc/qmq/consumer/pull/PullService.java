@@ -25,10 +25,10 @@ import qunar.tc.qmq.ConsumeMode;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.ClientMetaManager;
-import qunar.tc.qmq.common.PartitionMessageUtils;
 import qunar.tc.qmq.config.PullSubjectsConfig;
 import qunar.tc.qmq.consumer.pull.exception.PullException;
 import qunar.tc.qmq.meta.ConsumerAllocation;
+import qunar.tc.qmq.meta.SubjectLocationUtils;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.netty.client.NettyClient;
 import qunar.tc.qmq.netty.client.ResponseFuture;
@@ -72,7 +72,7 @@ class PullService {
     private void pull(final PullParam pullParam, final PullCallback callback) {
         String realSubject = RetrySubjectUtils.getRealSubject(pullParam.getSubject());
         ConsumerAllocation allocation = clientMetaManager.getConsumerAllocation(realSubject, pullParam.getGroup(), pullParam.getConsumerId());
-        final PullRequest request = buildPullRequest(pullParam, allocation);
+        final PullRequest request = buildPullRequest(pullParam, allocation, pullParam.getBrokerGroup().getGroupName());
 
         Datagram datagram = RemotingBuilder.buildRequestDatagram(CommandCode.PULL_MESSAGE, new PullRequestPayloadHolder(request));
         long networkTripTimeout = pullParam.getRequestTimeoutMillis();
@@ -87,7 +87,7 @@ class PullService {
         }
     }
 
-    private PullRequest buildPullRequest(PullParam pullParam, ConsumerAllocation allocation) {
+    private PullRequest buildPullRequest(PullParam pullParam, ConsumerAllocation allocation, String brokerGroup) {
         return new PullRequestV10(
                 pullParam.getSubject(),
                 pullParam.getGroup(),
@@ -99,7 +99,8 @@ class PullService {
                 pullParam.getConsumerId(),
                 Objects.equals(ConsumeMode.EXCLUSIVE, allocation.getConsumeMode()),
                 pullParam.getFilters(),
-                allocation.getVersion()
+                allocation.getVersion(),
+                SubjectLocationUtils.getSubjectLocationByBrokerGroup(brokerGroup, allocation.getSubjectLocations()).getPartitionName()
         );
     }
 
@@ -109,7 +110,7 @@ class PullService {
         void onException(Exception ex);
     }
 
-    private static final class PullCallbackWrapper implements ResponseFuture.Callback {
+    private final class PullCallbackWrapper implements ResponseFuture.Callback {
         private final PullRequest request;
         private final PullCallback callback;
 
@@ -210,18 +211,7 @@ class PullService {
         }
 
         private void resolveRealMessageSubject(BaseMessage message) {
-            getRidOfPartitionSuffix(message);
-            getRidOfRetrySuffix(message);
-        }
-
-        private void getRidOfPartitionSuffix(BaseMessage message) {
-            String realSubject = PartitionMessageUtils.getRealSubject(message);
-            message.setSubject(realSubject);
-        }
-
-        private void getRidOfRetrySuffix(BaseMessage message) {
-            String realSubject = RetrySubjectUtils.getRealSubject(message.getSubject());
-            message.setSubject(realSubject);
+            message.setSubject(request.getSubject());
         }
 
         private void readTags(ByteBuf input, BaseMessage message, byte flag) {

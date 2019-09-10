@@ -26,7 +26,7 @@ import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.broker.impl.BrokerServiceImpl;
 import qunar.tc.qmq.common.*;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
-import qunar.tc.qmq.consumer.MessageExecutor;
+import qunar.tc.qmq.consumer.ConsumeMessageExecutor;
 import qunar.tc.qmq.consumer.MessageExecutorFactory;
 import qunar.tc.qmq.consumer.exception.DuplicateListenerException;
 import qunar.tc.qmq.consumer.register.ConsumerRegister;
@@ -67,7 +67,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
     private BrokerService brokerService;
     private PullService pullService;
     private AckService ackService;
-    private OrderedClientLifecycleManager orderedClientLifecycleManager;
+    private ExclusiveConsumerLifecycleManager exclusiveConsumerLifecycleManager;
 
     private String clientId;
     private String appCode;
@@ -85,16 +85,14 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         this.metaInfoService.setClientId(clientId);
         this.metaInfoService.init();
 
-        this.brokerService = new BrokerServiceImpl(clientId, metaInfoService);
+        this.brokerService = new BrokerServiceImpl(appCode, clientId, metaInfoService);
         this.pullService = new PullService(brokerService);
         this.ackService = new AckService(this.brokerService);
-        this.orderedClientLifecycleManager = ClientLifecycleManagerFactory.get();
+        this.exclusiveConsumerLifecycleManager = ClientLifecycleManagerFactory.get();
 
         this.ackService.setDestroyWaitInSeconds(destroyWaitInSeconds);
         this.ackService.setClientId(clientId);
         this.metaInfoService.setConsumerStateChangedListener(this);
-
-        this.brokerService.setAppCode(appCode);
     }
 
     private abstract class PullClientUpdater<T> implements MetaInfoClient.ResponseSubscriber {
@@ -310,8 +308,8 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
 
     private PullEntry createDefaultPullEntry(String subject, String group, RegistParam param, PullStrategy pullStrategy) {
         ConsumeParam consumeParam = new ConsumeParam(subject, group, param);
-        MessageExecutor messageExecutor = MessageExecutorFactory.createExecutor(subject, group, pullExecutor, param.getMessageListener(), isOrdered);
-        PullEntry pullEntry = new DefaultPullEntry(messageExecutor, consumeParam, pullService, ackService, metaInfoService, brokerService, pullStrategy);
+        ConsumeMessageExecutor consumeMessageExecutor = MessageExecutorFactory.createExecutor(subject, group, pullExecutor, param.getMessageListener(), isOrdered);
+        PullEntry pullEntry = new DefaultPullEntry(consumeMessageExecutor, consumeParam, pullService, ackService, metaInfoService, brokerService, pullStrategy);
         pullEntry.startPull(pullExecutor);
         return pullEntry;
     }

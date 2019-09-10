@@ -14,25 +14,11 @@
  * limitations under the License.
  */
 
-package qunar.tc.qmq.producer;
+package qunar.tc.qmq.producer.sender;
 
-import qunar.tc.qmq.ProduceMessage;
-import qunar.tc.qmq.service.exceptions.MessageException;
+import qunar.tc.qmq.MessageGroup;
 
-import java.util.List;
+public interface ConnectionManager {
 
-/**
- * @author zhenyu.nie created on 2017 2017/7/5 17:23
- */
-public interface SendErrorHandler {
-
-    void error(ProduceMessage pm, Exception e);
-
-    void failed(ProduceMessage pm, Exception e);
-
-    void block(ProduceMessage pm, MessageException ex);
-
-    void finish(ProduceMessage pm, Exception e);
-
-    void postHandle(List<ProduceMessage> sourceMessages);
+    Connection getConnection(MessageGroup messageGroup);
 }

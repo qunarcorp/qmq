@@ -11,6 +11,7 @@ import qunar.tc.qmq.protocol.MetaInfoResponse;
 import qunar.tc.qmq.protocol.consumer.ConsumerMetaInfoResponse;
 import qunar.tc.qmq.protocol.producer.ProducerMetaInfoResponse;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -32,6 +33,7 @@ public class Serializers {
         serializerMap.put(Range.class, new RangeSerializer());
         serializerMap.put(Map.class, new MapSerializer());
         serializerMap.put(Set.class, new SetSerializer());
+        serializerMap.put(List.class, new ListSerializer());
         serializerMap.put(ConsumerAllocation.class, new ConsumerAllocationSerializer());
         serializerMap.put(MetaInfoResponse.class, new MetaInfoResponseSerializer());
         serializerMap.put(ProducerMetaInfoResponse.class, new ProducerMetaInfoResponseSerializer());

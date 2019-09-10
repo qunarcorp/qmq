@@ -11,14 +11,14 @@ import java.util.concurrent.Executor;
  */
 public class MessageExecutorFactory {
 
-    public static MessageExecutor createExecutor(String subject, String group, Executor executor, MessageListener listener, boolean isOrdered) {
-        MessageExecutor messageExecutor;
+    public static ConsumeMessageExecutor createExecutor(String subject, String group, Executor executor, MessageListener listener, boolean isOrdered) {
+        ConsumeMessageExecutor consumeMessageExecutor;
         if (isOrdered) {
-            messageExecutor = new OrderedMessageExecutor(subject, group, executor, listener, ClientLifecycleManagerFactory.get());
-            ((OrderedMessageExecutor) messageExecutor).start();
+            consumeMessageExecutor = new OrderedConsumeMessageExecutor(subject, group, executor, listener, ClientLifecycleManagerFactory.get());
+            ((OrderedConsumeMessageExecutor) consumeMessageExecutor).start();
         } else {
-            messageExecutor = new BufferedMessageExecutor(subject, group, executor, listener);
+            consumeMessageExecutor = new BufferedConsumeMessageExecutor(subject, group, executor, listener);
         }
-        return messageExecutor;
+        return consumeMessageExecutor;
     }
 }

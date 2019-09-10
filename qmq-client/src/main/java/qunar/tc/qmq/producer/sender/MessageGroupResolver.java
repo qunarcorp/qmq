@@ -11,5 +11,17 @@ import qunar.tc.qmq.MessageGroup;
  */
 public interface MessageGroupResolver {
 
+    /**
+     * 选择一个 brokerGroup, 该 brokerGroup 不一定可用
+     * @param message 消息
+     * @return brokerGroup
+     */
     MessageGroup resolveGroup(Message message);
+
+    /**
+     * 选择一个可用的 brokerGroup, 如不可用则选择下一个可用的 brokerGroup
+     * @param message message
+     * @return 可用的 brokerGroup
+     */
+    MessageGroup resolveAvailableGroup(Message message);
 }
