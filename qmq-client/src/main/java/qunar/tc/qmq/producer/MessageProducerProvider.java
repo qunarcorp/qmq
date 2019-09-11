@@ -45,6 +45,7 @@ import qunar.tc.qmq.producer.sender.OrderedQueueSender;
 import qunar.tc.qmq.producer.tx.MessageTracker;
 import qunar.tc.qmq.tracing.TraceUtil;
 
+import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -66,7 +67,7 @@ public class MessageProducerProvider implements MessageProducer {
 
     private final AtomicBoolean STARTED = new AtomicBoolean(false);
 
-    private final QueueSender queueSender;
+    private QueueSender queueSender;
 
     private ClientIdProvider clientIdProvider;
     private EnvProvider envProvider;
@@ -74,30 +75,36 @@ public class MessageProducerProvider implements MessageProducer {
     private final Tracer tracer;
 
     private String appCode;
+    private String metaServer;
 
     private MessageTracker messageTracker;
-
-    private String clientId;
 
     /**
      * 自动路由机房
      */
     public MessageProducerProvider(String appCode, String metaServer) {
         this.appCode = appCode;
+        this.metaServer = metaServer;
         this.idGenerator = new TimestampAndHostIdGenerator();
         this.clientIdProvider = ClientIdProviderFactory.createDefault();
+        this.tracer = GlobalTracer.get();
+    }
 
-        this.clientId = clientIdProvider.get();
+    @PostConstruct
+    public void init() {
+        String clientId = clientIdProvider.get();
         DefaultMetaInfoService metaInfoService = new DefaultMetaInfoService(metaServer);
         metaInfoService.setClientId(clientId);
         metaInfoService.init();
+
         BrokerService brokerService = new BrokerServiceImpl(appCode, clientId, metaInfoService);
+
         NettyClient client = NettyClient.getClient();
         client.start();
+
         ConnectionManager connectionManager = new NettyConnectionManager(client, brokerService);
         DefaultMessageGroupResolver messageGroupResolver = new DefaultMessageGroupResolver(brokerService);
         this.queueSender = new OrderedQueueSender(connectionManager, messageGroupResolver);
-        this.tracer = GlobalTracer.get();
     }
 
     @Override
