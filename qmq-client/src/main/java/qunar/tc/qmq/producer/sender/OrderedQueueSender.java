@@ -148,14 +148,6 @@ public class OrderedQueueSender implements QueueSender, MessageProcessor {
 
     private void onSendFinish(List<ProduceMessage> messages, Map<String, MessageException> result, SendMessageExecutor executor, OrderStrategy orderStrategy) {
         try {
-            if (result == null) {
-                for (ProduceMessage pm : messages) {
-                    Metrics.counter(SEND_MESSAGE_THROWABLE_COUNTER, MetricsConstants.SUBJECT_ARRAY, new String[]{pm.getSubject()}).inc();
-                    orderStrategy.onSendError(pm, this, executor, new MessageException(pm.getMessageId(), "return null"));
-                }
-                return;
-            }
-
             if (result.isEmpty())
                 result = Collections.emptyMap();
 
