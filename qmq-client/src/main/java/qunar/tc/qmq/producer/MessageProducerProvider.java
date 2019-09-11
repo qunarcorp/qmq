@@ -183,20 +183,13 @@ public class MessageProducerProvider implements MessageProducer {
     }
 
     private ProduceMessageImpl initProduceMessage(Message message, MessageSendStateListener listener) {
-
         BaseMessage base = (BaseMessage) message;
         validateMessage(message);
         ProduceMessageImpl pm = new ProduceMessageImpl(base, queueSender);
         pm.setSendTryCount(configs.getSendTryCount());
         pm.setSendStateListener(listener);
         pm.setSyncSend(configs.isSyncSend());
-
-        TraceUtil.setTag("registry", registryOf(message), tracer);
         return pm;
-    }
-
-    private String registryOf(Message message) {
-        return "newqmq://" + message.getSubject();
     }
 
     private void validateMessage(Message message) {
