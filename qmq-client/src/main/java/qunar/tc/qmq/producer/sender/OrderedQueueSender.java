@@ -140,7 +140,7 @@ public class OrderedQueueSender implements QueueSender, MessageProcessor {
                     }
                     onSendError(messages, executor, orderStrategy, ex);
                 }
-            });
+            }, this.executor);
         } catch (Exception e) {
             onSendError(messages, executor, orderStrategy, e);
         }
