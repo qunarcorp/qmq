@@ -158,7 +158,7 @@ public class OrderedQueueSender implements QueueSender, MessageProcessor {
                 } else {
                     //如果是消息被拒绝，说明broker已经限速，不立即重试;
                     if (ex.isBrokerBusy()) {
-                        orderStrategy.onSendSuccessful(pm, this, executor, ex);
+                        orderStrategy.onSendFailed(pm, this, executor, ex);
                     } else if (ex instanceof BlockMessageException) {
                         //如果是block的,证明还没有被授权,也不重试,task也不重试,需要手工恢复
                         orderStrategy.onSendBlocked(pm, this, executor, ex);
