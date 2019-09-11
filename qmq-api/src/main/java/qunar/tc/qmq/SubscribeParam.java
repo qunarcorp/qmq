@@ -96,6 +96,12 @@ public class SubscribeParam {
             return this;
         }
 
+        // TODO(zhenwei.liu) 这里需要设置一下 ConsumeMode
+        public SubscribeParamBuilder setConsumeMode(ConsumeMode consumeMode) {
+            this.consumeMode = consumeMode;
+            return this;
+        }
+
         public ConsumeMode getConsumeMode() {
             return consumeMode;
         }

@@ -1,4 +1,4 @@
-package qunar.tc.qmq.producer.sender;
+package qunar.tc.qmq.common;
 
 import qunar.tc.qmq.MessageGroup;
 import qunar.tc.qmq.ProduceMessage;
@@ -6,6 +6,7 @@ import qunar.tc.qmq.batch.SendMessageExecutor;
 import qunar.tc.qmq.consumer.ConsumeMessageExecutor;
 import qunar.tc.qmq.consumer.pull.PulledMessage;
 import qunar.tc.qmq.producer.QueueSender;
+import qunar.tc.qmq.producer.sender.MessageGroupResolver;
 
 import java.util.Objects;
 

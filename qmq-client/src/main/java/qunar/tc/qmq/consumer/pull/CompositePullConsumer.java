@@ -23,8 +23,8 @@ public class CompositePullConsumer<T extends PullConsumer> extends AbstractPullC
 
     private List<T> consumers;
 
-    public CompositePullConsumer(String subject, String group, int partition, int version, ConsumeMode consumeMode, List<T> consumers) {
-        super(subject, group, partition, version, consumeMode);
+    public CompositePullConsumer(String subject, String group, int version, List<T> consumers) {
+        super(subject, group, subject, version);
         this.consumers = consumers;
     }
 

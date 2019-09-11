@@ -19,6 +19,7 @@ package qunar.tc.qmq.consumer.pull;
 import com.google.common.util.concurrent.ListenableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.ConsumeMode;
 import qunar.tc.qmq.Message;
 import qunar.tc.qmq.PullConsumer;
 import qunar.tc.qmq.broker.BrokerService;
@@ -32,7 +33,7 @@ import static qunar.tc.qmq.StatusSource.CODE;
 /**
  * @author yiqun.fan create on 17-10-19.
  */
-abstract class AbstractPullConsumer implements PullConsumer {
+abstract class AbstractPullConsumer extends AbstractPullClient implements PullConsumer {
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractPullConsumer.class);
 
     private static final long MIN_PULL_TIMEOUT_MILLIS = 1000;  // 最短拉取超时时间是1秒
@@ -44,11 +45,12 @@ abstract class AbstractPullConsumer implements PullConsumer {
     final PlainPullEntry pullEntry;
     final PlainPullEntry retryPullEntry;
 
-    AbstractPullConsumer(String subject, String group, boolean isBroadcast, String clientId, PullService pullService, AckService ackService, BrokerService brokerService) {
-        this.consumeParam = new ConsumeParam(subject, group, isBroadcast, false, clientId);
-        this.retryConsumeParam = new ConsumeParam(consumeParam.getRetrySubject(), group, isBroadcast, false, clientId);
-        this.pullEntry = new PlainPullEntry(consumeParam, pullService, ackService, brokerService, new AlwaysPullStrategy());
-        this.retryPullEntry = new PlainPullEntry(retryConsumeParam, pullService, ackService, brokerService, new WeightPullStrategy());
+    AbstractPullConsumer(String subject, String group, String partitionName, int version, boolean isBroadcast, ConsumeMode consumeMode, String clientId, PullService pullService, AckService ackService, BrokerService brokerService) {
+        super(subject, group, partitionName, version);
+        this.consumeParam = new ConsumeParam(subject, group, consumeMode, isBroadcast, false, clientId);
+        this.retryConsumeParam = new ConsumeParam(consumeParam.getRetrySubject(), group, consumeMode, isBroadcast, false, clientId);
+        this.pullEntry = new PlainPullEntry(consumeParam, version, pullService, ackService, brokerService, new AlwaysPullStrategy());
+        this.retryPullEntry = new PlainPullEntry(retryConsumeParam, version, pullService, ackService, brokerService, new WeightPullStrategy());
     }
 
     private static long checkAndGetTimeout(long timeout) {

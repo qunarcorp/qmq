@@ -24,10 +24,7 @@ import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.*;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.broker.impl.BrokerServiceImpl;
-import qunar.tc.qmq.common.ClientLifecycleManagerFactory;
-import qunar.tc.qmq.common.EnvProvider;
-import qunar.tc.qmq.common.ExclusiveConsumerLifecycleManager;
-import qunar.tc.qmq.common.MapKeyBuilder;
+import qunar.tc.qmq.common.*;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.consumer.ConsumeMessageExecutor;
 import qunar.tc.qmq.consumer.MessageExecutorFactory;
@@ -38,6 +35,7 @@ import qunar.tc.qmq.meta.ConsumerAllocation;
 import qunar.tc.qmq.metainfoclient.ConsumerStateChangedListener;
 import qunar.tc.qmq.metainfoclient.DefaultMetaInfoService;
 import qunar.tc.qmq.metainfoclient.MetaInfoClient;
+import qunar.tc.qmq.producer.sender.DefaultMessageGroupResolver;
 import qunar.tc.qmq.protocol.MetaInfoResponse;
 import qunar.tc.qmq.protocol.consumer.ConsumerMetaInfoResponse;
 import qunar.tc.qmq.protocol.consumer.SubEnvIsolationPullFilter;
@@ -88,6 +86,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         this.metaInfoService.init();
 
         this.brokerService = new BrokerServiceImpl(appCode, clientId, metaInfoService);
+        OrderStrategyCache.initOrderStrategy(new DefaultMessageGroupResolver(brokerService));
         this.pullService = new PullService(brokerService);
         this.ackService = new AckService(this.brokerService);
         this.exclusiveConsumerLifecycleManager = ClientLifecycleManagerFactory.get();
@@ -178,7 +177,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         if (RetrySubjectUtils.isDeadRetrySubject(subject)) return pullEntry;
         PullEntry retryPullEntry = updatePullEntry(RetrySubjectUtils.buildRetrySubject(subject, group), group, param, new WeightPullStrategy(), response);
 
-        return new CompositePullEntry<>(subject, group, null, version, Lists.newArrayList(pullEntry, retryPullEntry));
+        return new CompositePullEntry<>(subject, group, version, Lists.newArrayList(pullEntry, retryPullEntry));
     }
 
     private String toSubEnvIsolationGroup(final String originGroup, final String env, final String subEnv) {
@@ -188,6 +187,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
     private PullEntry updatePullEntry(String subject, String group, RegistParam param, PullStrategy pullStrategy, ConsumerMetaInfoResponse response) {
         String subscribeKey = MapKeyBuilder.buildSubscribeKey(subject, group);
         PullEntry oldEntry = pullEntryMap.get(subscribeKey);
+        ConsumeMode consumeMode = response.getConsumerAllocation().getConsumeMode();
 
         if (oldEntry == DefaultPullEntry.EMPTY_PULL_ENTRY) {
             throw new DuplicateListenerException(subscribeKey);
@@ -197,13 +197,13 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
                 new PullClientFactory<PullEntry>() {
                     @Override
                     public PullEntry createPullClient(String subject, String consumerGroup, String partitionName, int version, PullStrategy pullStrategy) {
-                        return createDefaultPullEntry(subject, consumerGroup, partitionName, version, param, pullStrategy);
+                        return createDefaultPullEntry(subject, consumerGroup, partitionName, consumeMode, version, param, pullStrategy);
                     }
                 },
                 new CompositePullClientFactory<CompositePullEntry, PullEntry>() {
                     @Override
                     public CompositePullEntry createPullClient(String subject, String consumerGroup, int version, List<PullEntry> list) {
-                        return new CompositePullEntry(subject, consumerGroup, null, version, list);
+                        return new CompositePullEntry(subject, consumerGroup, version, list);
                     }
                 });
         pullEntryMap.put(subscribeKey, oldEntry);
@@ -319,9 +319,9 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         return compositePullClientFactory.createPullClient(subject, consumerGroup, version, clientList);
     }
 
-    private PullEntry createDefaultPullEntry(String subject, String consumerGroup, String partitionName, int allocationVersion, RegistParam param, PullStrategy pullStrategy) {
+    private PullEntry createDefaultPullEntry(String subject, String consumerGroup, String partitionName, ConsumeMode consumeMode, int allocationVersion, RegistParam param, PullStrategy pullStrategy) {
         ConsumeParam consumeParam = new ConsumeParam(subject, consumerGroup, param);
-        ConsumeMessageExecutor consumeMessageExecutor = MessageExecutorFactory.createExecutor(subject, consumerGroup, pullExecutor, param.getMessageListener());
+        ConsumeMessageExecutor consumeMessageExecutor = MessageExecutorFactory.createExecutor(subject, consumerGroup, consumeMode, pullExecutor, param.getMessageListener());
         PullEntry pullEntry = new DefaultPullEntry(consumeMessageExecutor, consumeParam, consumerGroup, partitionName, allocationVersion, pullService, ackService, metaInfoService, brokerService, pullStrategy);
         pullEntry.startPull(pullExecutor);
         return pullEntry;
@@ -338,6 +338,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
     private synchronized PullConsumer createPullConsumer(String subject, String group, boolean isBroadcast, ConsumerMetaInfoResponse response) {
         String key = MapKeyBuilder.buildSubscribeKey(subject, group);
         PullConsumer oldConsumer = pullConsumerMap.get(key);
+        ConsumeMode consumeMode = response.getConsumerAllocation().getConsumeMode();
 
         PullConsumer pc = (PullConsumer) createPullClient(
                 subject,
@@ -348,7 +349,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
                 new PullClientFactory() {
                     @Override
                     public PullClient createPullClient(String subject, String consumerGroup, String partitionName, int version, PullStrategy pullStrategy) {
-                        DefaultPullConsumer pullConsumer = new DefaultPullConsumer(subject, consumerGroup, isBroadcast, clientId, pullService, ackService, brokerService);
+                        DefaultPullConsumer pullConsumer = new DefaultPullConsumer(subject, consumerGroup, partitionName, version, isBroadcast, consumeMode, clientId, pullService, ackService, brokerService);
                         pullConsumer.startPull(pullExecutor);
                         return pullConsumer;
                     }
@@ -356,7 +357,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
                 new CompositePullClientFactory() {
                     @Override
                     public CompositePullClient createPullClient(String subject, String consumerGroup, int version, List clientList) {
-                        return new CompositePullEntry(subject, consumerGroup, null, version, clientList);
+                        return new CompositePullEntry(subject, consumerGroup, version, clientList);
                     }
                 }
         );

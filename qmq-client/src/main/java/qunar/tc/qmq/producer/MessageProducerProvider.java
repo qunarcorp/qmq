@@ -31,6 +31,7 @@ import qunar.tc.qmq.broker.impl.BrokerServiceImpl;
 import qunar.tc.qmq.common.ClientIdProvider;
 import qunar.tc.qmq.common.ClientIdProviderFactory;
 import qunar.tc.qmq.common.EnvProvider;
+import qunar.tc.qmq.common.OrderStrategyCache;
 import qunar.tc.qmq.metainfoclient.DefaultMetaInfoService;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.MetricsConstants;
@@ -98,6 +99,8 @@ public class MessageProducerProvider implements MessageProducer {
         metaInfoService.init();
 
         BrokerService brokerService = new BrokerServiceImpl(appCode, clientId, metaInfoService);
+
+        OrderStrategyCache.initOrderStrategy(new DefaultMessageGroupResolver(brokerService));
 
         NettyClient client = NettyClient.getClient();
         client.start();

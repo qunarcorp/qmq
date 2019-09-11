@@ -63,7 +63,6 @@ class AckService {
     private final BrokerService brokerService;
     private final SendMessageBack sendMessageBack;
     private final DelayMessageService delayMessageService;
-    private final ClientMetaManager clientMetaManager;
 
     private String clientId;
 
@@ -73,7 +72,6 @@ class AckService {
     private int destroyWaitInSeconds = 5;
 
     AckService(BrokerService brokerService) {
-        this.clientMetaManager = brokerService;
         this.brokerService = brokerService;
         this.sendMessageBack = new SendMessageBackImpl(brokerService);
         this.delayMessageService = new DelayMessageService(brokerService, sendMessageBack);
@@ -84,7 +82,7 @@ class AckService {
         final List<PulledMessage> result = new ArrayList<>(pulledMessages.size());
         final List<PulledMessage> ignoreMessages = new ArrayList<>();
         final List<AckEntry> ackEntries = new ArrayList<>(pulledMessages.size());
-        final AckSendQueue sendQueue = getOrCreateSendQueue(pullResult.getBrokerGroup(), pullParam.getSubject(), pullParam.getGroup(), pullParam.isBroadcast());
+        final AckSendQueue sendQueue = getOrCreateSendQueue(pullResult.getBrokerGroup(), pullParam.getSubject(), pullParam.getGroup(), pullParam.isBroadcast(), pullParam.getConsumeParam().getConsumeMode());
 
         long prevPullOffset = 0;
         AckEntry preAckEntry = null;
@@ -134,7 +132,7 @@ class AckService {
         }
     }
 
-    private AckSendQueue getOrCreateSendQueue(BrokerGroupInfo brokerGroup, String subject, String group, boolean isBroadcast) {
+    private AckSendQueue getOrCreateSendQueue(BrokerGroupInfo brokerGroup, String subject, String group, boolean isBroadcast, ConsumeMode consumeMode) {
         final String senderKey = MapKeyBuilder.buildSenderKey(brokerGroup.getGroupName(), subject, group);
         AckSendQueue sender = senderMap.get(senderKey);
         if (sender != null) return sender;
@@ -165,14 +163,15 @@ class AckService {
         GET_PULL_OFFSET_ERROR.inc();
     }
 
-    void sendAck(BrokerGroupInfo brokerGroup, String subject, String group, AckSendEntry ack, SendAckCallback callback) {
+    void sendAck(BrokerGroupInfo brokerGroup, String subject, String group, ConsumeMode consumeMode, AckSendEntry ack, SendAckCallback callback) {
         AckRequest request = buildAckRequest(subject, group, ack);
         Datagram datagram = RemotingBuilder.buildRequestDatagram(CommandCode.ACK_REQUEST, new AckRequestPayloadHolder(request));
-        sendRequest(brokerGroup, subject, group, request, datagram, callback);
+        sendRequest(brokerGroup, subject, group, consumeMode, request, datagram, callback);
     }
 
     private AckRequest buildAckRequest(String subject, String group, AckSendEntry ack) {
         ConsumerAllocation consumerAllocation = brokerService.getConsumerAllocation(subject, group);
+        // TODO(zhenwei.liu) 这里有个问题, 如果 consumeMode 一直在变, 会导致 PullOffset 有跳动行为, 因为 exclusive 的 PullOffset 跟 shared 的不一样
         boolean isExclusiveConsume = ack.isBroadcast() || Objects.equals(consumerAllocation.getConsumeMode(), ConsumeMode.EXCLUSIVE);
         return new AckRequest(
                 subject,
@@ -184,9 +183,9 @@ class AckService {
         );
     }
 
-    private void sendRequest(BrokerGroupInfo brokerGroup, String subject, String group, AckRequest request, Datagram datagram, SendAckCallback callback) {
+    private void sendRequest(BrokerGroupInfo brokerGroup, String subject, String group, ConsumeMode consumeMode, AckRequest request, Datagram datagram, SendAckCallback callback) {
         try {
-            client.sendAsync(brokerGroup.getMaster(), datagram, ACK_REQUEST_TIMEOUT_MILLIS, new AckResponseCallback(request, callback, brokerService));
+            client.sendAsync(brokerGroup.getMaster(), datagram, ACK_REQUEST_TIMEOUT_MILLIS, new AckResponseCallback(request, callback, brokerService, consumeMode));
         } catch (ClientSendException e) {
             ClientSendException.SendErrorCode errorCode = e.getSendErrorCode();
             monitorAckError(subject, group, errorCode.ordinal());
@@ -209,11 +208,13 @@ class AckService {
         private final AckRequest request;
         private final SendAckCallback sendAckCallback;
         private final BrokerService brokerService;
+        private final ConsumeMode consumeMode;
 
-        AckResponseCallback(AckRequest request, SendAckCallback sendAckCallback, BrokerService brokerService) {
+        AckResponseCallback(AckRequest request, SendAckCallback sendAckCallback, BrokerService brokerService, ConsumeMode consumeMode) {
             this.request = request;
             this.sendAckCallback = sendAckCallback;
             this.brokerService = brokerService;
+            this.consumeMode = consumeMode;
         }
 
         @Override
@@ -224,7 +225,7 @@ class AckService {
             if (!responseFuture.isSendOk() || response == null) {
                 monitorAckError(request.getSubject(), request.getGroup(), -1);
                 sendAckCallback.fail(new AckException("send fail"));
-                this.brokerService.refresh(ClientType.CONSUMER, request.getSubject(), request.getGroup(), );
+                this.brokerService.refresh(ClientType.CONSUMER, request.getSubject(), request.getGroup(), consumeMode);
                 return;
             }
             final short responseCode = response.getHeader().getCode();
@@ -232,7 +233,7 @@ class AckService {
                 sendAckCallback.success();
             } else {
                 monitorAckError(request.getSubject(), request.getGroup(), 100 + responseCode);
-                this.brokerService.refresh(ClientType.CONSUMER, request.getSubject(), request.getGroup(), );
+                this.brokerService.refresh(ClientType.CONSUMER, request.getSubject(), request.getGroup(), consumeMode);
                 sendAckCallback.fail(new AckException("responseCode: " + responseCode));
             }
         }

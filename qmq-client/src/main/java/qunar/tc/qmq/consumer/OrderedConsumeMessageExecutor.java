@@ -7,9 +7,10 @@ import qunar.tc.qmq.ConsumeMode;
 import qunar.tc.qmq.MessageListener;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.common.ExclusiveConsumerLifecycleManager;
+import qunar.tc.qmq.common.OrderStrategyCache;
 import qunar.tc.qmq.consumer.pull.PulledMessage;
-import qunar.tc.qmq.producer.sender.OrderStrategy;
-import qunar.tc.qmq.producer.sender.OrderStrategyManager;
+import qunar.tc.qmq.common.OrderStrategy;
+import qunar.tc.qmq.common.OrderStrategyManager;
 
 import java.util.List;
 import java.util.Objects;
@@ -55,7 +56,7 @@ public class OrderedConsumeMessageExecutor extends AbstractConsumeMessageExecuto
     }
 
     private void processMessages() {
-        OrderStrategy orderStrategy = OrderStrategyManager.getOrderStrategy(subject);
+        OrderStrategy orderStrategy = OrderStrategyCache.getStrategy(subject);
         while (!stopped) {
             PulledMessage message;
             try {

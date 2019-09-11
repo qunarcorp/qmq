@@ -20,7 +20,7 @@ package qunar.tc.qmq.protocol.consumer;
  * @author yiqun.fan create on 17-8-24.
  */
 public class AckRequest {
-    private static final byte UNSET = -1;
+    public static final byte UNSET = -1;
     private String subject;
     private String group;
     private String consumerId;

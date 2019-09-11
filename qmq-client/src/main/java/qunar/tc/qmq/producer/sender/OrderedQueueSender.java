@@ -12,6 +12,9 @@ import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.batch.MessageProcessor;
 import qunar.tc.qmq.batch.OrderedSendMessageExecutor;
 import qunar.tc.qmq.batch.SendMessageExecutor;
+import qunar.tc.qmq.common.OrderStrategy;
+import qunar.tc.qmq.common.OrderStrategyCache;
+import qunar.tc.qmq.common.OrderStrategyManager;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.MetricsConstants;
@@ -111,7 +114,7 @@ public class OrderedQueueSender implements QueueSender, MessageProcessor {
         long start = System.currentTimeMillis();
         MessageGroup messageGroup = executor.getMessageGroup();
         try {
-            OrderStrategy orderStrategy = OrderStrategyManager.getOrderStrategy(messageGroup.getSubject());
+            OrderStrategy orderStrategy = OrderStrategyCache.getStrategy(messageGroup.getSubject());
             Connection connection = connectionManager.getConnection(messageGroup);
             sendMessage(connection, produceMessages, executor, orderStrategy);
         } catch (Exception e) {

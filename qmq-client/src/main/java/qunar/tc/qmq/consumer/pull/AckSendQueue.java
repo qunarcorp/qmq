@@ -27,14 +27,11 @@ import qunar.tc.qmq.ConsumeMode;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
-import qunar.tc.qmq.common.TimerUtil;
+import qunar.tc.qmq.common.*;
 import qunar.tc.qmq.config.PullSubjectsConfig;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.QmqCounter;
 import qunar.tc.qmq.metrics.QmqMeter;
-import qunar.tc.qmq.producer.sender.OrderStrategy;
-import qunar.tc.qmq.producer.sender.OrderStrategyManager;
-import qunar.tc.qmq.producer.sender.StrictOrderStrategy;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
 
 import java.util.List;
@@ -147,7 +144,7 @@ class AckSendQueue implements TimerTask {
 
     void sendBackAndCompleteNack(final int nextRetryCount, final BaseMessage message, final AckEntry ackEntry) {
         String subject = message.getSubject();
-        OrderStrategy orderStrategy = OrderStrategyManager.getOrderStrategy(subject);
+        OrderStrategy orderStrategy = OrderStrategyCache.getStrategy(subject);
         boolean isDeadRetryMessage = (nextRetryCount > message.getMaxRetryNum()) || Objects.equals(orderStrategy.name(), StrictOrderStrategy.NAME);
         final String sendSubject = isDeadRetryMessage ? deadRetrySubject : retrySubject;
         if (deadRetrySubject.equals(sendSubject)) {
@@ -263,7 +260,7 @@ class AckSendQueue implements TimerTask {
             return;
         }
 
-        ackService.sendAck(brokerGroup, subject, group, sendEntry, new AckService.SendAckCallback() {
+        ackService.sendAck(brokerGroup, subject, group, consumeMode, sendEntry, new AckService.SendAckCallback() {
             @Override
             public void success() {
                 if (lastSendOkOffset != -1 && lastSendOkOffset + 1 != sendEntry.getPullOffsetBegin()) {
@@ -376,7 +373,7 @@ class AckSendQueue implements TimerTask {
                     LOGGER.debug("lost broker group: {}. subject={}, consumeGroup={}", brokerGroupName, subject, group);
                     return;
                 }
-                ackService.sendAck(brokerGroup, subject, group, EMPTY_ACK, EMPTY_ACK_CALLBACK);
+                ackService.sendAck(brokerGroup, subject, group, consumeMode, EMPTY_ACK, EMPTY_ACK_CALLBACK);
             }
         } finally {
             TimerUtil.newTimeout(this, ACK_INTERVAL_SECONDS, TimeUnit.SECONDS);

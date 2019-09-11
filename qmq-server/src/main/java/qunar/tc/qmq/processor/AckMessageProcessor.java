@@ -76,16 +76,24 @@ public class AckMessageProcessor extends AbstractRequestProcessor {
 
     private AckRequest deserializeAckRequest(RemotingCommand command) {
         ByteBuf input = command.getBody();
-        AckRequest request = new AckRequest();
-        request.setSubject(PayloadHolderUtils.readString(input));
-        request.setGroup(PayloadHolderUtils.readString(input));
-        request.setConsumerId(PayloadHolderUtils.readString(input));
-        request.setPullOffsetBegin(input.readLong());
-        request.setPullOffsetLast(input.readLong());
+        String subject = PayloadHolderUtils.readString(input);
+        String consumerGroup = PayloadHolderUtils.readString(input);
+        String consumerId = PayloadHolderUtils.readString(input);
+        long pullStartOffset = input.readLong();
+        long pullEndOffset = input.readLong();
+        byte isExcludeConsume = AckRequest.UNSET;
         if (command.getHeader().getVersion() >= RemotingHeader.VERSION_8) {
-            request.setIsExclusiveConsume(input.readByte());
+            isExcludeConsume = input.readByte();
         }
-        return request;
+
+        return new AckRequest(
+                subject,
+                consumerGroup,
+                consumerId,
+                pullStartOffset,
+                pullEndOffset,
+                isExcludeConsume
+        );
     }
 
     private boolean isInvalidRequest(AckRequest ackRequest) {

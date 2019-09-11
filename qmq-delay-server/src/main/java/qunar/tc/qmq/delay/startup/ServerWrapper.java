@@ -92,6 +92,7 @@ public class ServerWrapper implements Disposable {
         brokerRegisterService.healthSwitch(true);
     }
 
+    // TODO(zhenwei.liu) delay 是不是应该使用 qmq-client 来发消息?
     private void init() {
         this.config = DynamicConfigLoader.load("delay.properties");
         this.listenPort = config.getInt(PORT_CONFIG, DEFAULT_PORT);

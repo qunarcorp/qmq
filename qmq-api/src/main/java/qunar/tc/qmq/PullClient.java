@@ -14,8 +14,6 @@ public interface PullClient {
 
     String getPartitionName();
 
-    String getBrokerGroup();
-
     int getVersion();
 
     void setVersion(int version);

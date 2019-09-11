@@ -1,4 +1,4 @@
-package qunar.tc.qmq.producer.sender;
+package qunar.tc.qmq.common;
 
 import qunar.tc.qmq.ProduceMessage;
 import qunar.tc.qmq.batch.SendMessageExecutor;

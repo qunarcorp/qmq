@@ -82,9 +82,11 @@ class DefaultPullEntry extends AbstractPullEntry {
     private final String logType;
     private final PullStrategy pullStrategy;
     private final ConsumeParam consumeParam;
+    private final String brokerGroup;
 
     private DefaultPullEntry() {
-        super("", "", "", "", -1, null, null, null);
+        super("", "", "", -1, null, null, null);
+        brokerGroup = null;
         consumeMessageExecutor = null;
         pullBatchSize = pullTimeout = ackNosendLimit = null;
         pullRunCounter = null;
@@ -95,7 +97,8 @@ class DefaultPullEntry extends AbstractPullEntry {
     }
 
     DefaultPullEntry(ConsumeMessageExecutor consumeMessageExecutor, ConsumeParam consumeParam, String brokerGroup, String partitionName, int version, PullService pullService, AckService ackService, MetaInfoService metaInfoService, BrokerService brokerService, PullStrategy pullStrategy) {
-        super(consumeParam.getSubject(), consumeParam.getConsumerGroup(), brokerGroup, partitionName, version, pullService, ackService, brokerService);
+        super(consumeParam.getSubject(), consumeParam.getConsumerGroup(), partitionName, version, pullService, ackService, brokerService);
+        this.brokerGroup = brokerGroup;
         this.consumeParam = consumeParam;
         String subject = consumeParam.getSubject();
         String group = consumeParam.getConsumerGroup();
@@ -182,7 +185,7 @@ class DefaultPullEntry extends AbstractPullEntry {
     private boolean resetDoPullParam(DoPullParam param) {
         while (isRunning.get()) {
             BrokerClusterInfo brokerCluster = getBrokerCluster();
-            param.brokerGroup = brokerCluster.getGroupByName(getBrokerGroup());
+            param.brokerGroup = brokerCluster.getGroupByName(brokerGroup);
             if (BrokerGroupInfo.isInvalid(param.brokerGroup)) {
                 brokersOfWaitAck.clear();
                 pause("noavaliable broker", PAUSETIME_OF_NOAVAILABLE_BROKER);

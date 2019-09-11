@@ -16,12 +16,12 @@
 
 package qunar.tc.qmq.consumer.pull;
 
+import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.Message;
+import qunar.tc.qmq.StatusSource;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
-import qunar.tc.qmq.ClientType;
-import qunar.tc.qmq.StatusSource;
 
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -34,15 +34,15 @@ class PlainPullEntry extends AbstractPullEntry {
     private final ConsumeParam consumeParam;
     private final PullStrategy pullStrategy;
 
-    PlainPullEntry(ConsumeParam consumeParam, PullService pullService, AckService ackService, BrokerService brokerService, PullStrategy pullStrategy) {
-        super(consumeParam.getSubject(), consumeParam.getConsumerGroup(), pullService, ackService, brokerService);
+    PlainPullEntry(ConsumeParam consumeParam, int allocationVersion, PullService pullService, AckService ackService, BrokerService brokerService, PullStrategy pullStrategy) {
+        super(consumeParam.getSubject(), consumeParam.getConsumerGroup(), consumeParam.getSubject(), allocationVersion, pullService, ackService, brokerService);
         this.consumeParam = consumeParam;
         this.pullStrategy = pullStrategy;
     }
 
     PlainPullResult pull(final int fetchSize, final int pullTimeout, final List<Message> output) {
         if (!pullStrategy.needPull()) return PlainPullResult.NOMORE_MESSAGE;
-        BrokerClusterInfo brokerCluster = brokerService.getClusterBySubject(ClientType.CONSUMER, consumeParam.getSubject(), consumeParam.getConsumerGroup());
+        BrokerClusterInfo brokerCluster = brokerService.getClusterBySubject(ClientType.CONSUMER, consumeParam.getSubject(), consumeParam.getConsumerGroup(), consumeParam.getConsumeMode());
         List<BrokerGroupInfo> groups = brokerCluster.getGroups();
         if (groups.isEmpty()) {
             return PlainPullResult.NO_BROKER;
