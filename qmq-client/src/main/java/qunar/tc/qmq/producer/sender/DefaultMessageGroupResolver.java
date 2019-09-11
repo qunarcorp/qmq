@@ -11,7 +11,7 @@ import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.common.PartitionConstants;
 import qunar.tc.qmq.meta.ProducerAllocation;
-import qunar.tc.qmq.meta.SubjectLocation;
+import qunar.tc.qmq.SubjectLocation;
 import qunar.tc.qmq.meta.SubjectLocationUtils;
 import qunar.tc.qmq.utils.DelayUtil;
 

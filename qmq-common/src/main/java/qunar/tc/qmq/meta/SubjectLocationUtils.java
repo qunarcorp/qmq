@@ -1,5 +1,7 @@
 package qunar.tc.qmq.meta;
 
+import qunar.tc.qmq.SubjectLocation;
+
 import java.util.Collection;
 import java.util.Objects;
 

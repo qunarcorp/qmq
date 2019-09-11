@@ -24,6 +24,8 @@ import qunar.tc.qmq.base.OnOfflineState;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * @author yiqun.fan create on 17-8-31.
@@ -35,14 +37,33 @@ public class MetaInfoRequest {
     private static final String CLIENT_ID = "clientId";
     private static final String CONSUMER_GROUP = "consumerGroup";
     private static final String REQUEST_TYPE = "requestType";
-    private static final String IS_BROADCAST = "isBroadcast";
     private static final String ONLINE_STATE = "onlineState";
     private static final String CONSUME_MODE = "consumeMode";
 
+    private AtomicBoolean inited = new AtomicBoolean(false);
+
     private final Map<String, String> attrs;
 
-    public MetaInfoRequest() {
+    public MetaInfoRequest(
+            String subject,
+            String consumerGroup,
+            int clientTypeCode,
+            String appCode,
+            String clientId,
+            ClientRequestType requestType,
+            ConsumeMode consumeMode
+    ) {
         this.attrs = new HashMap<>();
+        setStringValue(SUBJECT, subject);
+        setStringValue(CONSUMER_GROUP, consumerGroup);
+        setIntValue(CLIENT_TYPE_CODE, clientTypeCode);
+        setStringValue(APP_CODE, appCode);
+        setStringValue(CLIENT_ID, clientId);
+        setIntValue(REQUEST_TYPE, requestType.getCode());
+        if (consumeMode != null) {
+            // consumer 特有参数, 可能为 null
+            setStringValue(CONSUME_MODE, consumeMode.name());
+        }
     }
 
     public MetaInfoRequest(Map<String, String> attrs) {
@@ -53,12 +74,12 @@ public class MetaInfoRequest {
         return attrs;
     }
 
-    public  boolean isBroadcast() {
-        return Boolean.valueOf(attrs.get(IS_BROADCAST));
+    public boolean isInited() {
+        return inited.get();
     }
 
-    public void setIsBroadcast(boolean isBroadcast) {
-        attrs.put(IS_BROADCAST, Boolean.toString(isBroadcast));
+    public void setInited(boolean init) {
+        inited.set(init);
     }
 
     public ConsumeMode getConsumeMode() {
@@ -66,64 +87,40 @@ public class MetaInfoRequest {
         return modeName == null ? ConsumeMode.SHARED : ConsumeMode.valueOf(modeName);
     }
 
-    public void setConsumeMode(ConsumeMode consumeMode) {
-        attrs.put(CONSUME_MODE, consumeMode.name());
-    }
-
     public String getSubject() {
         return Strings.nullToEmpty(attrs.get(SUBJECT));
-    }
-
-    public void setSubject(String subject) {
-        setStringValue(SUBJECT, subject);
     }
 
     public int getClientTypeCode() {
         return getIntValue(CLIENT_TYPE_CODE, ClientType.OTHER.getCode());
     }
 
-    public void setClientType(ClientType clientType) {
-        setIntValue(CLIENT_TYPE_CODE, clientType.getCode());
-    }
-
     public String getAppCode() {
         return getStringValue(APP_CODE);
-    }
-
-    public void setAppCode(String appCode) {
-        setStringValue(APP_CODE, appCode);
     }
 
     public String getClientId() {
         return Strings.nullToEmpty(attrs.get(CLIENT_ID));
     }
 
-    public void setClientId(String clientId) {
-        setStringValue(CLIENT_ID, clientId);
-    }
-
     public String getConsumerGroup() {
         return Strings.nullToEmpty(attrs.get(CONSUMER_GROUP));
-    }
-
-    public void setConsumerGroup(String consumerGroup) {
-        setStringValue(CONSUMER_GROUP, consumerGroup);
     }
 
     public int getRequestType() {
         return getIntValue(REQUEST_TYPE, ClientRequestType.ONLINE.getCode());
     }
 
-    public void setRequestType(ClientRequestType requestType) {
-        setIntValue(REQUEST_TYPE, requestType.getCode());
+    public void setRequestType(int typeCode) {
+        setIntValue(REQUEST_TYPE, typeCode);
     }
 
     public OnOfflineState getOnlineState() {
         return OnOfflineState.valueOf(getStringValue(ONLINE_STATE));
     }
 
-    public void setOnlineState(OnOfflineState onOfflineState) {
-        setStringValue(ONLINE_STATE, onOfflineState.name());
+    public void setOnlineState(OnOfflineState state) {
+        setStringValue(ONLINE_STATE, state.name());
     }
 
     private void setIntValue(String attrName, int value) {
@@ -136,6 +133,14 @@ public class MetaInfoRequest {
         } catch (Exception e) {
             return defaultValue;
         }
+    }
+
+    private void setBooleanValue(String key, boolean val) {
+        attrs.put(key, Boolean.toString(val));
+    }
+
+    private boolean getBooleanValue(String key) {
+        return Boolean.valueOf(attrs.get(key));
     }
 
     private void setStringValue(String attrName, String value) {
@@ -158,11 +163,11 @@ public class MetaInfoRequest {
 
         MetaInfoRequest that = (MetaInfoRequest) o;
 
-        return attrs != null ? attrs.equals(that.attrs) : that.attrs == null;
+        return Objects.equals(attrs, that.attrs);
     }
 
     @Override
     public int hashCode() {
-        return attrs != null ? attrs.hashCode() : 0;
+        return attrs.hashCode();
     }
 }

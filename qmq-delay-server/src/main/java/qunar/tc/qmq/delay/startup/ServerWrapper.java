@@ -60,6 +60,7 @@ public class ServerWrapper implements Disposable {
     private static final Logger LOGGER = LoggerFactory.getLogger(ServerWrapper.class);
 
     private static final String META_SERVER_ENDPOINT = "meta.server.endpoint";
+    private static final String APP_CODE_KEY = "app.code";
     private static final String PORT_CONFIG = "broker.port";
 
     private static final Integer DEFAULT_PORT = 20801;
@@ -102,10 +103,11 @@ public class ServerWrapper implements Disposable {
         storeConfig = new DefaultStoreConfiguration(config);
         this.facade = new DefaultDelayLogFacade(storeConfig, this::iterateCallback);
 
+        String appCode = config.getString(APP_CODE_KEY, "delay-server");
         String metaServerAddress = config.getString(META_SERVER_ENDPOINT);
         DefaultMetaInfoService metaInfoService = new DefaultMetaInfoService(metaServerAddress);
         metaInfoService.init();
-        BrokerService brokerService = new BrokerServiceImpl("delay-" + NetworkUtils.getLocalAddress(), metaInfoService);
+        BrokerService brokerService = new BrokerServiceImpl(appCode, "delay-" + NetworkUtils.getLocalAddress(), metaInfoService);
         this.wheelTickManager = new WheelTickManager(storeConfig, brokerService, facade, sender);
 
         this.receiver = new Receiver(config, facade);

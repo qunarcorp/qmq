@@ -9,11 +9,12 @@ import com.google.common.collect.Range;
 public class Partition {
 
     public enum Status {
-        RW, R, NRW
+        RW, R, W, NRW
     }
 
     private String subject;
-    private int physicalPartition;
+    private String partitionName;
+    private int partitionId;
     private Range<Integer> logicalPartition;
     private String brokerGroup;
     private Status status;
@@ -27,12 +28,12 @@ public class Partition {
         return this;
     }
 
-    public int getPhysicalPartition() {
-        return physicalPartition;
+    public int getPartitionId() {
+        return partitionId;
     }
 
-    public Partition setPhysicalPartition(int physicalPartition) {
-        this.physicalPartition = physicalPartition;
+    public Partition setPartitionId(int partitionId) {
+        this.partitionId = partitionId;
         return this;
     }
 
@@ -60,6 +61,15 @@ public class Partition {
 
     public Partition setStatus(Status status) {
         this.status = status;
+        return this;
+    }
+
+    public String getPartitionName() {
+        return partitionName;
+    }
+
+    public Partition setPartitionName(String partitionName) {
+        this.partitionName = partitionName;
         return this;
     }
 }

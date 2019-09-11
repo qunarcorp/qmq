@@ -16,6 +16,8 @@
 
 package qunar.tc.qmq.consumer.pull;
 
+import qunar.tc.qmq.ConsumeMode;
+
 /**
  * @author yiqun.fan create on 17-8-25.
  */

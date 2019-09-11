@@ -35,7 +35,6 @@ import qunar.tc.qmq.meta.processor.BrokerRegisterProcessor;
 import qunar.tc.qmq.meta.processor.ClientRegisterProcessor;
 import qunar.tc.qmq.meta.route.SubjectRouter;
 import qunar.tc.qmq.meta.route.impl.DefaultSubjectRouter;
-import qunar.tc.qmq.meta.route.impl.DelayRouter;
 import qunar.tc.qmq.meta.service.ReadonlyBrokerGroupSettingService;
 import qunar.tc.qmq.meta.store.BrokerStore;
 import qunar.tc.qmq.meta.store.ClientDbConfigurationStore;
@@ -77,7 +76,7 @@ public class ServerWrapper implements Disposable {
         final ReadonlyBrokerGroupSettingStore readonlyBrokerGroupSettingStore = new ReadonlyBrokerGroupSettingStoreImpl(jdbcTemplate);
         final CachedMetaInfoManager cachedMetaInfoManager = new CachedMetaInfoManager(config, store, readonlyBrokerGroupSettingStore, DefaultPartitionService.getInstance());
 
-        final SubjectRouter subjectRouter = createSubjectRouter(cachedMetaInfoManager, store);
+        final SubjectRouter subjectRouter = new DefaultSubjectRouter(config, cachedMetaInfoManager, store);
         final ClientRegisterProcessor clientRegisterProcessor = new ClientRegisterProcessor(subjectRouter, CachedOfflineStateManager.SUPPLIER.get(), store, cachedMetaInfoManager);
         final BrokerRegisterProcessor brokerRegisterProcessor = new BrokerRegisterProcessor(config, cachedMetaInfoManager, store);
         final BrokerAcquireMetaProcessor brokerAcquireMetaProcessor = new BrokerAcquireMetaProcessor(new BrokerStoreImpl(jdbcTemplate));
@@ -116,11 +115,6 @@ public class ServerWrapper implements Disposable {
         OrderedConsumerHeartbeatHandler orderedConsumerHeartbeatHandler = new OrderedConsumerHeartbeatHandler(cachedMetaInfoManager, clientMetaInfoStore, partitionAllocationTask);
         EventDispatcher.register(orderedConsumerHeartbeatHandler);
     }
-
-    private SubjectRouter createSubjectRouter(CachedMetaInfoManager cachedMetaInfoManager, Store store) {
-        return new DelayRouter(cachedMetaInfoManager, new DefaultSubjectRouter(config, cachedMetaInfoManager, store));
-    }
-
 
     @Override
     public void destroy() {

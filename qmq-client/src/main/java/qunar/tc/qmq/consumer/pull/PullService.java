@@ -71,7 +71,7 @@ class PullService {
 
     private void pull(final PullParam pullParam, final PullCallback callback) {
         String realSubject = RetrySubjectUtils.getRealSubject(pullParam.getSubject());
-        ConsumerAllocation allocation = clientMetaManager.getConsumerAllocation(realSubject, pullParam.getGroup(), pullParam.getConsumerId());
+        ConsumerAllocation allocation = clientMetaManager.getConsumerAllocation(realSubject, pullParam.getGroup());
         final PullRequest request = buildPullRequest(pullParam, allocation, pullParam.getBrokerGroup().getGroupName());
 
         Datagram datagram = RemotingBuilder.buildRequestDatagram(CommandCode.PULL_MESSAGE, new PullRequestPayloadHolder(request));

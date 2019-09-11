@@ -11,18 +11,16 @@ public abstract class AbstractPullClient implements PullClient {
 
     private String subject;
     private String consumerGroup;
-    private String subjectSuffix;
+    private String partitionName;
     private String brokerGroup;
     private int version;
-    private ConsumeMode consumeMode;
 
-    public AbstractPullClient(String subject, String consumerGroup, String brokerGroup, ConsumeMode consumeMode, String subjectSuffix, int version) {
+    public AbstractPullClient(String subject, String consumerGroup, String brokerGroup, String partitionName, int version) {
         this.subject = subject;
         this.consumerGroup = consumerGroup;
         this.brokerGroup = brokerGroup;
-        this.subjectSuffix = subjectSuffix;
+        this.partitionName = partitionName;
         this.version = version;
-        this.consumeMode = consumeMode;
     }
 
     @Override
@@ -41,8 +39,8 @@ public abstract class AbstractPullClient implements PullClient {
     }
 
     @Override
-    public String getSubjectSuffix() {
-        return subjectSuffix;
+    public String getPartitionName() {
+        return partitionName;
     }
 
     @Override
@@ -51,7 +49,7 @@ public abstract class AbstractPullClient implements PullClient {
     }
 
     @Override
-    public ConsumeMode getConsumeMode() {
-        return consumeMode;
+    public void setVersion(int version) {
+        this.version = version;
     }
 }

@@ -6,7 +6,7 @@ import com.google.common.collect.RangeMap;
 import qunar.tc.qmq.meta.ConsumerAllocation;
 import qunar.tc.qmq.meta.Partition;
 import qunar.tc.qmq.meta.ProducerAllocation;
-import qunar.tc.qmq.meta.SubjectLocation;
+import qunar.tc.qmq.SubjectLocation;
 import qunar.tc.qmq.protocol.MetaInfoResponse;
 import qunar.tc.qmq.protocol.consumer.ConsumerMetaInfoResponse;
 import qunar.tc.qmq.protocol.producer.ProducerMetaInfoResponse;

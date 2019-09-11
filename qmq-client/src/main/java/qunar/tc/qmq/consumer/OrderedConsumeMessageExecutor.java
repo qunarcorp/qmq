@@ -3,6 +3,7 @@ package qunar.tc.qmq.consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.AbstractConsumeMessageExecutor;
+import qunar.tc.qmq.ConsumeMode;
 import qunar.tc.qmq.MessageListener;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.common.ExclusiveConsumerLifecycleManager;
@@ -11,6 +12,7 @@ import qunar.tc.qmq.producer.sender.OrderStrategy;
 import qunar.tc.qmq.producer.sender.OrderStrategyManager;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -23,7 +25,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class OrderedConsumeMessageExecutor extends AbstractConsumeMessageExecutor {
 
     private final static int MAX_QUEUE_SIZE = 10000;
-    private final static int MAX_RETRY = 3;
     private final AtomicBoolean started = new AtomicBoolean(false);
     private final Logger logger = LoggerFactory.getLogger(OrderedConsumeMessageExecutor.class);
 
@@ -33,10 +34,12 @@ public class OrderedConsumeMessageExecutor extends AbstractConsumeMessageExecuto
     private Executor executor;
     private String subject;
     private String consumerGroup;
+    private ConsumeMode consumeMode;
     private volatile boolean stopped = false;
 
-    public OrderedConsumeMessageExecutor(String subject, String consumerGroup, Executor executor, MessageListener messageListener, ExclusiveConsumerLifecycleManager lifecycleManager) {
+    public OrderedConsumeMessageExecutor(String subject, String consumerGroup, ConsumeMode consumeMode, Executor executor, MessageListener messageListener, ExclusiveConsumerLifecycleManager lifecycleManager) {
         super(subject, consumerGroup);
+        this.consumeMode = consumeMode;
         this.subject = subject;
         this.consumerGroup = consumerGroup;
         this.executor = executor;
@@ -71,16 +74,18 @@ public class OrderedConsumeMessageExecutor extends AbstractConsumeMessageExecuto
                     continue;
                 }
 
-                boolean originalAutoAck = message.isAutoAck();
-                MessageExecutionTask task = new MessageExecutionTask(message, null, messageHandler, getCreateToHandleTimer(), getHandleTimer(), getHandleFailCounter());
-                if (originalAutoAck) {
-                    // 禁用 task 内部的 ack
-                    message.autoAck(false);
-                }
-                task.process();
-                if (originalAutoAck) {
-                    // 如果用户手动关闭 autoAck, 则把 ack 的任务交给用户
-                    message.ack(null);
+                MessageExecutionTask task = new MessageExecutionTask(message, messageHandler, getCreateToHandleTimer(), getHandleTimer(), getHandleFailCounter());
+                if (Objects.equals(ConsumeMode.EXCLUSIVE, consumeMode)) {
+                    // TODO(zhenwei.liu) 如果用户没有 ack, 且为严格有序, 则不能消费下一条
+                    // 独占消费使用单线程逐个任务处理
+                    boolean success = task.run();
+                    if (!success) {
+                        // 消息消费不成功, 根据顺序策略处理
+                        orderStrategy.onConsumeFailed(message, this);
+                    }
+                } else {
+                    // 共享消费
+                    task.run(executor);
                 }
             } catch (Throwable t) {
                 orderStrategy.onConsumeFailed(message, this);

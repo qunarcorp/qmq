@@ -23,7 +23,8 @@ public class PartitionSerializer extends ObjectSerializer<Partition> {
     @Override
     void doSerialize(Partition partition, ByteBuf buf) {
         PayloadHolderUtils.writeString(partition.getSubject(), buf);
-        buf.writeInt(partition.getPhysicalPartition());
+        PayloadHolderUtils.writeString(partition.getPartitionName(), buf);
+        buf.writeInt(partition.getPartitionId());
         rangeSerializer.serialize(partition.getLogicalPartition(), buf);
         PayloadHolderUtils.writeString(partition.getBrokerGroup(), buf);
         PayloadHolderUtils.writeString(partition.getStatus().name(), buf);
@@ -33,7 +34,8 @@ public class PartitionSerializer extends ObjectSerializer<Partition> {
     Partition doDeserialize(ByteBuf buf, Type type) {
         Partition partition = new Partition();
         partition.setSubject(PayloadHolderUtils.readString(buf));
-        partition.setPhysicalPartition(buf.readInt());
+        partition.setPartitionName(PayloadHolderUtils.readString(buf));
+        partition.setPartitionId(buf.readInt());
         partition.setLogicalPartition(rangeSerializer.deserialize(buf, rangeType));
         partition.setBrokerGroup(PayloadHolderUtils.readString(buf));
         partition.setStatus(Partition.Status.valueOf(PayloadHolderUtils.readString(buf)));

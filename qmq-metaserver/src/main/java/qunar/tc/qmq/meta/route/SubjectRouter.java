@@ -26,5 +26,6 @@ import java.util.List;
  * @since 2017/12/4
  */
 public interface SubjectRouter {
+
     List<BrokerGroup> route(final String realSubject, final MetaInfoRequest request);
 }

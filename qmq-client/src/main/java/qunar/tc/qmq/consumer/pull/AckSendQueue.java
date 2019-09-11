@@ -22,17 +22,19 @@ import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.ClientType;
+import qunar.tc.qmq.ConsumeMode;
 import qunar.tc.qmq.base.BaseMessage;
-import qunar.tc.qmq.producer.sender.OrderStrategyManager;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
-import qunar.tc.qmq.producer.sender.OrderStrategy;
-import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.common.TimerUtil;
 import qunar.tc.qmq.config.PullSubjectsConfig;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.QmqCounter;
 import qunar.tc.qmq.metrics.QmqMeter;
+import qunar.tc.qmq.producer.sender.OrderStrategy;
+import qunar.tc.qmq.producer.sender.OrderStrategyManager;
+import qunar.tc.qmq.producer.sender.StrictOrderStrategy;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
 
 import java.util.List;
@@ -61,6 +63,7 @@ class AckSendQueue implements TimerTask {
     private final String brokerGroupName;
     private final String subject;
     private final String group;
+    private final ConsumeMode consumeMode;
 
     private final AckService ackService;
 
@@ -98,10 +101,11 @@ class AckSendQueue implements TimerTask {
     private volatile long lastAppendOffset = -1;
     private volatile long lastSendOkOffset = -1;
 
-    AckSendQueue(String brokerGroupName, String subject, String group, AckService ackService, BrokerService brokerService, SendMessageBack sendMessageBack, boolean isBroadcast) {
+    AckSendQueue(String brokerGroupName, String subject, String group, ConsumeMode consumeMode, AckService ackService, BrokerService brokerService, SendMessageBack sendMessageBack, boolean isBroadcast) {
         this.brokerGroupName = brokerGroupName;
         this.subject = subject;
         this.group = group;
+        this.consumeMode = consumeMode;
         this.ackService = ackService;
         this.brokerService = brokerService;
         this.sendMessageBack = sendMessageBack;
@@ -144,7 +148,7 @@ class AckSendQueue implements TimerTask {
     void sendBackAndCompleteNack(final int nextRetryCount, final BaseMessage message, final AckEntry ackEntry) {
         String subject = message.getSubject();
         OrderStrategy orderStrategy = OrderStrategyManager.getOrderStrategy(subject);
-        boolean isDeadRetryMessage = (nextRetryCount > message.getMaxRetryNum()) || Objects.equals(orderStrategy, OrderStrategy.STRICT);
+        boolean isDeadRetryMessage = (nextRetryCount > message.getMaxRetryNum()) || Objects.equals(orderStrategy.name(), StrictOrderStrategy.NAME);
         final String sendSubject = isDeadRetryMessage ? deadRetrySubject : retrySubject;
         if (deadRetrySubject.equals(sendSubject)) {
             deadQueueCount.inc();
@@ -299,7 +303,7 @@ class AckSendQueue implements TimerTask {
     }
 
     private BrokerGroupInfo getBrokerGroup() {
-        return brokerService.getClusterBySubject(ClientType.CONSUMER, subject, group).getGroupByName(brokerGroupName);
+        return brokerService.getClusterBySubject(ClientType.CONSUMER, subject, group, consumeMode).getGroupByName(brokerGroupName);
     }
 
     AckSendInfo getAckSendInfo() {

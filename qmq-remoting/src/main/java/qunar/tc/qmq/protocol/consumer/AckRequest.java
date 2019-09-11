@@ -28,52 +28,36 @@ public class AckRequest {
     private long pullOffsetLast;
     private byte isExclusiveConsume = UNSET;
 
-    public String getSubject() {
-        return subject;
+    public AckRequest(String subject, String group, String consumerId, long pullOffsetBegin, long pullOffsetLast, byte isExclusiveConsume) {
+        this.subject = subject;
+        this.group = group;
+        this.consumerId = consumerId;
+        this.pullOffsetBegin = pullOffsetBegin;
+        this.pullOffsetLast = pullOffsetLast;
+        this.isExclusiveConsume = isExclusiveConsume;
     }
 
-    public void setSubject(String subject) {
-        this.subject = subject;
+    public String getSubject() {
+        return subject;
     }
 
     public String getGroup() {
         return group;
     }
 
-    public void setGroup(String group) {
-        this.group = group;
-    }
-
     public String getConsumerId() {
         return consumerId;
-    }
-
-    public void setConsumerId(String consumerId) {
-        this.consumerId = consumerId;
     }
 
     public long getPullOffsetBegin() {
         return pullOffsetBegin;
     }
 
-    public void setPullOffsetBegin(long pullOffsetBegin) {
-        this.pullOffsetBegin = pullOffsetBegin;
-    }
-
     public long getPullOffsetLast() {
         return pullOffsetLast;
     }
 
-    public void setPullOffsetLast(long pullOffsetLast) {
-        this.pullOffsetLast = pullOffsetLast;
-    }
-
     public byte getIsExclusiveConsume() {
         return isExclusiveConsume;
-    }
-
-    public AckRequest setIsExclusiveConsume(byte isExclusiveConsume) {
-        this.isExclusiveConsume = isExclusiveConsume;
-        return this;
     }
 }

@@ -10,5 +10,5 @@ public class PartitionConstants {
     public static final int DEFAULT_PHYSICAL_PARTITION_NUM = 8;
     public static final long ORDERED_CLIENT_HEARTBEAT_INTERVAL_SECS = 3;
     public static final long ORDERED_CONSUMER_LOCK_LEASE_SECS = ORDERED_CLIENT_HEARTBEAT_INTERVAL_SECS * 3;
-
+    public static final int EMPTY_VERSION = -1;
 }

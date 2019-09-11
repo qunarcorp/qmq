@@ -1,6 +1,7 @@
 package qunar.tc.qmq.meta;
 
 import qunar.tc.qmq.ConsumeMode;
+import qunar.tc.qmq.SubjectLocation;
 import qunar.tc.qmq.Versionable;
 
 import java.util.List;

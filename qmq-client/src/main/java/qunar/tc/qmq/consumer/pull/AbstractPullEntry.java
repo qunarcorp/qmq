@@ -19,12 +19,11 @@ package qunar.tc.qmq.consumer.pull;
 import com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.ConsumeMode;
+import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.PullEntry;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
-import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.config.PullSubjectsConfig;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.QmqCounter;
@@ -59,8 +58,8 @@ abstract class AbstractPullEntry extends AbstractPullClient implements PullEntry
     private final QmqCounter pullWorkCounter;
     private final QmqCounter pullFailCounter;
 
-    AbstractPullEntry(String subject, String consumerGroup, String brokerGroup, ConsumeMode consumeMode, String subjectPrefix, int version, PullService pullService, AckService ackService, BrokerService brokerService) {
-        super(subject, consumerGroup, brokerGroup, consumeMode, subjectPrefix, version);
+    AbstractPullEntry(String subject, String consumerGroup, String brokerGroup, String subjectPrefix, int version, PullService pullService, AckService ackService, BrokerService brokerService) {
+        super(subject, consumerGroup, brokerGroup, subjectPrefix, version);
         this.pullService = pullService;
         this.ackService = ackService;
         this.brokerService = brokerService;
@@ -131,7 +130,7 @@ abstract class AbstractPullEntry extends AbstractPullClient implements PullEntry
     private List<PulledMessage> handlePullResult(final PullParam pullParam, final PullResult pullResult, final AckHook ackHook) {
         if (pullResult.getResponseCode() == CommandCode.BROKER_REJECT) {
             pullResult.getBrokerGroup().setAvailable(false);
-            brokerService.refresh(ClientType.CONSUMER, pullParam.getSubject(), pullParam.getGroup());
+            brokerService.refresh(ClientType.CONSUMER, pullParam.getSubject(), pullParam.getGroup(), pullParam.getConsumeParam().getConsumeMode());
         }
 
         List<BaseMessage> messages = pullResult.getMessages();

@@ -23,17 +23,18 @@ import java.util.Map;
 public class PartitionStoreImpl implements PartitionStore {
 
     private static final String SAVE_PARTITION_SQL = "insert into partitions " +
-            "(subject, physical_partition, logical_partition_lower_bound, logical_partition_upper_bound, broker_group, status) " +
-            "values (?, ?, ?, ?, ?, ?)";
+            "(subject, partition_name, partition_id, logical_partition_lower_bound, logical_partition_upper_bound, broker_group, status) " +
+            "values (?, ?, ?, ?, ?, ?, ?)";
 
-    private static final String SELECT_BY_IDS = "select subject, physical_partition, logical_partition_lower_bound, logical_partition_upper_bound, broker_group, status " +
+    private static final String SELECT_BY_IDS = "select subject, partition_name, partition_id, logical_partition_lower_bound, logical_partition_upper_bound, broker_group, status " +
             "where physical_partition in (:ids)";
 
     private static final RowMapper<Partition> partitionRowMapper = (resultSet, i) -> {
         try {
             Partition partition = new Partition();
             partition.setSubject(resultSet.getString("subject"));
-            partition.setPhysicalPartition(resultSet.getInt("physical_partition"));
+            partition.setPartitionName(resultSet.getString("partition_name"));
+            partition.setPartitionId(resultSet.getInt("partition_id"));
 
             int logicalPartitionLowerBound = resultSet.getInt("logical_partition_lower_bound");
             int logicalPartitionUpperBound = resultSet.getInt("logical_partition_upper_bound");
@@ -54,7 +55,8 @@ public class PartitionStoreImpl implements PartitionStore {
     public int save(Partition partition) {
         return template.update(SAVE_PARTITION_SQL,
                 partition.getSubject(),
-                partition.getPhysicalPartition(),
+                partition.getPartitionName(),
+                partition.getPartitionId(),
                 partition.getLogicalPartition().lowerEndpoint(),
                 partition.getLogicalPartition().upperEndpoint(),
                 partition.getBrokerGroup(),
@@ -70,11 +72,12 @@ public class PartitionStoreImpl implements PartitionStore {
                     public void setValues(PreparedStatement ps, int i) throws SQLException {
                         Partition partition = partitions.get(i);
                         ps.setString(1, partition.getSubject());
-                        ps.setInt(2, partition.getPhysicalPartition());
-                        ps.setInt(3, partition.getLogicalPartition().lowerEndpoint());
-                        ps.setInt(4, partition.getLogicalPartition().upperEndpoint());
-                        ps.setString(5, partition.getBrokerGroup());
-                        ps.setString(6, partition.getStatus().name());
+                        ps.setString(2, partition.getPartitionName());
+                        ps.setInt(3, partition.getPartitionId());
+                        ps.setInt(4, partition.getLogicalPartition().lowerEndpoint());
+                        ps.setInt(5, partition.getLogicalPartition().upperEndpoint());
+                        ps.setString(6, partition.getBrokerGroup());
+                        ps.setString(7, partition.getStatus().name());
                     }
 
                     @Override

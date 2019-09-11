@@ -130,7 +130,8 @@ CREATE TABLE IF NOT EXISTS `client_meta_info`
 CREATE TABLE `partition` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT COMMENT '主键',
   `subject` varchar(100) COLLATE utf8mb4_bin NOT NULL COMMENT '主题',
-  `physical_partition` int(11) NOT NULL COMMENT '物理分区',
+  `partition_id` int(11) NOT NULL COMMENT '物理分区',
+  `partition_name` varchar(110) COLLATE utf8mb4_bin NOT NULL COMMENT '分区名',
   `logical_partition_lower_bound` int(11) COLLATE utf8mb4_bin NOT NULL COMMENT '逻辑分区范围下界, 闭区间, 如 [0, 500)',
   `logical_partition_upper_bound` int(11) COLLATE utf8mb4_bin NOT NULL COMMENT '逻辑分区范围上界, 开区间, 如 [0, 500)',
   `broker_group` varchar(45) COLLATE utf8mb4_bin NOT NULL COMMENT '物理分区所在的 broker',

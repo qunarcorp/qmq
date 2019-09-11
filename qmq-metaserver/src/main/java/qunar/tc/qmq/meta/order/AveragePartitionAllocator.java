@@ -4,6 +4,8 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import qunar.tc.qmq.PartitionAllocation;
+import qunar.tc.qmq.SubjectLocation;
+import qunar.tc.qmq.meta.Partition;
 import qunar.tc.qmq.meta.PartitionSet;
 
 import java.util.List;
@@ -14,27 +16,29 @@ import java.util.Set;
  * @author zhenwei.liu
  * @since 2019-08-28
  */
-public class AveragePartitionAllocationStrategy implements PartitionAllocationStrategy {
+public class AveragePartitionAllocator implements PartitionAllocator {
 
     private ItemMapper itemMapper = new AverageItemMapper();
 
     @Override
-    public PartitionAllocation allocate(PartitionSet partitionSet, List<String> onlineConsumerList, String consumerGroup) {
-        Set<Integer> physicalPartitions = Sets.newTreeSet(partitionSet.getPhysicalPartitions());
+    public PartitionAllocation allocate(PartitionSet partitionSet, Map<Integer, Partition> partitionMap, List<String> onlineConsumerList, String consumerGroup) {
+        Set<Integer> partitionIds = Sets.newTreeSet(partitionSet.getPhysicalPartitions());
         // partition => client
-        Map<Integer, String> partitionClientMapping = itemMapper.map(Lists.newArrayList(physicalPartitions), onlineConsumerList);
-        Map<String, Set<Integer>> clientPartitionMapping = Maps.newHashMap();
+        Map<Integer, String> partitionClientMapping = itemMapper.map(Lists.newArrayList(partitionIds), onlineConsumerList);
+        // clientId => subjectLocations
+        Map<String, Set<SubjectLocation>> clientId2SubjectLocations = Maps.newHashMap();
 
         // client => partitionSet
         for (Map.Entry<Integer, String> entry : partitionClientMapping.entrySet()) {
             Integer partitionId = entry.getKey();
+            Partition partition = partitionMap.get(partitionId);
             String clientId = entry.getValue();
-            Set<Integer> partitionIdSet = clientPartitionMapping.computeIfAbsent(clientId, k -> Sets.newHashSet());
-            partitionIdSet.add(partitionId);
+            Set<SubjectLocation> subjectLocationSet = clientId2SubjectLocations.computeIfAbsent(clientId, k -> Sets.newHashSet());
+            subjectLocationSet.add(new SubjectLocation(partition.getPartitionName(), partition.getBrokerGroup()));
         }
 
         PartitionAllocation.AllocationDetail allocationDetail = new PartitionAllocation.AllocationDetail();
-        allocationDetail.setClientId2PhysicalPartitions(clientPartitionMapping);
+        allocationDetail.setClientId2SubjectLocation(clientId2SubjectLocations);
 
         PartitionAllocation partitionAllocation = new PartitionAllocation();
         partitionAllocation.setSubject(partitionSet.getSubject());

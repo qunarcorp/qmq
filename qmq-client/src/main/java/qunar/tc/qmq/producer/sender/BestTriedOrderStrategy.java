@@ -15,7 +15,7 @@ import java.util.Objects;
  */
 public class BestTriedOrderStrategy extends AbstractOrderStrategy {
 
-    private static final String NAME = "BEST_TRIED";
+    public static final String NAME = "BEST_TRIED";
 
     private MessageGroupResolver messageGroupResolver;
 

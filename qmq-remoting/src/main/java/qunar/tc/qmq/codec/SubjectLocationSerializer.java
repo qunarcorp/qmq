@@ -1,7 +1,7 @@
 package qunar.tc.qmq.codec;
 
 import io.netty.buffer.ByteBuf;
-import qunar.tc.qmq.meta.SubjectLocation;
+import qunar.tc.qmq.SubjectLocation;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
 
 import java.lang.reflect.Type;

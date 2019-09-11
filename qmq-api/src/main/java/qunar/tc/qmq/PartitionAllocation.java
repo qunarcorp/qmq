@@ -64,14 +64,14 @@ public class PartitionAllocation implements Versionable {
 
     public static class AllocationDetail {
 
-        private Map<String, Set<Integer>> clientId2PhysicalPartitions;
+        private Map<String, Set<SubjectLocation>> clientId2SubjectLocation;
 
-        public Map<String, Set<Integer>> getClientId2PhysicalPartitions() {
-            return clientId2PhysicalPartitions;
+        public Map<String, Set<SubjectLocation>> getClientId2SubjectLocation() {
+            return clientId2SubjectLocation;
         }
 
-        public AllocationDetail setClientId2PhysicalPartitions(Map<String, Set<Integer>> clientId2PhysicalPartitions) {
-            this.clientId2PhysicalPartitions = clientId2PhysicalPartitions;
+        public AllocationDetail setClientId2SubjectLocation(Map<String, Set<SubjectLocation>> clientId2SubjectLocation) {
+            this.clientId2SubjectLocation = clientId2SubjectLocation;
             return this;
         }
     }

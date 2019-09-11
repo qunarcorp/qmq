@@ -2,6 +2,7 @@ package qunar.tc.qmq.codec;
 
 import io.netty.buffer.ByteBuf;
 import qunar.tc.qmq.PartitionAllocation;
+import qunar.tc.qmq.SubjectLocation;
 
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -17,21 +18,21 @@ public class AllocationDetailSerializer extends ObjectSerializer<PartitionAlloca
     private ParameterizedType mapType = Types.newParameterizedType(null, Map.class, new Type[] {
        String.class,
        Types.newParameterizedType(null, Set.class, new Type[] {
-               Integer.class
+               SubjectLocation.class
        })
     });
     private Serializer<Map> mapSerializer = getSerializer(mapType);
 
     @Override
     void doSerialize(PartitionAllocation.AllocationDetail allocationDetail, ByteBuf buf) {
-        Map<String, Set<Integer>> clientId2PhysicalPartitions = allocationDetail.getClientId2PhysicalPartitions();
-        mapSerializer.serialize(clientId2PhysicalPartitions, buf);
+        Map<String, Set<SubjectLocation>> clientId2SubjectLocation = allocationDetail.getClientId2SubjectLocation();
+        mapSerializer.serialize(clientId2SubjectLocation, buf);
     }
 
     @Override
     PartitionAllocation.AllocationDetail doDeserialize(ByteBuf buf, Type type) {
         PartitionAllocation.AllocationDetail allocationDetail = new PartitionAllocation.AllocationDetail();
-        allocationDetail.setClientId2PhysicalPartitions(mapSerializer.deserialize(buf, mapType));
+        allocationDetail.setClientId2SubjectLocation(mapSerializer.deserialize(buf, mapType));
         return allocationDetail;
     }
 }

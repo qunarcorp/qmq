@@ -51,8 +51,8 @@ public class DefaultMetaInfoService implements MetaInfoService, MetaInfoClient.R
 
     private static final long REFRESH_INTERVAL_SECONDS = 60;
 
-    private final ConcurrentHashMap<String, MetaInfoRequestParam> heartbeatRequests = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, MetaInfoRequestParam> orderedHeartbeatRequests = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, MetaInfoRequest> heartbeatRequests = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, MetaInfoRequest> orderedHeartbeatRequests = new ConcurrentHashMap<>();
 
     private final ReentrantLock updateLock = new ReentrantLock();
 
@@ -67,11 +67,9 @@ public class DefaultMetaInfoService implements MetaInfoService, MetaInfoClient.R
     private ScheduledExecutorService orderedHeartbeatExecutor;
 
     private String clientId;
-    private String metaServer;
 
     public DefaultMetaInfoService(String metaServer) {
-        this.metaServer = metaServer;
-        this.metaInfoClient = MetaInfoClientNettyImpl.getClient(new MetaServerLocator(this.metaServer));
+        this.metaInfoClient = MetaInfoClientNettyImpl.getClient(new MetaServerLocator(metaServer));
         this.metaInfoClient.registerResponseSubscriber(this);
     }
 
@@ -86,13 +84,13 @@ public class DefaultMetaInfoService implements MetaInfoService, MetaInfoClient.R
         this.metaInfoClient.registerResponseSubscriber(subscriber);
     }
 
-    private boolean registerHeartbeat(MetaInfoRequestParam param) {
-        String key = createKey(param);
-        return heartbeatRequests.putIfAbsent(key, param) == null;
+    private boolean registerHeartbeat(MetaInfoRequest request) {
+        String key = createKey(request);
+        return heartbeatRequests.putIfAbsent(key, request) == null;
     }
 
-    private String createKey(MetaInfoRequestParam param) {
-        return createKey(param.getSubject(), param.getGroup());
+    private String createKey(MetaInfoRequest request) {
+        return createKey(request.getSubject(), request.getConsumerGroup());
     }
 
     private String createKey(String subject, String group) {
@@ -108,17 +106,29 @@ public class DefaultMetaInfoService implements MetaInfoService, MetaInfoClient.R
     /**
      * 注册心跳
      *
-     * @param subject    subject
-     * @param group      consumer group
-     * @param clientType client type
-     * @param appCode    app code
+     * @param subject       subject
+     * @param consumerGroup consumer group
+     * @param clientType    client type
+     * @param appCode       app code
      */
     @Override
-    public void registerHeartbeat(String subject, String group, ClientType clientType, String appCode) {
+    public void registerHeartbeat(String subject, String consumerGroup, ClientType clientType, String appCode) {
+        this.registerHeartbeat(subject, consumerGroup, clientType, appCode, null);
+    }
+
+    @Override
+    public void registerHeartbeat(String subject, String consumerGroup, ClientType clientType, String appCode, ConsumeMode consumeMode) {
         // 注册心跳
-        DefaultMetaInfoService.MetaInfoRequestParam heartbeatParam =
-                DefaultMetaInfoService.buildRequestParam(clientType, subject, group, appCode);
-        if (this.registerHeartbeat(heartbeatParam)) {
+        MetaInfoRequest request = new MetaInfoRequest(
+                subject,
+                consumerGroup,
+                clientType.getCode(),
+                appCode,
+                clientId,
+                ClientRequestType.ONLINE,
+                consumeMode
+        );
+        if (this.registerHeartbeat(request)) {
             // 注册一个手动触发一次心跳任务
             triggerConsumerMetaInfoRequest(ClientRequestType.ONLINE);
         }
@@ -131,51 +141,39 @@ public class DefaultMetaInfoService implements MetaInfoService, MetaInfoClient.R
         return false;
     }
 
-    private void heartbeat(ConcurrentHashMap<String, MetaInfoRequestParam> requestMap) {
-        for (MetaInfoRequestParam param : requestMap.values()) {
-            heartbeatRequest(param);
+    private void heartbeat(ConcurrentHashMap<String, MetaInfoRequest> requestMap) {
+        for (MetaInfoRequest request : requestMap.values()) {
+            heartbeatRequest(request);
         }
     }
 
-    private void heartbeatRequest(MetaInfoRequestParam param) {
+    private void heartbeatRequest(MetaInfoRequest request) {
+        String subject = request.getSubject();
+        String consumerGroup = request.getConsumerGroup();
         try {
-            Metrics.counter("qmq_pull_metainfo_request_count", SUBJECT_GROUP_ARRAY, new String[]{param.subject, param.group}).inc();
-            ClientRequestType requestType = param.hasOnline() ? ClientRequestType.HEARTBEAT : ClientRequestType.ONLINE;
-            request(param, requestType);
+            Metrics.counter("qmq_pull_metainfo_request_count", SUBJECT_GROUP_ARRAY, new String[]{subject, consumerGroup}).inc();
+            ClientRequestType requestType = request.isInited() ? ClientRequestType.HEARTBEAT : ClientRequestType.ONLINE;
+            request.setRequestType(requestType.getCode());
+            request(request);
         } catch (Exception e) {
-            LOGGER.debug("request meta info exception. {} {} {}", param.clientType.name(), param.subject, param.group, e);
-            Metrics.counter("qmq_pull_metainfo_request_fail", SUBJECT_GROUP_ARRAY, new String[]{param.subject, param.group}).inc();
+            LOGGER.debug("request meta info exception. {} {} {}", ClientType.of(request.getClientTypeCode()), subject, consumerGroup, e);
+            Metrics.counter("qmq_pull_metainfo_request_fail", SUBJECT_GROUP_ARRAY, new String[]{subject, consumerGroup}).inc();
         }
     }
 
-    public void request(ConcurrentHashMap<String, MetaInfoRequestParam> requestMap, ClientRequestType requestType) {
-        for (MetaInfoRequestParam param : requestMap.values()) {
-            request(param, requestType);
+    public void request(ConcurrentHashMap<String, MetaInfoRequest> requestMap, ClientRequestType requestType) {
+        for (MetaInfoRequest request : requestMap.values()) {
+            request.setRequestType(requestType.getCode());
+            request(request);
         }
     }
 
-    public ListenableFuture<MetaInfoResponse> request(MetaInfoRequestParam param, ClientRequestType requestType) {
-        return request(
-                param.getSubject(),
-                param.getGroup(),
-                param.getClientType(),
-                param.getAppCode(),
-                requestType
-        );
-    }
-
-    // TODO(zhenwei.liu) 这里需要设置 request 的类型是否为 ordered
     @Override
-    public ListenableFuture<MetaInfoResponse> request(String subject, String group, ClientType clientType, String appCode, ClientRequestType requestType) {
-        MetaInfoRequest request = new MetaInfoRequest();
-        request.setSubject(subject);
-        request.setClientType(clientType);
-        request.setClientId(this.clientId);
-        request.setConsumerGroup(group);
-        request.setAppCode(appCode);
-        boolean online = consumerOnlineStateManager.isOnline(subject, group, this.clientId);
+    public ListenableFuture<MetaInfoResponse> request(MetaInfoRequest request) {
+        String subject = request.getSubject();
+        String consumerGroup = request.getConsumerGroup();
+        boolean online = consumerOnlineStateManager.isOnline(subject, consumerGroup, this.clientId);
         request.setOnlineState(online ? OnOfflineState.ONLINE : OnOfflineState.OFFLINE);
-        request.setRequestType(requestType);
 
         LOGGER.debug("meta info request: {}", request);
         return metaInfoClient.sendMetaInfoRequest(request);
@@ -210,10 +208,6 @@ public class DefaultMetaInfoService implements MetaInfoService, MetaInfoClient.R
         return thisTimestamp < lastUpdateTimestamp;
     }
 
-    public static MetaInfoRequestParam buildRequestParam(ClientType clientType, String subject, String group, String appCode) {
-        return new MetaInfoRequestParam(clientType, subject, group, appCode);
-    }
-
     public void setConsumerStateChangedListener(ConsumerStateChangedListener listener) {
         this.consumerStateChangedListener = listener;
     }
@@ -238,79 +232,16 @@ public class DefaultMetaInfoService implements MetaInfoService, MetaInfoClient.R
         String heartbeatKey = createKey(response.getSubject(), response.getConsumerGroup());
         if (isExclusive(response)) {
             // 转移 order 心跳请求到 order map
-            MetaInfoRequestParam param = heartbeatRequests.remove(heartbeatKey);
-            if (param != null) {
-                param.setHasOnline(true);
-                orderedHeartbeatRequests.put(heartbeatKey, param);
+            MetaInfoRequest request = heartbeatRequests.remove(heartbeatKey);
+            if (request != null) {
+                request.setInited(true);
+                orderedHeartbeatRequests.put(heartbeatKey, request);
             }
         } else {
-            MetaInfoRequestParam param = heartbeatRequests.get(heartbeatKey);
-            param.setHasOnline(true);
-        }
-    }
-
-    public static final class MetaInfoRequestParam {
-        private final ClientType clientType;
-        private final String subject;
-        private final String group;
-        private final String appCode;
-        private boolean hasOnline;
-
-        MetaInfoRequestParam(ClientType clientType, String subject, String group, String appCode) {
-            this.clientType = clientType;
-            this.subject = Strings.nullToEmpty(subject);
-            this.group = Strings.nullToEmpty(group);
-            this.appCode = appCode;
-            this.hasOnline = false;
-        }
-
-        public ClientType getClientType() {
-            return clientType;
-        }
-
-        public String getSubject() {
-            return subject;
-        }
-
-        public String getGroup() {
-            return group;
-        }
-
-        public String getAppCode() {
-            return appCode;
-        }
-
-        public boolean hasOnline() {
-            return hasOnline;
-        }
-
-        public MetaInfoRequestParam setHasOnline(boolean hasOnline) {
-            this.hasOnline = hasOnline;
-            return this;
-        }
-
-        @Override
-        public int hashCode() {
-            return clientType.getCode() + 31 * subject.hashCode() + 31 * group.hashCode();
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (this == obj) return true;
-            if (obj == null) return false;
-            if (!(obj instanceof MetaInfoRequestParam)) return false;
-            MetaInfoRequestParam param = (MetaInfoRequestParam) obj;
-            return clientType.getCode() == param.getClientType().getCode()
-                    && subject.equals(param.subject) && group.equals(param.group);
-        }
-
-        @Override
-        public String toString() {
-            return "MetaInfoParam{" +
-                    "clientType=" + clientType.name() +
-                    ", subject='" + subject + '\'' +
-                    ", group='" + group + '\'' +
-                    '}';
+            MetaInfoRequest request = heartbeatRequests.get(heartbeatKey);
+            if (request != null) {
+                request.setInited(true);
+            }
         }
     }
 }

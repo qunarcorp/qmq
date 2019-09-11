@@ -12,9 +12,7 @@ import qunar.tc.qmq.producer.QueueSender;
  */
 public class StrictOrderStrategy extends AbstractOrderStrategy {
 
-    private static final String NAME = "STRICT";
-    private static final String LOCAL_RETRY = "__local_retry";
-    private static final int MAX_RETRY = 3;
+    public static final String NAME = "STRICT";
 
     @Override
     void doOnError(ProduceMessage message, QueueSender sender, SendMessageExecutor currentExecutor, Exception e) {
@@ -23,11 +21,7 @@ public class StrictOrderStrategy extends AbstractOrderStrategy {
 
     @Override
     public void onConsumeFailed(PulledMessage message, ConsumeMessageExecutor executor) {
-        int currentRetry = message.getIntProperty(LOCAL_RETRY);
-        if (currentRetry < MAX_RETRY) {
-            executor.requeueFirst(message);
-            message.setProperty(LOCAL_RETRY, ++currentRetry);
-        }
+        executor.requeueFirst(message);
     }
 
     @Override

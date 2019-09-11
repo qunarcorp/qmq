@@ -17,6 +17,7 @@
 package qunar.tc.qmq.broker;
 
 import qunar.tc.qmq.ClientType;
+import qunar.tc.qmq.ConsumeMode;
 
 /**
  * @author yiqun.fan create on 17-8-18.
@@ -25,9 +26,9 @@ public interface BrokerService extends ClientMetaManager {
 
     BrokerClusterInfo getClusterBySubject(ClientType clientType, String subject);
 
-    BrokerClusterInfo getClusterBySubject(ClientType clientType, String subject, String group);
+    BrokerClusterInfo getClusterBySubject(ClientType clientType, String subject, String group, ConsumeMode consumeMode);
 
     void refresh(ClientType clientType, String subject);
 
-    void refresh(ClientType clientType, String subject, String group);
+    void refresh(ClientType clientType, String subject, String group, ConsumeMode consumeMode);
 }

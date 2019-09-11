@@ -11,8 +11,7 @@ public class PullRequestV10 extends AbstractPullRequest {
     private int consumerAllocationVersion;
     private String partitionName;
 
-    public PullRequestV10(String subject, String group, int requestNum, long timeoutMillis, long offset, long pullOffsetBegin, long pullOffsetLast, String consumerId, boolean isExclusiveConsume, List<PullFilter> filters, int consumerAllocationVersion, String partitionName) {
-        super(subject, group, requestNum, timeoutMillis, offset, pullOffsetBegin, pullOffsetLast, consumerId, isExclusiveConsume, filters);
+    public PullRequestV10(String subject, String group, int requestNum, long timeoutMillis, long offset, long pullOffsetBegin, long pullOffsetLast, String consumerId, boolean isExclusiveConsume, List<PullFilter> filters, int consumerAllocationVersion, String partitionName) { super(subject, group, requestNum, timeoutMillis, offset, pullOffsetBegin, pullOffsetLast, consumerId, isExclusiveConsume, filters);
         this.consumerAllocationVersion = consumerAllocationVersion;
         this.partitionName = partitionName;
     }

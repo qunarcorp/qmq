@@ -1,14 +1,16 @@
 package qunar.tc.qmq.meta.event;
 
 import com.google.common.eventbus.Subscribe;
-import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.ClientType;
-import qunar.tc.qmq.meta.PartitionMapping;
+import qunar.tc.qmq.ConsumeMode;
+import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 import qunar.tc.qmq.meta.model.ClientMetaInfo;
 import qunar.tc.qmq.meta.order.PartitionAllocationTask;
 import qunar.tc.qmq.meta.store.ClientMetaInfoStore;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
+
+import java.util.Objects;
 
 /**
  * @author zhenwei.liu
@@ -36,7 +38,7 @@ public class OrderedConsumerHeartbeatHandler implements HeartbeatHandler {
         int clientTypeCode = request.getClientTypeCode();
         ClientType clientType = ClientType.of(clientTypeCode);
 
-        if (request.isOrdered() && clientType.isConsumer()) {
+        if (Objects.equals(request.getConsumeMode(), ConsumeMode.EXCLUSIVE) && clientType.isConsumer()) {
             if (ClientRequestType.HEARTBEAT.getCode() == requestType || ClientRequestType.SWITCH_STATE.getCode() == requestType) {
                 // 更新在线状态
                 ClientMetaInfo clientMetaInfo = new ClientMetaInfo();

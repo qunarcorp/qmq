@@ -18,13 +18,15 @@ package qunar.tc.qmq.consumer.pull;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.ClientType;
+import qunar.tc.qmq.ConsumeMode;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.broker.ClientMetaManager;
-import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.common.MapKeyBuilder;
 import qunar.tc.qmq.consumer.pull.exception.AckException;
+import qunar.tc.qmq.meta.ConsumerAllocation;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.QmqCounter;
 import qunar.tc.qmq.netty.client.NettyClient;
@@ -38,6 +40,7 @@ import qunar.tc.qmq.util.RemotingBuilder;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
@@ -136,7 +139,7 @@ class AckService {
         AckSendQueue sender = senderMap.get(senderKey);
         if (sender != null) return sender;
 
-        sender = new AckSendQueue(brokerGroup.getGroupName(), subject, group, this, this.brokerService, this.sendMessageBack, isBroadcast);
+        sender = new AckSendQueue(brokerGroup.getGroupName(), subject, group, consumeMode, this, this.brokerService, this.sendMessageBack, isBroadcast);
         AckSendQueue old = senderMap.putIfAbsent(senderKey, sender);
         if (old == null) {
             sender.init();
@@ -169,16 +172,16 @@ class AckService {
     }
 
     private AckRequest buildAckRequest(String subject, String group, AckSendEntry ack) {
-        AckRequest request = new AckRequest();
-        request.setSubject(subject);
-        request.setGroup(group);
-        request.setConsumerId(clientId);
-        request.setPullOffsetBegin(ack.getPullOffsetBegin());
-        request.setPullOffsetLast(ack.getPullOffsetLast());
-        boolean isOrdered = clientMetaManager.getProducerAllocation(subject) != null;
-        boolean isExclusiveConsume = ack.isBroadcast() || isOrdered;
-        request.setIsExclusiveConsume((byte) (isExclusiveConsume ? 1 : 0));
-        return request;
+        ConsumerAllocation consumerAllocation = brokerService.getConsumerAllocation(subject, group);
+        boolean isExclusiveConsume = ack.isBroadcast() || Objects.equals(consumerAllocation.getConsumeMode(), ConsumeMode.EXCLUSIVE);
+        return new AckRequest(
+                subject,
+                group,
+                clientId,
+                ack.getPullOffsetBegin(),
+                ack.getPullOffsetLast(),
+                (byte) (isExclusiveConsume ? 1 : 0)
+        );
     }
 
     private void sendRequest(BrokerGroupInfo brokerGroup, String subject, String group, AckRequest request, Datagram datagram, SendAckCallback callback) {
@@ -221,7 +224,7 @@ class AckService {
             if (!responseFuture.isSendOk() || response == null) {
                 monitorAckError(request.getSubject(), request.getGroup(), -1);
                 sendAckCallback.fail(new AckException("send fail"));
-                this.brokerService.refresh(ClientType.CONSUMER, request.getSubject(), request.getGroup());
+                this.brokerService.refresh(ClientType.CONSUMER, request.getSubject(), request.getGroup(), );
                 return;
             }
             final short responseCode = response.getHeader().getCode();
@@ -229,7 +232,7 @@ class AckService {
                 sendAckCallback.success();
             } else {
                 monitorAckError(request.getSubject(), request.getGroup(), 100 + responseCode);
-                this.brokerService.refresh(ClientType.CONSUMER, request.getSubject(), request.getGroup());
+                this.brokerService.refresh(ClientType.CONSUMER, request.getSubject(), request.getGroup(), );
                 sendAckCallback.fail(new AckException("responseCode: " + responseCode));
             }
         }

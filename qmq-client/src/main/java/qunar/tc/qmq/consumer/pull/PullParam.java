@@ -103,6 +103,10 @@ class PullParam {
         return consumeParam.getFilters();
     }
 
+    public ConsumeParam getConsumeParam() {
+        return consumeParam;
+    }
+
     @Override
     public String toString() {
         return "PullParam{" +

@@ -6,7 +6,6 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.PartitionAllocation;
-import qunar.tc.qmq.meta.PartitionMapping;
 import qunar.tc.qmq.meta.PartitionSet;
 import qunar.tc.qmq.meta.model.ClientMetaInfo;
 
@@ -71,7 +70,7 @@ public class PartitionAllocationTask {
         PartitionAllocation allocation = partitionService.getActivatedPartitionAllocation(subject, consumerGroup);
         if (allocation != null) {
             PartitionAllocation.AllocationDetail allocationDetail = allocation.getAllocationDetail();
-            Set<String> allocationClientIds = allocationDetail.getClientId2PhysicalPartitions().keySet();
+            Set<String> allocationClientIds = allocationDetail.getClientId2SubjectLocation().keySet();
 
             if (!Objects.equals(allocationClientIds, groupOnlineConsumerIds)) {
                 // 如果当前在线列表与当前分配情况发生变更, 触发重分配
@@ -93,10 +92,9 @@ public class PartitionAllocationTask {
         // 乐观锁更新
         if (partitionService.updatePartitionAllocation(newAllocation, oldVersion)) {
             // TODO(zhenwei.liu) 重分配成功后给 client 发个拉取通知?
-
             logger.info("分区重分配成功 subject {} group {} oldVersion {} detail {}",
                     subject, consumerGroup, oldVersion,
-                    Arrays.toString(newAllocation.getAllocationDetail().getClientId2PhysicalPartitions().entrySet().toArray()));
+                    Arrays.toString(newAllocation.getAllocationDetail().getClientId2SubjectLocation().entrySet().toArray()));
         } else {
             logger.warn("分区重分配失败 subject {} group {} oldVersion {}",
                     subject, consumerGroup, oldVersion);

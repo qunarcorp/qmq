@@ -22,7 +22,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.ConsumeMode;
-import qunar.tc.qmq.PartitionAllocation;
 import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.base.OnOfflineState;
 import qunar.tc.qmq.codec.Serializer;
@@ -48,7 +47,7 @@ import qunar.tc.qmq.utils.SubjectUtils;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -191,25 +190,23 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
                     producerAllocation = partitionService.getDefaultProducerAllocation(subject, brokerCluster);
                 }
                 return new ProducerMetaInfoResponse(updateTime, subject, consumerGroup, clientState, clientTypeCode, brokerCluster, producerAllocation);
-            } else {
-                PartitionAllocation partitionAllocation = partitionService.getActivatedPartitionAllocation(subject, consumerGroup);
-                Map<String, Set<Integer>> clientId2PhysicalPartitions = partitionAllocation.getAllocationDetail().getClientId2PhysicalPartitions();
-                Set<Integer> physicalPartitions = clientId2PhysicalPartitions.get(request.getClientId());
-                ConsumeMode consumeMode = getConsumeMode(request);
-                // TODO(zhenwei.liu) partition 分配, 需要根据 consumer 是否是独占消费来分配返回的 broker
-                ConsumerAllocation consumerAllocation = new ConsumerAllocation(partitionAllocation.getVersion(), physicalPartitions, partitionService.getExpiredMills(System.currentTimeMillis()), consumeMode);
+            } else if (clientType.isConsumer()) {
+                ConsumeMode consumeMode = request.getConsumeMode();
+                String clientId = request.getClientId();
+                ConsumerAllocation consumerAllocation = null;
+                if (Objects.equals(consumeMode, ConsumeMode.EXCLUSIVE)) {
+                    // 独占消费客户端, 获取预分配的分配信息
+                    consumerAllocation = partitionService.getConsumerAllocation(subject, consumerGroup, consumeMode, clientId);
+                }
+                if (consumerAllocation == null) {
+                    // 如果此时没有分配, 则先用默认的
+                    consumerAllocation = partitionService.getDefaultConsumerAllocation(subject, consumeMode, brokerCluster);
+                }
                 return new ConsumerMetaInfoResponse(updateTime, subject, consumerGroup, clientState, clientTypeCode, brokerCluster, consumerAllocation);
             }
+            throw new UnsupportedOperationException("客户端类型不匹配");
         }
     }
-
-    private ConsumeMode getConsumeMode(MetaInfoRequest request) {
-        if (request.isBroadcast()) {
-            return ConsumeMode.EXCLUSIVE;
-        }
-        return request.getConsumeMode();
-    }
-
 
     private static class MetaInfoResponsePayloadHolder implements PayloadHolder {
 

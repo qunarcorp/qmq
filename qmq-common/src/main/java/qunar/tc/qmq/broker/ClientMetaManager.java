@@ -12,5 +12,5 @@ public interface ClientMetaManager {
 
     ProducerAllocation getProducerAllocation(ClientType clientType, String subject);
 
-    ConsumerAllocation getConsumerAllocation(String subject, String group, String clientId);
+    ConsumerAllocation getConsumerAllocation(String subject, String group);
 }

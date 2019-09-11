@@ -22,6 +22,8 @@ import com.google.common.util.concurrent.SettableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ClientType;
+import qunar.tc.qmq.ConsumeMode;
+import qunar.tc.qmq.SubjectLocation;
 import qunar.tc.qmq.Versionable;
 import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
@@ -32,12 +34,12 @@ import qunar.tc.qmq.common.ClientLifecycleManagerFactory;
 import qunar.tc.qmq.common.ExclusiveConsumerLifecycleManager;
 import qunar.tc.qmq.common.MapKeyBuilder;
 import qunar.tc.qmq.meta.*;
-import qunar.tc.qmq.metainfoclient.DefaultMetaInfoService;
 import qunar.tc.qmq.metainfoclient.MetaInfo;
 import qunar.tc.qmq.metainfoclient.MetaInfoClient;
 import qunar.tc.qmq.metainfoclient.MetaInfoService;
 import qunar.tc.qmq.protocol.MetaInfoResponse;
 import qunar.tc.qmq.protocol.consumer.ConsumerMetaInfoResponse;
+import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
 import qunar.tc.qmq.protocol.producer.ProducerMetaInfoResponse;
 
 import java.util.ArrayList;
@@ -140,15 +142,15 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager, Meta
 
     @Override
     public BrokerClusterInfo getClusterBySubject(ClientType clientType, String subject) {
-        return getClusterBySubject(clientType, subject, "");
+        return getClusterBySubject(clientType, subject, "", null);
     }
 
     @Override
-    public BrokerClusterInfo getClusterBySubject(ClientType clientType, String subject, String group) {
+    public BrokerClusterInfo getClusterBySubject(ClientType clientType, String subject, String consumerGroup, ConsumeMode consumeMode) {
         // 这个key上加group不兼容MetaInfoResponse
         String key = MapKeyBuilder.buildMetaInfoKey(clientType, subject);
         Future<BrokerClusterInfo> future = clusterMap.computeIfAbsent(key, k -> {
-            metaInfoService.registerHeartbeat(subject, group, clientType, appCode);
+            metaInfoService.registerHeartbeat(subject, consumerGroup, clientType, appCode, consumeMode);
             return SettableFuture.create();
         });
         try {
@@ -160,12 +162,21 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager, Meta
 
     @Override
     public void refresh(ClientType clientType, String subject) {
-        refresh(clientType, subject, "");
+        refresh(clientType, subject, "", null);
     }
 
     @Override
-    public void refresh(ClientType clientType, String subject, String group) {
-        metaInfoService.request(DefaultMetaInfoService.buildRequestParam(clientType, subject, group, appCode), ClientRequestType.HEARTBEAT);
+    public void refresh(ClientType clientType, String subject, String group, ConsumeMode consumeMode) {
+        MetaInfoRequest request = new MetaInfoRequest(
+                subject,
+                group,
+                clientType.getCode(),
+                appCode,
+                clientId,
+                ClientRequestType.HEARTBEAT,
+                consumeMode
+        );
+        metaInfoService.request(request);
     }
 
     @Override
@@ -308,7 +319,7 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager, Meta
     }
 
     @Override
-    public ConsumerAllocation getConsumerAllocation(String subject, String group, String clientId) {
+    public ConsumerAllocation getConsumerAllocation(String subject, String group) {
         String key = createConsumerAllocationKey(subject, group, clientId);
         SettableFuture<ConsumerAllocation> future = consumerAllocationMap.computeIfAbsent(key, k -> SettableFuture.create());
         try {

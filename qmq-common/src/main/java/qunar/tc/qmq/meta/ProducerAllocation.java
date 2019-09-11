@@ -1,6 +1,7 @@
 package qunar.tc.qmq.meta;
 
 import com.google.common.collect.RangeMap;
+import qunar.tc.qmq.SubjectLocation;
 import qunar.tc.qmq.Versionable;
 
 /**

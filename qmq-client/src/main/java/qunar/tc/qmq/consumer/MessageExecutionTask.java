@@ -9,7 +9,6 @@ import qunar.tc.qmq.tracing.TraceUtil;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executor;
-import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -18,7 +17,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @author zhenwei.liu
  * @since 2019-09-03
  */
-public class MessageExecutionTask implements Runnable {
+public class MessageExecutionTask {
 
     private final AtomicInteger localRetries = new AtomicInteger(0);  // 本地重试次数
     private final AtomicBoolean handleFail = new AtomicBoolean(false);
@@ -29,25 +28,22 @@ public class MessageExecutionTask implements Runnable {
 
     private final PulledMessage message;
     private final MessageHandler handler;
-    private final Executor executor;
 
 
-    public MessageExecutionTask(PulledMessage message, Executor executor, MessageHandler handler,
+    public MessageExecutionTask(PulledMessage message, MessageHandler handler,
                                 QmqTimer createToHandleTimer, QmqTimer handleTimer, QmqCounter handleFailCounter) {
         this.message = message;
-        this.executor = executor;
         this.handler = handler;
         this.createToHandleTimer = createToHandleTimer;
         this.handleTimer = handleTimer;
         this.handleFailCounter = handleFailCounter;
     }
 
-    @Override
-    public void run() {
-        process();
+    public void run(Executor executor) {
+        executor.execute(this::run);
     }
 
-    public boolean process() {
+    public boolean run() {
         long start = System.currentTimeMillis();
         createToHandleTimer.update(start - message.getCreatedTime().getTime(), TimeUnit.MILLISECONDS);
         try {
@@ -57,27 +53,26 @@ public class MessageExecutionTask implements Runnable {
             message.filterContext(filterContext);
 
             Throwable exception = null;
-            boolean reQueued = false;
+            boolean success = false;
             try {
                 if (!handler.preHandle(message, filterContext)) {
                     return true;
                 }
                 handler.handle(message);
-                return true;
+                success = true;
             } catch (NeedRetryException e) {
                 exception = e;
                 try {
-                    reQueued = localRetry(e);
+                    success = localRetry(e);
                 } catch (Throwable ex) {
                     exception = ex;
                 }
-                return reQueued;
             } catch (Throwable e) {
                 exception = e;
-                return false;
             } finally {
-                postHandle(reQueued, start, exception, filterContext);
+                postHandle(success, start, exception, filterContext);
             }
+            return success;
         } finally {
             handleTimer.update(System.currentTimeMillis() - start, TimeUnit.MILLISECONDS);
             if (handleFail.get()) {
@@ -87,27 +82,16 @@ public class MessageExecutionTask implements Runnable {
     }
 
     private boolean localRetry(NeedRetryException e) {
-        boolean reQueued = false;
         if (isRetryImmediately(e)) {
             TraceUtil.recordEvent("local_retry");
             try {
-                localRetries.incrementAndGet();
-                if (executor != null) {
-                    executor.execute(this);
-                } else {
-                    this.process();
-                }
-                reQueued = true;
-            } catch (RejectedExecutionException re) {
-                message.localRetries(localRetries.get());
-                try {
-                    handler.handle(message);
-                } catch (NeedRetryException ne) {
-                    localRetry(ne);
-                }
+                message.localRetries(localRetries.incrementAndGet());
+                return this.run();
+            } catch (NeedRetryException ne) {
+                return localRetry(ne);
             }
         }
-        return reQueued;
+        return false;
     }
 
     private boolean isRetryImmediately(NeedRetryException e) {
@@ -115,12 +99,12 @@ public class MessageExecutionTask implements Runnable {
         return next - System.currentTimeMillis() <= 50;
     }
 
-    private void postHandle(boolean reQueued, long start, Throwable exception, Map<String, Object> filterContext) {
+    private void postHandle(boolean success, long start, Throwable exception, Map<String, Object> filterContext) {
         handleFail.set(exception != null);
         if (message.isAutoAck() || exception != null) {
             handler.postHandle(message, exception, filterContext);
 
-            if (reQueued) return;
+            if (!success) return;
             handler.ack(message, System.currentTimeMillis() - start, exception, null);
         }
     }

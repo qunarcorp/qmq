@@ -12,13 +12,13 @@ public interface PullClient {
 
     String getConsumerGroup();
 
-    String getSubjectSuffix();
+    String getPartitionName();
 
     String getBrokerGroup();
 
     int getVersion();
 
-    ConsumeMode getConsumeMode();
+    void setVersion(int version);
 
     void startPull(ExecutorService executor);
 

@@ -19,7 +19,6 @@ package qunar.tc.qmq.consumer.pull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ClientType;
-import qunar.tc.qmq.ConsumeMode;
 import qunar.tc.qmq.StatusSource;
 import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
@@ -85,7 +84,7 @@ class DefaultPullEntry extends AbstractPullEntry {
     private final ConsumeParam consumeParam;
 
     private DefaultPullEntry() {
-        super("", "", "", ConsumeMode.SHARED, "", -1, null, null, null);
+        super("", "", "", "", -1, null, null, null);
         consumeMessageExecutor = null;
         pullBatchSize = pullTimeout = ackNosendLimit = null;
         pullRunCounter = null;
@@ -95,8 +94,8 @@ class DefaultPullEntry extends AbstractPullEntry {
         consumeParam = null;
     }
 
-    DefaultPullEntry(ConsumeMessageExecutor consumeMessageExecutor, ConsumeParam consumeParam, String brokerGroup, String subjectSuffix, int version, PullService pullService, AckService ackService, MetaInfoService metaInfoService, BrokerService brokerService, PullStrategy pullStrategy) {
-        super(consumeParam.getSubject(), consumeParam.getConsumerGroup(), brokerGroup,  consumeParam.getConsumeMode(), subjectSuffix, version, pullService, ackService, brokerService);
+    DefaultPullEntry(ConsumeMessageExecutor consumeMessageExecutor, ConsumeParam consumeParam, String brokerGroup, String partitionName, int version, PullService pullService, AckService ackService, MetaInfoService metaInfoService, BrokerService brokerService, PullStrategy pullStrategy) {
+        super(consumeParam.getSubject(), consumeParam.getConsumerGroup(), brokerGroup, partitionName, version, pullService, ackService, brokerService);
         this.consumeParam = consumeParam;
         String subject = consumeParam.getSubject();
         String group = consumeParam.getConsumerGroup();
@@ -184,29 +183,29 @@ class DefaultPullEntry extends AbstractPullEntry {
         while (isRunning.get()) {
             BrokerClusterInfo brokerCluster = getBrokerCluster();
             param.brokerGroup = brokerCluster.getGroupByName(getBrokerGroup());
-            if (BrokerGroupInfo.isInvalid(brokerGroup)) {
+            if (BrokerGroupInfo.isInvalid(param.brokerGroup)) {
                 brokersOfWaitAck.clear();
                 pause("noavaliable broker", PAUSETIME_OF_NOAVAILABLE_BROKER);
                 continue;
             }
 
-            param.ackSendInfo = ackService.getAckSendInfo(brokerGroup, consumeParam.getSubject(), consumeParam.getConsumerGroup());
+            param.ackSendInfo = ackService.getAckSendInfo(param.brokerGroup, consumeParam.getSubject(), consumeParam.getConsumerGroup());
             if (param.ackSendInfo.getToSendNum() <= ackNosendLimit.get()) {
                 brokersOfWaitAck.clear();
                 break;
             }
             param.ackSendInfo = null;
-            brokersOfWaitAck.add(brokerGroup.getGroupName());
+            brokersOfWaitAck.add(param.brokerGroup.getGroupName());
         }
         return isRunning.get() && param.ackSendInfo != null;
     }
 
     private BrokerClusterInfo getBrokerCluster() {
-        return brokerService.getClusterBySubject(ClientType.CONSUMER, consumeParam.getSubject(), consumeParam.getConsumerGroup());
+        return brokerService.getClusterBySubject(ClientType.CONSUMER, consumeParam.getSubject(), consumeParam.getConsumerGroup(), consumeParam.getConsumeMode());
     }
 
     private void doPull(DoPullParam param) {
-        List<PulledMessage> messages = pull(consumeParam, param.broker, pullBatchSize.get(), pullTimeout.get(), consumeMessageExecutor.getMessageHandler());
+        List<PulledMessage> messages = pull(consumeParam, param.brokerGroup, pullBatchSize.get(), pullTimeout.get(), consumeMessageExecutor.getMessageHandler());
         pullStrategy.record(messages.size() > 0);
         consumeMessageExecutor.consume(messages);
     }

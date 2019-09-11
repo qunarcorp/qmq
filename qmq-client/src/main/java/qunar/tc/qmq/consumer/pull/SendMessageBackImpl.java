@@ -36,7 +36,7 @@ import qunar.tc.qmq.netty.client.ResponseFuture;
 import qunar.tc.qmq.netty.exception.ClientSendException;
 import qunar.tc.qmq.protocol.CommandCode;
 import qunar.tc.qmq.protocol.Datagram;
-import qunar.tc.qmq.protocol.OrderedMessagesPayloadHolder;
+import qunar.tc.qmq.protocol.MessagesPayloadHolder;
 import qunar.tc.qmq.protocol.QMQSerializer;
 import qunar.tc.qmq.protocol.producer.MessageProducerCode;
 import qunar.tc.qmq.protocol.producer.SendResult;
@@ -77,7 +77,7 @@ class SendMessageBackImpl implements SendMessageBack {
             return;
         }
         message.setProperty(BaseMessage.keys.qmq_createTime, new Date().getTime());
-        final Datagram datagram = RemotingBuilder.buildRequestDatagram(SEND_MESSAGE, new OrderedMessagesPayloadHolder(Lists.newArrayList(message)));
+        final Datagram datagram = RemotingBuilder.buildRequestDatagram(SEND_MESSAGE, new MessagesPayloadHolder(Lists.newArrayList(message)));
 
         final String subject = message.getSubject();
         try {
