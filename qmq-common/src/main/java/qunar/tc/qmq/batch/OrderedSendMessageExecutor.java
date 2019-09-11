@@ -8,6 +8,7 @@ import qunar.tc.qmq.ProduceMessage;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -32,9 +33,9 @@ public class OrderedSendMessageExecutor extends StatefulSendMessageExecutor impl
     private int batchSize;
     private LinkedBlockingQueue<ProduceMessage> queue;
     private MessageProcessor processor;
-    private ThreadPoolExecutor executor;
+    private ExecutorService executor;
 
-    public OrderedSendMessageExecutor(MessageGroup messageGroup, int batchSize, int queueSize, MessageProcessor processor, ThreadPoolExecutor executor) {
+    public OrderedSendMessageExecutor(MessageGroup messageGroup, int batchSize, int queueSize, MessageProcessor processor, ExecutorService executor) {
         this.messageGroup = messageGroup;
         this.batchSize = batchSize;
         this.queue = new LinkedBlockingQueue<>(queueSize);

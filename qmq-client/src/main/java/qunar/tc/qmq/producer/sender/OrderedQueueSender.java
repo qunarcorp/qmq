@@ -25,9 +25,7 @@ import qunar.tc.qmq.service.exceptions.MessageException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 /**
  * 消息发送队列管理器, 每个队列由一个 MessageGroup 代表
@@ -36,16 +34,18 @@ import java.util.concurrent.TimeUnit;
  * @since 2019-08-20
  */
 public class OrderedQueueSender implements QueueSender, MessageProcessor {
-
     private static final Logger logger = LoggerFactory.getLogger(OrderedQueueSender.class);
+
     private static final String SEND_MESSAGE_THROWABLE_COUNTER = "qmq_client_producer_send_message_Throwable";
 
-    private ThreadPoolExecutor executor; // 所有分区共享一个线程池
-    private int maxQueueSize;
-    private int sendBatch;
-    private QmqTimer timer;
-    private ConnectionManager connectionManager;
-    private MessageGroupResolver messageGroupResolver;
+    private final ExecutorService executor; // 所有分区共享一个线程池
+
+    private final int maxQueueSize;
+    private final int sendBatch;
+
+    private final QmqTimer timer;
+    private final ConnectionManager connectionManager;
+    private final MessageGroupResolver messageGroupResolver;
 
     // subject-physicalPartition => executor
     private Map<MessageGroup, OrderedSendMessageExecutor> executorMap = Maps.newConcurrentMap();
@@ -56,15 +56,10 @@ public class OrderedQueueSender implements QueueSender, MessageProcessor {
 
         ConfigCenter configs = ConfigCenter.getInstance();
 
-        String name = "qmq-sender";
-        int sendThreads = configs.getSendThreads();
-        this.timer = Metrics.timer("qmq_client_send_ordered_task_timer");
+        this.timer = Metrics.timer("qmq_client_producer_send_broker_time");
         this.maxQueueSize = configs.getMaxQueueSize();
         this.sendBatch = configs.getSendBatch();
-        // TODO(zhenwei.liu) 动态选择最大线程数
-        this.executor = new ThreadPoolExecutor(1, sendThreads, 1L, TimeUnit.MINUTES,
-                new ArrayBlockingQueue<>(1), new NamedThreadFactory("batch-ordered-" + name + "-task", true));
-        this.executor.setRejectedExecutionHandler(new ThreadPoolExecutor.DiscardPolicy());
+        this.executor = Executors.newCachedThreadPool(new NamedThreadFactory("batch-ordered-qmq-sender-task", true));
     }
 
     // TODO(zhenwei.liu) 落库成功, 入队失败的消息会乱序
@@ -116,12 +111,9 @@ public class OrderedQueueSender implements QueueSender, MessageProcessor {
         long start = System.currentTimeMillis();
         MessageGroup messageGroup = executor.getMessageGroup();
         try {
-            QmqTimer timer = Metrics.timer("qmq_client_producer_send_broker_time");
-            long startTime = System.currentTimeMillis();
             OrderStrategy orderStrategy = OrderStrategyManager.getOrderStrategy(messageGroup.getSubject());
             Connection connection = connectionManager.getConnection(messageGroup);
             sendMessage(connection, produceMessages, executor, orderStrategy);
-            timer.update(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
@@ -158,7 +150,7 @@ public class OrderedQueueSender implements QueueSender, MessageProcessor {
         try {
             if (result == null) {
                 for (ProduceMessage pm : messages) {
-                    Metrics.counter(SEND_MESSAGE_THROWABLE_COUNTER, MetricsConstants.SUBJECT_ARRAY, new String[]{pm.getSubject()});
+                    Metrics.counter(SEND_MESSAGE_THROWABLE_COUNTER, MetricsConstants.SUBJECT_ARRAY, new String[]{pm.getSubject()}).inc();
                     orderStrategy.onSendError(pm, this, executor, new MessageException(pm.getMessageId(), "return null"));
                 }
                 return;
@@ -179,7 +171,7 @@ public class OrderedQueueSender implements QueueSender, MessageProcessor {
                         //如果是block的,证明还没有被授权,也不重试,task也不重试,需要手工恢复
                         orderStrategy.onSendBlocked(pm, this, executor, ex);
                     } else {
-                        Metrics.counter(SEND_MESSAGE_THROWABLE_COUNTER, MetricsConstants.SUBJECT_ARRAY, new String[]{pm.getSubject()});
+                        Metrics.counter(SEND_MESSAGE_THROWABLE_COUNTER, MetricsConstants.SUBJECT_ARRAY, new String[]{pm.getSubject()}).inc();
                         orderStrategy.onSendError(pm, this, executor, ex);
                     }
                 }
