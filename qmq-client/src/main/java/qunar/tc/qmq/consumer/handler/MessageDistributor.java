@@ -15,8 +15,6 @@
  */
 package qunar.tc.qmq.consumer.handler;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import qunar.tc.qmq.ListenerHolder;
 import qunar.tc.qmq.MessageListener;
 import qunar.tc.qmq.SubscribeParam;
@@ -41,8 +39,6 @@ public class MessageDistributor {
     }
 
     public ListenerHolder addListener(final String subject, final String consumerGroup, MessageListener listener, Executor executor, SubscribeParam subscribeParam) {
-        Preconditions.checkArgument(!Strings.isNullOrEmpty(consumerGroup));
-
         final RegistParam registParam = new RegistParam(executor, listener, subscribeParam, clientId);
         registParam.setBroadcast(subscribeParam.isBroadcast());
         register.registerPullEntry(subject, consumerGroup, registParam);

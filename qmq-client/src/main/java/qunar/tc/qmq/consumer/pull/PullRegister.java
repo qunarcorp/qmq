@@ -96,6 +96,22 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         this.metaInfoService.setConsumerStateChangedListener(this);
     }
 
+    @Override
+    public synchronized Future<PullEntry> registerPullEntry(String subject, String group, RegistParam param) {
+        SettableFuture<PullEntry> future = SettableFuture.create();
+        metaInfoService.registerHeartbeat(subject, group, ClientType.CONSUMER, appCode);
+        metaInfoService.registerResponseSubscriber(new PullEntryUpdater(param, future));
+        return future;
+    }
+
+    @Override
+    public Future<PullConsumer> registerPullConsumer(String subject, String group, boolean isBroadcast) {
+        SettableFuture<PullConsumer> future = SettableFuture.create();
+        metaInfoService.registerHeartbeat(subject, group, ClientType.CONSUMER, appCode);
+        metaInfoService.registerResponseSubscriber(new PullConsumerUpdater(isBroadcast, future));
+        return future;
+    }
+
     private abstract class PullClientUpdater<T> implements MetaInfoClient.ResponseSubscriber {
 
         @Override
@@ -150,34 +166,29 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         }
     }
 
-    @Override
-    public synchronized Future<PullEntry> registerPullEntry(String subject, String group, RegistParam param) {
-        SettableFuture<PullEntry> future = SettableFuture.create();
-        metaInfoService.registerHeartbeat(subject, group, ClientType.CONSUMER, appCode);
-        metaInfoService.registerResponseSubscriber(new PullEntryUpdater(param, future));
-        return future;
-    }
-
     private synchronized PullEntry updatePullEntry(String subject, String group, RegistParam param, ConsumerMetaInfoResponse response) {
-        String env;
-        String subEnv;
-        if (envProvider != null && !Strings.isNullOrEmpty(env = envProvider.env(subject))) {
-            subEnv = envProvider.subEnv(env);
-            final String realGroup = toSubEnvIsolationGroup(group, env, subEnv);
-            LOG.info("enable subenv isolation for {}/{}, rename consumer group to {}", subject, group, realGroup);
-            group = realGroup;
-            param.addFilter(new SubEnvIsolationPullFilter(env, subEnv));
-        }
+        configEnvIsolation(subject, group, param);
 
         ConsumerAllocation consumerAllocation = response.getConsumerAllocation();
         int version = consumerAllocation.getVersion();
-        ConsumeMode consumeMode = consumerAllocation.getConsumeMode();
-
         PullEntry pullEntry = updatePullEntry(subject, group, param, new AlwaysPullStrategy(), response);
         if (RetrySubjectUtils.isDeadRetrySubject(subject)) return pullEntry;
         PullEntry retryPullEntry = updatePullEntry(RetrySubjectUtils.buildRetrySubject(subject, group), group, param, new WeightPullStrategy(), response);
 
         return new CompositePullEntry<>(subject, group, version, Lists.newArrayList(pullEntry, retryPullEntry));
+    }
+
+    private String configEnvIsolation(String subject, String group, RegistParam param) {
+        String env;
+        if (envProvider != null && !Strings.isNullOrEmpty(env = envProvider.env(subject))) {
+            String subEnv = envProvider.subEnv(env);
+            final String realGroup = toSubEnvIsolationGroup(group, env, subEnv);
+            LOG.info("enable subenv isolation for {}/{}, rename consumer group to {}", subject, group, realGroup);
+
+            param.addFilter(new SubEnvIsolationPullFilter(env, subEnv));
+            return realGroup;
+        }
+        return group;
     }
 
     private String toSubEnvIsolationGroup(final String originGroup, final String env, final String subEnv) {
@@ -321,18 +332,10 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
 
     private PullEntry createDefaultPullEntry(String subject, String consumerGroup, String partitionName, ConsumeMode consumeMode, int allocationVersion, RegistParam param, PullStrategy pullStrategy) {
         ConsumeParam consumeParam = new ConsumeParam(subject, consumerGroup, param);
-        ConsumeMessageExecutor consumeMessageExecutor = MessageExecutorFactory.createExecutor(subject, consumerGroup, consumeMode, pullExecutor, param.getMessageListener());
+        ConsumeMessageExecutor consumeMessageExecutor = MessageExecutorFactory.createExecutor(subject, consumerGroup, partitionName, consumeMode, pullExecutor, param.getMessageListener());
         PullEntry pullEntry = new DefaultPullEntry(consumeMessageExecutor, consumeParam, consumerGroup, partitionName, allocationVersion, pullService, ackService, metaInfoService, brokerService, pullStrategy);
         pullEntry.startPull(pullExecutor);
         return pullEntry;
-    }
-
-    @Override
-    public Future<PullConsumer> registerPullConsumer(String subject, String group, boolean isBroadcast) {
-        SettableFuture<PullConsumer> future = SettableFuture.create();
-        metaInfoService.registerHeartbeat(subject, group, ClientType.CONSUMER, appCode);
-        metaInfoService.registerResponseSubscriber(new PullConsumerUpdater(isBroadcast, future));
-        return future;
     }
 
     private synchronized PullConsumer createPullConsumer(String subject, String group, boolean isBroadcast, ConsumerMetaInfoResponse response) {
@@ -349,7 +352,17 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
                 new PullClientFactory() {
                     @Override
                     public PullClient createPullClient(String subject, String consumerGroup, String partitionName, int version, PullStrategy pullStrategy) {
-                        DefaultPullConsumer pullConsumer = new DefaultPullConsumer(subject, consumerGroup, partitionName, version, isBroadcast, consumeMode, clientId, pullService, ackService, brokerService);
+                        DefaultPullConsumer pullConsumer = new DefaultPullConsumer(
+                                subject,
+                                consumerGroup,
+                                partitionName,
+                                version,
+                                isBroadcast,
+                                consumeMode,
+                                clientId,
+                                pullService,
+                                ackService,
+                                brokerService);
                         pullConsumer.startPull(pullExecutor);
                         return pullConsumer;
                     }

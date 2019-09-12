@@ -13,7 +13,8 @@ import java.util.concurrent.TimeUnit;
 public class DefaultExclusiveConsumerLifecycleManager implements ExclusiveConsumerLifecycleManager {
 
     private static final Joiner keyJoiner = Joiner.on(":");
-    private ExpiringMap<String, Integer> cache = ExpiringMap.create();
+
+    private final ExpiringMap<String, Integer> cache = ExpiringMap.create();
 
     @Override
     public boolean isAlive(String subject, String consumerGroup, String brokerGroup, String partitionName) {
