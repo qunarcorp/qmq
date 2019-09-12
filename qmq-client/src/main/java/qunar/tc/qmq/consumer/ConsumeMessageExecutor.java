@@ -22,7 +22,7 @@ public interface ConsumeMessageExecutor {
 
     MessageHandler getMessageHandler();
 
-    boolean cleanUp();
+    boolean isFull();
 
     void destroy();
 }

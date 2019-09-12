@@ -6,10 +6,12 @@ import qunar.tc.qmq.AbstractConsumeMessageExecutor;
 import qunar.tc.qmq.ConsumeMode;
 import qunar.tc.qmq.MessageListener;
 import qunar.tc.qmq.base.BaseMessage;
+import qunar.tc.qmq.broker.ClientMetaManager;
 import qunar.tc.qmq.common.ExclusiveConsumerLifecycleManager;
 import qunar.tc.qmq.common.OrderStrategy;
 import qunar.tc.qmq.common.OrderStrategyCache;
 import qunar.tc.qmq.consumer.pull.PulledMessage;
+import qunar.tc.qmq.meta.ConsumerAllocation;
 
 import java.util.List;
 import java.util.Objects;
@@ -32,28 +34,39 @@ public class OrderedConsumeMessageExecutor extends AbstractConsumeMessageExecuto
     private final ExclusiveConsumerLifecycleManager lifecycleManager;
     private final BlockingDeque<PulledMessage> messageQueue;
     private final MessageHandler messageHandler;
-    private final Executor executor;
+    private final Executor partitionExecutor;
+    private final Executor messageHandleExecutor;
+    private final ClientMetaManager clientMetaManager;
     private final String subject;
     private final String consumerGroup;
     private final String partitionName;
-    private final ConsumeMode consumeMode;
     private volatile boolean stopped = false;
 
-    public OrderedConsumeMessageExecutor(String subject, String consumerGroup, String partitionName, ConsumeMode consumeMode, Executor executor, MessageListener messageListener, ExclusiveConsumerLifecycleManager lifecycleManager) {
+    public OrderedConsumeMessageExecutor(
+            String subject,
+            String consumerGroup,
+            String partitionName,
+            Executor partitionExecutor,
+            Executor messageHandleExecutor,
+            MessageListener messageListener,
+            ExclusiveConsumerLifecycleManager lifecycleManager,
+            ClientMetaManager clientMetaManager
+    ) {
         super(subject, consumerGroup);
         this.partitionName = partitionName;
-        this.consumeMode = consumeMode;
         this.subject = subject;
         this.consumerGroup = consumerGroup;
-        this.executor = executor;
+        this.partitionExecutor = partitionExecutor;
+        this.messageHandleExecutor = messageHandleExecutor;
         this.lifecycleManager = lifecycleManager;
         this.messageHandler = new BaseMessageHandler(messageListener);
         this.messageQueue = new LinkedBlockingDeque<>();
+        this.clientMetaManager = clientMetaManager;
     }
 
     public void start() {
         if (started.compareAndSet(false, true)) {
-            executor.execute(this::processMessages);
+            partitionExecutor.execute(this::processMessages);
         }
     }
 
@@ -76,6 +89,8 @@ public class OrderedConsumeMessageExecutor extends AbstractConsumeMessageExecuto
                     continue;
                 }
 
+                ConsumerAllocation consumerAllocation = clientMetaManager.getConsumerAllocation(subject, consumerGroup);
+                ConsumeMode consumeMode = consumerAllocation.getConsumeMode();
                 MessageExecutionTask task = new MessageExecutionTask(message, messageHandler, getCreateToHandleTimer(), getHandleTimer(), getHandleFailCounter());
                 if (Objects.equals(ConsumeMode.EXCLUSIVE, consumeMode)) {
                     // TODO(zhenwei.liu) 如果用户没有 ack, 且为严格有序, 则不能消费下一条
@@ -87,7 +102,7 @@ public class OrderedConsumeMessageExecutor extends AbstractConsumeMessageExecuto
                     }
                 } else {
                     // 共享消费
-                    task.run(executor);
+                    task.run(messageHandleExecutor);
                 }
             } catch (Throwable t) {
                 orderStrategy.onConsumeFailed(message, this);
@@ -120,8 +135,7 @@ public class OrderedConsumeMessageExecutor extends AbstractConsumeMessageExecuto
         return messageHandler;
     }
 
-    @Override
-    public boolean cleanUp() {
+    public boolean isFull() {
         // 如果堆积的消息数超过 maxQueueSize, 则不会再拉取消息
         return messageQueue.size() < MAX_QUEUE_SIZE;
     }

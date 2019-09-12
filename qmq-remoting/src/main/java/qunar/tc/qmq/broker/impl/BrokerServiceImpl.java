@@ -319,8 +319,8 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager, Meta
     }
 
     @Override
-    public ConsumerAllocation getConsumerAllocation(String subject, String group) {
-        String key = createConsumerAllocationKey(subject, group, clientId);
+    public ConsumerAllocation getConsumerAllocation(String subject, String consumerGroup) {
+        String key = createConsumerAllocationKey(subject, consumerGroup, clientId);
         SettableFuture<ConsumerAllocation> future = consumerAllocationMap.computeIfAbsent(key, k -> SettableFuture.create());
         try {
             return future.get();

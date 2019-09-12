@@ -27,7 +27,7 @@ import qunar.tc.qmq.broker.impl.BrokerServiceImpl;
 import qunar.tc.qmq.common.*;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.consumer.ConsumeMessageExecutor;
-import qunar.tc.qmq.consumer.MessageExecutorFactory;
+import qunar.tc.qmq.consumer.OrderedConsumeMessageExecutor;
 import qunar.tc.qmq.consumer.exception.DuplicateListenerException;
 import qunar.tc.qmq.consumer.register.ConsumerRegister;
 import qunar.tc.qmq.consumer.register.RegistParam;
@@ -61,13 +61,15 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
 
     private final Map<String, PullConsumer> pullConsumerMap = new HashMap<>();
 
-    private final ExecutorService pullExecutor = Executors.newCachedThreadPool(new NamedThreadFactory("qmq-pull"));
+    /**
+     * 负责执行 partition 的拉取
+     */
+    private final ExecutorService partitionExecutor = Executors.newCachedThreadPool(new NamedThreadFactory("qmq-pull"));
 
     private DefaultMetaInfoService metaInfoService;
     private BrokerService brokerService;
     private PullService pullService;
     private AckService ackService;
-    private ExclusiveConsumerLifecycleManager exclusiveConsumerLifecycleManager;
 
     private String clientId;
     private String appCode;
@@ -89,7 +91,6 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         OrderStrategyCache.initOrderStrategy(new DefaultMessageGroupResolver(brokerService));
         this.pullService = new PullService(brokerService);
         this.ackService = new AckService(this.brokerService);
-        this.exclusiveConsumerLifecycleManager = ClientLifecycleManagerFactory.get();
 
         this.ackService.setDestroyWaitInSeconds(destroyWaitInSeconds);
         this.ackService.setClientId(clientId);
@@ -198,7 +199,6 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
     private PullEntry updatePullEntry(String subject, String group, RegistParam param, PullStrategy pullStrategy, ConsumerMetaInfoResponse response) {
         String subscribeKey = MapKeyBuilder.buildSubscribeKey(subject, group);
         PullEntry oldEntry = pullEntryMap.get(subscribeKey);
-        ConsumeMode consumeMode = response.getConsumerAllocation().getConsumeMode();
 
         if (oldEntry == DefaultPullEntry.EMPTY_PULL_ENTRY) {
             throw new DuplicateListenerException(subscribeKey);
@@ -208,7 +208,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
                 new PullClientFactory<PullEntry>() {
                     @Override
                     public PullEntry createPullClient(String subject, String consumerGroup, String partitionName, int version, PullStrategy pullStrategy) {
-                        return createDefaultPullEntry(subject, consumerGroup, partitionName, consumeMode, version, param, pullStrategy);
+                        return createDefaultPullEntry(subject, consumerGroup, partitionName, version, param, pullStrategy);
                     }
                 },
                 new CompositePullClientFactory<CompositePullEntry, PullEntry>() {
@@ -330,11 +330,12 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         return compositePullClientFactory.createPullClient(subject, consumerGroup, version, clientList);
     }
 
-    private PullEntry createDefaultPullEntry(String subject, String consumerGroup, String partitionName, ConsumeMode consumeMode, int allocationVersion, RegistParam param, PullStrategy pullStrategy) {
+    private PullEntry createDefaultPullEntry(String subject, String consumerGroup, String partitionName, int allocationVersion, RegistParam param, PullStrategy pullStrategy) {
         ConsumeParam consumeParam = new ConsumeParam(subject, consumerGroup, param);
-        ConsumeMessageExecutor consumeMessageExecutor = MessageExecutorFactory.createExecutor(subject, consumerGroup, partitionName, consumeMode, pullExecutor, param.getMessageListener());
+        ExclusiveConsumerLifecycleManager exclusiveConsumerLifecycleManager = ClientLifecycleManagerFactory.get();
+        ConsumeMessageExecutor consumeMessageExecutor = new OrderedConsumeMessageExecutor(subject, consumerGroup, partitionName, partitionExecutor, param.getExecutor(), param.getMessageListener(), exclusiveConsumerLifecycleManager, brokerService);
         PullEntry pullEntry = new DefaultPullEntry(consumeMessageExecutor, consumeParam, consumerGroup, partitionName, allocationVersion, pullService, ackService, metaInfoService, brokerService, pullStrategy);
-        pullEntry.startPull(pullExecutor);
+        pullEntry.startPull(partitionExecutor);
         return pullEntry;
     }
 
@@ -363,7 +364,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
                                 pullService,
                                 ackService,
                                 brokerService);
-                        pullConsumer.startPull(pullExecutor);
+                        pullConsumer.startPull(partitionExecutor);
                         return pullConsumer;
                     }
                 },

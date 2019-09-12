@@ -170,7 +170,7 @@ class DefaultPullEntry extends AbstractPullEntry {
 
     private boolean preparePull() {
         pullRunCounter.inc();
-        if (!consumeMessageExecutor.cleanUp()) {
+        if (!consumeMessageExecutor.isFull()) {
             pause("wait consumer", PAUSETIME_OF_CLEAN_LAST_MESSAGE);
             return false;
         }
