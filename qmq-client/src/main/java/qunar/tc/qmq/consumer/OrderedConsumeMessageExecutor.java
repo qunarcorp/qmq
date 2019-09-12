@@ -7,10 +7,9 @@ import qunar.tc.qmq.ConsumeMode;
 import qunar.tc.qmq.MessageListener;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.common.ExclusiveConsumerLifecycleManager;
+import qunar.tc.qmq.common.OrderStrategy;
 import qunar.tc.qmq.common.OrderStrategyCache;
 import qunar.tc.qmq.consumer.pull.PulledMessage;
-import qunar.tc.qmq.common.OrderStrategy;
-import qunar.tc.qmq.common.OrderStrategyManager;
 
 import java.util.List;
 import java.util.Objects;
@@ -24,22 +23,25 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * @since 2019-09-03
  */
 public class OrderedConsumeMessageExecutor extends AbstractConsumeMessageExecutor {
-
-    private final static int MAX_QUEUE_SIZE = 10000;
-    private final AtomicBoolean started = new AtomicBoolean(false);
     private final Logger logger = LoggerFactory.getLogger(OrderedConsumeMessageExecutor.class);
 
-    private ExclusiveConsumerLifecycleManager lifecycleManager;
-    private BlockingDeque<PulledMessage> messageQueue;
-    private MessageHandler messageHandler;
-    private Executor executor;
-    private String subject;
-    private String consumerGroup;
-    private ConsumeMode consumeMode;
+    private final static int MAX_QUEUE_SIZE = 10000;
+
+    private final AtomicBoolean started = new AtomicBoolean(false);
+
+    private final ExclusiveConsumerLifecycleManager lifecycleManager;
+    private final BlockingDeque<PulledMessage> messageQueue;
+    private final MessageHandler messageHandler;
+    private final Executor executor;
+    private final String subject;
+    private final String consumerGroup;
+    private final String partitionName;
+    private final ConsumeMode consumeMode;
     private volatile boolean stopped = false;
 
-    public OrderedConsumeMessageExecutor(String subject, String consumerGroup, ConsumeMode consumeMode, Executor executor, MessageListener messageListener, ExclusiveConsumerLifecycleManager lifecycleManager) {
+    public OrderedConsumeMessageExecutor(String subject, String consumerGroup, String partitionName, ConsumeMode consumeMode, Executor executor, MessageListener messageListener, ExclusiveConsumerLifecycleManager lifecycleManager) {
         super(subject, consumerGroup);
+        this.partitionName = partitionName;
         this.consumeMode = consumeMode;
         this.subject = subject;
         this.consumerGroup = consumerGroup;
@@ -66,7 +68,6 @@ public class OrderedConsumeMessageExecutor extends AbstractConsumeMessageExecuto
                 continue;
             }
             try {
-                String partitionName = message.getStringProperty(BaseMessage.keys.qmq_partitionName);
                 String brokerGroup = message.getStringProperty(BaseMessage.keys.qmq_partitionBroker);
                 if (!lifecycleManager.isAlive(subject, consumerGroup, brokerGroup, partitionName)) {
                     // 没有权限, 停一会再看

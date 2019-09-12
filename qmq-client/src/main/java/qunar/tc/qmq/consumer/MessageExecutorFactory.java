@@ -12,7 +12,7 @@ import java.util.concurrent.Executor;
  */
 public class MessageExecutorFactory {
 
-    public static ConsumeMessageExecutor createExecutor(String subject, String group, ConsumeMode consumeMode, Executor executor, MessageListener listener) {
-        return new OrderedConsumeMessageExecutor(subject, group, consumeMode, executor, listener, ClientLifecycleManagerFactory.get());
+    public static ConsumeMessageExecutor createExecutor(String subject, String consumerGroup, String partitionName, ConsumeMode consumeMode, Executor executor, MessageListener listener) {
+        return new OrderedConsumeMessageExecutor(subject, consumerGroup, partitionName, consumeMode, executor, listener, ClientLifecycleManagerFactory.get());
     }
 }
