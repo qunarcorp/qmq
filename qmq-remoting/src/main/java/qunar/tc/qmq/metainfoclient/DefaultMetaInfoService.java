@@ -93,8 +93,8 @@ public class DefaultMetaInfoService implements MetaInfoService, MetaInfoClient.R
         return createKey(request.getSubject(), request.getConsumerGroup());
     }
 
-    private String createKey(String subject, String group) {
-        return subject + ":" + group;
+    private String createKey(String subject, String consumerGroup) {
+        return subject + ":" + consumerGroup;
     }
 
     @Override

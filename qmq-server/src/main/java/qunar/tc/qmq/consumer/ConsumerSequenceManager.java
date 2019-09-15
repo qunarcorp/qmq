@@ -98,7 +98,7 @@ public class ConsumerSequenceManager {
         final ConsumerSequence consumerSequence = getOrCreateConsumerSequence(subject, group, consumerId);
 
         if (consumerLogRange.getEnd() - consumerLogRange.getBegin() + 1 != getMessageResult.getMessageNum()) {
-            LOG.debug("consumer offset range error, subject:{}, group:{}, consumerId:{}, isBroadcast:{}, getMessageResult:{}", subject, group, consumerId, isExclusiveConsume, getMessageResult);
+            LOG.debug("consumer offset range error, subject:{}, group:{}, consumerId:{}, isExclusiveConsume:{}, getMessageResult:{}", subject, group, consumerId, isExclusiveConsume, getMessageResult);
             QMon.consumerLogOffsetRangeError(subject, group);
         }
         consumerSequence.pullLock();

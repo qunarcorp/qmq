@@ -124,7 +124,7 @@ public class PullAction implements Action {
                 "subject='" + subject + '\'' +
                 ", group='" + group + '\'' +
                 ", consumerId='" + consumerId + '\'' +
-                ", broadcast=" + isExclusiveConsume +
+                ", isExclusiveConsume=" + isExclusiveConsume +
                 ", firstSequence=" + firstSequence +
                 ", lastSequence=" + lastSequence +
                 ", firstMessageSequence=" + firstMessageSequence +
