@@ -28,11 +28,11 @@ import java.util.concurrent.Future;
  */
 public interface ConsumerRegister {
 
-    Future<PullEntry> registerPullEntry(String prefix, String group, RegistParam param);
+    Future<PullEntry> registerPullEntry(String subject, String consumerGroup, RegistParam param);
 
-    Future<PullConsumer> registerPullConsumer(String subject, String group, boolean isBroadcast);
+    Future<PullConsumer> registerPullConsumer(String subject, String consumerGroup, boolean isBroadcast);
 
-    void unregister(String prefix, String group);
+    void unregister(String subject, String consumerGroup);
 
     void setAutoOnline(boolean autoOnline);
 
