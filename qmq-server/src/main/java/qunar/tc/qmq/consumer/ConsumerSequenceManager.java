@@ -140,6 +140,9 @@ public class ConsumerSequenceManager {
         consumerSequence.ackLock();
         final long confirmedAckSequence = consumerSequence.getAckSequence();
         try {
+            //         end sequence of current ack range                      confirm ack sequence
+            //   -----------------------|------------------------------------------------|----------
+            // ack已经ack过的消息
             if (lastPullSequence <= confirmedAckSequence) {
                 LOG.warn("receive duplicate ack, ackEntry:{}, consumerSequence:{} ", ackEntry, consumerSequence);
                 QMon.consumerDuplicateAckCountInc(subject, consumerGroup, (int) (confirmedAckSequence - lastPullSequence));
@@ -162,6 +165,7 @@ public class ConsumerSequenceManager {
                 QMon.consumerLostAckCountInc(subject, consumerGroup, (int) lostAckCount);
             }
 
+            //如果是独占消费，则ack sequence是维护在consumerGroup层级的，而共享消费维护在consumerId层级
             String exclusiveKey = ackEntry.isExclusiveConsume() ? consumerGroup : consumerId;
             final Action rangeAckAction = new RangeAckAction(subject, consumerGroup, exclusiveKey, System.currentTimeMillis(), firstPullSequence, lastPullSequence);
             if (!putAction(rangeAckAction))
@@ -178,8 +182,8 @@ public class ConsumerSequenceManager {
         }
     }
 
-    boolean putForeverOfflineAction(final String subject, final String group, final String consumerId) {
-        final ForeverOfflineAction action = new ForeverOfflineAction(subject, group, consumerId, System.currentTimeMillis());
+    boolean putForeverOfflineAction(final String subject, final String consumerGroup, final String consumerId) {
+        final ForeverOfflineAction action = new ForeverOfflineAction(subject, consumerGroup, consumerId, System.currentTimeMillis());
         return putAction(action);
     }
 
@@ -194,39 +198,39 @@ public class ConsumerSequenceManager {
         return false;
     }
 
-    void putNeedRetryMessages(String subject, String group, String consumerId, long firstNotAckedOffset, long lastPullLogOffset) {
-        if (noPullLog(subject, group, consumerId)) return;
+    void putNeedRetryMessages(String subject, String consumerGroup, String consumerId, long firstNotAckedOffset, long lastPullLogOffset) {
+        if (noPullLog(subject, consumerGroup, consumerId)) return;
 
         // get error msg
-        final List<Buffer> needRetryMessages = getNeedRetryMessages(subject, group, consumerId, firstNotAckedOffset, lastPullLogOffset);
+        final List<Buffer> needRetryMessages = getNeedRetryMessages(subject, consumerGroup, consumerId, firstNotAckedOffset, lastPullLogOffset);
         // put error msg
-        putNeedRetryMessages(subject, group, consumerId, needRetryMessages);
+        putNeedRetryMessages(subject, consumerGroup, consumerId, needRetryMessages);
     }
 
-    private boolean noPullLog(String subject, String group, String consumerId) {
+    private boolean noPullLog(String subject, String consumerGroup, String consumerId) {
         Table<String, String, PullLog> pullLogs = storage.allPullLogs();
         Map<String, PullLog> subscribers = pullLogs.row(consumerId);
         if (subscribers == null || subscribers.isEmpty()) return true;
-        return subscribers.get(GroupAndSubject.groupAndSubject(subject, group)) == null;
+        return subscribers.get(GroupAndSubject.groupAndSubject(subject, consumerGroup)) == null;
     }
 
-    void remove(String subject, String group, String consumerId) {
+    void remove(String subject, String consumerGroup, String consumerId) {
         final ConcurrentMap<ConsumerGroup, ConsumerSequence> consumers = sequences.get(consumerId);
         if (consumers == null) return;
 
-        consumers.remove(new ConsumerGroup(subject, group));
+        consumers.remove(new ConsumerGroup(subject, consumerGroup));
         if (consumers.isEmpty()) {
             sequences.remove(consumerId);
         }
     }
 
-    private List<Buffer> getNeedRetryMessages(String subject, String group, String consumerId, long firstNotAckedSequence, long lastPullSequence) {
+    private List<Buffer> getNeedRetryMessages(String subject, String consumerGroup, String consumerId, long firstNotAckedSequence, long lastPullSequence) {
         final int actualNum = (int) (lastPullSequence - firstNotAckedSequence + 1);
         final List<Buffer> needRetryMessages = new ArrayList<>(actualNum);
         for (long sequence = firstNotAckedSequence; sequence <= lastPullSequence; sequence++) {
-            final long consumerLogSequence = storage.getMessageSequenceByPullLog(subject, group, consumerId, sequence);
+            final long consumerLogSequence = storage.getMessageSequenceByPullLog(subject, consumerGroup, consumerId, sequence);
             if (consumerLogSequence < 0) {
-                LOG.warn("find no consumer log offset for this pull log, subject:{}, group:{}, consumerId:{}, sequence:{}, consumerLogSequence:{}", subject, group, consumerId, sequence, consumerLogSequence);
+                LOG.warn("find no consumer log offset for this pull log, subject:{}, consumerGroup:{}, consumerId:{}, sequence:{}, consumerLogSequence:{}", subject, consumerGroup, consumerId, sequence, consumerLogSequence);
                 continue;
             }
 
@@ -239,19 +243,19 @@ public class ConsumerSequenceManager {
         return needRetryMessages;
     }
 
-    private void putNeedRetryMessages(String subject, String group, String consumerId, List<Buffer> needRetryMessages) {
+    private void putNeedRetryMessages(String subject, String consumerGroup, String consumerId, List<Buffer> needRetryMessages) {
         try {
             for (Buffer buffer : needRetryMessages) {
                 final ByteBuf message = Unpooled.wrappedBuffer(buffer.getBuffer());
                 final RawMessage rawMessage = QMQSerializer.deserializeRawMessage(message);
                 if (!RetrySubjectUtils.isRetrySubject(subject)) {
-                    final String retrySubject = RetrySubjectUtils.buildRetrySubject(subject, group);
+                    final String retrySubject = RetrySubjectUtils.buildRetrySubject(subject, consumerGroup);
                     rawMessage.setSubject(retrySubject);
                 }
 
                 final PutMessageResult putMessageResult = storage.appendMessage(rawMessage);
                 if (putMessageResult.getStatus() != PutMessageStatus.SUCCESS) {
-                    LOG.error("put message error, consumer:{} {} {}, status:{}", subject, group, consumerId, putMessageResult.getStatus());
+                    LOG.error("put message error, consumer:{} {} {}, status:{}", subject, consumerGroup, consumerId, putMessageResult.getStatus());
                     throw new RuntimeException("put retry message error");
                 }
             }
@@ -259,30 +263,30 @@ public class ConsumerSequenceManager {
             needRetryMessages.forEach(Buffer::release);
         }
 
-        QMon.putNeedRetryMessagesCountInc(subject, group, needRetryMessages.size());
+        QMon.putNeedRetryMessagesCountInc(subject, consumerGroup, needRetryMessages.size());
     }
 
-    public ConsumerSequence getConsumerSequence(String subject, String group, String consumerId) {
+    public ConsumerSequence getConsumerSequence(String subject, String consumerGroup, String consumerId) {
         final ConcurrentMap<ConsumerGroup, ConsumerSequence> consumerSequences = this.sequences.get(consumerId);
         if (consumerSequences == null) {
             return null;
         }
-        return consumerSequences.get(new ConsumerGroup(subject, group));
+        return consumerSequences.get(new ConsumerGroup(subject, consumerGroup));
     }
 
-    public ConsumerSequence getOrCreateConsumerSequence(String subject, String group, String consumerId, boolean isExclusiveConsume) {
-        String exclusiveKey = isExclusiveConsume ? group : consumerId;
+    public ConsumerSequence getOrCreateConsumerSequence(String subject, String consumerGroup, String consumerId, boolean isExclusiveConsume) {
+        String exclusiveKey = isExclusiveConsume ? consumerGroup : consumerId;
         ConcurrentMap<ConsumerGroup, ConsumerSequence> consumerSequences = this.sequences.get(exclusiveKey);
         if (consumerSequences == null) {
             final ConcurrentMap<ConsumerGroup, ConsumerSequence> newConsumerSequences = new ConcurrentHashMap<>();
             consumerSequences = ObjectUtils.defaultIfNull(sequences.putIfAbsent(exclusiveKey, newConsumerSequences), newConsumerSequences);
         }
 
-        final ConsumerGroup consumerGroup = new ConsumerGroup(subject, group);
-        ConsumerSequence consumerSequence = consumerSequences.get(consumerGroup);
+        final ConsumerGroup consumerGroupKey = new ConsumerGroup(subject, consumerGroup);
+        ConsumerSequence consumerSequence = consumerSequences.get(consumerGroupKey);
         if (consumerSequence == null) {
             final ConsumerSequence newConsumerSequence = new ConsumerSequence(ACTION_LOG_ORIGIN_OFFSET, ACTION_LOG_ORIGIN_OFFSET);
-            consumerSequence = ObjectUtils.defaultIfNull(consumerSequences.putIfAbsent(consumerGroup, newConsumerSequence), newConsumerSequence);
+            consumerSequence = ObjectUtils.defaultIfNull(consumerSequences.putIfAbsent(consumerGroupKey, newConsumerSequence), newConsumerSequence);
         }
         return consumerSequence;
     }
