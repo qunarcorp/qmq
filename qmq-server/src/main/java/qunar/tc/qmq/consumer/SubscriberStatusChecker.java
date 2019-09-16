@@ -183,11 +183,11 @@ public class SubscriberStatusChecker implements ActorSystem.Processor<Subscriber
     }
 
     public void heartbeat(String consumerId, String subject, String group) {
-        final String realSubject = RetrySubjectUtils.getRealSubject(subject);
-        final String retrySubject = RetrySubjectUtils.buildRetrySubject(realSubject, group);
+        final String partitionName = RetrySubjectUtils.getPartitionName(subject);
+        final String retryPartition = RetrySubjectUtils.buildRetryPartitionName(partitionName, group);
 
-        refreshSubscriber(realSubject, group, consumerId);
-        refreshSubscriber(retrySubject, group, consumerId);
+        refreshSubscriber(partitionName, group, consumerId);
+        refreshSubscriber(retryPartition, group, consumerId);
     }
 
     private void refreshSubscriber(final String subject, final String group, final String consumerId) {

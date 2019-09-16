@@ -18,7 +18,6 @@ package qunar.tc.qmq.protocol.consumer;
 
 import com.google.common.base.Strings;
 import qunar.tc.qmq.ClientType;
-import qunar.tc.qmq.ConsumeMode;
 import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.base.OnOfflineState;
 
@@ -38,9 +37,8 @@ public class MetaInfoRequest {
     private static final String CONSUMER_GROUP = "consumerGroup";
     private static final String REQUEST_TYPE = "requestType";
     private static final String ONLINE_STATE = "onlineState";
-    private static final String CONSUME_MODE = "consumeMode";
-
-    private AtomicBoolean inited = new AtomicBoolean(false);
+    private static final String IS_ORDERED = "isOrdered";
+    private static final String IS_BROADCAST = "isBroadcast";
 
     private final Map<String, String> attrs;
 
@@ -51,7 +49,8 @@ public class MetaInfoRequest {
             String appCode,
             String clientId,
             ClientRequestType requestType,
-            ConsumeMode consumeMode
+            boolean isBroadcast,
+            boolean isOrdered
     ) {
         this.attrs = new HashMap<>();
         setStringValue(SUBJECT, subject);
@@ -60,10 +59,9 @@ public class MetaInfoRequest {
         setStringValue(APP_CODE, appCode);
         setStringValue(CLIENT_ID, clientId);
         setIntValue(REQUEST_TYPE, requestType.getCode());
-        if (consumeMode != null) {
-            // consumer 特有参数, 可能为 null
-            setStringValue(CONSUME_MODE, consumeMode.name());
-        }
+        // consumer 特有参数
+        setBooleanValue(IS_ORDERED, isOrdered);
+        setBooleanValue(IS_BROADCAST, isBroadcast);
     }
 
     public MetaInfoRequest(Map<String, String> attrs) {
@@ -74,17 +72,12 @@ public class MetaInfoRequest {
         return attrs;
     }
 
-    public boolean isInited() {
-        return inited.get();
+    public boolean isBroadcast() {
+        return getBooleanValue(IS_BROADCAST);
     }
 
-    public void setInited(boolean init) {
-        inited.set(init);
-    }
-
-    public ConsumeMode getConsumeMode() {
-        String modeName = attrs.get(CONSUME_MODE);
-        return modeName == null ? ConsumeMode.SHARED : ConsumeMode.valueOf(modeName);
+    public boolean isOrdered() {
+        return getBooleanValue(IS_ORDERED);
     }
 
     public String getSubject() {

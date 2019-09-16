@@ -102,6 +102,8 @@ class ConsumerAnnotationScanner implements BeanPostProcessor, ApplicationContext
                 .setConsumeMostOnce(annotation.consumeMostOnce())
                 .setTags(new HashSet<>(Arrays.asList(annotation.tags())))
                 .setTagType(annotation.tagType())
+                .setBroadcast(annotation.isBroadcast())
+                .setOrdered(annotation.isOrdered())
                 .create();
     }
 

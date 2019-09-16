@@ -37,6 +37,11 @@ public class DefaultSubjectRouter implements SubjectRouter {
 
     @Override
     public List<BrokerGroup> route(String subject, MetaInfoRequest request) {
+
+        if (request.getClientTypeCode() == ClientType.DELAY_PRODUCER.getCode()) {
+            return cachedMetaInfoManager.getDelayNewGroups();
+        }
+
         SubjectInfo subjectInfo = getOrCreateSubjectInfo(subject);
 
         int clientTypeCode = request.getClientTypeCode();

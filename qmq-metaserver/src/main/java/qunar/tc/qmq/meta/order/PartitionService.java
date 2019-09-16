@@ -1,6 +1,6 @@
 package qunar.tc.qmq.meta.order;
 
-import qunar.tc.qmq.ConsumeMode;
+import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.PartitionAllocation;
 import qunar.tc.qmq.meta.BrokerCluster;
 import qunar.tc.qmq.meta.ConsumerAllocation;
@@ -25,8 +25,10 @@ public interface PartitionService {
     boolean registerOrderedMessage(String subject, int physicalPartitionNum);
 
     ProducerAllocation getDefaultProducerAllocation(String subject, BrokerCluster brokerCluster);
-    ConsumerAllocation getDefaultConsumerAllocation(String subject, ConsumeMode consumeMode, BrokerCluster brokerCluster);
-    ConsumerAllocation getConsumerAllocation(String subject, String consumerGroup, ConsumeMode consumeMode, String clientId);
+
+    ConsumerAllocation getDefaultConsumerAllocation(String subject, ConsumeStrategy consumeStrategy, BrokerCluster brokerCluster);
+
+    ConsumerAllocation getConsumerAllocation(String subject, String consumerGroup, ConsumeStrategy consumeStrategy, String clientId);
 
     /**
      * 获取正在生效的分区分配列表

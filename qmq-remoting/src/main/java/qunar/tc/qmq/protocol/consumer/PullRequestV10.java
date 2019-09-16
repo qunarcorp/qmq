@@ -1,6 +1,9 @@
 package qunar.tc.qmq.protocol.consumer;
 
+import qunar.tc.qmq.ConsumeStrategy;
+
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author zhenwei.liu
@@ -9,7 +12,6 @@ import java.util.List;
 public class PullRequestV10 extends AbstractPullRequest {
 
     private final int consumerAllocationVersion;
-    private final String partitionName;
 
     public PullRequestV10(String subject,
                           String group,
@@ -19,20 +21,14 @@ public class PullRequestV10 extends AbstractPullRequest {
                           long pullOffsetBegin,
                           long pullOffsetLast,
                           String consumerId,
-                          boolean isExclusiveConsume,
+                          ConsumeStrategy consumeStrategy,
                           List<PullFilter> filters,
-                          int consumerAllocationVersion,
-                          String partitionName) {
-        super(subject, group, requestNum, timeoutMillis, offset, pullOffsetBegin, pullOffsetLast, consumerId, isExclusiveConsume, filters);
+                          int consumerAllocationVersion) {
+        super(subject, group, requestNum, timeoutMillis, offset, pullOffsetBegin, pullOffsetLast, consumerId, Objects.equals(ConsumeStrategy.EXCLUSIVE, consumeStrategy), filters);
         this.consumerAllocationVersion = consumerAllocationVersion;
-        this.partitionName = partitionName;
     }
 
     public int getConsumerAllocationVersion() {
         return consumerAllocationVersion;
-    }
-
-    public String getPartitionName() {
-        return partitionName;
     }
 }

@@ -7,9 +7,9 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.CollectionUtils;
 import qunar.tc.qmq.ClientType;
-import qunar.tc.qmq.ConsumeMode;
+import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.PartitionAllocation;
-import qunar.tc.qmq.SubjectLocation;
+import qunar.tc.qmq.PartitionProps;
 import qunar.tc.qmq.base.OnOfflineState;
 import qunar.tc.qmq.common.PartitionConstants;
 import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
@@ -121,7 +121,7 @@ public class DefaultPartitionService implements PartitionService {
         List<BrokerGroup> brokerGroups = brokerCluster.getBrokerGroups();
         int logicalPartitionNum = PartitionConstants.DEFAULT_LOGICAL_PARTITION_NUM;
         int step = (int) Math.ceil((double) logicalPartitionNum / brokerGroups.size());
-        TreeRangeMap<Integer, SubjectLocation> logicalRangeMap = TreeRangeMap.create();
+        TreeRangeMap<Integer, PartitionProps> logicalRangeMap = TreeRangeMap.create();
         int startRange = 0;
         for (BrokerGroup brokerGroup : brokerGroups) {
             int endRange = startRange + step;
@@ -130,7 +130,7 @@ public class DefaultPartitionService implements PartitionService {
             }
             Range<Integer> logicalRange = Range.closedOpen(startRange, endRange);
             startRange = endRange;
-            logicalRangeMap.put(logicalRange, new SubjectLocation(subject, brokerGroup.getGroupName()));
+            logicalRangeMap.put(logicalRange, new PartitionProps(subject, brokerGroup.getGroupName()));
         }
         return new ProducerAllocation(subject, version, logicalRangeMap);
     }
@@ -138,19 +138,19 @@ public class DefaultPartitionService implements PartitionService {
     /**
      * 在还没有自动为 exclusive consumer 分配分区时, 默认返回用户设置的消费模式, 让大家进行抢占消费
      *
-     * @param subject       主题
-     * @param consumeMode   用户设置的消费模式
-     * @param brokerCluster 分配的 brokerCluster
+     * @param subject         主题
+     * @param consumeStrategy Meta 分配的消费策略
+     * @param brokerCluster   分配的 brokerCluster
      * @return 分配结果
      */
     @Override
-    public ConsumerAllocation getDefaultConsumerAllocation(String subject, ConsumeMode consumeMode, BrokerCluster brokerCluster) {
+    public ConsumerAllocation getDefaultConsumerAllocation(String subject, ConsumeStrategy consumeStrategy, BrokerCluster brokerCluster) {
         List<BrokerGroup> brokerGroups = brokerCluster.getBrokerGroups();
-        List<SubjectLocation> subjectLocations = Lists.newArrayList();
+        List<PartitionProps> partitionProps = Lists.newArrayList();
         for (BrokerGroup brokerGroup : brokerGroups) {
-            subjectLocations.add(new SubjectLocation(subject, brokerGroup.getGroupName()));
+            partitionProps.add(new PartitionProps(subject, brokerGroup.getGroupName()));
         }
-        return new ConsumerAllocation(EMPTY_VERSION, subjectLocations, getExpiredMills(System.currentTimeMillis()), consumeMode);
+        return new ConsumerAllocation(EMPTY_VERSION, partitionProps, getExpiredMills(System.currentTimeMillis()), consumeStrategy);
     }
 
     /**
@@ -162,20 +162,20 @@ public class DefaultPartitionService implements PartitionService {
      * @return
      */
     @Override
-    public ConsumerAllocation getConsumerAllocation(String subject, String consumerGroup, ConsumeMode consumeMode, String clientId) {
+    public ConsumerAllocation getConsumerAllocation(String subject, String consumerGroup, ConsumeStrategy consumeStrategy, String clientId) {
         PartitionAllocation partitionAllocation = getActivatedPartitionAllocation(subject, consumerGroup);
         if (partitionAllocation == null) {
             return null;
         }
         PartitionAllocation.AllocationDetail allocationDetail = partitionAllocation.getAllocationDetail();
-        Map<String, Set<SubjectLocation>> clientId2PartitionName = allocationDetail.getClientId2SubjectLocation();
-        Set<SubjectLocation> subjectLocations = clientId2PartitionName.get(clientId);
-        if (CollectionUtils.isEmpty(subjectLocations)) {
+        Map<String, Set<PartitionProps>> clientId2PartitionName = allocationDetail.getClientId2SubjectLocation();
+        Set<PartitionProps> partitionProps = clientId2PartitionName.get(clientId);
+        if (CollectionUtils.isEmpty(partitionProps)) {
             return null;
         }
 
         int version = partitionAllocation.getVersion();
-        return new ConsumerAllocation(version, Lists.newArrayList(subjectLocations), getExpiredMills(System.currentTimeMillis()), consumeMode);
+        return new ConsumerAllocation(version, Lists.newArrayList(partitionProps), getExpiredMills(System.currentTimeMillis()), consumeStrategy);
     }
 
     @Override
@@ -240,12 +240,12 @@ public class DefaultPartitionService implements PartitionService {
 
         Set<Integer> physicalPartitions = partitionSet.getPhysicalPartitions();
 
-        RangeMap<Integer, SubjectLocation> logical2SubjectLocation = TreeRangeMap.create();
+        RangeMap<Integer, PartitionProps> logical2SubjectLocation = TreeRangeMap.create();
         for (Integer physicalPartition : physicalPartitions) {
             String partitionName = createPartitionName(partitionSet.getSubject(), physicalPartition);
             Partition partition = partitionMap.get(partitionName);
             Range<Integer> logicalPartition = partition.getLogicalPartition();
-            logical2SubjectLocation.put(logicalPartition, new SubjectLocation(partitionName, partition.getBrokerGroup()));
+            logical2SubjectLocation.put(logicalPartition, new PartitionProps(partitionName, partition.getBrokerGroup()));
         }
         return new ProducerAllocation(subject, version, logical2SubjectLocation);
     }

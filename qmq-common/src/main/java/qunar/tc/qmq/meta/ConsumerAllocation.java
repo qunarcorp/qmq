@@ -1,7 +1,7 @@
 package qunar.tc.qmq.meta;
 
-import qunar.tc.qmq.ConsumeMode;
-import qunar.tc.qmq.SubjectLocation;
+import qunar.tc.qmq.ConsumeStrategy;
+import qunar.tc.qmq.PartitionProps;
 import qunar.tc.qmq.Versionable;
 
 import java.util.List;
@@ -13,15 +13,15 @@ import java.util.List;
 public class ConsumerAllocation implements Versionable {
 
     private int allocationVersion;
-    private List<SubjectLocation> subjectLocations;
+    private List<PartitionProps> partitionProps;
     private long expired; // 本次心跳授权超时时间
-    private ConsumeMode consumeMode;
+    private ConsumeStrategy consumeStrategy;
 
-    public ConsumerAllocation(int allocationVersion, List<SubjectLocation> subjectLocations, long expired, ConsumeMode consumeMode) {
+    public ConsumerAllocation(int allocationVersion, List<PartitionProps> partitionProps, long expired, ConsumeStrategy consumeStrategy) {
         this.allocationVersion = allocationVersion;
-        this.subjectLocations = subjectLocations;
+        this.partitionProps = partitionProps;
         this.expired = expired;
-        this.consumeMode = consumeMode;
+        this.consumeStrategy = consumeStrategy;
     }
 
     @Override
@@ -29,15 +29,15 @@ public class ConsumerAllocation implements Versionable {
         return allocationVersion;
     }
 
-    public List<SubjectLocation> getSubjectLocations() {
-        return subjectLocations;
+    public List<PartitionProps> getPartitionProps() {
+        return partitionProps;
     }
 
     public long getExpired() {
         return expired;
     }
 
-    public ConsumeMode getConsumeMode() {
-        return consumeMode;
+    public ConsumeStrategy getConsumeStrategy() {
+        return consumeStrategy;
     }
 }

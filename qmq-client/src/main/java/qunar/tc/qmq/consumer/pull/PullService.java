@@ -21,14 +21,15 @@ import com.google.common.util.concurrent.AbstractFuture;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.ConsumeMode;
+import qunar.tc.qmq.ConsumeStrategy;
+import qunar.tc.qmq.PartitionProps;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.ClientMetaManager;
 import qunar.tc.qmq.config.PullSubjectsConfig;
 import qunar.tc.qmq.consumer.pull.exception.PullException;
 import qunar.tc.qmq.meta.ConsumerAllocation;
-import qunar.tc.qmq.meta.SubjectLocationUtils;
+import qunar.tc.qmq.meta.PartitionPropsUtils;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.netty.client.NettyClient;
 import qunar.tc.qmq.netty.client.ResponseFuture;
@@ -42,7 +43,10 @@ import qunar.tc.qmq.utils.Flags;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -70,8 +74,8 @@ class PullService {
     }
 
     private void pull(final PullParam pullParam, final PullCallback callback) {
-        String realSubject = RetrySubjectUtils.getRealSubject(pullParam.getSubject());
-        ConsumerAllocation allocation = clientMetaManager.getConsumerAllocation(realSubject, pullParam.getGroup());
+        String subject = pullParam.getSubject();
+        ConsumerAllocation allocation = clientMetaManager.getConsumerAllocation(subject, pullParam.getGroup());
         final PullRequest request = buildPullRequest(pullParam, allocation, pullParam.getBrokerGroup().getGroupName());
 
         Datagram datagram = RemotingBuilder.buildRequestDatagram(CommandCode.PULL_MESSAGE, new PullRequestPayloadHolder(request));
@@ -82,14 +86,15 @@ class PullService {
         try {
             client.sendAsync(pullParam.getBrokerGroup().getMaster(), datagram, responseTimeout, new PullCallbackWrapper(request, callback));
         } catch (Exception e) {
-            monitorPullError(pullParam.getSubject(), pullParam.getGroup());
+            monitorPullError(subject, pullParam.getGroup());
             callback.onException(e);
         }
     }
 
     private PullRequest buildPullRequest(PullParam pullParam, ConsumerAllocation allocation, String brokerGroup) {
+        PartitionProps pp = PartitionPropsUtils.getPartitionPropsBrokerGroup(brokerGroup, allocation.getPartitionProps());
         return new PullRequestV10(
-                pullParam.getSubject(),
+                pp.getPartitionName(),
                 pullParam.getGroup(),
                 pullParam.getPullBatchSize(),
                 pullParam.getTimeoutMillis(),
@@ -97,10 +102,9 @@ class PullService {
                 pullParam.getMinPullOffset(),
                 pullParam.getMaxPullOffset(),
                 pullParam.getConsumerId(),
-                Objects.equals(ConsumeMode.EXCLUSIVE, allocation.getConsumeMode()),
+                allocation.getConsumeStrategy(),
                 pullParam.getFilters(),
-                allocation.getVersion(),
-                SubjectLocationUtils.getSubjectLocationByBrokerGroup(brokerGroup, allocation.getSubjectLocations()).getPartitionName()
+                allocation.getVersion()
         );
     }
 
@@ -170,8 +174,8 @@ class PullService {
                 monitorPullCount(request.getSubject(), request.getGroup(), messages.size());
                 for (BaseMessage message : messages) {
                     if (message.getMaxRetryNum() < 0) {
-                        String realSubject = RetrySubjectUtils.getRealSubject(message.getSubject());
-                        message.setMaxRetryNum(PullSubjectsConfig.get().getMaxRetryNum(realSubject).get());
+                        String subject = message.getSubject();
+                        message.setMaxRetryNum(PullSubjectsConfig.get().getMaxRetryNum(subject).get());
                     }
                 }
                 callback.onCompleted(responseCode, messages);

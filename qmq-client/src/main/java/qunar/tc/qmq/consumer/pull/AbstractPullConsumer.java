@@ -19,12 +19,12 @@ package qunar.tc.qmq.consumer.pull;
 import com.google.common.util.concurrent.ListenableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.ConsumeMode;
 import qunar.tc.qmq.Message;
 import qunar.tc.qmq.PullConsumer;
-import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.StatusSource;
+import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.common.SwitchWaiter;
+import qunar.tc.qmq.utils.RetrySubjectUtils;
 
 import java.util.List;
 
@@ -41,16 +41,14 @@ abstract class AbstractPullConsumer extends AbstractPullClient implements PullCo
     final SwitchWaiter onlineSwitcher = new SwitchWaiter(true);
 
     private final ConsumeParam consumeParam;
-    private final ConsumeParam retryConsumeParam;
     final PlainPullEntry pullEntry;
     final PlainPullEntry retryPullEntry;
 
-    AbstractPullConsumer(String subject, String group, String partitionName, int version, boolean isBroadcast, ConsumeMode consumeMode, String clientId, PullService pullService, AckService ackService, BrokerService brokerService) {
-        super(subject, group, partitionName, version);
-        this.consumeParam = new ConsumeParam(subject, group, consumeMode, isBroadcast, false, clientId);
-        this.retryConsumeParam = new ConsumeParam(consumeParam.getRetrySubject(), group, consumeMode, isBroadcast, false, clientId);
-        this.pullEntry = new PlainPullEntry(consumeParam, version, pullService, ackService, brokerService, new AlwaysPullStrategy());
-        this.retryPullEntry = new PlainPullEntry(retryConsumeParam, version, pullService, ackService, brokerService, new WeightPullStrategy());
+    AbstractPullConsumer(String subject, String consumerGroup, String partitionName, int version, boolean isBroadcast, boolean isOrdered, String clientId, PullService pullService, AckService ackService, BrokerService brokerService) {
+        super(subject, consumerGroup, partitionName, version);
+        this.consumeParam = new ConsumeParam(subject, consumerGroup, isBroadcast, isOrdered, false, clientId);
+        this.pullEntry = new PlainPullEntry(consumeParam, partitionName, version, pullService, ackService, brokerService, new AlwaysPullStrategy());
+        this.retryPullEntry = new PlainPullEntry(consumeParam, RetrySubjectUtils.buildRetryPartitionName(subject, consumerGroup), version, pullService, ackService, brokerService, new WeightPullStrategy());
     }
 
     private static long checkAndGetTimeout(long timeout) {
@@ -90,7 +88,6 @@ abstract class AbstractPullConsumer extends AbstractPullClient implements PullCo
     @Override
     public void setConsumeMostOnce(boolean consumeMostOnce) {
         consumeParam.setConsumeMostOnce(consumeMostOnce);
-        retryConsumeParam.setConsumeMostOnce(consumeMostOnce);
     }
 
     @Override

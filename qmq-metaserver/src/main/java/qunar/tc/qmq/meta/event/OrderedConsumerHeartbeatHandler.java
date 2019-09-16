@@ -2,9 +2,8 @@ package qunar.tc.qmq.meta.event;
 
 import com.google.common.eventbus.Subscribe;
 import qunar.tc.qmq.ClientType;
-import qunar.tc.qmq.ConsumeMode;
+import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.base.ClientRequestType;
-import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 import qunar.tc.qmq.meta.model.ClientMetaInfo;
 import qunar.tc.qmq.meta.order.PartitionAllocationTask;
 import qunar.tc.qmq.meta.store.ClientMetaInfoStore;
@@ -18,12 +17,10 @@ import java.util.Objects;
  */
 public class OrderedConsumerHeartbeatHandler implements HeartbeatHandler {
 
-    private CachedMetaInfoManager cachedMetaInfoManager;
     private ClientMetaInfoStore clientMetaInfoStore;
     private PartitionAllocationTask partitionAllocationTask;
 
-    public OrderedConsumerHeartbeatHandler(CachedMetaInfoManager cachedMetaInfoManager, ClientMetaInfoStore clientMetaInfoStore, PartitionAllocationTask partitionAllocationTask) {
-        this.cachedMetaInfoManager = cachedMetaInfoManager;
+    public OrderedConsumerHeartbeatHandler(ClientMetaInfoStore clientMetaInfoStore, PartitionAllocationTask partitionAllocationTask) {
         this.clientMetaInfoStore = clientMetaInfoStore;
         this.partitionAllocationTask = partitionAllocationTask;
     }
@@ -38,7 +35,8 @@ public class OrderedConsumerHeartbeatHandler implements HeartbeatHandler {
         int clientTypeCode = request.getClientTypeCode();
         ClientType clientType = ClientType.of(clientTypeCode);
 
-        if (Objects.equals(request.getConsumeMode(), ConsumeMode.EXCLUSIVE) && clientType.isConsumer()) {
+        ConsumeStrategy consumerStrategy = ConsumeStrategy.getConsumerStrategy(request.isBroadcast(), request.isOrdered());
+        if (Objects.equals(consumerStrategy, ConsumeStrategy.EXCLUSIVE) && clientType.isConsumer()) {
             if (ClientRequestType.HEARTBEAT.getCode() == requestType || ClientRequestType.SWITCH_STATE.getCode() == requestType) {
                 // 更新在线状态
                 ClientMetaInfo clientMetaInfo = new ClientMetaInfo();

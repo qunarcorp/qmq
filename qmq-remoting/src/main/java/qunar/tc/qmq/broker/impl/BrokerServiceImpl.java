@@ -18,12 +18,14 @@ package qunar.tc.qmq.broker.impl;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ClientType;
-import qunar.tc.qmq.ConsumeMode;
-import qunar.tc.qmq.SubjectLocation;
+import qunar.tc.qmq.PartitionProps;
 import qunar.tc.qmq.Versionable;
 import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
@@ -35,7 +37,6 @@ import qunar.tc.qmq.common.ExclusiveConsumerLifecycleManager;
 import qunar.tc.qmq.common.MapKeyBuilder;
 import qunar.tc.qmq.meta.*;
 import qunar.tc.qmq.metainfoclient.MetaInfo;
-import qunar.tc.qmq.metainfoclient.MetaInfoClient;
 import qunar.tc.qmq.metainfoclient.MetaInfoService;
 import qunar.tc.qmq.protocol.MetaInfoResponse;
 import qunar.tc.qmq.protocol.consumer.ConsumerMetaInfoResponse;
@@ -52,7 +53,7 @@ import java.util.concurrent.Future;
 /**
  * @author yiqun.fan create on 17-8-18.
  */
-public class BrokerServiceImpl implements BrokerService, ClientMetaManager, MetaInfoClient.ResponseSubscriber {
+public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(BrokerServiceImpl.class);
 
     private Map<String, SettableFuture<ProducerAllocation>> producerAllocationMap = Maps.newConcurrentMap();
@@ -66,7 +67,6 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager, Meta
     public BrokerServiceImpl(String appCode, String clientId, MetaInfoService metaInfoService) {
         this.appCode = appCode;
         this.metaInfoService = metaInfoService;
-        this.metaInfoService.registerResponseSubscriber(this);
         this.clientId = clientId;
     }
 
@@ -142,15 +142,52 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager, Meta
 
     @Override
     public BrokerClusterInfo getClusterBySubject(ClientType clientType, String subject) {
-        return getClusterBySubject(clientType, subject, "", null);
+        return getClusterBySubject(clientType, subject, "", false, false);
     }
 
     @Override
-    public BrokerClusterInfo getClusterBySubject(ClientType clientType, String subject, String consumerGroup, ConsumeMode consumeMode) {
+    public BrokerClusterInfo getClusterBySubject(ClientType clientType, String subject, String consumerGroup, boolean isBroadcast, boolean isOrdered) {
         // 这个key上加group不兼容MetaInfoResponse
         String key = MapKeyBuilder.buildMetaInfoKey(clientType, subject);
         Future<BrokerClusterInfo> future = clusterMap.computeIfAbsent(key, k -> {
-            metaInfoService.registerHeartbeat(subject, consumerGroup, clientType, appCode, consumeMode);
+            MetaInfoRequest request = new MetaInfoRequest(
+                    subject,
+                    consumerGroup,
+                    clientType.getCode(),
+                    appCode,
+                    clientId,
+                    ClientRequestType.ONLINE,
+                    isBroadcast,
+                    isOrdered);
+            ListenableFuture<MetaInfoResponse> responseFuture = metaInfoService.request(request);
+            Futures.addCallback(responseFuture, new FutureCallback<MetaInfoResponse>() {
+                @Override
+                public void onSuccess(MetaInfoResponse response) {
+                    // update cache
+                    updatePartitionCache(response);
+
+                    updateOrderedClientLifecycle(response);
+
+                    MetaInfo metaInfo = parseResponse(response);
+                    if (metaInfo != null) {
+                        LOGGER.debug("meta info: {}", metaInfo);
+                        String key = MapKeyBuilder.buildMetaInfoKey(metaInfo.getClientType(), metaInfo.getSubject());
+                        SettableFuture<BrokerClusterInfo> clusterFuture = clusterMap.get(key);
+                        if (isEmptyCluster(metaInfo)) {
+                            logMetaInfo(metaInfo, !clusterFuture.isDone());
+                        } else {
+                            updateBrokerCluster(key, metaInfo.getClusterInfo());
+                        }
+                    } else {
+                        LOGGER.warn("request meta info fail, will retry in a few seconds.");
+                    }
+                }
+
+                @Override
+                public void onFailure(Throwable t) {
+
+                }
+            });
             return SettableFuture.create();
         });
         try {
@@ -162,11 +199,11 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager, Meta
 
     @Override
     public void refresh(ClientType clientType, String subject) {
-        refresh(clientType, subject, "", null);
+        refresh(clientType, subject, "", false, false);
     }
 
     @Override
-    public void refresh(ClientType clientType, String subject, String group, ConsumeMode consumeMode) {
+    public void refresh(ClientType clientType, String subject, String group, boolean isBroadcast, boolean isOrdered) {
         MetaInfoRequest request = new MetaInfoRequest(
                 subject,
                 group,
@@ -174,31 +211,15 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager, Meta
                 appCode,
                 clientId,
                 ClientRequestType.HEARTBEAT,
-                consumeMode
+                isBroadcast,
+                isOrdered
         );
         metaInfoService.request(request);
     }
 
     @Override
-    public void onResponse(MetaInfoResponse response) {
-        // update cache
-        updatePartitionCache(response);
-
-        updateOrderedClientLifecycle(response);
-
-        MetaInfo metaInfo = parseResponse(response);
-        if (metaInfo != null) {
-            LOGGER.debug("meta info: {}", metaInfo);
-            String key = MapKeyBuilder.buildMetaInfoKey(metaInfo.getClientType(), metaInfo.getSubject());
-            SettableFuture<BrokerClusterInfo> clusterFuture = clusterMap.get(key);
-            if (isEmptyCluster(metaInfo)) {
-                logMetaInfo(metaInfo, !clusterFuture.isDone());
-                return;
-            }
-            updateBrokerCluster(key, metaInfo.getClusterInfo());
-        } else {
-            LOGGER.warn("request meta info fail, will retry in a few seconds.");
-        }
+    public String getAppCode() {
+        return appCode;
     }
 
     private void updateOrderedClientLifecycle(MetaInfoResponse response) {
@@ -213,10 +234,10 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager, Meta
             ConsumerAllocation consumerAllocation = consumerResponse.getConsumerAllocation();
             int version = consumerAllocation.getVersion();
             long expired = consumerAllocation.getExpired();
-            List<SubjectLocation> subjectLocations = consumerAllocation.getSubjectLocations();
+            List<PartitionProps> partitionProps = consumerAllocation.getPartitionProps();
             ExclusiveConsumerLifecycleManager exclusiveConsumerLifecycleManager = ClientLifecycleManagerFactory.get();
-            for (SubjectLocation subjectLocation : subjectLocations) {
-                exclusiveConsumerLifecycleManager.refreshLifecycle(subject, consumerGroup, subjectLocation.getBrokerGroup(), subjectLocation.getPartitionName(), version, expired);
+            for (PartitionProps partitionProp : partitionProps) {
+                exclusiveConsumerLifecycleManager.refreshLifecycle(subject, consumerGroup, partitionProp.getBrokerGroup(), partitionProp.getPartitionName(), version, expired);
             }
         }
     }

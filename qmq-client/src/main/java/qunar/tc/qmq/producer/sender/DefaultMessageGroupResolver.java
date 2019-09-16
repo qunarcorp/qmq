@@ -11,8 +11,8 @@ import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.common.PartitionConstants;
 import qunar.tc.qmq.meta.ProducerAllocation;
-import qunar.tc.qmq.SubjectLocation;
-import qunar.tc.qmq.meta.SubjectLocationUtils;
+import qunar.tc.qmq.PartitionProps;
+import qunar.tc.qmq.meta.PartitionPropsUtils;
 import qunar.tc.qmq.utils.DelayUtil;
 
 import java.util.List;
@@ -45,11 +45,11 @@ public class DefaultMessageGroupResolver implements MessageGroupResolver {
             logicalPartition = computeOrderIdentifier(orderKey) % PartitionConstants.DEFAULT_LOGICAL_PARTITION_NUM;
         }
 
-        SubjectLocation subjectLocation = producerAllocation.getLogical2SubjectLocation().get(logicalPartition);
-        Preconditions.checkNotNull(subjectLocation,
+        PartitionProps partitionProps = producerAllocation.getLogical2SubjectLocation().get(logicalPartition);
+        Preconditions.checkNotNull(partitionProps,
                 "无法找到逻辑分区对应的 broker, subject %s, logicalPartition %s", subject, logicalPartition);
-        String brokerGroup = subjectLocation.getBrokerGroup();
-        String partitionName = subjectLocation.getPartitionName();
+        String brokerGroup = partitionProps.getBrokerGroup();
+        String partitionName = partitionProps.getPartitionName();
 
         message.setProperty(BaseMessage.keys.qmq_logicPartition.name(), logicalPartition);
         message.setProperty(BaseMessage.keys.qmq_partitionName.name(), partitionName);
@@ -81,8 +81,8 @@ public class DefaultMessageGroupResolver implements MessageGroupResolver {
         }
 
         ProducerAllocation producerAllocation = brokerService.getProducerAllocation(clientType, subject);
-        String partitionName = SubjectLocationUtils
-                .getSubjectLocationByBrokerGroup(
+        String partitionName = PartitionPropsUtils
+                .getPartitionPropsBrokerGroup(
                         brokerGroupName,
                         producerAllocation.getLogical2SubjectLocation().asMapOfRanges().values()
                 )

@@ -28,7 +28,6 @@ import qunar.tc.qmq.config.PullSubjectsConfig;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.QmqCounter;
 import qunar.tc.qmq.protocol.CommandCode;
-import qunar.tc.qmq.utils.RetrySubjectUtils;
 
 import java.util.Collections;
 import java.util.List;
@@ -130,7 +129,8 @@ abstract class AbstractPullEntry extends AbstractPullClient implements PullEntry
     private List<PulledMessage> handlePullResult(final PullParam pullParam, final PullResult pullResult, final AckHook ackHook) {
         if (pullResult.getResponseCode() == CommandCode.BROKER_REJECT) {
             pullResult.getBrokerGroup().setAvailable(false);
-            brokerService.refresh(ClientType.CONSUMER, pullParam.getSubject(), pullParam.getGroup(), pullParam.getConsumeParam().getConsumeMode());
+            ConsumeParam consumeParam = pullParam.getConsumeParam();
+            brokerService.refresh(ClientType.CONSUMER, pullParam.getSubject(), pullParam.getGroup(), consumeParam.isBroadcast(), consumeParam.isOrdered());
         }
 
         List<BaseMessage> messages = pullResult.getMessages();
@@ -152,7 +152,7 @@ abstract class AbstractPullEntry extends AbstractPullClient implements PullEntry
             int times = pulledMessage.times();
             if (times > MAX_MESSAGE_RETRY_THRESHOLD) {
                 LOGGER.warn("这是第 {} 次收到同一条消息，请注意检查逻辑是否有问题. subject={}, msgId={}",
-                        times, RetrySubjectUtils.getRealSubject(pulledMessage.getSubject()), pulledMessage.getMessageId());
+                        times, pulledMessage.getSubject(), pulledMessage.getMessageId());
             }
         }
     }

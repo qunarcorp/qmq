@@ -21,7 +21,7 @@ import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ClientType;
-import qunar.tc.qmq.ConsumeMode;
+import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.base.OnOfflineState;
 import qunar.tc.qmq.codec.Serializer;
@@ -42,7 +42,6 @@ import qunar.tc.qmq.protocol.consumer.ConsumerMetaInfoResponse;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
 import qunar.tc.qmq.protocol.producer.ProducerMetaInfoResponse;
 import qunar.tc.qmq.util.RemotingBuilder;
-import qunar.tc.qmq.utils.RetrySubjectUtils;
 import qunar.tc.qmq.utils.SubjectUtils;
 
 import java.util.ArrayList;
@@ -93,11 +92,11 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
     }
 
     private MetaInfoResponse handleClientRegister(RemotingHeader header, MetaInfoRequest request) {
-        String realSubject = RetrySubjectUtils.getRealSubject(request.getSubject());
         int clientRequestType = request.getRequestType();
         OnOfflineState onOfflineState = request.getOnlineState();
 
-        if (SubjectUtils.isInValid(realSubject)) {
+        String subject = request.getSubject();
+        if (SubjectUtils.isInValid(subject)) {
             onOfflineState = OnOfflineState.OFFLINE;
             return buildResponse(header, request, -2, onOfflineState, new BrokerCluster(new ArrayList<>()));
         }
@@ -107,14 +106,14 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
                 store.insertClientMetaInfo(request);
             }
 
-            final List<BrokerGroup> brokerGroups = subjectRouter.route(realSubject, request);
+            final List<BrokerGroup> brokerGroups = subjectRouter.route(subject, request);
             BrokerFilter brokerFilter = VersionableComponentManager.getComponent(BrokerFilter.class, header.getVersion());
-            final List<BrokerGroup> filteredBrokerGroups = brokerFilter.filter(realSubject, request.getClientTypeCode(), brokerGroups);
+            final List<BrokerGroup> filteredBrokerGroups = brokerFilter.filter(subject, request.getClientTypeCode(), brokerGroups);
             final OnOfflineState clientState = offlineStateManager.queryClientState(request.getClientId(), request.getSubject(), request.getConsumerGroup());
 
-            ClientLogUtils.log(realSubject,
+            ClientLogUtils.log(subject,
                     "client register response, request:{}, realSubject:{}, brokerGroups:{}, clientState:{}",
-                    request, realSubject, filteredBrokerGroups, clientState);
+                    request, subject, filteredBrokerGroups, clientState);
 
             return buildResponse(header, request, offlineStateManager.getLastUpdateTimestamp(), clientState, new BrokerCluster(filteredBrokerGroups));
         } catch (Exception e) {
@@ -191,16 +190,16 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
                 }
                 return new ProducerMetaInfoResponse(updateTime, subject, consumerGroup, clientState, clientTypeCode, brokerCluster, producerAllocation);
             } else if (clientType.isConsumer()) {
-                ConsumeMode consumeMode = request.getConsumeMode();
                 String clientId = request.getClientId();
+                ConsumeStrategy consumeStrategy = ConsumeStrategy.getConsumerStrategy(request.isBroadcast(), request.isOrdered());
                 ConsumerAllocation consumerAllocation = null;
-                if (Objects.equals(consumeMode, ConsumeMode.EXCLUSIVE)) {
+                if (Objects.equals(consumeStrategy, ConsumeStrategy.EXCLUSIVE)) {
                     // 独占消费客户端, 获取预分配的分配信息
-                    consumerAllocation = partitionService.getConsumerAllocation(subject, consumerGroup, consumeMode, clientId);
+                    consumerAllocation = partitionService.getConsumerAllocation(subject, consumerGroup, consumeStrategy, clientId);
                 }
                 if (consumerAllocation == null) {
                     // 如果此时没有分配, 则先用默认的
-                    consumerAllocation = partitionService.getDefaultConsumerAllocation(subject, consumeMode, brokerCluster);
+                    consumerAllocation = partitionService.getDefaultConsumerAllocation(subject, consumeStrategy, brokerCluster);
                 }
                 return new ConsumerMetaInfoResponse(updateTime, subject, consumerGroup, clientState, clientTypeCode, brokerCluster, consumerAllocation);
             }

@@ -16,10 +16,8 @@
 
 package qunar.tc.qmq.consumer.pull;
 
-import qunar.tc.qmq.ConsumeMode;
 import qunar.tc.qmq.consumer.register.RegistParam;
 import qunar.tc.qmq.protocol.consumer.PullFilter;
-import qunar.tc.qmq.utils.RetrySubjectUtils;
 
 import java.util.Collections;
 import java.util.List;
@@ -30,28 +28,24 @@ import java.util.List;
 public class ConsumeParam {
     private final String subject;
     private final String consumerGroup;
-    private final String originSubject;
-    private final String retrySubject;
     private final String consumerId;
-    private final ConsumeMode consumeMode;
     private final boolean isBroadcast;
+    private final boolean isOrdered;
     private volatile boolean isConsumeMostOnce;
     private final List<PullFilter> filters;
 
     public ConsumeParam(String subject, String consumerGroup, RegistParam param) {
-        this(subject, consumerGroup, param.getConsumeMode(), param.isBroadcast(), param.isConsumeMostOnce(), param.getClientId(), param.getFilters());
+        this(subject, consumerGroup, param.isBroadcast(), param.isOrdered(), param.isConsumeMostOnce(), param.getClientId(), param.getFilters());
     }
 
-    public ConsumeParam(String subject, String consumerGroup, ConsumeMode consumeMode, boolean isBroadcast, boolean isConsumeMostOnce, String clientId) {
-        this(subject, consumerGroup, consumeMode, isBroadcast, isConsumeMostOnce, clientId, Collections.<PullFilter>emptyList());
+    public ConsumeParam(String subject, String consumerGroup, boolean isBroadcast, boolean isOrdered, boolean isConsumeMostOnce, String clientId) {
+        this(subject, consumerGroup, isBroadcast, isOrdered, isConsumeMostOnce, clientId, Collections.<PullFilter>emptyList());
     }
 
-    private ConsumeParam(String subject, String consumerGroup, ConsumeMode consumeMode, boolean isBroadcast, boolean isConsumeMostOnce, String clientId, List<PullFilter> filters) {
+    private ConsumeParam(String subject, String consumerGroup, boolean isBroadcast, boolean isOrdered, boolean isConsumeMostOnce, String clientId, List<PullFilter> filters) {
         this.subject = subject;
         this.consumerGroup = consumerGroup;
-        this.consumeMode = consumeMode;
-        this.originSubject = RetrySubjectUtils.isRetrySubject(subject) ? RetrySubjectUtils.getRealSubject(subject) : subject;
-        this.retrySubject = RetrySubjectUtils.buildRetrySubject(originSubject, consumerGroup);
+        this.isOrdered = isOrdered;
         this.consumerId = clientId;
         this.isBroadcast = isBroadcast;
         this.filters = filters;
@@ -64,14 +58,6 @@ public class ConsumeParam {
 
     public String getConsumerGroup() {
         return consumerGroup;
-    }
-
-    public String getOriginSubject() {
-        return originSubject;
-    }
-
-    public String getRetrySubject() {
-        return retrySubject;
     }
 
     public String getConsumerId() {
@@ -94,7 +80,7 @@ public class ConsumeParam {
         isConsumeMostOnce = consumeMostOnce;
     }
 
-    public ConsumeMode getConsumeMode() {
-        return consumeMode;
+    public boolean isOrdered() {
+        return isOrdered;
     }
 }

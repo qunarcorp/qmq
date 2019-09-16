@@ -3,7 +3,7 @@ package qunar.tc.qmq.codec;
 import com.google.common.collect.RangeMap;
 import io.netty.buffer.ByteBuf;
 import qunar.tc.qmq.meta.ProducerAllocation;
-import qunar.tc.qmq.SubjectLocation;
+import qunar.tc.qmq.PartitionProps;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
 
 import java.lang.reflect.ParameterizedType;
@@ -17,7 +17,7 @@ public class ProducerAllocationSerializer extends ObjectSerializer<ProducerAlloc
 
     private ParameterizedType rangeMapType = Types.newParameterizedType(null, RangeMap.class, new Type[]{
             Integer.class,
-            SubjectLocation.class
+            PartitionProps.class
     });
 
     private Serializer<RangeMap> rangeMapSerializer = Serializers.getSerializer(RangeMap.class);

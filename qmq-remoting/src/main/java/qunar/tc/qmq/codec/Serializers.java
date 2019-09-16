@@ -6,7 +6,7 @@ import com.google.common.collect.RangeMap;
 import qunar.tc.qmq.meta.ConsumerAllocation;
 import qunar.tc.qmq.meta.Partition;
 import qunar.tc.qmq.meta.ProducerAllocation;
-import qunar.tc.qmq.SubjectLocation;
+import qunar.tc.qmq.PartitionProps;
 import qunar.tc.qmq.protocol.MetaInfoResponse;
 import qunar.tc.qmq.protocol.consumer.ConsumerMetaInfoResponse;
 import qunar.tc.qmq.protocol.producer.ProducerMetaInfoResponse;
@@ -28,7 +28,7 @@ public class Serializers {
         serializerMap.put(String.class, new StringSerializer());
         serializerMap.put(Partition.class, new PartitionSerializer());
         serializerMap.put(ProducerAllocation.class, new ProducerAllocationSerializer());
-        serializerMap.put(SubjectLocation.class, new SubjectLocationSerializer());
+        serializerMap.put(PartitionProps.class, new PartitionPropsSerializer());
         serializerMap.put(RangeMap.class, new RangeMapSerializer());
         serializerMap.put(Range.class, new RangeSerializer());
         serializerMap.put(Map.class, new MapSerializer());

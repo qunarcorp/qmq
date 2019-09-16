@@ -103,7 +103,7 @@ public class ServerWrapper implements Disposable {
         actions.register("AddDb", new TokenVerificationAction(new RegisterClientDbAction(clientDbConfigurationStore)));
         actions.register("MarkReadonlyBrokerGroup", new TokenVerificationAction(new MarkReadonlyBrokerGroupAction(readonlyBrokerGroupSettingService)));
         actions.register("UnMarkReadonlyBrokerGroup", new TokenVerificationAction(new UnMarkReadonlyBrokerGroupAction(readonlyBrokerGroupSettingService)));
-        actions.register("ResetOffset", new TokenVerificationAction(new ResetOffsetAction(store)));
+        actions.register("ResetOffset", new TokenVerificationAction(new ResetOffsetAction(store, cachedMetaInfoManager)));
 
         resources.add(cachedMetaInfoManager);
         resources.add(brokerMetaManager);
@@ -112,7 +112,7 @@ public class ServerWrapper implements Disposable {
         PartitionAllocationTask partitionAllocationTask = new PartitionAllocationTask();
         partitionAllocationTask.start();
 
-        OrderedConsumerHeartbeatHandler orderedConsumerHeartbeatHandler = new OrderedConsumerHeartbeatHandler(cachedMetaInfoManager, clientMetaInfoStore, partitionAllocationTask);
+        OrderedConsumerHeartbeatHandler orderedConsumerHeartbeatHandler = new OrderedConsumerHeartbeatHandler(clientMetaInfoStore, partitionAllocationTask);
         EventDispatcher.register(orderedConsumerHeartbeatHandler);
     }
 

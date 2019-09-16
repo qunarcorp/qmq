@@ -32,7 +32,7 @@ import qunar.tc.qmq.metainfoclient.DefaultConsumerOnlineStateManager;
 import qunar.tc.qmq.metainfoclient.MetaInfoService;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.QmqCounter;
-import qunar.tc.qmq.utils.RetrySubjectUtils;
+import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
 
 import java.util.HashSet;
 import java.util.List;
@@ -111,10 +111,9 @@ class DefaultPullEntry extends AbstractPullEntry {
         String consumerGroup = consumeParam.getConsumerGroup();
 
         this.consumeMessageExecutor = consumeMessageExecutor;
-        String realSubject = RetrySubjectUtils.getRealSubject(subject);
-        this.pullBatchSize = PullSubjectsConfig.get().getPullBatchSize(realSubject);
-        this.pullTimeout = PullSubjectsConfig.get().getPullTimeout(realSubject);
-        this.ackNosendLimit = PullSubjectsConfig.get().getAckNosendLimit(realSubject);
+        this.pullBatchSize = PullSubjectsConfig.get().getPullBatchSize(subject);
+        this.pullTimeout = PullSubjectsConfig.get().getPullTimeout(subject);
+        this.ackNosendLimit = PullSubjectsConfig.get().getAckNosendLimit(subject);
         this.pullStrategy = pullStrategy;
 
         String[] values = new String[]{subject, consumerGroup};
@@ -125,7 +124,17 @@ class DefaultPullEntry extends AbstractPullEntry {
         this.onlineSwitcher.addListener(isOnline -> {
             if (metaInfoService != null) {
                 // 上下线主动触发心跳
-                metaInfoService.triggerConsumerMetaInfoRequest(ClientRequestType.SWITCH_STATE);
+                MetaInfoRequest request = new MetaInfoRequest(
+                        subject,
+                        consumerGroup,
+                        ClientType.CONSUMER.getCode(),
+                        brokerService.getAppCode(),
+                        consumeParam.getConsumerId(),
+                        ClientRequestType.SWITCH_STATE,
+                        consumeParam.isBroadcast(),
+                        consumeParam.isOrdered()
+                );
+                metaInfoService.request(request);
             }
         });
     }
@@ -210,7 +219,7 @@ class DefaultPullEntry extends AbstractPullEntry {
     }
 
     private BrokerClusterInfo getBrokerCluster() {
-        return brokerService.getClusterBySubject(ClientType.CONSUMER, consumeParam.getSubject(), consumeParam.getConsumerGroup(), consumeParam.getConsumeMode());
+        return brokerService.getClusterBySubject(ClientType.CONSUMER, consumeParam.getSubject(), consumeParam.getConsumerGroup(), consumeParam.isBroadcast(), consumeParam.isOrdered());
     }
 
     private void doPull(DoPullParam param) {

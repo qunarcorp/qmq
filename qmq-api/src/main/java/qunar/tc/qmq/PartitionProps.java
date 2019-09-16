@@ -6,12 +6,12 @@ import java.util.Objects;
  * @author zhenwei.liu
  * @since 2019-09-09
  */
-public class SubjectLocation {
+public class PartitionProps {
 
     private String partitionName;
     private String brokerGroup;
 
-    public SubjectLocation(String partitionName, String brokerGroup) {
+    public PartitionProps(String partitionName, String brokerGroup) {
         this.partitionName = partitionName;
         this.brokerGroup = brokerGroup;
     }
@@ -28,7 +28,7 @@ public class SubjectLocation {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        SubjectLocation that = (SubjectLocation) o;
+        PartitionProps that = (PartitionProps) o;
         return Objects.equals(partitionName, that.partitionName) &&
                 Objects.equals(brokerGroup, that.brokerGroup);
     }

@@ -245,7 +245,7 @@ public class ConsumerSequenceManager {
                 final ByteBuf message = Unpooled.wrappedBuffer(buffer.getBuffer());
                 final RawMessage rawMessage = QMQSerializer.deserializeRawMessage(message);
                 if (!RetrySubjectUtils.isRetrySubject(subject)) {
-                    final String retrySubject = RetrySubjectUtils.buildRetrySubject(subject, group);
+                    final String retrySubject = RetrySubjectUtils.buildRetryPartitionName(subject, group);
                     rawMessage.setSubject(retrySubject);
                 }
 

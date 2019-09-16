@@ -17,6 +17,7 @@
 package qunar.tc.qmq.protocol.consumer;
 
 import io.netty.buffer.ByteBuf;
+import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.TagType;
 import qunar.tc.qmq.protocol.RemotingHeader;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
@@ -35,8 +36,7 @@ import static qunar.tc.qmq.protocol.RemotingHeader.VERSION_9;
 public class PullRequestSerde {
 
     public void write(final PullRequest request, final ByteBuf out) {
-        String subject = request instanceof PullRequestV10 ? ((PullRequestV10) request).getPartitionName() : request.getSubject();
-        PayloadHolderUtils.writeString(subject, out);
+        PayloadHolderUtils.writeString(request.getSubject(), out);
         PayloadHolderUtils.writeString(request.getGroup(), out);
         PayloadHolderUtils.writeString(request.getConsumerId(), out);
 
@@ -51,7 +51,6 @@ public class PullRequestSerde {
         if (request instanceof PullRequestV10) {
             PullRequestV10 requestV10 = (PullRequestV10) request;
             out.writeInt(requestV10.getConsumerAllocationVersion());
-            PayloadHolderUtils.writeString(requestV10.getPartitionName(), out);
         }
     }
 
@@ -108,11 +107,11 @@ public class PullRequestSerde {
         final long timeout = in.readLong();
         boolean isExclusiveConsume = in.readBoolean();
         final List<PullFilter> filters = readFilters(version, in);
+        ConsumeStrategy consumeStrategy = isExclusiveConsume ? ConsumeStrategy.EXCLUSIVE : ConsumeStrategy.SHARED;
 
         final PullRequest request;
         if (isV10Version(version)) {
             int allocationVersion = in.readInt();
-            String partitionName = PayloadHolderUtils.readString(in);
             request = new PullRequestV10(
                     subject,
                     group,
@@ -122,10 +121,9 @@ public class PullRequestSerde {
                     pullOffsetBegin,
                     pullOffsetLast,
                     consumerId,
-                    isExclusiveConsume,
+                    consumeStrategy,
                     filters,
-                    allocationVersion,
-                    partitionName);
+                    allocationVersion);
         } else {
             request = new PullRequestV10(
                     subject,
@@ -136,10 +134,9 @@ public class PullRequestSerde {
                     pullOffsetBegin,
                     pullOffsetLast,
                     consumerId,
-                    isExclusiveConsume,
+                    consumeStrategy,
                     filters,
-                    -1,
-                    subject);
+                    -1);
         }
         return request;
 

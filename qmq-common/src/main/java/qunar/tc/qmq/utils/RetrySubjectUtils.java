@@ -40,23 +40,23 @@ public final class RetrySubjectUtils {
         return !Strings.isNullOrEmpty(subject) && !isRetrySubject(subject) && !isDeadRetrySubject(subject);
     }
 
-    public static String buildRetrySubject(final String subject, final String group) {
-        return RETRY_SUBJECT_JOINER.join(RETRY_SUBJECT_PREFIX, subject, group);
+    public static String buildRetryPartitionName(final String partitionName, final String group) {
+        return RETRY_SUBJECT_JOINER.join(RETRY_SUBJECT_PREFIX, partitionName, group);
     }
 
     public static boolean isRetrySubject(final String subject) {
         return Strings.nullToEmpty(subject).startsWith(RETRY_SUBJECT_PREFIX);
     }
 
-    public static String buildDeadRetrySubject(final String subject, final String group) {
-        return RETRY_SUBJECT_JOINER.join(DEAD_RETRY_SUBJECT_PREFIX, subject, group);
+    public static String buildDeadRetryPartitionName(final String partitionName, final String group) {
+        return RETRY_SUBJECT_JOINER.join(DEAD_RETRY_SUBJECT_PREFIX, partitionName, group);
     }
 
     public static boolean isDeadRetrySubject(final String subject) {
         return Strings.nullToEmpty(subject).startsWith(DEAD_RETRY_SUBJECT_PREFIX);
     }
 
-    public static String getRealSubject(final String subject) {
+    public static String getPartitionName(final String subject) {
         final Optional<String> optional = getSubject(subject);
         if (optional.isPresent()) {
             return optional.get();
@@ -64,7 +64,7 @@ public final class RetrySubjectUtils {
         return subject;
     }
 
-    public static Optional<String> getSubject(final String retrySubject) {
+    private static Optional<String> getSubject(final String retrySubject) {
         if (!isRetrySubject(retrySubject) && !isDeadRetrySubject(retrySubject)) {
             return Optional.absent();
         }
@@ -96,11 +96,11 @@ public final class RetrySubjectUtils {
         else return parts.get(2);
     }
 
-    public static String buildRetrySubject(final String subject) {
-        return RETRY_SUBJECT_JOINER.join(RETRY_SUBJECT_PREFIX, subject);
+    public static String buildRetryPartitionName(final String partitionName) {
+        return RETRY_SUBJECT_JOINER.join(RETRY_SUBJECT_PREFIX, partitionName);
     }
 
-    public static String buildDeadRetrySubject(final String subject) {
-        return RETRY_SUBJECT_JOINER.join(DEAD_RETRY_SUBJECT_PREFIX, subject);
+    public static String buildDeadRetryPartitionName(final String partitionName) {
+        return RETRY_SUBJECT_JOINER.join(DEAD_RETRY_SUBJECT_PREFIX, partitionName);
     }
 }

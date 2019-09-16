@@ -26,13 +26,13 @@ public class SubscribeParam {
     private final boolean consumeMostOnce;
     private final TagType tagType;
     private boolean isBroadcast;
-    private final ConsumeMode consumeMode;
+    private boolean isOrdered;
     private final Set<String> tags;
 
-    private SubscribeParam(boolean consumeMostOnce, boolean isBroadcast, TagType tagType, ConsumeMode consumeMode, Set<String> tags) {
+    private SubscribeParam(boolean consumeMostOnce, boolean isBroadcast, boolean isOrdered, TagType tagType, Set<String> tags) {
         this.consumeMostOnce = consumeMostOnce;
         this.isBroadcast = isBroadcast;
-        this.consumeMode = consumeMode;
+        this.isOrdered = isOrdered;
         this.tags = tags;
         this.tagType = tagType;
     }
@@ -57,8 +57,8 @@ public class SubscribeParam {
         this.isBroadcast = isBroadcast;
     }
 
-    public ConsumeMode getConsumeMode() {
-        return consumeMode;
+    public boolean isOrdered() {
+        return isOrdered;
     }
 
     public static final class SubscribeParamBuilder {
@@ -66,10 +66,10 @@ public class SubscribeParam {
         private Set<String> tags = Collections.emptySet();
         private TagType tagType = TagType.NO_TAG;
         private boolean isBroadcast = false;
-        private ConsumeMode consumeMode = ConsumeMode.SHARED;
+        private boolean isOrdered = false;
 
         public SubscribeParam create() {
-            return new SubscribeParam(consumeMostOnce, isBroadcast, tagType, consumeMode, tags);
+            return new SubscribeParam(consumeMostOnce, isBroadcast, isOrdered, tagType, tags);
         }
 
         public SubscribeParamBuilder setConsumeMostOnce(boolean consumeMostOnce) {
@@ -96,14 +96,13 @@ public class SubscribeParam {
             return this;
         }
 
-        // TODO(zhenwei.liu) 这里需要设置一下 ConsumeMode
-        public SubscribeParamBuilder setConsumeMode(ConsumeMode consumeMode) {
-            this.consumeMode = consumeMode;
-            return this;
+        public boolean isOrdered() {
+            return isOrdered;
         }
 
-        public ConsumeMode getConsumeMode() {
-            return consumeMode;
+        public SubscribeParamBuilder setOrdered(boolean ordered) {
+            isOrdered = ordered;
+            return this;
         }
     }
 }

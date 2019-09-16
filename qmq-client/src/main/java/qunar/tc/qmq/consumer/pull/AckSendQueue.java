@@ -23,11 +23,14 @@ import io.netty.util.TimerTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ClientType;
-import qunar.tc.qmq.ConsumeMode;
+import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
-import qunar.tc.qmq.common.*;
+import qunar.tc.qmq.common.OrderStrategy;
+import qunar.tc.qmq.common.OrderStrategyCache;
+import qunar.tc.qmq.common.StrictOrderStrategy;
+import qunar.tc.qmq.common.TimerUtil;
 import qunar.tc.qmq.config.PullSubjectsConfig;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.QmqCounter;
@@ -60,12 +63,14 @@ class AckSendQueue implements TimerTask {
     private final String brokerGroupName;
     private final String subject;
     private final String group;
-    private final ConsumeMode consumeMode;
+    private final ConsumeStrategy consumeStrategy;
+    private final boolean isBroadcast;
+    private final boolean isOrdered;
 
     private final AckService ackService;
 
-    private final String retrySubject;
-    private final String deadRetrySubject;
+    private final String retryPartitionName;
+    private final String deadRetryPartitionName;
 
     private final AtomicReference<Integer> pullBatchSize;
 
@@ -87,7 +92,6 @@ class AckSendQueue implements TimerTask {
 
     private final BrokerService brokerService;
     private final SendMessageBack sendMessageBack;
-    private final boolean isBroadcast;
 
     private final RateLimiter ackSendFailLogLimit = RateLimiter.create(0.5);
 
@@ -98,20 +102,32 @@ class AckSendQueue implements TimerTask {
     private volatile long lastAppendOffset = -1;
     private volatile long lastSendOkOffset = -1;
 
-    AckSendQueue(String brokerGroupName, String subject, String group, ConsumeMode consumeMode, AckService ackService, BrokerService brokerService, SendMessageBack sendMessageBack, boolean isBroadcast) {
+    AckSendQueue(
+            String brokerGroupName,
+            String subject,
+            String group,
+            String partitionName,
+            ConsumeStrategy consumeStrategy,
+            AckService ackService,
+            BrokerService brokerService,
+            SendMessageBack sendMessageBack,
+            boolean isBroadcast,
+            boolean isOrdered
+    ) {
         this.brokerGroupName = brokerGroupName;
         this.subject = subject;
         this.group = group;
-        this.consumeMode = consumeMode;
+        this.consumeStrategy = consumeStrategy;
         this.ackService = ackService;
         this.brokerService = brokerService;
         this.sendMessageBack = sendMessageBack;
         this.isBroadcast = isBroadcast;
+        this.isOrdered = isOrdered;
 
-        String realSubject = RetrySubjectUtils.getRealSubject(subject);
-        this.retrySubject = RetrySubjectUtils.buildRetrySubject(realSubject, group);
-        this.deadRetrySubject = RetrySubjectUtils.buildDeadRetrySubject(realSubject, group);
-        this.pullBatchSize = PullSubjectsConfig.get().getPullBatchSize(realSubject);
+        String realPartition = RetrySubjectUtils.getPartitionName(partitionName);
+        this.retryPartitionName = RetrySubjectUtils.buildRetryPartitionName(realPartition, group);
+        this.deadRetryPartitionName = RetrySubjectUtils.buildDeadRetryPartitionName(realPartition, group);
+        this.pullBatchSize = PullSubjectsConfig.get().getPullBatchSize(subject);
     }
 
     void append(final List<AckEntry> batch) {
@@ -146,8 +162,8 @@ class AckSendQueue implements TimerTask {
         String subject = message.getSubject();
         OrderStrategy orderStrategy = OrderStrategyCache.getStrategy(subject);
         boolean isDeadRetryMessage = (nextRetryCount > message.getMaxRetryNum()) || Objects.equals(orderStrategy.name(), StrictOrderStrategy.NAME);
-        final String sendSubject = isDeadRetryMessage ? deadRetrySubject : retrySubject;
-        if (deadRetrySubject.equals(sendSubject)) {
+        final String sendSubject = isDeadRetryMessage ? deadRetryPartitionName : retryPartitionName;
+        if (deadRetryPartitionName.equals(sendSubject)) {
             deadQueueCount.inc();
             LOGGER.warn("process message retry num {} >= {}, and dead retry. subject={}, group={}, msgId={}",
                     nextRetryCount - 1, message.getMaxRetryNum(), this.subject, group, message.getMessageId());
@@ -260,7 +276,7 @@ class AckSendQueue implements TimerTask {
             return;
         }
 
-        ackService.sendAck(brokerGroup, subject, group, consumeMode, sendEntry, new AckService.SendAckCallback() {
+        ackService.sendAck(brokerGroup, subject, group, consumeStrategy, sendEntry, new AckService.SendAckCallback() {
             @Override
             public void success() {
                 if (lastSendOkOffset != -1 && lastSendOkOffset + 1 != sendEntry.getPullOffsetBegin()) {
@@ -300,7 +316,7 @@ class AckSendQueue implements TimerTask {
     }
 
     private BrokerGroupInfo getBrokerGroup() {
-        return brokerService.getClusterBySubject(ClientType.CONSUMER, subject, group, consumeMode).getGroupByName(brokerGroupName);
+        return brokerService.getClusterBySubject(ClientType.CONSUMER, subject, group, consumeStrategy).getGroupByName(brokerGroupName);
     }
 
     AckSendInfo getAckSendInfo() {

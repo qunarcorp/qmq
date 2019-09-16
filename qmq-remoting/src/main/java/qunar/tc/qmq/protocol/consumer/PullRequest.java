@@ -33,6 +33,4 @@ public interface PullRequest {
     void setFilters(List<PullFilter> filters);
 
     int getConsumerAllocationVersion();
-
-    String getPartitionName();
 }

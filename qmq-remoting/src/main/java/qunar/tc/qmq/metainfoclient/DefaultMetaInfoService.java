@@ -17,13 +17,17 @@
 package qunar.tc.qmq.metainfoclient;
 
 import com.google.common.base.Strings;
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ClientType;
-import qunar.tc.qmq.ConsumeMode;
+import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.base.OnOfflineState;
+import qunar.tc.qmq.batch.Stateful;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.meta.MetaServerLocator;
 import qunar.tc.qmq.metrics.Metrics;
@@ -37,6 +41,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static qunar.tc.qmq.common.PartitionConstants.ORDERED_CLIENT_HEARTBEAT_INTERVAL_SECS;
@@ -47,12 +52,84 @@ import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_GROUP_ARRAY;
  */
 public class DefaultMetaInfoService implements MetaInfoService, MetaInfoClient.ResponseSubscriber {
 
+    public enum RequestState {
+        IDLE, REQUESTING
+    }
+
+    public class MetaInfoRequestWrapper implements Stateful<RequestState> {
+
+        FutureCallback<MetaInfoResponse> callback = new FutureCallback<MetaInfoResponse>() {
+            @Override
+            public void onSuccess(MetaInfoResponse response) {
+                updateConsumerState(response);
+                String heartbeatKey = createKey(response.getSubject(), response.getConsumerGroup());
+                if (isExclusive(response)) {
+                    // 转移 order 心跳请求到 order map
+                    MetaInfoRequestWrapper request = metaInfoRequests.remove(heartbeatKey);
+                    if (request != null) {
+                        orderedMetaInfoRequests.put(heartbeatKey, request);
+                    }
+                }
+                MetaInfoRequestWrapper.this.future.set(response);
+                hasOnline = true;
+                reset();
+            }
+
+            @Override
+            public void onFailure(Throwable t) {
+                MetaInfoRequestWrapper.this.future.setException(t);
+                reset();
+            }
+        };
+
+        private volatile boolean hasOnline = false;
+        private MetaInfoRequest request;
+        private SettableFuture<MetaInfoResponse> future = SettableFuture.create();
+        private AtomicReference<RequestState> state = new AtomicReference<>(RequestState.IDLE);
+
+        public MetaInfoRequestWrapper(MetaInfoRequest request) {
+            this.request = request;
+        }
+
+        @Override
+        public RequestState getState() {
+            return state.get();
+        }
+
+        @Override
+        public void setState(RequestState state) {
+            this.state.set(state);
+        }
+
+        @Override
+        public boolean compareAndSetState(RequestState oldState, RequestState newState) {
+            return this.state.compareAndSet(oldState, newState);
+        }
+
+        @Override
+        public void reset() {
+            state.set(RequestState.IDLE);
+        }
+
+        public MetaInfoRequest getRequest() {
+            return request;
+        }
+
+        public void updateFuture(ListenableFuture<MetaInfoResponse> future) {
+            Futures.addCallback(future, callback);
+        }
+
+        public ListenableFuture<MetaInfoResponse> getFuture() {
+            return future;
+        }
+    }
+
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultMetaInfoService.class);
 
     private static final long REFRESH_INTERVAL_SECONDS = 60;
 
-    private final ConcurrentHashMap<String, MetaInfoRequest> heartbeatRequests = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, MetaInfoRequest> orderedHeartbeatRequests = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, MetaInfoRequestWrapper> metaInfoRequests = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, MetaInfoRequestWrapper> orderedMetaInfoRequests = new ConcurrentHashMap<>();
 
     private final ReentrantLock updateLock = new ReentrantLock();
 
@@ -63,8 +140,8 @@ public class DefaultMetaInfoService implements MetaInfoService, MetaInfoClient.R
     private ConsumerStateChangedListener consumerStateChangedListener;
     private ConsumerOnlineStateManager consumerOnlineStateManager = DefaultConsumerOnlineStateManager.getInstance();
 
-    private ScheduledExecutorService heartbeatExecutor;
-    private ScheduledExecutorService orderedHeartbeatExecutor;
+    private ScheduledExecutorService metaInfoRequestExecutor;
+    private ScheduledExecutorService orderedMetaInfoRequestExecutor;
 
     private String clientId;
 
@@ -74,85 +151,41 @@ public class DefaultMetaInfoService implements MetaInfoService, MetaInfoClient.R
     }
 
     public void init() {
-        this.heartbeatExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("qmq-client-heartbeat-%s"));
-        this.heartbeatExecutor.scheduleAtFixedRate(() -> heartbeat(heartbeatRequests), REFRESH_INTERVAL_SECONDS, REFRESH_INTERVAL_SECONDS, TimeUnit.SECONDS);
-        this.orderedHeartbeatExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("qmq-client-heartbeat-order-%s"));
-        this.orderedHeartbeatExecutor.scheduleAtFixedRate(() -> heartbeat(orderedHeartbeatRequests), ORDERED_CLIENT_HEARTBEAT_INTERVAL_SECS, ORDERED_CLIENT_HEARTBEAT_INTERVAL_SECS, TimeUnit.SECONDS);
+        this.metaInfoRequestExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("qmq-client-heartbeat-%s"));
+        this.orderedMetaInfoRequestExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("qmq-client-heartbeat-order-%s"));
+
+        this.metaInfoRequestExecutor.scheduleAtFixedRate(() -> scheduleRequest(metaInfoRequests), REFRESH_INTERVAL_SECONDS, REFRESH_INTERVAL_SECONDS, TimeUnit.SECONDS);
+        this.orderedMetaInfoRequestExecutor.scheduleAtFixedRate(() -> scheduleRequest(orderedMetaInfoRequests), ORDERED_CLIENT_HEARTBEAT_INTERVAL_SECS, ORDERED_CLIENT_HEARTBEAT_INTERVAL_SECS, TimeUnit.SECONDS);
     }
 
     public void registerResponseSubscriber(MetaInfoClient.ResponseSubscriber subscriber) {
         this.metaInfoClient.registerResponseSubscriber(subscriber);
     }
 
-    private boolean registerHeartbeat(MetaInfoRequest request) {
-        String key = createKey(request);
-        return heartbeatRequests.putIfAbsent(key, request) == null;
-    }
-
-    private String createKey(MetaInfoRequest request) {
-        return createKey(request.getSubject(), request.getConsumerGroup());
-    }
-
     private String createKey(String subject, String consumerGroup) {
         return subject + ":" + consumerGroup;
     }
 
-    @Override
-    public void triggerConsumerMetaInfoRequest(ClientRequestType requestType) {
-        this.orderedHeartbeatExecutor.execute(() -> request(this.orderedHeartbeatRequests, requestType));
-        this.heartbeatExecutor.execute(() -> request(this.heartbeatRequests, requestType));
-    }
-
-    /**
-     * 注册心跳
-     *
-     * @param subject       subject
-     * @param consumerGroup consumer group
-     * @param clientType    client type
-     * @param appCode       app code
-     */
-    @Override
-    public void registerHeartbeat(String subject, String consumerGroup, ClientType clientType, String appCode) {
-        this.registerHeartbeat(subject, consumerGroup, clientType, appCode, null);
-    }
-
-    @Override
-    public void registerHeartbeat(String subject, String consumerGroup, ClientType clientType, String appCode, ConsumeMode consumeMode) {
-        // 注册心跳
-        MetaInfoRequest request = new MetaInfoRequest(
-                subject,
-                consumerGroup,
-                clientType.getCode(),
-                appCode,
-                clientId,
-                ClientRequestType.ONLINE,
-                consumeMode
-        );
-        if (this.registerHeartbeat(request)) {
-            // 注册一个手动触发一次心跳任务
-            triggerConsumerMetaInfoRequest(ClientRequestType.ONLINE);
-        }
-    }
-
     private boolean isExclusive(MetaInfoResponse response) {
         if (response instanceof ConsumerMetaInfoResponse) {
-            return Objects.equals(((ConsumerMetaInfoResponse) response).getConsumerAllocation().getConsumeMode(), ConsumeMode.EXCLUSIVE);
+            return Objects.equals(((ConsumerMetaInfoResponse) response).getConsumerAllocation().getConsumeStrategy(), ConsumeStrategy.EXCLUSIVE);
         }
         return false;
     }
 
-    private void heartbeat(ConcurrentHashMap<String, MetaInfoRequest> requestMap) {
-        for (MetaInfoRequest request : requestMap.values()) {
-            heartbeatRequest(request);
+    private void scheduleRequest(ConcurrentHashMap<String, MetaInfoRequestWrapper> requestMap) {
+        for (MetaInfoRequestWrapper requestWrapper : requestMap.values()) {
+            scheduleRequest(requestWrapper);
         }
     }
 
-    private void heartbeatRequest(MetaInfoRequest request) {
+    private void scheduleRequest(MetaInfoRequestWrapper requestWrapper) {
+        MetaInfoRequest request = requestWrapper.getRequest();
         String subject = request.getSubject();
         String consumerGroup = request.getConsumerGroup();
         try {
             Metrics.counter("qmq_pull_metainfo_request_count", SUBJECT_GROUP_ARRAY, new String[]{subject, consumerGroup}).inc();
-            ClientRequestType requestType = request.isInited() ? ClientRequestType.HEARTBEAT : ClientRequestType.ONLINE;
+            ClientRequestType requestType = requestWrapper.hasOnline ? ClientRequestType.HEARTBEAT : ClientRequestType.ONLINE;
             request.setRequestType(requestType.getCode());
             request(request);
         } catch (Exception e) {
@@ -170,13 +203,22 @@ public class DefaultMetaInfoService implements MetaInfoService, MetaInfoClient.R
 
     @Override
     public ListenableFuture<MetaInfoResponse> request(MetaInfoRequest request) {
+        // Meta 的请求不能存在并发请求
         String subject = request.getSubject();
         String consumerGroup = request.getConsumerGroup();
-        boolean online = consumerOnlineStateManager.isOnline(subject, consumerGroup, this.clientId);
-        request.setOnlineState(online ? OnOfflineState.ONLINE : OnOfflineState.OFFLINE);
+        String key = createKey(subject, consumerGroup);
+        MetaInfoRequestWrapper requestWrapper = metaInfoRequests.computeIfAbsent(key, k -> new MetaInfoRequestWrapper(request));
+        if (requestWrapper.compareAndSetState(RequestState.IDLE, RequestState.REQUESTING)) {
+            boolean online = consumerOnlineStateManager.isOnline(subject, consumerGroup, this.clientId);
+            request.setOnlineState(online ? OnOfflineState.ONLINE : OnOfflineState.OFFLINE);
 
-        LOGGER.debug("meta info request: {}", request);
-        return metaInfoClient.sendMetaInfoRequest(request);
+            LOGGER.debug("meta info request: {}", request);
+            ListenableFuture<MetaInfoResponse> future = metaInfoClient.sendMetaInfoRequest(request);
+            requestWrapper.updateFuture(future);
+            return future;
+        } else {
+            return requestWrapper.getFuture();
+        }
     }
 
     private void updateConsumerState(MetaInfoResponse response) {
@@ -228,20 +270,5 @@ public class DefaultMetaInfoService implements MetaInfoService, MetaInfoClient.R
 
     @Override
     public void onResponse(MetaInfoResponse response) {
-        updateConsumerState(response);
-        String heartbeatKey = createKey(response.getSubject(), response.getConsumerGroup());
-        if (isExclusive(response)) {
-            // 转移 order 心跳请求到 order map
-            MetaInfoRequest request = heartbeatRequests.remove(heartbeatKey);
-            if (request != null) {
-                request.setInited(true);
-                orderedHeartbeatRequests.put(heartbeatKey, request);
-            }
-        } else {
-            MetaInfoRequest request = heartbeatRequests.get(heartbeatKey);
-            if (request != null) {
-                request.setInited(true);
-            }
-        }
     }
 }

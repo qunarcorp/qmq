@@ -34,15 +34,15 @@ class PlainPullEntry extends AbstractPullEntry {
     private final ConsumeParam consumeParam;
     private final PullStrategy pullStrategy;
 
-    PlainPullEntry(ConsumeParam consumeParam, int allocationVersion, PullService pullService, AckService ackService, BrokerService brokerService, PullStrategy pullStrategy) {
-        super(consumeParam.getSubject(), consumeParam.getConsumerGroup(), consumeParam.getSubject(), allocationVersion, pullService, ackService, brokerService);
+    PlainPullEntry(ConsumeParam consumeParam, String partitionName, int allocationVersion, PullService pullService, AckService ackService, BrokerService brokerService, PullStrategy pullStrategy) {
+        super(consumeParam.getSubject(), consumeParam.getConsumerGroup(), partitionName, allocationVersion, pullService, ackService, brokerService);
         this.consumeParam = consumeParam;
         this.pullStrategy = pullStrategy;
     }
 
     PlainPullResult pull(final int fetchSize, final int pullTimeout, final List<Message> output) {
         if (!pullStrategy.needPull()) return PlainPullResult.NOMORE_MESSAGE;
-        BrokerClusterInfo brokerCluster = brokerService.getClusterBySubject(ClientType.CONSUMER, consumeParam.getSubject(), consumeParam.getConsumerGroup(), consumeParam.getConsumeMode());
+        BrokerClusterInfo brokerCluster = brokerService.getClusterBySubject(ClientType.CONSUMER, consumeParam.getSubject(), consumeParam.getConsumerGroup(), consumeParam.isBroadcast(), consumeParam.isOrdered());
         List<BrokerGroupInfo> groups = brokerCluster.getGroups();
         if (groups.isEmpty()) {
             return PlainPullResult.NO_BROKER;

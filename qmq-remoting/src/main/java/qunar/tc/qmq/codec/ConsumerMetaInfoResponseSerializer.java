@@ -1,11 +1,9 @@
 package qunar.tc.qmq.codec;
 
 import io.netty.buffer.ByteBuf;
-import qunar.tc.qmq.ConsumeMode;
 import qunar.tc.qmq.meta.ConsumerAllocation;
 import qunar.tc.qmq.protocol.MetaInfoResponse;
 import qunar.tc.qmq.protocol.consumer.ConsumerMetaInfoResponse;
-import qunar.tc.qmq.utils.PayloadHolderUtils;
 
 import java.lang.reflect.Type;
 

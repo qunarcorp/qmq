@@ -22,6 +22,7 @@ import com.google.common.util.concurrent.SettableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.*;
+import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.broker.impl.BrokerServiceImpl;
 import qunar.tc.qmq.common.*;
@@ -38,6 +39,7 @@ import qunar.tc.qmq.metainfoclient.MetaInfoClient;
 import qunar.tc.qmq.producer.sender.DefaultMessageGroupResolver;
 import qunar.tc.qmq.protocol.MetaInfoResponse;
 import qunar.tc.qmq.protocol.consumer.ConsumerMetaInfoResponse;
+import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
 import qunar.tc.qmq.protocol.consumer.SubEnvIsolationPullFilter;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
 
@@ -100,16 +102,36 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
     @Override
     public synchronized Future<PullEntry> registerPullEntry(String subject, String consumerGroup, RegistParam param) {
         SettableFuture<PullEntry> future = SettableFuture.create();
-        metaInfoService.registerHeartbeat(subject, consumerGroup, ClientType.CONSUMER, appCode);
+        MetaInfoRequest request = new MetaInfoRequest(
+                subject,
+                consumerGroup,
+                ClientType.CONSUMER.getCode(),
+                appCode,
+                clientId,
+                ClientRequestType.ONLINE,
+                param.isBroadcast(),
+                param.isOrdered()
+        );
+        metaInfoService.request(request);
         metaInfoService.registerResponseSubscriber(new PullEntryUpdater(param, future));
         return future;
     }
 
     @Override
-    public Future<PullConsumer> registerPullConsumer(String subject, String consumerGroup, boolean isBroadcast) {
+    public Future<PullConsumer> registerPullConsumer(String subject, String consumerGroup, boolean isBroadcast, boolean isOrdered) {
         SettableFuture<PullConsumer> future = SettableFuture.create();
-        metaInfoService.registerHeartbeat(subject, consumerGroup, ClientType.CONSUMER, appCode);
-        metaInfoService.registerResponseSubscriber(new PullConsumerUpdater(isBroadcast, future));
+        MetaInfoRequest request = new MetaInfoRequest(
+                subject,
+                consumerGroup,
+                ClientType.CONSUMER.getCode(),
+                appCode,
+                clientId,
+                ClientRequestType.ONLINE,
+                isBroadcast,
+                isOrdered
+        );
+        metaInfoService.request(request);
+        metaInfoService.registerResponseSubscriber(new PullConsumerUpdater(isBroadcast, isOrdered, future));
         return future;
     }
 
@@ -151,17 +173,19 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
 
         private SettableFuture<PullConsumer> future;
         private boolean isBroadcast;
+        private boolean isOrdered;
 
-        public PullConsumerUpdater(boolean isBroadcast, SettableFuture<PullConsumer> future) {
+        public PullConsumerUpdater(boolean isBroadcast, boolean isOrdered, SettableFuture<PullConsumer> future) {
             this.future = future;
             this.isBroadcast = isBroadcast;
+            this.isOrdered = isOrdered;
         }
 
         @Override
         public PullConsumer updateClient(ConsumerMetaInfoResponse response) {
             String subject = response.getSubject();
             String consumerGroup = response.getConsumerGroup();
-            PullConsumer pullConsumer = PullRegister.this.createPullConsumer(subject, consumerGroup, isBroadcast, response);
+            PullConsumer pullConsumer = PullRegister.this.createPullConsumer(subject, consumerGroup, isBroadcast, isOrdered, response);
             future.set(pullConsumer);
             return pullConsumer;
         }
@@ -170,13 +194,22 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
     private synchronized PullEntry updatePullEntry(String subject, String consumerGroup, RegistParam param, ConsumerMetaInfoResponse response) {
         configEnvIsolation(subject, consumerGroup, param);
 
+        String entryKey = MapKeyBuilder.buildSubscribeKey(subject, consumerGroup);
+        PullEntry oldEntry = pullEntryMap.get(entryKey);
+        PullEntry entry;
+
         ConsumerAllocation consumerAllocation = response.getConsumerAllocation();
         int version = consumerAllocation.getVersion();
-        PullEntry pullEntry = updatePullEntry(subject, consumerGroup, param, new AlwaysPullStrategy(), response);
-        if (RetrySubjectUtils.isDeadRetrySubject(subject)) return pullEntry;
-        PullEntry retryPullEntry = updatePullEntry(RetrySubjectUtils.buildRetrySubject(subject, consumerGroup), consumerGroup, param, new WeightPullStrategy(), response);
+        PullEntry pullEntry = updatePullEntry(entryKey, oldEntry, subject, consumerGroup, param, new AlwaysPullStrategy(), response, false);
+        if (!RetrySubjectUtils.isDeadRetrySubject(subject)) {
+            PullEntry retryPullEntry = updatePullEntry(entryKey, oldEntry, subject, consumerGroup, param, new WeightPullStrategy(), response, true);
+            entry = new CompositePullEntry<>(subject, consumerGroup, version, Lists.newArrayList(pullEntry, retryPullEntry));
+        } else {
+            entry = pullEntry;
+        }
 
-        return new CompositePullEntry<>(subject, consumerGroup, version, Lists.newArrayList(pullEntry, retryPullEntry));
+        pullEntryMap.put(entryKey, entry);
+        return entry;
     }
 
     private String configEnvIsolation(String subject, String consumerGroup, RegistParam param) {
@@ -196,15 +229,13 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         return originGroup + "_" + env + "_" + subEnv;
     }
 
-    private PullEntry updatePullEntry(String subject, String consumerGroup, RegistParam param, PullStrategy pullStrategy, ConsumerMetaInfoResponse response) {
-        String subscribeKey = MapKeyBuilder.buildSubscribeKey(subject, consumerGroup);
-        PullEntry oldEntry = pullEntryMap.get(subscribeKey);
+    private PullEntry updatePullEntry(String entryKey, PullEntry oldEntry, String subject, String consumerGroup, RegistParam param, PullStrategy pullStrategy, ConsumerMetaInfoResponse response, boolean isRetry) {
 
         if (oldEntry == DefaultPullEntry.EMPTY_PULL_ENTRY) {
-            throw new DuplicateListenerException(subscribeKey);
+            throw new DuplicateListenerException(entryKey);
         }
 
-        oldEntry = (PullEntry) createPullClient(subject, consumerGroup, pullStrategy, response, oldEntry,
+        PullEntry updatedEntry = (PullEntry) createPullClient(subject, consumerGroup, pullStrategy, response, isRetry, oldEntry,
                 new PullClientFactory<PullEntry>() {
                     @Override
                     public PullEntry createPullClient(String subject, String consumerGroup, String partitionName, int version, PullStrategy pullStrategy) {
@@ -217,15 +248,14 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
                         return new CompositePullEntry(subject, consumerGroup, version, list);
                     }
                 });
-        pullEntryMap.put(subscribeKey, oldEntry);
 
         if (isOnline) {
-            oldEntry.online(param.getActionSrc());
+            updatedEntry.online(param.getActionSrc());
         } else {
-            oldEntry.offline(param.getActionSrc());
+            updatedEntry.offline(param.getActionSrc());
         }
 
-        return oldEntry;
+        return updatedEntry;
     }
 
     private PullClient createPullClient(
@@ -233,15 +263,16 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
             String consumerGroup,
             PullStrategy pullStrategy,
             ConsumerMetaInfoResponse response,
+            boolean isRetry,
             PullClient oldClient,
             PullClientFactory pullClientFactory,
             CompositePullClientFactory compositePullClientFactory
     ) {
         ConsumerAllocation consumerAllocation = response.getConsumerAllocation();
         if (oldClient == null) {
-            return createNewPullClient(subject, consumerGroup, pullStrategy, consumerAllocation, pullClientFactory, compositePullClientFactory);
+            return createNewPullClient(subject, consumerGroup, pullStrategy, isRetry, consumerAllocation, pullClientFactory, compositePullClientFactory);
         } else {
-            return updatePullClient(subject, consumerGroup, pullStrategy, consumerAllocation, pullClientFactory, compositePullClientFactory, (CompositePullClient) oldClient);
+            return updatePullClient(subject, consumerGroup, pullStrategy, isRetry, consumerAllocation, pullClientFactory, compositePullClientFactory, (CompositePullClient) oldClient);
         }
     }
 
@@ -257,6 +288,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
             String subject,
             String consumerGroup,
             PullStrategy pullStrategy,
+            boolean isRetry,
             ConsumerAllocation consumerAllocation,
             PullClientFactory pullClientFactory,
             CompositePullClientFactory compositePullClientFactory,
@@ -271,9 +303,11 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         int oldVersion = oldClient.getVersion();
         if (oldVersion < newVersion) {
             // 更新
-            List<SubjectLocation> newSubjectLocations = consumerAllocation.getSubjectLocations();
+            List<PartitionProps> newPartitionProps = consumerAllocation.getPartitionProps();
             List<PullClient> oldPullClients = oldClient.getComponents();
-            Set<String> newPartitionNames = newSubjectLocations.stream().map(SubjectLocation::getPartitionName).collect(Collectors.toSet());
+            Set<String> newPartitionNames = newPartitionProps.stream()
+                    .map(pp -> isRetry ? RetrySubjectUtils.getPartitionName(pp.getPartitionName()) : pp.getPartitionName())
+                    .collect(Collectors.toSet());
             Set<String> oldPartitionNames = oldPullClients.stream().map(PullClient::getPartitionName).collect(Collectors.toSet());
 
             for (PullClient oldPullClient : oldPullClients) {
@@ -315,15 +349,17 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
             String subject,
             String consumerGroup,
             PullStrategy pullStrategy,
+            boolean isRetry,
             ConsumerAllocation consumerAllocation,
             PullClientFactory pullClientFactory,
             CompositePullClientFactory compositePullClientFactory
     ) {
-        List<SubjectLocation> subjectLocations = consumerAllocation.getSubjectLocations();
+        List<PartitionProps> partitionProps = consumerAllocation.getPartitionProps();
         List<PullClient> clientList = Lists.newArrayList();
         int version = consumerAllocation.getVersion();
-        for (SubjectLocation subjectLocation : subjectLocations) {
-            String partitionName = subjectLocation.getPartitionName();
+        for (PartitionProps partitionProp : partitionProps) {
+            String partitionName = partitionProp.getPartitionName();
+            partitionName = isRetry ? RetrySubjectUtils.buildRetryPartitionName(partitionName, consumerGroup) : partitionName;
             PullClient newDefaultClient = pullClientFactory.createPullClient(subject, consumerGroup, partitionName, version, pullStrategy);
             clientList.add(newDefaultClient);
         }
@@ -339,16 +375,16 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         return pullEntry;
     }
 
-    private synchronized PullConsumer createPullConsumer(String subject, String consumerGroup, boolean isBroadcast, ConsumerMetaInfoResponse response) {
+    private synchronized PullConsumer createPullConsumer(String subject, String consumerGroup, boolean isBroadcast, boolean isOrdered, ConsumerMetaInfoResponse response) {
         String key = MapKeyBuilder.buildSubscribeKey(subject, consumerGroup);
         PullConsumer oldConsumer = pullConsumerMap.get(key);
-        ConsumeMode consumeMode = response.getConsumerAllocation().getConsumeMode();
 
         PullConsumer pc = (PullConsumer) createPullClient(
                 subject,
                 consumerGroup,
                 null,
                 response,
+                false,
                 oldConsumer,
                 new PullClientFactory() {
                     @Override
@@ -359,7 +395,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
                                 partitionName,
                                 version,
                                 isBroadcast,
-                                consumeMode,
+                                isOrdered,
                                 clientId,
                                 pullService,
                                 ackService,
@@ -400,15 +436,10 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
     }
 
     private synchronized void changeOnOffline(String subject, String consumerGroup, boolean isOnline, StatusSource src) {
-        final String realSubject = RetrySubjectUtils.getRealSubject(subject);
-        final String retrySubject = RetrySubjectUtils.buildRetrySubject(realSubject, consumerGroup);
 
-        final String key = MapKeyBuilder.buildSubscribeKey(realSubject, consumerGroup);
+        final String key = MapKeyBuilder.buildSubscribeKey(subject, consumerGroup);
         final PullEntry pullEntry = pullEntryMap.get(key);
         changeOnOffline(pullEntry, isOnline, src);
-
-        final PullEntry retryPullEntry = pullEntryMap.get(MapKeyBuilder.buildSubscribeKey(retrySubject, consumerGroup));
-        changeOnOffline(retryPullEntry, isOnline, src);
 
         PullConsumer pullConsumer = pullConsumerMap.get(key);
         if (pullConsumer == null) return;

@@ -4,7 +4,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import qunar.tc.qmq.PartitionAllocation;
-import qunar.tc.qmq.SubjectLocation;
+import qunar.tc.qmq.PartitionProps;
 import qunar.tc.qmq.meta.Partition;
 import qunar.tc.qmq.meta.PartitionSet;
 
@@ -26,15 +26,15 @@ public class AveragePartitionAllocator implements PartitionAllocator {
         // partition => client
         Map<Integer, String> partitionClientMapping = itemMapper.map(Lists.newArrayList(partitionIds), onlineConsumerList);
         // clientId => subjectLocations
-        Map<String, Set<SubjectLocation>> clientId2SubjectLocations = Maps.newHashMap();
+        Map<String, Set<PartitionProps>> clientId2SubjectLocations = Maps.newHashMap();
 
         // client => partitionSet
         for (Map.Entry<Integer, String> entry : partitionClientMapping.entrySet()) {
             Integer partitionId = entry.getKey();
             Partition partition = partitionMap.get(partitionId);
             String clientId = entry.getValue();
-            Set<SubjectLocation> subjectLocationSet = clientId2SubjectLocations.computeIfAbsent(clientId, k -> Sets.newHashSet());
-            subjectLocationSet.add(new SubjectLocation(partition.getPartitionName(), partition.getBrokerGroup()));
+            Set<PartitionProps> partitionPropsSet = clientId2SubjectLocations.computeIfAbsent(clientId, k -> Sets.newHashSet());
+            partitionPropsSet.add(new PartitionProps(partition.getPartitionName(), partition.getBrokerGroup()));
         }
 
         PartitionAllocation.AllocationDetail allocationDetail = new PartitionAllocation.AllocationDetail();

@@ -2,6 +2,7 @@ package qunar.tc.qmq.store;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.protocol.consumer.PullRequest;
 import qunar.tc.qmq.protocol.consumer.PullRequestV10;
@@ -27,7 +28,7 @@ public class TestToolBox {
     public static final String DEFAULT_GROUP = "default_group";
 
     public static PullRequest createDefaultPullRequest() {
-        return new PullRequestV10(DEFAULT_SUBJECT, DEFAULT_GROUP, -1, -1, -1, -1, -1, DEFAULT_CONSUMER_ID, false, null, -1, null);
+        return new PullRequestV10(DEFAULT_SUBJECT, DEFAULT_GROUP, -1, -1, -1, -1, -1, DEFAULT_CONSUMER_ID, ConsumeStrategy.SHARED, null, -1);
     }
 
     public static Buffer createDefaultBuffer() {
