@@ -38,7 +38,12 @@ public class NetworkUtils {
             return getLocalAddress();
         }
     }
-
+/**
+ *@author chj
+ *@date 2019/9/16 16:43
+ *@description 得到"真实"的ip
+ *
+ */
     public static String getLocalAddress() {
         try {
             final Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
@@ -63,15 +68,15 @@ public class NetworkUtils {
             }
 
             if (!ipv4Result.isEmpty()) {
-                for (String ip : ipv4Result) {
+                /*for (String ip : ipv4Result) {
                     if (ip.startsWith("127.0")) {
                         continue;
                     }
 
-                    return ip;
-                }
+                    return ip;//当在linux上时，得到的是docker0的地址
+                }*/
 
-                return ipv4Result.get(ipv4Result.size() - 1);
+                return ipv4Result.get(ipv4Result.size() - 1);//选最后一个即可
             } else if (!ipv6Result.isEmpty()) {
                 return ipv6Result.get(0);
             }
