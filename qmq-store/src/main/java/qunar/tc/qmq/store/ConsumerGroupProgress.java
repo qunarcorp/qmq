@@ -24,16 +24,15 @@ import java.util.Map;
  */
 public class ConsumerGroupProgress {
     private final String subject;
-    private final String group;
+    private final String consumerGroup;
     private final Map<String, ConsumerProgress> consumers;
-    // TODO(keli.wang): mark broadcast as final after new snapshot file created
-    private boolean broadcast;
+    private boolean exclusiveConsume;
     private long pull;
 
-    public ConsumerGroupProgress(String subject, String group, boolean broadcast, long pull, Map<String, ConsumerProgress> consumers) {
+    public ConsumerGroupProgress(String subject, String consumerGroup, boolean isExclusiveConsume, long pull, Map<String, ConsumerProgress> consumers) {
         this.subject = subject;
-        this.group = group;
-        this.broadcast = broadcast;
+        this.consumerGroup = consumerGroup;
+        this.exclusiveConsume = isExclusiveConsume;
         this.pull = pull;
         this.consumers = consumers;
     }
@@ -42,16 +41,12 @@ public class ConsumerGroupProgress {
         return subject;
     }
 
-    public String getGroup() {
-        return group;
+    public String getConsumerGroup() {
+        return consumerGroup;
     }
 
-    public boolean isBroadcast() {
-        return broadcast;
-    }
-
-    public void setBroadcast(boolean broadcast) {
-        this.broadcast = broadcast;
+    public boolean isExclusiveConsume() {
+        return exclusiveConsume;
     }
 
     public Map<String, ConsumerProgress> getConsumers() {

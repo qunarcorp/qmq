@@ -59,7 +59,7 @@ public class ActionCheckpointSerde implements Serde<ActionCheckpoint> {
                 final Map<String, ConsumerProgress> consumers = progress.getConsumers();
                 final int consumerCount = consumers == null ? 0 : consumers.size();
 
-                data.append(SLASH_JOINER.join(group, boolean2Short(progress.isBroadcast()), progress.getPull(), consumerCount)).append(NEWLINE);
+                data.append(SLASH_JOINER.join(group, boolean2Short(progress.isExclusiveConsume()), progress.getPull(), consumerCount)).append(NEWLINE);
 
                 if (consumerCount <= 0) {
                     continue;

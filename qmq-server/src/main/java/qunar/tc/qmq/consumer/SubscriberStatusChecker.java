@@ -84,7 +84,7 @@ public class SubscriberStatusChecker implements ActorSystem.Processor<Subscriber
     private void initSubscribers() {
         final Collection<ConsumerGroupProgress> progresses = storage.allConsumerGroupProgresses().values();
         progresses.forEach(progress -> {
-            if (progress.isBroadcast()) {
+            if (progress.isExclusiveConsume()) {
                 return;
             }
 

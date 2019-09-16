@@ -54,7 +54,8 @@ public class ConsumerSequenceManager {
 
     private final Storage storage;
 
-    // subject -> consumer group -> consumer id
+    // for share consume: consumerId -> ((subject + consumerGroup) -> sequence)
+    // for exclusive consume: consumerGroup -> ((subject + consumerGroup) -> sequence)
     private final ConcurrentMap<String, ConcurrentMap<ConsumerGroup, ConsumerSequence>> sequences;
 
     public ConsumerSequenceManager(final Storage storage) {
@@ -80,26 +81,25 @@ public class ConsumerSequenceManager {
 
     private void putConsumer(final ConcurrentMap<String, ConcurrentMap<ConsumerGroup, ConsumerSequence>> result, final ConsumerProgress consumer) {
         final String consumerId = consumer.getConsumerId();
-
-        ConcurrentMap<ConsumerGroup, ConsumerSequence> consumerSequences = result.get(consumerId);
-        if (consumerSequences == null) {
-            consumerSequences = new ConcurrentHashMap<>();
-            result.putIfAbsent(consumerId, consumerSequences);
-        }
-
+        ConcurrentMap<ConsumerGroup, ConsumerSequence> consumerSequences = result.computeIfAbsent(consumerId, (k) -> new ConcurrentHashMap<>());
         final ConsumerSequence consumerSequence = new ConsumerSequence(consumer.getPull(), consumer.getAck());
         final ConsumerGroup consumerGroup = new ConsumerGroup(consumer.getSubject(), consumer.getGroup());
         consumerSequences.putIfAbsent(consumerGroup, consumerSequence);
 
     }
 
-    public WritePutActionResult putPullActions(final String subject, final String group, final String consumerId, final boolean isExclusiveConsume, final GetMessageResult getMessageResult) {
+    public WritePutActionResult putPullActions(final String subject,
+                                               final String consumerGroup,
+                                               final String consumerId,
+                                               final boolean isExclusiveConsume,
+                                               final GetMessageResult getMessageResult) {
         final OffsetRange consumerLogRange = getMessageResult.getConsumerLogRange();
-        final ConsumerSequence consumerSequence = getOrCreateConsumerSequence(subject, group, consumerId);
+        final ConsumerSequence consumerSequence = getOrCreateConsumerSequence(subject, consumerGroup, consumerId, isExclusiveConsume);
 
         if (consumerLogRange.getEnd() - consumerLogRange.getBegin() + 1 != getMessageResult.getMessageNum()) {
-            LOG.debug("consumer offset range error, subject:{}, group:{}, consumerId:{}, isExclusiveConsume:{}, getMessageResult:{}", subject, group, consumerId, isExclusiveConsume, getMessageResult);
-            QMon.consumerLogOffsetRangeError(subject, group);
+            LOG.debug("consumer offset range error, subject:{}, consumerGroup:{}, consumerId:{}, isExclusiveConsume:{}, getMessageResult:{}",
+                    subject, consumerGroup, consumerId, isExclusiveConsume, getMessageResult);
+            QMon.consumerLogOffsetRangeError(subject, consumerGroup);
         }
         consumerSequence.pullLock();
         try {
@@ -110,7 +110,7 @@ public class ConsumerSequenceManager {
             final long firstPullSequence = isExclusiveConsume ? firstConsumerLogSequence : consumerSequence.getPullSequence() + 1;
             final long lastPullSequence = isExclusiveConsume ? lastConsumerLogSequence : consumerSequence.getPullSequence() + getMessageResult.getMessageNum();
 
-            final Action action = new PullAction(subject, group, consumerId,
+            final Action action = new PullAction(subject, consumerGroup, consumerId,
                     System.currentTimeMillis(), isExclusiveConsume,
                     firstPullSequence, lastPullSequence,
                     firstConsumerLogSequence, lastConsumerLogSequence);
@@ -121,7 +121,7 @@ public class ConsumerSequenceManager {
             consumerSequence.setPullSequence(lastPullSequence);
             return new WritePutActionResult(true, firstPullSequence);
         } catch (Exception e) {
-            LOG.error("write action log failed, subject: {}, group: {}, consumerId: {}", subject, group, consumerId, e);
+            LOG.error("write action log failed, subject: {}, consumerGroup: {}, consumerId: {}", subject, consumerGroup, consumerId, e);
             return new WritePutActionResult(false, -1);
         } finally {
             consumerSequence.pullUnlock();
@@ -129,40 +129,41 @@ public class ConsumerSequenceManager {
     }
 
     public boolean putAckActions(AckMessageProcessor.AckEntry ackEntry) {
-        final String consumerId = ackEntry.getConsumerId();
         final String subject = ackEntry.getSubject();
-        final String group = ackEntry.getGroup();
+        final String consumerGroup = ackEntry.getGroup();
+        final String consumerId = ackEntry.getConsumerId();
         final long lastPullSequence = ackEntry.getLastPullLogOffset();
         long firstPullSequence = ackEntry.getFirstPullLogOffset();
 
-        final ConsumerSequence consumerSequence = getOrCreateConsumerSequence(subject, group, consumerId);
+        final ConsumerSequence consumerSequence = getOrCreateConsumerSequence(subject, consumerGroup, consumerId, ackEntry.isExclusiveConsume());
 
         consumerSequence.ackLock();
         final long confirmedAckSequence = consumerSequence.getAckSequence();
         try {
             if (lastPullSequence <= confirmedAckSequence) {
                 LOG.warn("receive duplicate ack, ackEntry:{}, consumerSequence:{} ", ackEntry, consumerSequence);
-                QMon.consumerDuplicateAckCountInc(subject, group, (int) (confirmedAckSequence - lastPullSequence));
+                QMon.consumerDuplicateAckCountInc(subject, consumerGroup, (int) (confirmedAckSequence - lastPullSequence));
                 return true;
             }
             final long lostAckCount = firstPullSequence - confirmedAckSequence;
             if (lostAckCount <= 0) {
                 LOG.warn("receive some duplicate ack, ackEntry:{}, consumerSequence:{}", ackEntry, consumerSequence);
                 firstPullSequence = confirmedAckSequence + 1;
-                QMon.consumerDuplicateAckCountInc(subject, group, (int) (confirmedAckSequence - firstPullSequence));
+                QMon.consumerDuplicateAckCountInc(subject, consumerGroup, (int) (confirmedAckSequence - firstPullSequence));
             } else if (lostAckCount > 1) {
                 final long firstNotAckedPullSequence = confirmedAckSequence + 1;
                 final long lastLostPullSequence = firstPullSequence - 1;
-                //如果是广播的话，put need retry也是没有意义的
+                //如果是独占消费，put need retry也是没有意义的
                 if (!ackEntry.isExclusiveConsume()) {
                     LOG.error("lost ack count, ackEntry:{}, consumerSequence:{}", ackEntry, consumerSequence);
-                    putNeedRetryMessages(subject, group, consumerId, firstNotAckedPullSequence, lastLostPullSequence);
+                    putNeedRetryMessages(subject, consumerGroup, consumerId, firstNotAckedPullSequence, lastLostPullSequence);
                 }
                 firstPullSequence = firstNotAckedPullSequence;
-                QMon.consumerLostAckCountInc(subject, group, (int) lostAckCount);
+                QMon.consumerLostAckCountInc(subject, consumerGroup, (int) lostAckCount);
             }
 
-            final Action rangeAckAction = new RangeAckAction(subject, group, consumerId, System.currentTimeMillis(), firstPullSequence, lastPullSequence);
+            String exclusiveKey = ackEntry.isExclusiveConsume() ? consumerGroup : consumerId;
+            final Action rangeAckAction = new RangeAckAction(subject, consumerGroup, exclusiveKey, System.currentTimeMillis(), firstPullSequence, lastPullSequence);
             if (!putAction(rangeAckAction))
                 return false;
 
@@ -269,11 +270,12 @@ public class ConsumerSequenceManager {
         return consumerSequences.get(new ConsumerGroup(subject, group));
     }
 
-    public ConsumerSequence getOrCreateConsumerSequence(String subject, String group, String consumerId) {
-        ConcurrentMap<ConsumerGroup, ConsumerSequence> consumerSequences = this.sequences.get(consumerId);
+    public ConsumerSequence getOrCreateConsumerSequence(String subject, String group, String consumerId, boolean isExclusiveConsume) {
+        String exclusiveKey = isExclusiveConsume ? group : consumerId;
+        ConcurrentMap<ConsumerGroup, ConsumerSequence> consumerSequences = this.sequences.get(exclusiveKey);
         if (consumerSequences == null) {
             final ConcurrentMap<ConsumerGroup, ConsumerSequence> newConsumerSequences = new ConcurrentHashMap<>();
-            consumerSequences = ObjectUtils.defaultIfNull(sequences.putIfAbsent(consumerId, newConsumerSequences), newConsumerSequences);
+            consumerSequences = ObjectUtils.defaultIfNull(sequences.putIfAbsent(exclusiveKey, newConsumerSequences), newConsumerSequences);
         }
 
         final ConsumerGroup consumerGroup = new ConsumerGroup(subject, group);

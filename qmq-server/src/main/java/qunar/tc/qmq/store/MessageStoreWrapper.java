@@ -215,7 +215,7 @@ public class MessageStoreWrapper {
 
     private boolean putAction(GetMessageResult range, ConsumeQueue consumeQueue,
                               String subject, String group, String consumerId, boolean isExclusiveConsume,
-                              List<PullMessageResult>retList) {
+                              List<PullMessageResult> retList) {
         final WritePutActionResult writeResult = consumerSequenceManager.putPullActions(subject, group, consumerId, isExclusiveConsume, range);
         if (writeResult.isSuccess()) {
             consumeQueue.setNextSequence(range.getNextBeginSequence());
@@ -267,9 +267,9 @@ public class MessageStoreWrapper {
 
     private PullMessageResult doFindUnAckMessages(final PullRequest pullRequest) {
         final String subject = pullRequest.getSubject();
-        final String group = pullRequest.getGroup();
+        final String consumerGroup = pullRequest.getGroup();
         final String consumerId = pullRequest.getConsumerId();
-        final ConsumerSequence consumerSequence = consumerSequenceManager.getOrCreateConsumerSequence(subject, group, consumerId);
+        final ConsumerSequence consumerSequence = consumerSequenceManager.getOrCreateConsumerSequence(subject, consumerGroup, consumerId, pullRequest.isExclusiveConsume());
 
         final long ackSequence = consumerSequence.getAckSequence();
         long pullLogSequenceInConsumer = pullRequest.getPullOffsetLast();
@@ -305,7 +305,7 @@ public class MessageStoreWrapper {
                 final GetMessageResult getMessageResult = storage.getMessage(subject, consumerLogSequence);
                 if (getMessageResult.getStatus() != GetMessageStatus.SUCCESS || getMessageResult.getMessageNum() == 0) {
                     LOG.error("getMessageResult error, consumer:{}, consumerLogSequence:{}, pullLogSequence:{}, getMessageResult:{}", pullRequest, consumerLogSequence, seq, getMessageResult);
-                    QMon.getMessageErrorCountInc(subject, group);
+                    QMon.getMessageErrorCountInc(subject, consumerGroup);
                     if (firstValidSeq == -1) {
                         continue;
                     } else {
@@ -337,7 +337,7 @@ public class MessageStoreWrapper {
                 if (totalSize >= MAX_MEMORY_LIMIT) break;
             } catch (Exception e) {
                 LOG.error("error occurs when find messages by pull log offset, request: {}, consumerSequence: {}", pullRequest, consumerSequence, e);
-                QMon.getMessageErrorCountInc(subject, group);
+                QMon.getMessageErrorCountInc(subject, consumerGroup);
 
                 if (firstValidSeq != -1) {
                     break;
@@ -352,18 +352,19 @@ public class MessageStoreWrapper {
             }
         } else {
             LOG.error("find lost messages empty, consumer:{}, consumerSequence:{}, pullLogSequence:{}", pullRequest, consumerSequence, pullLogSequenceInServer);
-            QMon.findLostMessageEmptyCountInc(subject, group);
+            QMon.findLostMessageEmptyCountInc(subject, consumerGroup);
             firstValidSeq = pullLogSequenceInServer;
             consumerSequence.setAckSequence(pullLogSequenceInServer);
 
             // auto ack all deleted pulled message
-            LOG.info("auto ack deleted pulled message. subject: {}, group: {}, consumerId: {}, firstSeq: {}, lastSeq: {}",
-                    subject, group, consumerId, firstLostAckPullLogSeq, firstValidSeq);
-            consumerSequenceManager.putAction(new RangeAckAction(subject, group, consumerId, System.currentTimeMillis(), firstLostAckPullLogSeq, firstValidSeq));
+            LOG.info("auto ack deleted pulled message. subject: {}, consumerGroup: {}, consumerId: {}, firstSeq: {}, lastSeq: {}",
+                    subject, consumerGroup, consumerId, firstLostAckPullLogSeq, firstValidSeq);
+            String exclusiveKey = pullRequest.isExclusiveConsume() ? consumerGroup : consumerId;
+            consumerSequenceManager.putAction(new RangeAckAction(subject, consumerGroup, exclusiveKey, System.currentTimeMillis(), firstLostAckPullLogSeq, firstValidSeq));
         }
 
         final PullMessageResult result = new PullMessageResult(firstValidSeq, buffers, totalSize, buffers.size());
-        QMon.findLostMessageCountInc(subject, group, result.getMessageNum());
+        QMon.findLostMessageCountInc(subject, consumerGroup, result.getMessageNum());
         LOG.info("found lost ack messages request: {}, consumerSequence: {}, result: {}", pullRequest, consumerSequence, result);
         return result;
     }

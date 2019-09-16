@@ -122,10 +122,11 @@ public class AckMessageProcessor extends AbstractRequestProcessor {
         private final String consumerId;
         private final long firstPullLogOffset;
         private final long lastPullLogOffset;
-        private final ChannelHandlerContext ctx;
-        private final RemotingHeader requestHeader;
         private final long ackBegin;
         private final byte isExclusiveConsume;
+
+        private final ChannelHandlerContext ctx;
+        private final RemotingHeader requestHeader;
 
         AckEntry(AckRequest ackRequest, ChannelHandlerContext ctx, RemotingHeader requestHeader) {
             this.subject = ackRequest.getSubject();
@@ -133,11 +134,11 @@ public class AckMessageProcessor extends AbstractRequestProcessor {
             this.consumerId = ackRequest.getConsumerId();
             this.firstPullLogOffset = ackRequest.getPullOffsetBegin();
             this.lastPullLogOffset = ackRequest.getPullOffsetLast();
+            this.ackBegin = System.currentTimeMillis();
             this.isExclusiveConsume = ackRequest.getIsExclusiveConsume();
 
             this.ctx = ctx;
             this.requestHeader = requestHeader;
-            this.ackBegin = System.currentTimeMillis();
         }
 
         public long getFirstPullLogOffset() {

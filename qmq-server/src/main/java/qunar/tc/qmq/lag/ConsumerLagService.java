@@ -40,13 +40,13 @@ public class ConsumerLagService {
         final Map<String, ConsumeQueue> consumeQueues = storage.locateSubjectConsumeQueues(subject);
         final Map<String, ConsumerLag> lags = new HashMap<>();
         for (final Map.Entry<String, ConsumeQueue> entry : consumeQueues.entrySet()) {
-            final String group = entry.getKey();
+            final String consumerGroup = entry.getKey();
             final ConsumeQueue consumeQueue = entry.getValue();
-            final ConsumerGroupProgress progress = storage.getConsumerGroupProgress(subject, group);
+            final ConsumerGroupProgress progress = storage.getConsumerGroupProgress(subject, consumerGroup);
 
             final long pullLag = consumeQueue.getQueueCount();
             final long ackLag = computeAckLag(progress);
-            lags.put(group, new ConsumerLag(pullLag, ackLag));
+            lags.put(consumerGroup, new ConsumerLag(pullLag, ackLag));
         }
         return lags;
     }
