@@ -124,7 +124,6 @@ public class PullMessageProcessor extends AbstractRequestProcessor implements Fi
         return null;
     }
 
-    // TODO(keli.wang): how to handle broadcast subscriber correctly?
     private void subscribe(PullRequest pullRequest) {
         if (pullRequest.isExclusiveConsume()) return;
 
