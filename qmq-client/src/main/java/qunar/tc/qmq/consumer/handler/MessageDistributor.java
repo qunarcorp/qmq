@@ -40,7 +40,6 @@ public class MessageDistributor {
 
     public ListenerHolder addListener(final String subject, final String consumerGroup, MessageListener listener, Executor executor, SubscribeParam subscribeParam) {
         final RegistParam registParam = new RegistParam(executor, listener, subscribeParam, clientId);
-        registParam.setBroadcast(subscribeParam.isBroadcast());
         register.registerPullEntry(subject, consumerGroup, registParam);
         return new ListenerHolder() {
 

@@ -41,7 +41,7 @@ public class PullConsumerFactory {
     }
 
     public PullConsumer getOrCreateDefault(String subject, String group, boolean isBroadcast) {
-        final String realSubject = RetrySubjectUtils.getRealSubject(subject);
+        final String realSubject = RetrySubjectUtils.getPartitionName(subject);
         final String key = MapKeyBuilder.buildSubscribeKey(realSubject, group);
         PullConsumer consumer = pullConsumerMap.get(key);
         if (consumer != null) {
@@ -68,7 +68,7 @@ public class PullConsumerFactory {
 
     private PullConsumer createDefaultPullConsumer(String subject, String group, boolean isBroadcast) {
         try {
-            return pullRegister.registerPullConsumer(subject, group, isBroadcast).get();
+            return pullRegister.registerPullConsumer(subject, group, isBroadcast, false).get();
         } catch (Throwable e) {
             throw new RuntimeException(e);
         }

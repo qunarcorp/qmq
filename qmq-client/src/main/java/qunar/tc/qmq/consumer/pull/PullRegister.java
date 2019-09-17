@@ -200,9 +200,10 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
 
         ConsumerAllocation consumerAllocation = response.getConsumerAllocation();
         int version = consumerAllocation.getVersion();
-        PullEntry pullEntry = updatePullEntry(entryKey, oldEntry, subject, consumerGroup, param, new AlwaysPullStrategy(), response, false);
+        PullEntry pullEntry = updatePullEntry(entryKey, oldEntry, subject, consumerGroup, param, new AlwaysPullStrategy(), consumerAllocation);
         if (!RetrySubjectUtils.isDeadRetrySubject(subject)) {
-            PullEntry retryPullEntry = updatePullEntry(entryKey, oldEntry, subject, consumerGroup, param, new WeightPullStrategy(), response, true);
+            ConsumerAllocation retryConsumerAllocation = consumerAllocation.getRetryConsumerAllocation(consumerGroup);
+            PullEntry retryPullEntry = updatePullEntry(entryKey, oldEntry, subject, consumerGroup, param, new WeightPullStrategy(), retryConsumerAllocation);
             entry = new CompositePullEntry<>(subject, consumerGroup, version, Lists.newArrayList(pullEntry, retryPullEntry));
         } else {
             entry = pullEntry;
@@ -229,20 +230,20 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         return originGroup + "_" + env + "_" + subEnv;
     }
 
-    private PullEntry updatePullEntry(String entryKey, PullEntry oldEntry, String subject, String consumerGroup, RegistParam param, PullStrategy pullStrategy, ConsumerMetaInfoResponse response, boolean isRetry) {
+    private PullEntry updatePullEntry(String entryKey, PullEntry oldEntry, String subject, String consumerGroup, RegistParam param, PullStrategy pullStrategy, ConsumerAllocation consumerAllocation) {
 
         if (oldEntry == DefaultPullEntry.EMPTY_PULL_ENTRY) {
             throw new DuplicateListenerException(entryKey);
         }
 
-        PullEntry updatedEntry = (PullEntry) createPullClient(subject, consumerGroup, pullStrategy, response, isRetry, oldEntry,
+        PullEntry updatedEntry = (PullEntry) createPullClient(subject, consumerGroup, pullStrategy, consumerAllocation,
+                oldEntry,
                 new PullClientFactory<PullEntry>() {
                     @Override
                     public PullEntry createPullClient(String subject, String consumerGroup, String partitionName, int version, PullStrategy pullStrategy) {
                         return createDefaultPullEntry(subject, consumerGroup, partitionName, version, param, pullStrategy);
                     }
-                },
-                new CompositePullClientFactory<CompositePullEntry, PullEntry>() {
+                }, new CompositePullClientFactory<CompositePullEntry, PullEntry>() {
                     @Override
                     public CompositePullEntry createPullClient(String subject, String consumerGroup, int version, List<PullEntry> list) {
                         return new CompositePullEntry(subject, consumerGroup, version, list);
@@ -262,17 +263,15 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
             String subject,
             String consumerGroup,
             PullStrategy pullStrategy,
-            ConsumerMetaInfoResponse response,
-            boolean isRetry,
+            ConsumerAllocation consumerAllocation,
             PullClient oldClient,
             PullClientFactory pullClientFactory,
             CompositePullClientFactory compositePullClientFactory
     ) {
-        ConsumerAllocation consumerAllocation = response.getConsumerAllocation();
         if (oldClient == null) {
-            return createNewPullClient(subject, consumerGroup, pullStrategy, isRetry, consumerAllocation, pullClientFactory, compositePullClientFactory);
+            return createNewPullClient(subject, consumerGroup, pullStrategy, consumerAllocation, pullClientFactory, compositePullClientFactory);
         } else {
-            return updatePullClient(subject, consumerGroup, pullStrategy, isRetry, consumerAllocation, pullClientFactory, compositePullClientFactory, (CompositePullClient) oldClient);
+            return updatePullClient(subject, consumerGroup, pullStrategy, consumerAllocation, pullClientFactory, compositePullClientFactory, (CompositePullClient) oldClient);
         }
     }
 
@@ -288,7 +287,6 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
             String subject,
             String consumerGroup,
             PullStrategy pullStrategy,
-            boolean isRetry,
             ConsumerAllocation consumerAllocation,
             PullClientFactory pullClientFactory,
             CompositePullClientFactory compositePullClientFactory,
@@ -306,7 +304,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
             List<PartitionProps> newPartitionProps = consumerAllocation.getPartitionProps();
             List<PullClient> oldPullClients = oldClient.getComponents();
             Set<String> newPartitionNames = newPartitionProps.stream()
-                    .map(pp -> isRetry ? RetrySubjectUtils.getPartitionName(pp.getPartitionName()) : pp.getPartitionName())
+                    .map(PartitionProps::getPartitionName)
                     .collect(Collectors.toSet());
             Set<String> oldPartitionNames = oldPullClients.stream().map(PullClient::getPartitionName).collect(Collectors.toSet());
 
@@ -349,7 +347,6 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
             String subject,
             String consumerGroup,
             PullStrategy pullStrategy,
-            boolean isRetry,
             ConsumerAllocation consumerAllocation,
             PullClientFactory pullClientFactory,
             CompositePullClientFactory compositePullClientFactory
@@ -359,7 +356,6 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         int version = consumerAllocation.getVersion();
         for (PartitionProps partitionProp : partitionProps) {
             String partitionName = partitionProp.getPartitionName();
-            partitionName = isRetry ? RetrySubjectUtils.buildRetryPartitionName(partitionName, consumerGroup) : partitionName;
             PullClient newDefaultClient = pullClientFactory.createPullClient(subject, consumerGroup, partitionName, version, pullStrategy);
             clientList.add(newDefaultClient);
         }
@@ -382,9 +378,8 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         PullConsumer pc = (PullConsumer) createPullClient(
                 subject,
                 consumerGroup,
-                null,
-                response,
-                false,
+                new AlwaysPullStrategy(),
+                response.getConsumerAllocation(),
                 oldConsumer,
                 new PullClientFactory() {
                     @Override
@@ -409,8 +404,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
                     public CompositePullClient createPullClient(String subject, String consumerGroup, int version, List clientList) {
                         return new CompositePullEntry(subject, consumerGroup, version, clientList);
                     }
-                }
-        );
+                });
         if (pullEntryMap.containsKey(key)) {
             throw new DuplicateListenerException(key);
         }
