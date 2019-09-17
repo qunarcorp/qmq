@@ -173,9 +173,9 @@ class SendMessageBackImpl implements SendMessageBack {
                     }, SEND_BACK_DELAY_SECONDS, TimeUnit.SECONDS);
                 } else {
                     if (e instanceof SendMessageBackException) {
-                        LOGGER.error("send message back fail, and retry {} times. exception: {}", retryNumOnFail.get(), SEND_BACK_DELAY_SECONDS, e.getMessage());
+                        LOGGER.error("send message back fail, and retry {} times after {} seconds. exception: {}", retryNumOnFail.get(), SEND_BACK_DELAY_SECONDS, e.getMessage());
                     } else {
-                        LOGGER.error("send message back fail, and retry {} times", retryNumOnFail.get(), SEND_BACK_DELAY_SECONDS, e);
+                        LOGGER.error("send message back fail, and retry {} times after {} seconds", retryNumOnFail.get(), SEND_BACK_DELAY_SECONDS, e);
                     }
                     SendMessageBackImpl.this.sendBackAndCompleteNack(message, this);
                 }
