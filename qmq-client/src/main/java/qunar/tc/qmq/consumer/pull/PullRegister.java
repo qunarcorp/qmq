@@ -197,17 +197,16 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
 
         String entryKey = buildPullClientKey(subject, consumerGroup);
         PullEntry oldEntry = pullEntryMap.get(entryKey);
-        PullEntry entry;
 
         ConsumerAllocation consumerAllocation = response.getConsumerAllocation();
-        int version = consumerAllocation.getVersion();
 
         // create retry
         PullEntry pullEntry = updatePullEntry(entryKey, oldEntry, subject, consumerGroup, param, new AlwaysPullStrategy(), consumerAllocation);
         ConsumerAllocation retryConsumerAllocation = consumerAllocation.getRetryConsumerAllocation(consumerGroup);
         PullEntry retryPullEntry = updatePullEntry(entryKey, oldEntry, subject, consumerGroup, param, new WeightPullStrategy(), retryConsumerAllocation);
 
-        entry = new CompositePullEntry<>(subject, consumerGroup, version, Lists.newArrayList(pullEntry, retryPullEntry), brokerService);
+        int version = consumerAllocation.getVersion();
+        PullEntry entry = new CompositePullEntry<>(subject, consumerGroup, version, Lists.newArrayList(pullEntry, retryPullEntry), brokerService);
 
         pullEntryMap.put(entryKey, entry);
         return entry;
