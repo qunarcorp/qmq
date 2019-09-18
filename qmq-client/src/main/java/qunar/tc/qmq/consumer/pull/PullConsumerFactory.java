@@ -17,10 +17,8 @@
 package qunar.tc.qmq.consumer.pull;
 
 import qunar.tc.qmq.PullConsumer;
-import qunar.tc.qmq.common.MapKeyBuilder;
 import qunar.tc.qmq.consumer.exception.CreatePullConsumerException;
 import qunar.tc.qmq.consumer.exception.DuplicateListenerException;
-import qunar.tc.qmq.utils.RetryPartitionUtils;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -41,8 +39,12 @@ public class PullConsumerFactory {
         this.pullRegister = pullRegister;
     }
 
+    private static String buildPullConsumerKey(String subject, String group) {
+        return subject + ":" + group;
+    }
+
     public PullConsumer getOrCreateDefault(String subject, String group, boolean isBroadcast) {
-        final String key = MapKeyBuilder.buildSubscribeKey(subject, group);
+        final String key = buildPullConsumerKey(subject, group);
         PullConsumer consumer = pullConsumerMap.get(key);
         if (consumer != null) {
             return consumer;

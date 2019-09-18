@@ -34,8 +34,17 @@ class PlainPullEntry extends AbstractPullEntry {
     private final ConsumeParam consumeParam;
     private final PullStrategy pullStrategy;
 
-    PlainPullEntry(ConsumeParam consumeParam, String partitionName, int allocationVersion, PullService pullService, AckService ackService, BrokerService brokerService, PullStrategy pullStrategy) {
-        super(consumeParam.getSubject(), consumeParam.getConsumerGroup(), partitionName, allocationVersion, pullService, ackService, brokerService);
+    PlainPullEntry(
+            ConsumeParam consumeParam,
+            String partitionName,
+            String brokerGroup,
+            int allocationVersion,
+            PullService pullService,
+            AckService ackService,
+            BrokerService brokerService,
+            PullStrategy pullStrategy,
+            SendMessageBack sendMessageBack) {
+        super(consumeParam.getSubject(), consumeParam.getConsumerGroup(), partitionName, brokerGroup, allocationVersion, consumeParam.isBroadcast(), consumeParam.isOrdered(), pullService, ackService, brokerService, sendMessageBack);
         this.consumeParam = consumeParam;
         this.pullStrategy = pullStrategy;
     }
@@ -47,8 +56,8 @@ class PlainPullEntry extends AbstractPullEntry {
         if (groups.isEmpty()) {
             return PlainPullResult.NO_BROKER;
         }
-        BrokerGroupInfo group = loadBalance.select(brokerCluster);
-        List<PulledMessage> received = pull(consumeParam, group, fetchSize, pullTimeout, null);
+        BrokerGroupInfo brokerGroup = loadBalance.select(brokerCluster);
+        List<PulledMessage> received = pull(consumeParam, brokerGroup, fetchSize, pullTimeout, null);
         output.addAll(received);
         pullStrategy.record(received.size() > 0);
         return PlainPullResult.NOMORE_MESSAGE;
@@ -61,7 +70,7 @@ class PlainPullEntry extends AbstractPullEntry {
 
     @Override
     public void destroy() {
-
+        super.destroy();
     }
 
     @Override
@@ -71,7 +80,7 @@ class PlainPullEntry extends AbstractPullEntry {
 
     @Override
     public void offline(StatusSource statusSource) {
-
+        super.offline(statusSource);
     }
 
     enum PlainPullResult {

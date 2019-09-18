@@ -21,6 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.PullEntry;
+import qunar.tc.qmq.StatusSource;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
@@ -32,6 +33,7 @@ import qunar.tc.qmq.protocol.CommandCode;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -46,6 +48,7 @@ abstract class AbstractPullEntry extends AbstractPullClient implements PullEntry
     private static final int MAX_MESSAGE_RETRY_THRESHOLD = 5;
 
     private final PullService pullService;
+    private final AckSendQueue ackSendQueue;
 
     final BrokerService brokerService;
     final AckService ackService;
@@ -57,12 +60,16 @@ abstract class AbstractPullEntry extends AbstractPullClient implements PullEntry
     private final QmqCounter pullWorkCounter;
     private final QmqCounter pullFailCounter;
 
-    AbstractPullEntry(String subject, String consumerGroup, String partitionName, int version, PullService pullService, AckService ackService, BrokerService brokerService) {
-        super(subject, consumerGroup, partitionName, version);
+    AbstractPullEntry(String subject, String consumerGroup, String partitionName, String brokerGroup, int version, boolean isBroadcast, boolean isOrdered, PullService pullService, AckService ackService, BrokerService brokerService, SendMessageBack sendMessageBack) {
+        super(subject, consumerGroup, partitionName, brokerGroup, version);
         this.pullService = pullService;
         this.ackService = ackService;
         this.brokerService = brokerService;
         this.loadBalance = new WeightLoadBalance();
+
+        AckSendQueue queue = new AckSendQueue(subject, consumerGroup, partitionName, brokerGroup, ackService, this.brokerService, sendMessageBack, isBroadcast, isOrdered);
+        queue.init();
+        this.ackSendQueue = queue;
 
         pullRequestTimeout = PullSubjectsConfig.get().getPullRequestTimeout(subject);
 
@@ -71,24 +78,24 @@ abstract class AbstractPullEntry extends AbstractPullClient implements PullEntry
         this.pullFailCounter = Metrics.counter("qmq_pull_fail_count", SUBJECT_GROUP_ARRAY, values);
     }
 
-    protected List<PulledMessage> pull(ConsumeParam consumeParam, BrokerGroupInfo group, int pullSize, int pullTimeout, AckHook ackHook) {
+    protected List<PulledMessage> pull(ConsumeParam consumeParam, BrokerGroupInfo brokerGroupInfo, int pullSize, int pullTimeout, AckHook ackHook) {
         pullWorkCounter.inc();
-        AckSendInfo ackSendInfo = ackService.getAckSendInfo(group, consumeParam.getSubject(), consumeParam.getConsumerGroup());
-        final PullParam pullParam = buildPullParam(consumeParam, group, ackSendInfo, pullSize, pullTimeout);
+        AckSendInfo ackSendInfo = ackSendQueue.getAckSendInfo();
+        final PullParam pullParam = buildPullParam(consumeParam, brokerGroupInfo, ackSendInfo, pullSize, pullTimeout);
         try {
             PullResult pullResult = pullService.pull(pullParam);
             List<PulledMessage> pulledMessages = handlePullResult(pullParam, pullResult, ackHook);
-            group.markSuccess();
-            recordPullSize(group, pulledMessages, pullSize);
+            brokerGroupInfo.markSuccess();
+            recordPullSize(brokerGroupInfo, pulledMessages, pullSize);
             return pulledMessages;
         } catch (ExecutionException e) {
-            markFailed(group);
+            markFailed(brokerGroupInfo);
             Throwable cause = e.getCause();
             //超时异常暂时不打印日志了
             if (cause instanceof TimeoutException) return Collections.emptyList();
             LOGGER.error("pull message exception. {}", pullParam, e);
         } catch (Exception e) {
-            markFailed(group);
+            markFailed(brokerGroupInfo);
             LOGGER.error("pull message exception. {}", pullParam, e);
         }
         return Collections.emptyList();
@@ -137,7 +144,7 @@ abstract class AbstractPullEntry extends AbstractPullClient implements PullEntry
         if (messages != null && !messages.isEmpty()) {
             monitorMessageCount(pullParam, pullResult);
             PulledMessageFilter filter = new PulledMessageFilterImpl(pullParam);
-            List<PulledMessage> pulledMessages = ackService.buildPulledMessages(pullParam, pullResult, ackHook, filter);
+            List<PulledMessage> pulledMessages = ackService.buildPulledMessages(pullParam, pullResult, ackSendQueue, ackHook, filter);
             if (pulledMessages == null || pulledMessages.isEmpty()) {
                 return Collections.emptyList();
             }
@@ -186,5 +193,23 @@ abstract class AbstractPullEntry extends AbstractPullClient implements PullEntry
             return Strings.isNullOrEmpty(group) || group.equals(pullParam.getGroup());
         }
 
+    }
+
+    @Override
+    public void destroy() {
+        this.ackSendQueue.destroy(TimeUnit.SECONDS.toMillis(5));
+    }
+
+    @Override
+    public void offline(StatusSource statusSource) {
+        try {
+            ackSendQueue.trySendAck(1000);
+        } catch (Exception e) {
+            LOGGER.error("try clean ack exception", e);
+        }
+    }
+
+    protected AckSendQueue getAckSendQueue() {
+        return ackSendQueue;
     }
 }

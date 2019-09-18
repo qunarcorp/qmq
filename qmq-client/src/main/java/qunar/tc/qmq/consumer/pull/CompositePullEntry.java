@@ -15,8 +15,8 @@ public class CompositePullEntry<T extends PullEntry> extends AbstractPullClient 
 
     private List<T> pullEntries;
 
-    public CompositePullEntry(String subject, String group, int version, List<T> pullEntries) {
-        super(subject, group, "", version);
+    public CompositePullEntry(String subject, String consumerGroup, int version, List<T> pullEntries) {
+        super(subject, consumerGroup, "", "", version);
         this.pullEntries = pullEntries;
     }
 

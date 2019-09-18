@@ -1,13 +1,14 @@
 package qunar.tc.qmq.consumer.pull;
 
 import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.AsyncFunction;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import org.springframework.util.CollectionUtils;
-import qunar.tc.qmq.*;
+import qunar.tc.qmq.CompositePullClient;
+import qunar.tc.qmq.Message;
+import qunar.tc.qmq.PullConsumer;
+import qunar.tc.qmq.StatusSource;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -23,8 +24,8 @@ public class CompositePullConsumer<T extends PullConsumer> extends AbstractPullC
 
     private List<T> consumers;
 
-    public CompositePullConsumer(String subject, String group, int version, List<T> consumers) {
-        super(subject, group, subject, version);
+    public CompositePullConsumer(String subject, String consumerGroup, int version, List<T> consumers) {
+        super(subject, consumerGroup, "", "", version);
         this.consumers = consumers;
     }
 

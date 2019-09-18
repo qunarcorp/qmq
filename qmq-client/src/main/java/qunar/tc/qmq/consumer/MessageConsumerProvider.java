@@ -23,7 +23,6 @@ import qunar.tc.qmq.common.ClientIdProviderFactory;
 import qunar.tc.qmq.common.EnvProvider;
 import qunar.tc.qmq.config.NettyClientConfigManager;
 import qunar.tc.qmq.consumer.handler.MessageDistributor;
-import qunar.tc.qmq.PullConsumer;
 import qunar.tc.qmq.consumer.pull.PullConsumerFactory;
 import qunar.tc.qmq.consumer.pull.PullRegister;
 import qunar.tc.qmq.netty.client.NettyClient;
@@ -75,7 +74,6 @@ public class MessageConsumerProvider implements MessageConsumer {
             NettyClient.getClient().start(NettyClientConfigManager.get().getDefaultClientConfig());
 
             String clientId = this.clientIdProvider.get();
-            this.pullRegister.setDestroyWaitInSeconds(destroyWaitInSeconds);
             this.pullRegister.setEnvProvider(envProvider);
             this.pullRegister.setClientId(clientId);
             this.pullRegister.setAppCode(appCode);

@@ -11,12 +11,14 @@ public abstract class AbstractPullClient implements PullClient {
     private String subject;
     private String consumerGroup;
     private String partitionName;
+    private String brokerGroup;
     private int version;
 
-    public AbstractPullClient(String subject, String consumerGroup, String partitionName, int version) {
+    public AbstractPullClient(String subject, String consumerGroup, String partitionName, String brokerGroup, int version) {
         this.subject = subject;
         this.consumerGroup = consumerGroup;
         this.partitionName = partitionName;
+        this.brokerGroup = brokerGroup;
         this.version = version;
     }
 
@@ -43,5 +45,10 @@ public abstract class AbstractPullClient implements PullClient {
     @Override
     public void setVersion(int version) {
         this.version = version;
+    }
+
+    @Override
+    public String getBrokerGroup() {
+        return brokerGroup;
     }
 }

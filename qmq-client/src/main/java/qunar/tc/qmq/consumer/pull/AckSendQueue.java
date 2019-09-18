@@ -59,6 +59,7 @@ class AckSendQueue implements TimerTask {
 
     private static final int DESTROY_CHECK_WAIT_MILLIS = 50;
 
+    private final AtomicBoolean stopped = new AtomicBoolean(false);
     private final String brokerGroupName;
     private final String subject;
     private final String group;
@@ -67,6 +68,7 @@ class AckSendQueue implements TimerTask {
 
     private final AckService ackService;
 
+    private final String partitionName;
     private final String retryPartitionName;
     private final String deadRetryPartitionName;
 
@@ -101,10 +103,10 @@ class AckSendQueue implements TimerTask {
     private volatile long lastSendOkOffset = -1;
 
     AckSendQueue(
-            String brokerGroupName,
             String subject,
             String group,
             String partitionName,
+            String brokerGroupName,
             AckService ackService,
             BrokerService brokerService,
             SendMessageBack sendMessageBack,
@@ -120,14 +122,14 @@ class AckSendQueue implements TimerTask {
         this.isBroadcast = isBroadcast;
         this.isOrdered = isOrdered;
 
-        String realPartition = RetryPartitionUtils.getRealPartitionName(partitionName);
-        this.retryPartitionName = RetryPartitionUtils.buildRetryPartitionName(realPartition, group);
-        this.deadRetryPartitionName = RetryPartitionUtils.buildDeadRetryPartitionName(realPartition, group);
+        this.partitionName = RetryPartitionUtils.getRealPartitionName(partitionName);
+        this.retryPartitionName = RetryPartitionUtils.buildRetryPartitionName(partitionName, group);
+        this.deadRetryPartitionName = RetryPartitionUtils.buildDeadRetryPartitionName(partitionName, group);
         this.pullBatchSize = PullSubjectsConfig.get().getPullBatchSize(subject);
     }
 
     void append(final List<AckEntry> batch) {
-        if (batch == null || batch.isEmpty()) return;
+        if (batch == null || batch.isEmpty() || stopped.get()) return;
 
         updateLock.lock();
         try {
@@ -155,7 +157,6 @@ class AckSendQueue implements TimerTask {
     }
 
     void sendBackAndCompleteNack(final int nextRetryCount, final BaseMessage message, final AckEntry ackEntry) {
-        String subject = message.getSubject();
         OrderStrategy orderStrategy = OrderStrategyCache.getStrategy(subject);
         boolean isDeadRetryMessage = (nextRetryCount > message.getMaxRetryNum()) || Objects.equals(orderStrategy.name(), StrictOrderStrategy.NAME);
         final String partitionName = isDeadRetryMessage ? deadRetryPartitionName : retryPartitionName;
@@ -392,14 +393,15 @@ class AckSendQueue implements TimerTask {
         }
     }
 
-    void destroy(long waitTime) {
-        while (waitTime > 0 && toSendNum.get() > 0) {
+    public void destroy(long waitTimeMills) {
+        while (waitTimeMills > 0 && toSendNum.get() > 0) {
             try {
                 Thread.sleep(DESTROY_CHECK_WAIT_MILLIS);
             } catch (Exception e) {
                 break;
             }
-            waitTime -= DESTROY_CHECK_WAIT_MILLIS;
+            waitTimeMills -= DESTROY_CHECK_WAIT_MILLIS;
         }
+        stopped.set(true);
     }
 }

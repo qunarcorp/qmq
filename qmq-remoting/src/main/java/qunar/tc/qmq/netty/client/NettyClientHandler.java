@@ -101,7 +101,6 @@ class NettyClientHandler extends SimpleChannelInboundHandler<Datagram> {
         for (Map.Entry<Integer, ResponseFuture> entry : channelBuffer.entrySet()) {
             ResponseFuture responseFuture = entry.getValue();
             responseFuture.completeByTimeoutClean();
-            responseFuture.executeCallbackOnlyOnce();
         }
     }
 
@@ -113,7 +112,6 @@ class NettyClientHandler extends SimpleChannelInboundHandler<Datagram> {
         ResponseFuture responseFuture = channelBuffer.remove(opaque);
         if (responseFuture != null) {
             responseFuture.completeByReceiveResponse(response);
-            responseFuture.executeCallbackOnlyOnce();
         } else {
             LOGGER.warn("receive response, but not matched any request, maybe response timeout or channel had been closed, {}", RemoteHelper.parseChannelRemoteAddress(ctx.channel()));
         }
@@ -130,7 +128,6 @@ class NettyClientHandler extends SimpleChannelInboundHandler<Datagram> {
                 ResponseFuture future = next.getValue();
 
                 if (isTimeout(future)) {
-                    future.completeByTimeoutClean();
                     iterator.remove();
 
                     rfList.add(future);
@@ -140,17 +137,17 @@ class NettyClientHandler extends SimpleChannelInboundHandler<Datagram> {
             }
         }
 
-        executeCallbacks(rfList);
+        completeFutures(rfList);
     }
 
     private boolean isTimeout(ResponseFuture future) {
         return future.getTimeout() >= 0 && (future.getBeginTime() + future.getTimeout()) <= System.currentTimeMillis();
     }
 
-    private void executeCallbacks(List<ResponseFuture> rfList) {
+    private void completeFutures(List<ResponseFuture> rfList) {
         for (ResponseFuture responseFuture : rfList) {
             try {
-                responseFuture.executeCallbackOnlyOnce();
+                responseFuture.completeByTimeoutClean();
             } catch (Throwable e) {
                 LOGGER.warn("scanResponseTable, operationComplete Exception", e);
             }

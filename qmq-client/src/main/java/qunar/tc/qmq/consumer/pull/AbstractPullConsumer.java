@@ -44,11 +44,23 @@ abstract class AbstractPullConsumer extends AbstractPullClient implements PullCo
     final PlainPullEntry pullEntry;
     final PlainPullEntry retryPullEntry;
 
-    AbstractPullConsumer(String subject, String consumerGroup, String partitionName, int version, boolean isBroadcast, boolean isOrdered, String clientId, PullService pullService, AckService ackService, BrokerService brokerService) {
-        super(subject, consumerGroup, partitionName, version);
+    AbstractPullConsumer(
+            String subject,
+            String consumerGroup,
+            String partitionName,
+            String brokerGroup,
+            int version,
+            boolean isBroadcast,
+            boolean isOrdered,
+            String clientId,
+            PullService pullService,
+            AckService ackService,
+            BrokerService brokerService,
+            SendMessageBack sendMessageBack) {
+        super(subject, consumerGroup, partitionName, brokerGroup, version);
         this.consumeParam = new ConsumeParam(subject, consumerGroup, isBroadcast, isOrdered, false, clientId);
-        this.pullEntry = new PlainPullEntry(consumeParam, partitionName, version, pullService, ackService, brokerService, new AlwaysPullStrategy());
-        this.retryPullEntry = new PlainPullEntry(consumeParam, RetryPartitionUtils.buildRetryPartitionName(subject, consumerGroup), version, pullService, ackService, brokerService, new WeightPullStrategy());
+        this.pullEntry = new PlainPullEntry(consumeParam, partitionName, brokerGroup, version, pullService, ackService, brokerService, new AlwaysPullStrategy(), sendMessageBack);
+        this.retryPullEntry = new PlainPullEntry(consumeParam, RetryPartitionUtils.buildRetryPartitionName(subject, consumerGroup), brokerGroup, version, pullService, ackService, brokerService, new WeightPullStrategy(), sendMessageBack);
     }
 
     private static long checkAndGetTimeout(long timeout) {

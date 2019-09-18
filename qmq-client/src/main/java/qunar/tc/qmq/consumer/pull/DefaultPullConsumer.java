@@ -51,8 +51,20 @@ class DefaultPullConsumer extends AbstractPullConsumer {
     private final int preFetchSize;
     private final int lowWaterMark;
 
-    DefaultPullConsumer(String subject, String group, String partitionName, int version, boolean isBroadcast, boolean isOrdered, String clientId, PullService pullService, AckService ackService, BrokerService brokerService) {
-        super(subject, group, partitionName, version, isBroadcast, isOrdered, clientId, pullService, ackService, brokerService);
+    DefaultPullConsumer(
+            String subject,
+            String consumerGroup,
+            String partitionName,
+            String brokerGroup,
+            int version,
+            boolean isBroadcast,
+            boolean isOrdered,
+            String clientId,
+            PullService pullService,
+            AckService ackService,
+            BrokerService brokerService,
+            SendMessageBack sendMessageBack) {
+        super(subject, consumerGroup, partitionName, brokerGroup, version, isBroadcast, isOrdered, clientId, pullService, ackService, brokerService, sendMessageBack);
         this.preFetchSize = PullSubjectsConfig.get().getPullBatchSize(subject).get();
         this.lowWaterMark = Math.round(preFetchSize * 0.2F);
     }

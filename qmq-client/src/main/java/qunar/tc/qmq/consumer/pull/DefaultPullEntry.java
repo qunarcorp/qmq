@@ -81,11 +81,9 @@ class DefaultPullEntry extends AbstractPullEntry {
     private final QmqCounter pauseCounter;
     private final PullStrategy pullStrategy;
     private final ConsumeParam consumeParam;
-    private final String brokerGroup;
 
     private DefaultPullEntry() {
-        super("", "", "", -1, null, null, null);
-        brokerGroup = null;
+        super("", "", "", "", -1, false, false, null, null, null, null);
         consumeMessageExecutor = null;
         pullBatchSize = pullTimeout = ackNosendLimit = null;
         pullRunCounter = null;
@@ -96,16 +94,16 @@ class DefaultPullEntry extends AbstractPullEntry {
 
     DefaultPullEntry(ConsumeMessageExecutor consumeMessageExecutor,
                      ConsumeParam consumeParam,
-                     String brokerGroup,
                      String partitionName,
+                     String brokerGroup,
                      int version,
                      PullService pullService,
                      AckService ackService,
                      MetaInfoService metaInfoService,
                      BrokerService brokerService,
-                     PullStrategy pullStrategy) {
-        super(consumeParam.getSubject(), consumeParam.getConsumerGroup(), partitionName, version, pullService, ackService, brokerService);
-        this.brokerGroup = brokerGroup;
+                     PullStrategy pullStrategy,
+                     SendMessageBack sendMessageBack) {
+        super(consumeParam.getSubject(), consumeParam.getConsumerGroup(), partitionName, brokerGroup, version, consumeParam.isBroadcast(), consumeParam.isOrdered(), pullService, ackService, brokerService, sendMessageBack);
         this.consumeParam = consumeParam;
         String subject = consumeParam.getSubject();
         String consumerGroup = consumeParam.getConsumerGroup();
@@ -147,11 +145,12 @@ class DefaultPullEntry extends AbstractPullEntry {
     public void offline(StatusSource src) {
         onlineSwitcher.off(src);
         LOGGER.info("pullconsumer offline. subject={}, consumerGroup={}", consumeParam.getSubject(), consumeParam.getConsumerGroup());
+        super.offline(src);
     }
 
     public void destroy() {
         isRunning.set(false);
-        consumeMessageExecutor.destroy();
+        super.destroy();
     }
 
     @Override
@@ -200,14 +199,14 @@ class DefaultPullEntry extends AbstractPullEntry {
     private boolean resetDoPullParam(DoPullParam param) {
         while (isRunning.get()) {
             BrokerClusterInfo brokerCluster = getBrokerCluster();
-            param.brokerGroup = brokerCluster.getGroupByName(brokerGroup);
+            param.brokerGroup = brokerCluster.getGroupByName(getBrokerGroup());
             if (BrokerGroupInfo.isInvalid(param.brokerGroup)) {
                 brokersOfWaitAck.clear();
                 pause("no available broker", PAUSETIME_OF_NOAVAILABLE_BROKER);
                 continue;
             }
 
-            param.ackSendInfo = ackService.getAckSendInfo(param.brokerGroup, consumeParam.getSubject(), consumeParam.getConsumerGroup());
+            param.ackSendInfo = getAckSendQueue().getAckSendInfo();
             if (param.ackSendInfo.getToSendNum() <= ackNosendLimit.get()) {
                 brokersOfWaitAck.clear();
                 break;

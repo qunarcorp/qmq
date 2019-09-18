@@ -34,7 +34,6 @@ import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.broker.ClientMetaManager;
 import qunar.tc.qmq.common.ClientLifecycleManagerFactory;
 import qunar.tc.qmq.common.ExclusiveConsumerLifecycleManager;
-import qunar.tc.qmq.common.MapKeyBuilder;
 import qunar.tc.qmq.meta.*;
 import qunar.tc.qmq.metainfoclient.MetaInfo;
 import qunar.tc.qmq.metainfoclient.MetaInfoService;
@@ -148,7 +147,7 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
     @Override
     public BrokerClusterInfo getClusterBySubject(ClientType clientType, String subject, String consumerGroup, boolean isBroadcast, boolean isOrdered) {
         // 这个key上加group不兼容MetaInfoResponse
-        String key = MapKeyBuilder.buildMetaInfoKey(clientType, subject);
+        String key = buildBrokerClusterKey(clientType, subject);
         Future<BrokerClusterInfo> future = clusterMap.computeIfAbsent(key, k -> {
             MetaInfoRequest request = new MetaInfoRequest(
                     subject,
@@ -171,7 +170,7 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
                     MetaInfo metaInfo = parseResponse(response);
                     if (metaInfo != null) {
                         LOGGER.debug("meta info: {}", metaInfo);
-                        String key = MapKeyBuilder.buildMetaInfoKey(metaInfo.getClientType(), metaInfo.getSubject());
+                        String key = buildBrokerClusterKey(metaInfo.getClientType(), metaInfo.getSubject());
                         SettableFuture<BrokerClusterInfo> clusterFuture = clusterMap.get(key);
                         if (isEmptyCluster(metaInfo)) {
                             logMetaInfo(metaInfo, !clusterFuture.isDone());
@@ -195,6 +194,10 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
         } catch (Throwable t) {
             throw new RuntimeException(t);
         }
+    }
+
+    private static String buildBrokerClusterKey(ClientType clientType, String subject) {
+        return clientType.name() + ":" + subject;
     }
 
     @Override
