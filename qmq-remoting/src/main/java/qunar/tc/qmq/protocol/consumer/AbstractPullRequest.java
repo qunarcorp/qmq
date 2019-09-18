@@ -22,7 +22,7 @@ import java.util.List;
  * @author yiqun.fan create on 17-7-4.
  */
 public abstract class AbstractPullRequest implements PullRequest {
-    private String subject;
+    private String partitionName;
     private String group;
     private int requestNum;
     private long timeoutMillis;
@@ -33,8 +33,8 @@ public abstract class AbstractPullRequest implements PullRequest {
     private boolean isExclusiveConsume;
     private List<PullFilter> filters;
 
-    public AbstractPullRequest(String subject, String group, int requestNum, long timeoutMillis, long offset, long pullOffsetBegin, long pullOffsetLast, String consumerId, boolean isExclusiveConsume, List<PullFilter> filters) {
-        this.subject = subject;
+    public AbstractPullRequest(String partitionName, String group, int requestNum, long timeoutMillis, long offset, long pullOffsetBegin, long pullOffsetLast, String consumerId, boolean isExclusiveConsume, List<PullFilter> filters) {
+        this.partitionName = partitionName;
         this.group = group;
         this.requestNum = requestNum;
         this.timeoutMillis = timeoutMillis;
@@ -50,8 +50,8 @@ public abstract class AbstractPullRequest implements PullRequest {
         this.requestNum = requestNum;
     }
 
-    public String getSubject() {
-        return subject;
+    public String getPartitionName() {
+        return partitionName;
     }
 
     public String getGroup() {
@@ -98,7 +98,7 @@ public abstract class AbstractPullRequest implements PullRequest {
     @Override
     public String toString() {
         return "PullRequest{" +
-                "subject='" + subject + '\'' +
+                "partitionName='" + partitionName + '\'' +
                 ", group='" + group + '\'' +
                 ", requestNum=" + requestNum +
                 ", timeoutMillis=" + timeoutMillis +

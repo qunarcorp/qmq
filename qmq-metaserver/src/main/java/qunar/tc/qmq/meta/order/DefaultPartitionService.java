@@ -32,6 +32,7 @@ public class DefaultPartitionService implements PartitionService {
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultPartitionService.class);
 
+    private PartitionNameResolver partitionNameResolver = new DefaultPartitionNameResolver();
     private Store store = new DatabaseStore();
     private ClientMetaInfoStore clientMetaInfoStore = new ClientMetaInfoStoreImpl();
     private PartitionStore partitionStore = new PartitionStoreImpl();
@@ -83,12 +84,14 @@ public class DefaultPartitionService implements PartitionService {
                         Range<Integer> logicalPartitionRange =
                                 Range.closedOpen(logicalPartitions.get(0), logicalPartitions.get(logicalPartitions.size() - 1) + 1);
 
-                        Partition partition = new Partition();
-                        partition.setSubject(subject);
-                        partition.setLogicalPartition(logicalPartitionRange);
-                        partition.setPartitionId(physicalPartition);
-                        partition.setStatus(Partition.Status.RW);
-                        partition.setBrokerGroup(physical2BrokerGroupMap.get(physicalPartition));
+                        String partitionName = partitionNameResolver.getPartitionName(subject, physicalPartition);
+                        Partition partition = new Partition(
+                                subject,
+                                partitionName,
+                                physicalPartition,
+                                logicalPartitionRange,
+                                physical2BrokerGroupMap.get(physicalPartition),
+                                Partition.Status.RW);
 
                         partitions.add(partition);
                     }
@@ -116,9 +119,8 @@ public class DefaultPartitionService implements PartitionService {
     }
 
     @Override
-    public ProducerAllocation getDefaultProducerAllocation(String subject, BrokerCluster brokerCluster) {
+    public ProducerAllocation getDefaultProducerAllocation(String subject, List<BrokerGroup> brokerGroups) {
         int version = -1;
-        List<BrokerGroup> brokerGroups = brokerCluster.getBrokerGroups();
         int logicalPartitionNum = PartitionConstants.DEFAULT_LOGICAL_PARTITION_NUM;
         int step = (int) Math.ceil((double) logicalPartitionNum / brokerGroups.size());
         TreeRangeMap<Integer, PartitionProps> logicalRangeMap = TreeRangeMap.create();
@@ -130,7 +132,7 @@ public class DefaultPartitionService implements PartitionService {
             }
             Range<Integer> logicalRange = Range.closedOpen(startRange, endRange);
             startRange = endRange;
-            logicalRangeMap.put(logicalRange, new PartitionProps(subject, brokerGroup.getGroupName()));
+            logicalRangeMap.put(logicalRange, new PartitionProps(PartitionConstants.EMPTY_PARTITION_ID, subject, brokerGroup.getGroupName()));
         }
         return new ProducerAllocation(subject, version, logicalRangeMap);
     }
@@ -140,15 +142,14 @@ public class DefaultPartitionService implements PartitionService {
      *
      * @param subject         主题
      * @param consumeStrategy Meta 分配的消费策略
-     * @param brokerCluster   分配的 brokerCluster
+     * @param brokerGroups   broker groups
      * @return 分配结果
      */
     @Override
-    public ConsumerAllocation getDefaultConsumerAllocation(String subject, ConsumeStrategy consumeStrategy, BrokerCluster brokerCluster) {
-        List<BrokerGroup> brokerGroups = brokerCluster.getBrokerGroups();
+    public ConsumerAllocation getDefaultConsumerAllocation(String subject, ConsumeStrategy consumeStrategy, List<BrokerGroup> brokerGroups) {
         List<PartitionProps> partitionProps = Lists.newArrayList();
         for (BrokerGroup brokerGroup : brokerGroups) {
-            partitionProps.add(new PartitionProps(subject, brokerGroup.getGroupName()));
+            partitionProps.add(new PartitionProps(PartitionConstants.EMPTY_PARTITION_ID, subject, brokerGroup.getGroupName()));
         }
         return new ConsumerAllocation(EMPTY_VERSION, partitionProps, getExpiredMills(System.currentTimeMillis()), consumeStrategy);
     }
@@ -191,31 +192,36 @@ public class DefaultPartitionService implements PartitionService {
     @Override
     public List<ProducerAllocation> getLatestProducerAllocations() {
         List<ProducerAllocation> result = Lists.newArrayList();
-        List<PartitionSet> latestPartitionSets = partitionSetStore.getLatest();
 
-        Set<Integer> partitionIdSet = Sets.newTreeSet();
-        latestPartitionSets.forEach(partitionSet -> partitionIdSet.addAll(partitionSet.getPhysicalPartitions()));
-        List<Integer> partitionIdList = Lists.newArrayList(partitionIdSet);
-        // subject+id => partition
-        Map<String, Partition> partitionMap = Maps.newHashMap();
-        int start = 0;
-        int step = 100;
-        while (start < partitionIdList.size()) {
-            int end = start + step;
-            if (end > partitionIdList.size()) {
-                end = partitionIdList.size();
-            }
-            List<Integer> subList = partitionIdList.subList(start, end);
-            List<Partition> partitionList = partitionStore.getByPartitionIds(subList);
-            for (Partition partition : partitionList) {
-                partitionMap.put(createPartitionName(partition), partition);
-            }
-            start += step;
+        List<PartitionSet> latestPartitionSets = partitionSetStore.getLatest();
+        List<Partition> partitions = partitionStore.getAll();
+        if (CollectionUtils.isEmpty(latestPartitionSets)) {
+            return Collections.emptyList();
+        }
+
+        // subject => partitions
+        Map<String, List<Partition>> partitionMap = Maps.newHashMap();
+        for (Partition partition : partitions) {
+            String subject = partition.getSubject();
+            List<Partition> plist = partitionMap.computeIfAbsent(subject, k -> Lists.newArrayList());
+            plist.add(partition);
         }
 
         for (PartitionSet partitionSet : latestPartitionSets) {
-            ProducerAllocation producerAllocation = transformProducerAllocation(partitionSet, partitionMap);
-            result.add(producerAllocation);
+            Set<Integer> partitionIds = partitionSet.getPhysicalPartitions();
+            int version = partitionSet.getVersion();
+            String subject = partitionSet.getSubject();
+            List<Partition> hisPartitions = partitionMap.get(subject);
+            RangeMap<Integer, PartitionProps> logicalRangeMap = TreeRangeMap.create();
+            for (Partition hisPartition : hisPartitions) {
+                int partitionId = hisPartition.getPartitionId();
+                String partitionName = hisPartition.getPartitionName();
+                String brokerGroup = hisPartition.getBrokerGroup();
+                if (partitionIds.contains(partitionId)) {
+                    logicalRangeMap.put(hisPartition.getLogicalPartition(), new PartitionProps(partitionId, partitionName, brokerGroup));
+                }
+            }
+            result.add(new ProducerAllocation(subject, version, logicalRangeMap));
         }
 
         return result;
@@ -224,7 +230,7 @@ public class DefaultPartitionService implements PartitionService {
     @Override
     public ProducerAllocation getLatestProducerAllocation(String subject) {
         PartitionSet partitionSet = partitionSetStore.getLatest(subject);
-        List<Partition> partitionList = partitionStore.getByPartitionIds(partitionSet.getPhysicalPartitions());
+        List<Partition> partitionList = partitionStore.getByPartitionIds(subject, partitionSet.getPhysicalPartitions());
         Map<String, Partition> partitionMap = partitionList.stream().collect(Collectors.toMap(this::createPartitionName, p -> p));
         return transformProducerAllocation(partitionSet, partitionMap);
     }
@@ -245,14 +251,15 @@ public class DefaultPartitionService implements PartitionService {
             String partitionName = createPartitionName(partitionSet.getSubject(), physicalPartition);
             Partition partition = partitionMap.get(partitionName);
             Range<Integer> logicalPartition = partition.getLogicalPartition();
-            logical2SubjectLocation.put(logicalPartition, new PartitionProps(partitionName, partition.getBrokerGroup()));
+            logical2SubjectLocation.put(logicalPartition, new PartitionProps(physicalPartition, partitionName, partition.getBrokerGroup()));
         }
         return new ProducerAllocation(subject, version, logical2SubjectLocation);
     }
 
     @Override
     public PartitionAllocation allocatePartitions(PartitionSet partitionSet, List<String> onlineConsumerList, String consumerGroup) {
-        List<Partition> partitions = partitionStore.getByPartitionIds(partitionSet.getPhysicalPartitions());
+        String subject = partitionSet.getSubject();
+        List<Partition> partitions = partitionStore.getByPartitionIds(subject, partitionSet.getPhysicalPartitions());
         Map<Integer, Partition> partitionMap = partitions.stream().collect(Collectors.toMap(Partition::getPartitionId, p -> p));
         return partitionAllocator.allocate(partitionSet, partitionMap, onlineConsumerList, consumerGroup);
     }

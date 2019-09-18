@@ -24,7 +24,6 @@ import qunar.tc.qmq.base.OnOfflineState;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * @author yiqun.fan create on 17-8-31.

@@ -106,7 +106,7 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
                 store.insertClientMetaInfo(request);
             }
 
-            final List<BrokerGroup> brokerGroups = subjectRouter.route(subject, request);
+            final List<BrokerGroup> brokerGroups = subjectRouter.route(subject, request.getClientTypeCode());
             BrokerFilter brokerFilter = VersionableComponentManager.getComponent(BrokerFilter.class, header.getVersion());
             final List<BrokerGroup> filteredBrokerGroups = brokerFilter.filter(subject, request.getClientTypeCode(), brokerGroups);
             final OnOfflineState clientState = offlineStateManager.queryClientState(request.getClientId(), request.getSubject(), request.getConsumerGroup());
@@ -185,8 +185,8 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
                 // 从数据库缓存中获取分区信息
                 ProducerAllocation producerAllocation = cachedMetaInfoManager.getProducerAllocation(clientType, subject);
                 if (producerAllocation == null) {
-                    // 没有分区信息, 自动根据 subject-broker 信息创建一个零时的虚拟分区
-                    producerAllocation = partitionService.getDefaultProducerAllocation(subject, brokerCluster);
+                    // 没有分区信息, 自动根据 subject-broker 信息创建一个临时的虚拟分区
+                    producerAllocation = partitionService.getDefaultProducerAllocation(subject, brokerCluster.getBrokerGroups());
                 }
                 return new ProducerMetaInfoResponse(updateTime, subject, consumerGroup, clientState, clientTypeCode, brokerCluster, producerAllocation);
             } else if (clientType.isConsumer()) {
@@ -199,7 +199,7 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
                 }
                 if (consumerAllocation == null) {
                     // 如果此时没有分配, 则先用默认的
-                    consumerAllocation = partitionService.getDefaultConsumerAllocation(subject, consumeStrategy, brokerCluster);
+                    consumerAllocation = partitionService.getDefaultConsumerAllocation(subject, consumeStrategy, brokerCluster.getBrokerGroups());
                 }
                 return new ConsumerMetaInfoResponse(updateTime, subject, consumerGroup, clientState, clientTypeCode, brokerCluster, consumerAllocation);
             }

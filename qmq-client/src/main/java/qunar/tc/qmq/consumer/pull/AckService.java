@@ -81,7 +81,7 @@ class AckService {
         final List<PulledMessage> result = new ArrayList<>(pulledMessages.size());
         final List<PulledMessage> ignoreMessages = new ArrayList<>();
         final List<AckEntry> ackEntries = new ArrayList<>(pulledMessages.size());
-        final AckSendQueue sendQueue = getOrCreateSendQueue(pullResult.getBrokerGroup(), pullParam.getSubject(), pullParam.getGroup(), pullParam.isBroadcast(), pullParam.getConsumeParam().getConsumeMode());
+        final AckSendQueue sendQueue = getOrCreateSendQueue(pullResult.getBrokerGroup(), pullParam.getSubject(), pullParam.getGroup(), pullParam.getPartitionName(), pullParam.isBroadcast(), pullParam.getConsumeParam().isOrdered());
 
         long prevPullOffset = 0;
         AckEntry preAckEntry = null;
@@ -108,7 +108,7 @@ class AckService {
                 ignoreMessages.add(pulledMessage);
             }
 
-            pulledMessage.setSubject(pullParam.getOriginSubject());
+            pulledMessage.setSubject(pullParam.getConsumeParam().getSubject());
             pulledMessage.setProperty(BaseMessage.keys.qmq_consumerGroupName, pullParam.getGroup());
         }
         sendQueue.append(ackEntries);
@@ -131,12 +131,12 @@ class AckService {
         }
     }
 
-    private AckSendQueue getOrCreateSendQueue(BrokerGroupInfo brokerGroup, String subject, String group, boolean isBroadcast, ConsumeStrategy consumeStrategy) {
+    private AckSendQueue getOrCreateSendQueue(BrokerGroupInfo brokerGroup, String subject, String group, String partitionName, boolean isBroadcast, boolean isOrdered) {
         final String senderKey = MapKeyBuilder.buildSenderKey(brokerGroup.getGroupName(), subject, group);
         AckSendQueue sender = senderMap.get(senderKey);
         if (sender != null) return sender;
 
-        sender = new AckSendQueue(brokerGroup.getGroupName(), subject, group, consumeStrategy, this, this.brokerService, this.sendMessageBack, isBroadcast);
+        sender = new AckSendQueue(brokerGroup.getGroupName(), subject, group, partitionName, this, this.brokerService, this.sendMessageBack, isBroadcast, isOrdered);
         AckSendQueue old = senderMap.putIfAbsent(senderKey, sender);
         if (old == null) {
             sender.init();
@@ -162,15 +162,15 @@ class AckService {
         GET_PULL_OFFSET_ERROR.inc();
     }
 
-    void sendAck(BrokerGroupInfo brokerGroup, String subject, String group, ConsumeStrategy consumeStrategy, AckSendEntry ack, SendAckCallback callback) {
+    void sendAck(BrokerGroupInfo brokerGroup, String subject, String group, AckSendEntry ack, SendAckCallback callback) {
         AckRequest request = buildAckRequest(subject, group, ack);
         Datagram datagram = RemotingBuilder.buildRequestDatagram(CommandCode.ACK_REQUEST, new AckRequestPayloadHolder(request));
-        sendRequest(brokerGroup, subject, group, consumeStrategy, request, datagram, callback);
+        sendRequest(brokerGroup, subject, group, request, datagram, callback);
     }
 
     private AckRequest buildAckRequest(String subject, String group, AckSendEntry ack) {
         ConsumerAllocation consumerAllocation = brokerService.getConsumerAllocation(subject, group);
-        boolean isExclusiveConsume = ack.isBroadcast() || Objects.equals(consumerAllocation.getConsumeStrategy(), ConsumeMode.EXCLUSIVE);
+        boolean isExclusiveConsume = ack.isBroadcast() || Objects.equals(consumerAllocation.getConsumeStrategy(), ConsumeStrategy.EXCLUSIVE);
         return new AckRequest(
                 subject,
                 group,
@@ -181,9 +181,9 @@ class AckService {
         );
     }
 
-    private void sendRequest(BrokerGroupInfo brokerGroup, String subject, String group, ConsumeMode consumeMode, AckRequest request, Datagram datagram, SendAckCallback callback) {
+    private void sendRequest(BrokerGroupInfo brokerGroup, String subject, String group, AckRequest request, Datagram datagram, SendAckCallback callback) {
         try {
-            client.sendAsync(brokerGroup.getMaster(), datagram, ACK_REQUEST_TIMEOUT_MILLIS, new AckResponseCallback(request, callback, brokerService, consumeMode));
+            client.sendAsync(brokerGroup.getMaster(), datagram, ACK_REQUEST_TIMEOUT_MILLIS, new AckResponseCallback(request, callback, brokerService));
         } catch (ClientSendException e) {
             ClientSendException.SendErrorCode errorCode = e.getSendErrorCode();
             monitorAckError(subject, group, errorCode.ordinal());
@@ -206,13 +206,11 @@ class AckService {
         private final AckRequest request;
         private final SendAckCallback sendAckCallback;
         private final BrokerService brokerService;
-        private final ConsumeStrategy consumeStrategy;
 
-        AckResponseCallback(AckRequest request, SendAckCallback sendAckCallback, BrokerService brokerService, ConsumeStrategy consumeStrategy) {
+        AckResponseCallback(AckRequest request, SendAckCallback sendAckCallback, BrokerService brokerService) {
             this.request = request;
             this.sendAckCallback = sendAckCallback;
             this.brokerService = brokerService;
-            this.consumeStrategy = consumeStrategy;
         }
 
         @Override
@@ -223,7 +221,7 @@ class AckService {
             if (!responseFuture.isSendOk() || response == null) {
                 monitorAckError(request.getSubject(), request.getGroup(), -1);
                 sendAckCallback.fail(new AckException("send fail"));
-                this.brokerService.refresh(ClientType.CONSUMER, request.getSubject(), request.getGroup(), consumeStrategy);
+                this.brokerService.refresh(ClientType.CONSUMER, request.getSubject(), request.getGroup());
                 return;
             }
             final short responseCode = response.getHeader().getCode();
@@ -231,7 +229,7 @@ class AckService {
                 sendAckCallback.success();
             } else {
                 monitorAckError(request.getSubject(), request.getGroup(), 100 + responseCode);
-                this.brokerService.refresh(ClientType.CONSUMER, request.getSubject(), request.getGroup(), consumeMode);
+                this.brokerService.refresh(ClientType.CONSUMER, request.getSubject(), request.getGroup());
                 sendAckCallback.fail(new AckException("responseCode: " + responseCode));
             }
         }

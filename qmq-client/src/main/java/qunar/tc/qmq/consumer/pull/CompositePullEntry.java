@@ -1,7 +1,6 @@
 package qunar.tc.qmq.consumer.pull;
 
 import qunar.tc.qmq.CompositePullClient;
-import qunar.tc.qmq.ConsumeMode;
 import qunar.tc.qmq.PullEntry;
 import qunar.tc.qmq.StatusSource;
 

@@ -40,7 +40,7 @@ import qunar.tc.qmq.protocol.producer.MessageProducerCode;
 import qunar.tc.qmq.sync.DelaySyncRequest;
 import qunar.tc.qmq.util.RemotingBuilder;
 import qunar.tc.qmq.utils.CharsetUtils;
-import qunar.tc.qmq.utils.RetrySubjectUtils;
+import qunar.tc.qmq.utils.RetryPartitionUtils;
 
 import java.util.ArrayList;
 import java.util.Deque;
@@ -115,7 +115,7 @@ public class Receiver {
     }
 
     private void monitorMessageReceived(long receiveTime, String subject) {
-        if (RetrySubjectUtils.isRetrySubject(subject) || RetrySubjectUtils.isDeadRetrySubject(subject)) {
+        if (RetryPartitionUtils.isRetryPartitionName(subject) || RetryPartitionUtils.isDeadRetryPartitionName(subject)) {
             QMon.receivedRetryMessagesCountInc(subject);
         }
         QMon.receivedMessagesCountInc(subject);

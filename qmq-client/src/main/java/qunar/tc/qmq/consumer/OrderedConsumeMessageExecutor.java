@@ -3,7 +3,7 @@ package qunar.tc.qmq.consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.AbstractConsumeMessageExecutor;
-import qunar.tc.qmq.ConsumeMode;
+import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.MessageListener;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.broker.ClientMetaManager;
@@ -90,9 +90,9 @@ public class OrderedConsumeMessageExecutor extends AbstractConsumeMessageExecuto
                 }
 
                 ConsumerAllocation consumerAllocation = clientMetaManager.getConsumerAllocation(subject, consumerGroup);
-                ConsumeMode consumeMode = consumerAllocation.getConsumeMode();
+                ConsumeStrategy consumeStrategy = consumerAllocation.getConsumeStrategy();
                 MessageExecutionTask task = new MessageExecutionTask(message, messageHandler, getCreateToHandleTimer(), getHandleTimer(), getHandleFailCounter());
-                if (Objects.equals(ConsumeMode.EXCLUSIVE, consumeMode)) {
+                if (Objects.equals(ConsumeStrategy.EXCLUSIVE, consumeStrategy)) {
                     // TODO(zhenwei.liu) 如果用户没有 ack, 且为严格有序, 则不能消费下一条
                     // 独占消费使用单线程逐个任务处理
                     boolean success = task.run();

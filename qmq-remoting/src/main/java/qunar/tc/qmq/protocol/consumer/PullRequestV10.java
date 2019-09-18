@@ -13,7 +13,7 @@ public class PullRequestV10 extends AbstractPullRequest {
 
     private final int consumerAllocationVersion;
 
-    public PullRequestV10(String subject,
+    public PullRequestV10(String partitionName,
                           String group,
                           int requestNum,
                           long timeoutMillis,
@@ -24,7 +24,7 @@ public class PullRequestV10 extends AbstractPullRequest {
                           ConsumeStrategy consumeStrategy,
                           List<PullFilter> filters,
                           int consumerAllocationVersion) {
-        super(subject, group, requestNum, timeoutMillis, offset, pullOffsetBegin, pullOffsetLast, consumerId, Objects.equals(ConsumeStrategy.EXCLUSIVE, consumeStrategy), filters);
+        super(partitionName, group, requestNum, timeoutMillis, offset, pullOffsetBegin, pullOffsetLast, consumerId, Objects.equals(ConsumeStrategy.EXCLUSIVE, consumeStrategy), filters);
         this.consumerAllocationVersion = consumerAllocationVersion;
     }
 

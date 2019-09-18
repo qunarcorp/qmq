@@ -42,6 +42,13 @@ public interface Message {
     String getSubject();
 
     /**
+     * broker 的存储 id
+     *
+     * @return partition name
+     */
+    String getPartitionName();
+
+    /**
      * 消息的创建时间，指的是调用generateMessage方法的时间
      *
      * @return

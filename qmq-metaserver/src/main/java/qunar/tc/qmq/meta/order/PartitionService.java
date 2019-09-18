@@ -2,10 +2,7 @@ package qunar.tc.qmq.meta.order;
 
 import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.PartitionAllocation;
-import qunar.tc.qmq.meta.BrokerCluster;
-import qunar.tc.qmq.meta.ConsumerAllocation;
-import qunar.tc.qmq.meta.PartitionSet;
-import qunar.tc.qmq.meta.ProducerAllocation;
+import qunar.tc.qmq.meta.*;
 import qunar.tc.qmq.meta.model.ClientMetaInfo;
 
 import java.util.List;
@@ -24,9 +21,9 @@ public interface PartitionService {
      */
     boolean registerOrderedMessage(String subject, int physicalPartitionNum);
 
-    ProducerAllocation getDefaultProducerAllocation(String subject, BrokerCluster brokerCluster);
+    ProducerAllocation getDefaultProducerAllocation(String subject, List<BrokerGroup> brokerGroups);
 
-    ConsumerAllocation getDefaultConsumerAllocation(String subject, ConsumeStrategy consumeStrategy, BrokerCluster brokerCluster);
+    ConsumerAllocation getDefaultConsumerAllocation(String subject, ConsumeStrategy consumeStrategy, List<BrokerGroup> brokerGroups);
 
     ConsumerAllocation getConsumerAllocation(String subject, String consumerGroup, ConsumeStrategy consumeStrategy, String clientId);
 

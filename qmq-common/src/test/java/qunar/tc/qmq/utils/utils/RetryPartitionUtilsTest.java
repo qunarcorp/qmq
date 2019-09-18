@@ -3,9 +3,9 @@ package qunar.tc.qmq.utils.utils;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
-import static qunar.tc.qmq.utils.RetrySubjectUtils.*;
+import static qunar.tc.qmq.utils.RetryPartitionUtils.*;
 
-public class RetrySubjectUtilsTest {
+public class RetryPartitionUtilsTest {
 
     @Test
     public void testParseSubjectAndGroup() {
@@ -17,11 +17,11 @@ public class RetrySubjectUtilsTest {
 
     @Test
     public void testIsRealSubject() {
-        assertFalse(isRealSubject(null));
-        assertFalse(isRealSubject("%RETRY"));
-        assertFalse(isRealSubject("%DEAD_RETRY"));
+        assertFalse(isRealPartitionName(null));
+        assertFalse(isRealPartitionName("%RETRY"));
+        assertFalse(isRealPartitionName("%DEAD_RETRY"));
 
-        assertTrue(isRealSubject("foo"));
+        assertTrue(isRealPartitionName("foo"));
     }
 
     @Test

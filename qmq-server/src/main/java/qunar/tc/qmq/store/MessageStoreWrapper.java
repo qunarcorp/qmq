@@ -86,13 +86,13 @@ public class MessageStoreWrapper {
             return findNewExistMessages(pullRequest);
         } catch (Throwable e) {
             LOG.error("find messages error, consumer: {}", pullRequest, e);
-            QMon.findMessagesErrorCountInc(pullRequest.getSubject(), pullRequest.getGroup());
+            QMon.findMessagesErrorCountInc(pullRequest.getPartitionName(), pullRequest.getGroup());
         }
         return PullMessageResult.EMPTY;
     }
 
     private PullMessageResult findNewExistMessages(final PullRequest pullRequest) {
-        final String subject = pullRequest.getSubject();
+        final String subject = pullRequest.getPartitionName();
         final String group = pullRequest.getGroup();
         final String consumerId = pullRequest.getConsumerId();
         final boolean isExclusiveConsume = pullRequest.isExclusiveConsume();
@@ -138,7 +138,7 @@ public class MessageStoreWrapper {
     }
 
     private PullMessageResult doPullResultFilter(PullRequest pullRequest, GetMessageResult getMessageResult, ConsumeQueue consumeQueue) {
-        final String subject = pullRequest.getSubject();
+        final String subject = pullRequest.getPartitionName();
         final String group = pullRequest.getGroup();
         final String consumerId = pullRequest.getConsumerId();
         final boolean isExclusiveConsume = pullRequest.isExclusiveConsume();
@@ -261,12 +261,12 @@ public class MessageStoreWrapper {
         try {
             return doFindUnAckMessages(pullRequest);
         } finally {
-            QMon.findLostMessagesTime(pullRequest.getSubject(), pullRequest.getGroup(), System.currentTimeMillis() - start);
+            QMon.findLostMessagesTime(pullRequest.getPartitionName(), pullRequest.getGroup(), System.currentTimeMillis() - start);
         }
     }
 
     private PullMessageResult doFindUnAckMessages(final PullRequest pullRequest) {
-        final String subject = pullRequest.getSubject();
+        final String subject = pullRequest.getPartitionName();
         final String consumerGroup = pullRequest.getGroup();
         final String consumerId = pullRequest.getConsumerId();
         final ConsumerSequence consumerSequence = consumerSequenceManager.getOrCreateConsumerSequence(subject, consumerGroup, consumerId, pullRequest.isExclusiveConsume());
@@ -371,7 +371,7 @@ public class MessageStoreWrapper {
 
     private long getConsumerLogSequence(PullRequest pullRequest, long offset) {
         if (pullRequest.isExclusiveConsume()) return offset;
-        return storage.getMessageSequenceByPullLog(pullRequest.getSubject(), pullRequest.getGroup(), pullRequest.getConsumerId(), offset);
+        return storage.getMessageSequenceByPullLog(pullRequest.getPartitionName(), pullRequest.getGroup(), pullRequest.getConsumerId(), offset);
     }
 
     public long getQueueCount(String subject, String group) {

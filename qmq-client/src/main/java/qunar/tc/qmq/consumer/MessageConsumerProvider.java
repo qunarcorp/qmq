@@ -45,6 +45,7 @@ public class MessageConsumerProvider implements MessageConsumer {
 
     private ClientIdProvider clientIdProvider;
     private EnvProvider envProvider;
+    private String metaServer;
 
     private final PullRegister pullRegister;
     private String appCode;
@@ -55,15 +56,16 @@ public class MessageConsumerProvider implements MessageConsumer {
 
     private boolean autoOnline = true;
 
-    public MessageConsumerProvider(String metaServer) {
+    public MessageConsumerProvider() {
         this.clientIdProvider = ClientIdProviderFactory.createDefault();
-        this.pullRegister = new PullRegister(metaServer);
+        this.pullRegister = new PullRegister();
         this.pullConsumerFactory = new PullConsumerFactory(this.pullRegister);
     }
 
     @PostConstruct
     public void init() {
         Preconditions.checkNotNull(appCode, "appCode是应用的唯一标识");
+        Preconditions.checkNotNull(metaServer, "metaServer是meta server的地址");
 
         if (inited) return;
 
@@ -77,6 +79,7 @@ public class MessageConsumerProvider implements MessageConsumer {
             this.pullRegister.setEnvProvider(envProvider);
             this.pullRegister.setClientId(clientId);
             this.pullRegister.setAppCode(appCode);
+            this.pullRegister.setMetaServer(metaServer);
             this.pullRegister.init();
 
             this.distributor = new MessageDistributor(pullRegister);
@@ -180,6 +183,11 @@ public class MessageConsumerProvider implements MessageConsumer {
 
     public void setMaxSubjectLen(int maxSubjectLen) {
         this.maxSubjectLen = maxSubjectLen;
+    }
+
+    public MessageConsumerProvider setMetaServer(String metaServer) {
+        this.metaServer = metaServer;
+        return this;
     }
 
     @PreDestroy

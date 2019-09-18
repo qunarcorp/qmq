@@ -53,8 +53,7 @@ public interface CommandCode {
     short UID_ASSIGN = 50;
     short UID_ACQUIRE = 51;
 
-    short QUERY_ORDERED_SUBJECT = 60;
-    short REPORT_CONSUMER_ONLINE_STATE = 61;
+    short QUERY_SUBJECT = 60;
 
     // heartbeat
     short HEARTBEAT = 100;

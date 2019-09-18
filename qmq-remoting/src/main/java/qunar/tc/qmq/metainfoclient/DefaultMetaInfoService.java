@@ -16,7 +16,11 @@
 
 package qunar.tc.qmq.metainfoclient;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -32,9 +36,9 @@ import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.meta.MetaServerLocator;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.protocol.MetaInfoResponse;
+import qunar.tc.qmq.protocol.QuerySubjectRequest;
 import qunar.tc.qmq.protocol.consumer.ConsumerMetaInfoResponse;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
-import qunar.tc.qmq.utils.RetrySubjectUtils;
 
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -50,7 +54,7 @@ import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_GROUP_ARRAY;
 /**
  * @author yiqun.fan create on 17-8-31.
  */
-public class DefaultMetaInfoService implements MetaInfoService, MetaInfoClient.ResponseSubscriber {
+public class DefaultMetaInfoService implements MetaInfoService {
 
     public enum RequestState {
         IDLE, REQUESTING
@@ -62,7 +66,7 @@ public class DefaultMetaInfoService implements MetaInfoService, MetaInfoClient.R
             @Override
             public void onSuccess(MetaInfoResponse response) {
                 updateConsumerState(response);
-                String heartbeatKey = createKey(response.getSubject(), response.getConsumerGroup());
+                String heartbeatKey = createMetaInfoRequestKey(response.getClientTypeCode(), response.getSubject(), response.getConsumerGroup());
                 if (isExclusive(response)) {
                     // 转移 order 心跳请求到 order map
                     MetaInfoRequestWrapper request = metaInfoRequests.remove(heartbeatKey);
@@ -128,6 +132,21 @@ public class DefaultMetaInfoService implements MetaInfoService, MetaInfoClient.R
 
     private static final long REFRESH_INTERVAL_SECONDS = 60;
 
+    // partitionName => subject
+    private final LoadingCache<String, String> partitionName2Subject = CacheBuilder.newBuilder()
+            .build(new CacheLoader<String, String>() {
+                @Override
+                public String load(String partitionName) throws Exception {
+                    QuerySubjectRequest request = new QuerySubjectRequest(partitionName);
+                    String subject = metaInfoClient.querySubject(request).get();
+                    if (subject != null) {
+                        return subject;
+                    } else {
+                        throw new IllegalStateException(String.format("无法找到 %s partition subject 映射", partitionName));
+                    }
+                }
+            });
+
     private final ConcurrentHashMap<String, MetaInfoRequestWrapper> metaInfoRequests = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, MetaInfoRequestWrapper> orderedMetaInfoRequests = new ConcurrentHashMap<>();
 
@@ -146,8 +165,11 @@ public class DefaultMetaInfoService implements MetaInfoService, MetaInfoClient.R
     private String clientId;
 
     public DefaultMetaInfoService(String metaServer) {
-        this.metaInfoClient = MetaInfoClientNettyImpl.getClient(new MetaServerLocator(metaServer));
-        this.metaInfoClient.registerResponseSubscriber(this);
+        this(new MetaServerLocator(metaServer));
+    }
+
+    public DefaultMetaInfoService(MetaServerLocator locator) {
+        this.metaInfoClient = MetaInfoClientNettyImpl.getClient(locator);
     }
 
     public void init() {
@@ -162,8 +184,8 @@ public class DefaultMetaInfoService implements MetaInfoService, MetaInfoClient.R
         this.metaInfoClient.registerResponseSubscriber(subscriber);
     }
 
-    private String createKey(String subject, String consumerGroup) {
-        return subject + ":" + consumerGroup;
+    private String createMetaInfoRequestKey(int clientType, String subject, String consumerGroup) {
+        return clientType + ":" + subject + ":" + consumerGroup;
     }
 
     private boolean isExclusive(MetaInfoResponse response) {
@@ -202,12 +224,35 @@ public class DefaultMetaInfoService implements MetaInfoService, MetaInfoClient.R
     }
 
     @Override
+    public ListenableFuture<MetaInfoResponse> request(int clientType, String subject, String consumerGroup) {
+        // Meta 的请求不能存在并发请求
+        String key = createMetaInfoRequestKey(clientType, subject, consumerGroup);
+        MetaInfoRequestWrapper requestWrapper = metaInfoRequests.get(key);
+        Preconditions.checkNotNull(requestWrapper, "subject %s consumerGroup %s meta 请求未注册", subject, consumerGroup);
+        return request(requestWrapper);
+    }
+
+    @Override
     public ListenableFuture<MetaInfoResponse> request(MetaInfoRequest request) {
         // Meta 的请求不能存在并发请求
         String subject = request.getSubject();
         String consumerGroup = request.getConsumerGroup();
-        String key = createKey(subject, consumerGroup);
+        int clientTypeCode = request.getClientTypeCode();
+        String key = createMetaInfoRequestKey(clientTypeCode, subject, consumerGroup);
         MetaInfoRequestWrapper requestWrapper = metaInfoRequests.computeIfAbsent(key, k -> new MetaInfoRequestWrapper(request));
+        return request(requestWrapper);
+    }
+
+    @Override
+    public String getSubject(String partitionName) {
+        return partitionName2Subject.getUnchecked(partitionName);
+    }
+
+    private ListenableFuture<MetaInfoResponse> request(MetaInfoRequestWrapper requestWrapper) {
+        // Meta 的请求不能存在并发请求
+        MetaInfoRequest request = requestWrapper.getRequest();
+        String subject = request.getSubject();
+        String consumerGroup = request.getConsumerGroup();
         if (requestWrapper.compareAndSetState(RequestState.IDLE, RequestState.REQUESTING)) {
             boolean online = consumerOnlineStateManager.isOnline(subject, consumerGroup, this.clientId);
             request.setOnlineState(online ? OnOfflineState.ONLINE : OnOfflineState.OFFLINE);
@@ -233,7 +278,7 @@ public class DefaultMetaInfoService implements MetaInfoService, MetaInfoClient.R
             final String subject = response.getSubject();
             final String consumerGroup = response.getConsumerGroup();
 
-            if (RetrySubjectUtils.isRealSubject(subject) && !Strings.isNullOrEmpty(consumerGroup)) {
+            if (!Strings.isNullOrEmpty(consumerGroup)) {
                 boolean online = response.getOnOfflineState() == OnOfflineState.ONLINE;
                 LOGGER.debug("消费者状态发生变更 {}/{}:{}", subject, consumerGroup, online);
                 triggerConsumerStateChanged(subject, consumerGroup, online);
@@ -266,9 +311,5 @@ public class DefaultMetaInfoService implements MetaInfoService, MetaInfoClient.R
 
     public void setClientId(String clientId) {
         this.clientId = clientId;
-    }
-
-    @Override
-    public void onResponse(MetaInfoResponse response) {
     }
 }

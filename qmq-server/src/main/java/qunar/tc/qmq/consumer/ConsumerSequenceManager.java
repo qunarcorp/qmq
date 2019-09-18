@@ -34,7 +34,7 @@ import qunar.tc.qmq.store.action.PullAction;
 import qunar.tc.qmq.store.action.RangeAckAction;
 import qunar.tc.qmq.store.buffer.Buffer;
 import qunar.tc.qmq.utils.ObjectUtils;
-import qunar.tc.qmq.utils.RetrySubjectUtils;
+import qunar.tc.qmq.utils.RetryPartitionUtils;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -248,8 +248,8 @@ public class ConsumerSequenceManager {
             for (Buffer buffer : needRetryMessages) {
                 final ByteBuf message = Unpooled.wrappedBuffer(buffer.getBuffer());
                 final RawMessage rawMessage = QMQSerializer.deserializeRawMessage(message);
-                if (!RetrySubjectUtils.isRetrySubject(subject)) {
-                    final String retrySubject = RetrySubjectUtils.buildRetryPartitionName(subject, group);
+                if (!RetryPartitionUtils.isRetryPartitionName(subject)) {
+                    final String retrySubject = RetryPartitionUtils.buildRetryPartitionName(subject, consumerGroup);
                     rawMessage.setSubject(retrySubject);
                 }
 

@@ -440,8 +440,8 @@ public class DefaultStorage implements Storage {
     }
 
     @Override
-    public long getMaxPulledMessageSequence(String subject, String group) {
-        return checkpointManager.getMaxPulledMessageSequence(subject, group);
+    public long getMaxPulledMessageSequence(String partitionName, String group) {
+        return checkpointManager.getMaxPulledMessageSequence(partitionName, group);
     }
 
     @Override
@@ -487,9 +487,9 @@ public class DefaultStorage implements Storage {
     }
 
     @Override
-    public void destroyPullLog(String subject, String group, String consumerId) {
-        if (pullLogManager.destroy(subject, group, consumerId)) {
-            checkpointManager.removeConsumerProgress(subject, group, consumerId);
+    public void destroyPullLog(String partitionName, String group, String consumerId) {
+        if (pullLogManager.destroy(partitionName, group, consumerId)) {
+            checkpointManager.removeConsumerProgress(partitionName, group, consumerId);
         }
     }
 

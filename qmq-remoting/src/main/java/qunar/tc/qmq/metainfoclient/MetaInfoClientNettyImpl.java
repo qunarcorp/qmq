@@ -26,18 +26,18 @@ import io.netty.util.internal.ConcurrentSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ClientType;
-import qunar.tc.qmq.base.OnOfflineState;
+import qunar.tc.qmq.codec.Serializer;
+import qunar.tc.qmq.codec.Serializers;
 import qunar.tc.qmq.meta.MetaServerLocator;
+import qunar.tc.qmq.meta.ProducerAllocation;
 import qunar.tc.qmq.netty.NettyClientConfig;
-import qunar.tc.qmq.netty.exception.ClientSendException;
 import qunar.tc.qmq.protocol.CommandCode;
 import qunar.tc.qmq.protocol.Datagram;
 import qunar.tc.qmq.protocol.MetaInfoResponse;
+import qunar.tc.qmq.protocol.QuerySubjectRequest;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequestPayloadHolder;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
-
-import java.util.concurrent.ExecutionException;
 
 /**
  * @author yiqun.fan create on 17-8-31.
@@ -89,40 +89,34 @@ class MetaInfoClientNettyImpl extends MetaServerNettyClient implements MetaInfoC
     }
 
     @Override
+    public ListenableFuture<String> querySubject(QuerySubjectRequest request) {
+        try {
+            SettableFuture<String> future = SettableFuture.create();
+            sendRequest(
+                    CommandCode.QUERY_SUBJECT,
+                    "QUERY_SUBJECT",
+                    new SimpleChannelInboundHandler<Datagram>() {
+                        @Override
+                        @SuppressWarnings("unchecked")
+                        protected void channelRead0(ChannelHandlerContext ctx, Datagram msg) throws Exception {
+                            ByteBuf buf = msg.getBody();
+                            future.set(PayloadHolderUtils.readString(buf));
+                        }
+                    },
+                    out -> {
+                        Serializer<QuerySubjectRequest> serializer = Serializers.getSerializer(QuerySubjectRequest.class);
+                        serializer.serialize(request, out);
+                    }
+            );
+            return future;
+        } catch (Exception e) {
+            LOGGER.debug("query history partition props error {}", request.getPartitionName(), e);
+            return Futures.immediateFailedFuture(e);
+        }
+    }
+
+    @Override
     public void registerResponseSubscriber(ResponseSubscriber subscriber) {
         responseSubscribers.add(subscriber);
-    }
-
-    private static final String QUERY_ORDERED_SUBJECT_DECODER_NAME = "queryOrderedSubjectDecoderName";
-
-    @Override
-    public void reportConsumerState(String subject, String consumerGroup, String clientId, OnOfflineState state) throws ClientSendException, MetaServerNotFoundException {
-        sendRequest(
-                CommandCode.REPORT_CONSUMER_ONLINE_STATE,
-                out -> {
-                    PayloadHolderUtils.writeString(subject, out);
-                    PayloadHolderUtils.writeString(consumerGroup, out);
-                    PayloadHolderUtils.writeString(clientId, out);
-                    PayloadHolderUtils.writeString(state.name(), out);
-                }
-        );
-    }
-
-    @Override
-    public boolean queryOrderedSubject(String subject) throws MetaServerNotFoundException, ClientSendException, ExecutionException, InterruptedException {
-        SettableFuture<Boolean> future = SettableFuture.create();
-        sendRequest(
-                CommandCode.QUERY_ORDERED_SUBJECT,
-                QUERY_ORDERED_SUBJECT_DECODER_NAME,
-                new SimpleChannelInboundHandler<Datagram>() {
-                    @Override
-                    protected void channelRead0(ChannelHandlerContext ctx, Datagram msg) throws Exception {
-                        ByteBuf buf = msg.getBody();
-                        future.set(buf.readBoolean());
-                    }
-                },
-                out -> PayloadHolderUtils.writeString(subject, out)
-        );
-        return future.get();
     }
 }

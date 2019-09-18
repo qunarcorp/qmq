@@ -15,5 +15,7 @@ public interface PartitionStore {
 
     int save(List<Partition> partitions);
 
-    List<Partition> getByPartitionIds(Collection<Integer> partitionIds);
+    List<Partition> getAll();
+
+    List<Partition> getByPartitionIds(String subject, Collection<Integer> partitionIds);
 }

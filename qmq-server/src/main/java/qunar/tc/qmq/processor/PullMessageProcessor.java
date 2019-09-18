@@ -101,17 +101,17 @@ public class PullMessageProcessor extends AbstractRequestProcessor implements Fi
         final PullRequest pullRequest = pullRequestSerde.read(command.getHeader().getVersion(), command.getBody());
 
         BrokerStats.getInstance().getLastMinutePullRequestCount().add(1);
-        QMon.pullRequestCountInc(pullRequest.getSubject(), pullRequest.getGroup());
+        QMon.pullRequestCountInc(pullRequest.getPartitionName(), pullRequest.getGroup());
 
         if (!checkAndRepairPullRequest(pullRequest)) {
             return CompletableFuture.completedFuture(crateEmptyResult(command));
         }
 
         if (pullRequest.isExclusiveConsume()) {
-            String subject = pullRequest.getSubject();
+            String partitionName = pullRequest.getPartitionName();
             String group = pullRequest.getGroup();
             String consumerId = pullRequest.getConsumerId();
-            if (!orderedMessageLockManager.acquireLock(subject, group, consumerId, pullRequest.getConsumerAllocationVersion())) {
+            if (!orderedMessageLockManager.acquireLock(partitionName, group, consumerId, pullRequest.getConsumerAllocationVersion())) {
                 // 获取锁失败
                 return CompletableFuture.completedFuture(crateEmptyResult(command));
             }
@@ -127,15 +127,15 @@ public class PullMessageProcessor extends AbstractRequestProcessor implements Fi
     private void subscribe(PullRequest pullRequest) {
         if (pullRequest.isExclusiveConsume()) return;
 
-        final String subject = pullRequest.getSubject();
+        final String partitionName = pullRequest.getPartitionName();
         final String group = pullRequest.getGroup();
         final String consumerId = pullRequest.getConsumerId();
-        subscriberStatusChecker.addSubscriber(subject, group, consumerId);
-        subscriberStatusChecker.heartbeat(consumerId, subject, group);
+        subscriberStatusChecker.addSubscriber(partitionName, group, consumerId);
+        subscriberStatusChecker.heartbeat(consumerId, partitionName, group);
     }
 
     private boolean checkAndRepairPullRequest(PullRequest pullRequest) {
-        final String subject = pullRequest.getSubject();
+        final String subject = pullRequest.getPartitionName();
         final String group = pullRequest.getGroup();
         final String consumerId = pullRequest.getConsumerId();
 
@@ -274,7 +274,7 @@ public class PullMessageProcessor extends AbstractRequestProcessor implements Fi
 
         PullEntry(PullRequest pullRequest, RemotingHeader requestHeader, ChannelHandlerContext ctx) {
             this.pullRequest = pullRequest;
-            this.subject = pullRequest.getSubject();
+            this.subject = pullRequest.getPartitionName();
             this.group = pullRequest.getGroup();
             this.requestHeader = requestHeader;
             this.ctx = ctx;

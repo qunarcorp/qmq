@@ -184,9 +184,9 @@ public class EnvPullMessageFilter implements PullMessageFilter {
 
 	private String buildRuleKey(final SubEnvIsolationPullFilter filter, final PullRequest request) {
 		if (request.isExclusiveConsume()) {
-			return RULE_KEY_JOINER.join(request.getSubject(), "", filter.getEnv(), filter.getSubEnv());
+			return RULE_KEY_JOINER.join(request.getPartitionName(), "", filter.getEnv(), filter.getSubEnv());
 		}
-		return RULE_KEY_JOINER.join(request.getSubject(), request.getGroup());
+		return RULE_KEY_JOINER.join(request.getPartitionName(), request.getGroup());
 	}
 
 	private ImmutableMap<String, SubEnvIsolationRule> toMap(final Collection<SubEnvIsolationRule> rules) {

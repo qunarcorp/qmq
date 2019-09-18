@@ -8,6 +8,7 @@ import qunar.tc.qmq.meta.Partition;
 import qunar.tc.qmq.meta.ProducerAllocation;
 import qunar.tc.qmq.PartitionProps;
 import qunar.tc.qmq.protocol.MetaInfoResponse;
+import qunar.tc.qmq.protocol.QuerySubjectRequest;
 import qunar.tc.qmq.protocol.consumer.ConsumerMetaInfoResponse;
 import qunar.tc.qmq.protocol.producer.ProducerMetaInfoResponse;
 
@@ -38,6 +39,7 @@ public class Serializers {
         serializerMap.put(MetaInfoResponse.class, new MetaInfoResponseSerializer());
         serializerMap.put(ProducerMetaInfoResponse.class, new ProducerMetaInfoResponseSerializer());
         serializerMap.put(ConsumerMetaInfoResponse.class, new ConsumerMetaInfoResponseSerializer());
+        serializerMap.put(QuerySubjectRequest.class, new QuerySubjectRequestSerializer());
     }
 
     public static <T> Serializer<T> getSerializer(Class<T> clazz) {

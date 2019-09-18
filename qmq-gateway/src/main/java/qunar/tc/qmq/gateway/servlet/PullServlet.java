@@ -56,7 +56,8 @@ public class PullServlet extends HttpServlet {
 
     @Override
     public void init() throws ServletException {
-        consumer = new MessageConsumerProvider(null); // TODO(zhenwei.liu) 这个 meta server 地址从哪儿来
+        consumer = new MessageConsumerProvider();
+        consumer.setMetaServer(null); // TODO(zhenwei.liu) 这个 meta server 地址从哪儿来
         consumer.init();
         writeExecutor = Executors.newCachedThreadPool();
     }

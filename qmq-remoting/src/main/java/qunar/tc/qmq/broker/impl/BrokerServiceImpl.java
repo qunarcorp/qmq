@@ -199,22 +199,12 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
 
     @Override
     public void refresh(ClientType clientType, String subject) {
-        refresh(clientType, subject, "", false, false);
+        refresh(clientType, subject, "");
     }
 
     @Override
-    public void refresh(ClientType clientType, String subject, String group, boolean isBroadcast, boolean isOrdered) {
-        MetaInfoRequest request = new MetaInfoRequest(
-                subject,
-                group,
-                clientType.getCode(),
-                appCode,
-                clientId,
-                ClientRequestType.HEARTBEAT,
-                isBroadcast,
-                isOrdered
-        );
-        metaInfoService.request(request);
+    public void refresh(ClientType clientType, String subject, String consumerGroup) {
+        metaInfoService.request(clientType.getCode(), subject, consumerGroup);
     }
 
     @Override

@@ -1,5 +1,6 @@
 package qunar.tc.qmq.meta.store.impl;
 
+import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
 import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -12,7 +13,6 @@ import qunar.tc.qmq.meta.store.PartitionStore;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -27,22 +27,25 @@ public class PartitionStoreImpl implements PartitionStore {
             "values (?, ?, ?, ?, ?, ?, ?)";
 
     private static final String SELECT_BY_IDS = "select subject, partition_name, partition_id, logical_partition_lower_bound, logical_partition_upper_bound, broker_group, status " +
-            "where physical_partition in (:ids)";
+            "where subject = :subject and physical_partition in (:ids)";
+
+
+    private static final String SELECT_ALL = "select subject, partition_name, partition_id, logical_partition_lower_bound, logical_partition_upper_bound, broker_group, status";
 
     private static final RowMapper<Partition> partitionRowMapper = (resultSet, i) -> {
         try {
-            Partition partition = new Partition();
-            partition.setSubject(resultSet.getString("subject"));
-            partition.setPartitionName(resultSet.getString("partition_name"));
-            partition.setPartitionId(resultSet.getInt("partition_id"));
+            String subject = resultSet.getString("subject");
+            String partitionName = resultSet.getString("partition_name");
+            int partitionId = resultSet.getInt("partition_id");
 
             int logicalPartitionLowerBound = resultSet.getInt("logical_partition_lower_bound");
             int logicalPartitionUpperBound = resultSet.getInt("logical_partition_upper_bound");
-            partition.setLogicalPartition(Range.closedOpen(logicalPartitionLowerBound, logicalPartitionUpperBound));
 
-            partition.setBrokerGroup(resultSet.getString("broker_group"));
-            partition.setStatus(Partition.Status.valueOf(resultSet.getString("status")));
-            return partition;
+            Range<Integer> logicalRange = Range.closedOpen(logicalPartitionLowerBound, logicalPartitionUpperBound);
+            String brokerGroup = resultSet.getString("broker_group");
+            Partition.Status status = Partition.Status.valueOf(resultSet.getString("status"));
+
+            return new Partition(subject, partitionName, partitionId, logicalRange, brokerGroup, status);
         } catch (Throwable t) {
             throw new RuntimeException(t);
         }
@@ -88,8 +91,15 @@ public class PartitionStoreImpl implements PartitionStore {
     }
 
     @Override
-    public List<Partition> getByPartitionIds(Collection<Integer> partitionIds) {
-        Map<String, Collection<Integer>> param = Collections.singletonMap("ids", partitionIds);
+    public List<Partition> getAll() {
+        return parameterTemplate.query(SELECT_ALL, partitionRowMapper);
+    }
+
+    @Override
+    public List<Partition> getByPartitionIds(String subject, Collection<Integer> partitionIds) {
+        Map<String, Object> param = Maps.newHashMap();
+        param.put("subject", subject);
+        param.put("ids", partitionIds);
         return parameterTemplate.query(SELECT_BY_IDS, param, partitionRowMapper);
     }
 }

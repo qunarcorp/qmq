@@ -41,7 +41,6 @@ import qunar.tc.qmq.protocol.MetaInfoResponse;
 import qunar.tc.qmq.protocol.consumer.ConsumerMetaInfoResponse;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
 import qunar.tc.qmq.protocol.consumer.SubEnvIsolationPullFilter;
-import qunar.tc.qmq.utils.RetrySubjectUtils;
 
 import java.util.*;
 import java.util.concurrent.ExecutorService;
@@ -80,8 +79,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
 
     private EnvProvider envProvider;
 
-    public PullRegister(String metaServer) {
-        this.metaServer = metaServer;
+    public PullRegister() {
     }
 
     public void init() {
@@ -200,14 +198,13 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
 
         ConsumerAllocation consumerAllocation = response.getConsumerAllocation();
         int version = consumerAllocation.getVersion();
+
+        // create retry
         PullEntry pullEntry = updatePullEntry(entryKey, oldEntry, subject, consumerGroup, param, new AlwaysPullStrategy(), consumerAllocation);
-        if (!RetrySubjectUtils.isDeadRetrySubject(subject)) {
-            ConsumerAllocation retryConsumerAllocation = consumerAllocation.getRetryConsumerAllocation(consumerGroup);
-            PullEntry retryPullEntry = updatePullEntry(entryKey, oldEntry, subject, consumerGroup, param, new WeightPullStrategy(), retryConsumerAllocation);
-            entry = new CompositePullEntry<>(subject, consumerGroup, version, Lists.newArrayList(pullEntry, retryPullEntry));
-        } else {
-            entry = pullEntry;
-        }
+        ConsumerAllocation retryConsumerAllocation = consumerAllocation.getRetryConsumerAllocation(consumerGroup);
+        PullEntry retryPullEntry = updatePullEntry(entryKey, oldEntry, subject, consumerGroup, param, new WeightPullStrategy(), retryConsumerAllocation);
+
+        entry = new CompositePullEntry<>(subject, consumerGroup, version, Lists.newArrayList(pullEntry, retryPullEntry));
 
         pullEntryMap.put(entryKey, entry);
         return entry;
@@ -506,6 +503,11 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
             pullEntry.destroy();
         }
         ackService.destroy();
+    }
+
+    public PullRegister setMetaServer(String metaServer) {
+        this.metaServer = metaServer;
+        return this;
     }
 
     public void setDestroyWaitInSeconds(int destroyWaitInSeconds) {

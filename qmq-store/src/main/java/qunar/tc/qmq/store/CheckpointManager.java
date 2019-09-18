@@ -163,10 +163,10 @@ public class CheckpointManager implements AutoCloseable {
     }
 
 
-    long getMaxPulledMessageSequence(final String subject, final String consumerGroup) {
+    long getMaxPulledMessageSequence(final String partitionName, final String consumerGroup) {
         actionCheckpointGuard.lock();
         try {
-            final ConsumerGroupProgress progress = actionCheckpoint.getProgresses().get(subject, consumerGroup);
+            final ConsumerGroupProgress progress = actionCheckpoint.getProgresses().get(partitionName, consumerGroup);
             if (progress == null) {
                 return -1;
             }
@@ -397,9 +397,9 @@ public class CheckpointManager implements AutoCloseable {
                 for (final ConsumerProgress consumer : consumers.values()) {
                     consumersCopy.put(consumer.getConsumerId(), new ConsumerProgress(consumer));
                 }
-                final String subject = progress.getSubject();
+                final String partitionName = progress.getPartitionName();
                 final String consumerGroup = progress.getConsumerGroup();
-                progresses.put(subject, consumerGroup, new ConsumerGroupProgress(subject, consumerGroup, progress.isExclusiveConsume(), progress.getPull(), consumersCopy));
+                progresses.put(partitionName, consumerGroup, new ConsumerGroupProgress(partitionName, consumerGroup, progress.isExclusiveConsume(), progress.getPull(), consumersCopy));
             }
             final long offset = actionCheckpoint.getOffset();
             return new ActionCheckpoint(offset, progresses);

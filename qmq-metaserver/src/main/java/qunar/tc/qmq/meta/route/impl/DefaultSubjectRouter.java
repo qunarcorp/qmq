@@ -36,24 +36,22 @@ public class DefaultSubjectRouter implements SubjectRouter {
     }
 
     @Override
-    public List<BrokerGroup> route(String subject, MetaInfoRequest request) {
+    public List<BrokerGroup> route(String subject, int clientType) {
 
-        if (request.getClientTypeCode() == ClientType.DELAY_PRODUCER.getCode()) {
+        if (clientType == ClientType.DELAY_PRODUCER.getCode()) {
             return cachedMetaInfoManager.getDelayNewGroups();
         }
 
         SubjectInfo subjectInfo = getOrCreateSubjectInfo(subject);
-
-        int clientTypeCode = request.getClientTypeCode();
 
         //query assigned brokers
         final List<String> assignedBrokers = cachedMetaInfoManager.getGroups(subject);
 
         List<String> newAssignedBrokers;
         if (assignedBrokers == null || assignedBrokers.size() == 0) {
-            newAssignedBrokers = assignNewBrokers(subjectInfo, clientTypeCode);
+            newAssignedBrokers = assignNewBrokers(subjectInfo, clientType);
         } else {
-            newAssignedBrokers = reAssignBrokers(subjectInfo, assignedBrokers, clientTypeCode);
+            newAssignedBrokers = reAssignBrokers(subjectInfo, assignedBrokers, clientType);
         }
 
         return selectExistedBrokerGroups(newAssignedBrokers);

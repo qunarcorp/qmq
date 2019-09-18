@@ -21,6 +21,7 @@ package qunar.tc.qmq.store;
  * 8/3/18
  */
 public class GroupAndSubject {
+    
     private static final String GROUP_INDEX_DELIM = "@";
 
     private final String subject;

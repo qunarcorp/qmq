@@ -34,7 +34,7 @@ public class AveragePartitionAllocator implements PartitionAllocator {
             Partition partition = partitionMap.get(partitionId);
             String clientId = entry.getValue();
             Set<PartitionProps> partitionPropsSet = clientId2SubjectLocations.computeIfAbsent(clientId, k -> Sets.newHashSet());
-            partitionPropsSet.add(new PartitionProps(partition.getPartitionName(), partition.getBrokerGroup()));
+            partitionPropsSet.add(new PartitionProps(partitionId, partition.getPartitionName(), partition.getBrokerGroup()));
         }
 
         PartitionAllocation.AllocationDetail allocationDetail = new PartitionAllocation.AllocationDetail();

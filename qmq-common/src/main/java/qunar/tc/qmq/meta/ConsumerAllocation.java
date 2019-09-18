@@ -3,7 +3,7 @@ package qunar.tc.qmq.meta;
 import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.PartitionProps;
 import qunar.tc.qmq.Versionable;
-import qunar.tc.qmq.utils.RetrySubjectUtils;
+import qunar.tc.qmq.utils.RetryPartitionUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -46,7 +46,7 @@ public class ConsumerAllocation implements Versionable {
     public ConsumerAllocation getRetryConsumerAllocation(String consumerGroup) {
         List<PartitionProps> copy = new ArrayList<>(partitionProps.size());
         for (PartitionProps partitionProp : partitionProps) {
-            copy.add(new PartitionProps(RetrySubjectUtils.buildRetryPartitionName(partitionProp.getPartitionName(), consumerGroup), partitionProp.getBrokerGroup()));
+            copy.add(new PartitionProps(partitionProp.getPartitionId(), RetryPartitionUtils.buildRetryPartitionName(partitionProp.getPartitionName(), consumerGroup), partitionProp.getBrokerGroup()));
         }
 
         return new ConsumerAllocation(allocationVersion, copy, expired, consumeStrategy);

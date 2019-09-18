@@ -19,7 +19,7 @@ public interface MessageGroupResolver {
     MessageGroup resolveGroup(Message message);
 
     /**
-     * 选择一个可用的 brokerGroup, 如不可用则选择下一个可用的 brokerGroup
+     * 选择一个可用的 brokerGroup, 如不可用则选择下一个可用的 brokerGroup, 但必须保证 PartitionName 在这两个 BrokerGroup 是相同的
      * @param message message
      * @return 可用的 brokerGroup
      */

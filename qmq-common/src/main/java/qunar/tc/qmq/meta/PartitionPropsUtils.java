@@ -1,8 +1,10 @@
 package qunar.tc.qmq.meta;
 
+import com.google.common.collect.Lists;
 import qunar.tc.qmq.PartitionProps;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -11,13 +13,16 @@ import java.util.Objects;
  */
 public class PartitionPropsUtils {
 
-    public static PartitionProps getPartitionPropsBrokerGroup(String brokerGroup, Collection<PartitionProps> partitionProps) {
+    public static List<PartitionProps> getPartitionPropsByBrokerGroup(String brokerGroup, Collection<PartitionProps> partitionProps) {
+        List<PartitionProps> result = Lists.newArrayList();
         for (PartitionProps partitionProp : partitionProps) {
             if (Objects.equals(partitionProp.getBrokerGroup(), brokerGroup)) {
-                return partitionProp;
+                result.add(partitionProp);
             }
         }
-        throw new IllegalArgumentException(String.format("无法找到 brokerGroup 对应的 subjectLocation, brokerGroup %s", brokerGroup));
-
+        if (result.isEmpty()) {
+            throw new IllegalArgumentException(String.format("无法找到 brokerGroup %s 对应的 partition", brokerGroup));
+        }
+        return result;
     }
 }

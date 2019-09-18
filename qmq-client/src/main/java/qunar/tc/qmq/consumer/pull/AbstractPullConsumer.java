@@ -24,7 +24,7 @@ import qunar.tc.qmq.PullConsumer;
 import qunar.tc.qmq.StatusSource;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.common.SwitchWaiter;
-import qunar.tc.qmq.utils.RetrySubjectUtils;
+import qunar.tc.qmq.utils.RetryPartitionUtils;
 
 import java.util.List;
 
@@ -48,7 +48,7 @@ abstract class AbstractPullConsumer extends AbstractPullClient implements PullCo
         super(subject, consumerGroup, partitionName, version);
         this.consumeParam = new ConsumeParam(subject, consumerGroup, isBroadcast, isOrdered, false, clientId);
         this.pullEntry = new PlainPullEntry(consumeParam, partitionName, version, pullService, ackService, brokerService, new AlwaysPullStrategy());
-        this.retryPullEntry = new PlainPullEntry(consumeParam, RetrySubjectUtils.buildRetryPartitionName(subject, consumerGroup), version, pullService, ackService, brokerService, new WeightPullStrategy());
+        this.retryPullEntry = new PlainPullEntry(consumeParam, RetryPartitionUtils.buildRetryPartitionName(subject, consumerGroup), version, pullService, ackService, brokerService, new WeightPullStrategy());
     }
 
     private static long checkAndGetTimeout(long timeout) {

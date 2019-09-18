@@ -23,22 +23,22 @@ import java.util.Map;
  * @since 2018/10/24
  */
 public class ConsumerGroupProgress {
-    private final String subject;
+    private final String partitionName;
     private final String consumerGroup;
     private final Map<String, ConsumerProgress> consumers;
     private boolean exclusiveConsume;
     private long pull;
 
-    public ConsumerGroupProgress(String subject, String consumerGroup, boolean isExclusiveConsume, long pull, Map<String, ConsumerProgress> consumers) {
-        this.subject = subject;
+    public ConsumerGroupProgress(String partitionName, String consumerGroup, boolean isExclusiveConsume, long pull, Map<String, ConsumerProgress> consumers) {
+        this.partitionName = partitionName;
         this.consumerGroup = consumerGroup;
         this.exclusiveConsume = isExclusiveConsume;
         this.pull = pull;
         this.consumers = consumers;
     }
 
-    public String getSubject() {
-        return subject;
+    public String getPartitionName() {
+        return partitionName;
     }
 
     public String getConsumerGroup() {

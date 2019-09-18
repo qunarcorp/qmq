@@ -35,7 +35,7 @@ import qunar.tc.qmq.backup.util.KeyValueList;
 import qunar.tc.qmq.backup.util.KeyValueListImpl;
 import qunar.tc.qmq.utils.Bytes;
 import qunar.tc.qmq.utils.CharsetUtils;
-import qunar.tc.qmq.utils.RetrySubjectUtils;
+import qunar.tc.qmq.utils.RetryPartitionUtils;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -84,7 +84,7 @@ public class HBaseRecordStore extends HBaseStore implements RecordStore {
         } else if (recordCode == RecordEnum.RETRY_RECORD.getCode()) {
             final String messageId = query.getMessageId();
             if (Strings.isNullOrEmpty(messageId)) return EMPTY_RECORD_RESULT;
-            return findRetryRecord(RetrySubjectUtils.buildRetrySubject(subject), messageId);
+            return findRetryRecord(RetryPartitionUtils.buildRetryPartitionName(subject), messageId);
         } else if (recordCode == RecordEnum.DEAD_RECORD.getCode()) {
             final String messageId = query.getMessageId();
             if (Strings.isNullOrEmpty(messageId)) return EMPTY_RECORD_RESULT;

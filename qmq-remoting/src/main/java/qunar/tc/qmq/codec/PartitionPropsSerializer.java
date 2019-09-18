@@ -14,14 +14,16 @@ public class PartitionPropsSerializer extends ObjectSerializer<PartitionProps> {
 
     @Override
     void doSerialize(PartitionProps partitionProps, ByteBuf buf) {
+        buf.writeInt(partitionProps.getPartitionId());
         PayloadHolderUtils.writeString(partitionProps.getPartitionName(), buf);
         PayloadHolderUtils.writeString(partitionProps.getBrokerGroup(), buf);
     }
 
     @Override
     PartitionProps doDeserialize(ByteBuf buf, Type type) {
+        int partitionId = buf.readInt();
         String partitionName = PayloadHolderUtils.readString(buf);
         String brokerGroup = PayloadHolderUtils.readString(buf);
-        return new PartitionProps(partitionName, brokerGroup);
+        return new PartitionProps(partitionId, partitionName, brokerGroup);
     }
 }

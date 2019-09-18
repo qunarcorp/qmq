@@ -27,48 +27,48 @@ import java.util.List;
  * @author keli.wang
  * @since 2017/8/23
  */
-public final class RetrySubjectUtils {
+public final class RetryPartitionUtils {
     private static final Joiner RETRY_SUBJECT_JOINER = Joiner.on('%');
     private static final Splitter RETRY_SUBJECT_SPLITTER = Splitter.on('%').trimResults().omitEmptyStrings();
     private static final String RETRY_SUBJECT_PREFIX = "%RETRY";
     private static final String DEAD_RETRY_SUBJECT_PREFIX = "%DEAD_RETRY";
 
-    private RetrySubjectUtils() {
+    private RetryPartitionUtils() {
     }
 
-    public static boolean isRealSubject(final String subject) {
-        return !Strings.isNullOrEmpty(subject) && !isRetrySubject(subject) && !isDeadRetrySubject(subject);
+    public static boolean isRealPartitionName(final String partitionName) {
+        return !Strings.isNullOrEmpty(partitionName) && !isRetryPartitionName(partitionName) && !isDeadRetryPartitionName(partitionName);
     }
 
-    public static String buildRetryPartitionName(final String partitionName, final String group) {
-        return RETRY_SUBJECT_JOINER.join(RETRY_SUBJECT_PREFIX, partitionName, group);
+    public static String buildRetryPartitionName(final String partitionName, final String consumerGroup) {
+        return RETRY_SUBJECT_JOINER.join(RETRY_SUBJECT_PREFIX, partitionName, consumerGroup);
     }
 
-    public static boolean isRetrySubject(final String subject) {
-        return Strings.nullToEmpty(subject).startsWith(RETRY_SUBJECT_PREFIX);
+    public static boolean isRetryPartitionName(final String partitionName) {
+        return Strings.nullToEmpty(partitionName).startsWith(RETRY_SUBJECT_PREFIX);
     }
 
-    public static String buildDeadRetryPartitionName(final String partitionName, final String group) {
-        return RETRY_SUBJECT_JOINER.join(DEAD_RETRY_SUBJECT_PREFIX, partitionName, group);
+    public static String buildDeadRetryPartitionName(final String partitionName, final String consumerGroup) {
+        return RETRY_SUBJECT_JOINER.join(DEAD_RETRY_SUBJECT_PREFIX, partitionName, consumerGroup);
     }
 
-    public static boolean isDeadRetrySubject(final String subject) {
-        return Strings.nullToEmpty(subject).startsWith(DEAD_RETRY_SUBJECT_PREFIX);
+    public static boolean isDeadRetryPartitionName(final String partitionName) {
+        return Strings.nullToEmpty(partitionName).startsWith(DEAD_RETRY_SUBJECT_PREFIX);
     }
 
-    public static String getPartitionName(final String subject) {
-        final Optional<String> optional = getSubject(subject);
+    public static String getRealPartitionName(final String partitionName) {
+        final Optional<String> optional = getPartitionNameFromRetry(partitionName);
         if (optional.isPresent()) {
             return optional.get();
         }
-        return subject;
+        return partitionName;
     }
 
-    private static Optional<String> getSubject(final String retrySubject) {
-        if (!isRetrySubject(retrySubject) && !isDeadRetrySubject(retrySubject)) {
+    private static Optional<String> getPartitionNameFromRetry(final String retryPartitionName) {
+        if (!isRetryPartitionName(retryPartitionName) && !isDeadRetryPartitionName(retryPartitionName)) {
             return Optional.absent();
         }
-        final List<String> parts = RETRY_SUBJECT_SPLITTER.splitToList(retrySubject);
+        final List<String> parts = RETRY_SUBJECT_SPLITTER.splitToList(retryPartitionName);
         if (parts.size() != 3) {
             return Optional.absent();
         } else {
@@ -76,12 +76,12 @@ public final class RetrySubjectUtils {
         }
     }
 
-    public static String[] parseSubjectAndGroup(String subject) {
-        if (!isRetrySubject(subject) && !isDeadRetrySubject(subject)) {
+    public static String[] parseSubjectAndGroup(String partitionName) {
+        if (!isRetryPartitionName(partitionName) && !isDeadRetryPartitionName(partitionName)) {
             return null;
         }
 
-        final List<String> parts = RETRY_SUBJECT_SPLITTER.splitToList(subject);
+        final List<String> parts = RETRY_SUBJECT_SPLITTER.splitToList(partitionName);
         if (parts.size() != 3) {
             return null;
         } else {
@@ -89,9 +89,9 @@ public final class RetrySubjectUtils {
         }
     }
 
-    public static String getConsumerGroup(final String subject) {
-        if (!isDeadRetrySubject(subject) && !isRetrySubject(subject)) return "";
-        final List<String> parts = RETRY_SUBJECT_SPLITTER.splitToList(subject);
+    public static String getConsumerGroup(final String partitionName) {
+        if (!isRetryPartitionName(partitionName) && !isDeadRetryPartitionName(partitionName)) return "";
+        final List<String> parts = RETRY_SUBJECT_SPLITTER.splitToList(partitionName);
         if (parts.size() != 3) return "";
         else return parts.get(2);
     }

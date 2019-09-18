@@ -36,7 +36,7 @@ import static qunar.tc.qmq.protocol.RemotingHeader.VERSION_9;
 public class PullRequestSerde {
 
     public void write(final PullRequest request, final ByteBuf out) {
-        PayloadHolderUtils.writeString(request.getSubject(), out);
+        PayloadHolderUtils.writeString(request.getPartitionName(), out);
         PayloadHolderUtils.writeString(request.getGroup(), out);
         PayloadHolderUtils.writeString(request.getConsumerId(), out);
 

@@ -17,23 +17,25 @@
 package qunar.tc.qmq.metainfoclient;
 
 import com.google.common.util.concurrent.ListenableFuture;
-import qunar.tc.qmq.base.OnOfflineState;
-import qunar.tc.qmq.netty.exception.ClientSendException;
+import qunar.tc.qmq.meta.ProducerAllocation;
 import qunar.tc.qmq.protocol.MetaInfoResponse;
+import qunar.tc.qmq.protocol.QuerySubjectRequest;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
-
-import java.util.concurrent.ExecutionException;
 
 /**
  * @author yiqun.fan create on 17-9-1.
  */
 public interface MetaInfoClient {
 
-    void reportConsumerState(String subject, String consumerGroup, String clientId, OnOfflineState state) throws ClientSendException, MetaServerNotFoundException;
-
-    boolean queryOrderedSubject(String subject) throws MetaServerNotFoundException, ClientSendException, ExecutionException, InterruptedException;
-
     ListenableFuture<MetaInfoResponse> sendMetaInfoRequest(MetaInfoRequest request);
+
+    /**
+     * 使用 partitionName 查询 subject
+     *
+     * @param request request
+     * @return subject
+     */
+    ListenableFuture<String> querySubject(QuerySubjectRequest request);
 
     void registerResponseSubscriber(ResponseSubscriber receiver);
 

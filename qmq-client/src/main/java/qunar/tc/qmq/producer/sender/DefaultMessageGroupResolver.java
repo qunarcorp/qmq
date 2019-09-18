@@ -5,14 +5,14 @@ import io.netty.util.internal.ThreadLocalRandom;
 import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.Message;
 import qunar.tc.qmq.MessageGroup;
+import qunar.tc.qmq.PartitionProps;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.common.PartitionConstants;
-import qunar.tc.qmq.meta.ProducerAllocation;
-import qunar.tc.qmq.PartitionProps;
 import qunar.tc.qmq.meta.PartitionPropsUtils;
+import qunar.tc.qmq.meta.ProducerAllocation;
 import qunar.tc.qmq.utils.DelayUtil;
 
 import java.util.List;
@@ -51,6 +51,7 @@ public class DefaultMessageGroupResolver implements MessageGroupResolver {
         String brokerGroup = partitionProps.getBrokerGroup();
         String partitionName = partitionProps.getPartitionName();
 
+        message.setProperty(BaseMessage.keys.qmq_subject.name(), subject);
         message.setProperty(BaseMessage.keys.qmq_logicPartition.name(), logicalPartition);
         message.setProperty(BaseMessage.keys.qmq_partitionName.name(), partitionName);
         message.setProperty(BaseMessage.keys.qmq_partitionBroker.name(), brokerGroup);
@@ -80,13 +81,14 @@ public class DefaultMessageGroupResolver implements MessageGroupResolver {
             return messageGroup;
         }
 
+        // 切换成其他 PartitionName 和 PartitionGroup
         ProducerAllocation producerAllocation = brokerService.getProducerAllocation(clientType, subject);
-        String partitionName = PartitionPropsUtils
-                .getPartitionPropsBrokerGroup(
+        List<PartitionProps> props = PartitionPropsUtils
+                .getPartitionPropsByBrokerGroup(
                         brokerGroupName,
                         producerAllocation.getLogical2SubjectLocation().asMapOfRanges().values()
-                )
-                .getPartitionName();
+                );
+        String partitionName = props.get(0).getPartitionName();
         message.setProperty(BaseMessage.keys.qmq_partitionName.name(), partitionName);
         message.setProperty(BaseMessage.keys.qmq_partitionBroker.name(), brokerGroupName);
         return new MessageGroup(clientType, subject, partitionName, brokerGroupName);

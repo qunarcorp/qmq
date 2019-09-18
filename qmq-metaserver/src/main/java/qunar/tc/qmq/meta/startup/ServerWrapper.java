@@ -28,11 +28,13 @@ import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 import qunar.tc.qmq.meta.cache.CachedOfflineStateManager;
 import qunar.tc.qmq.meta.event.OrderedConsumerHeartbeatHandler;
 import qunar.tc.qmq.meta.management.*;
+import qunar.tc.qmq.meta.order.DefaultPartitionNameResolver;
 import qunar.tc.qmq.meta.order.DefaultPartitionService;
 import qunar.tc.qmq.meta.order.PartitionAllocationTask;
 import qunar.tc.qmq.meta.processor.BrokerAcquireMetaProcessor;
 import qunar.tc.qmq.meta.processor.BrokerRegisterProcessor;
 import qunar.tc.qmq.meta.processor.ClientRegisterProcessor;
+import qunar.tc.qmq.meta.processor.QuerySubjectProcessor;
 import qunar.tc.qmq.meta.route.SubjectRouter;
 import qunar.tc.qmq.meta.route.impl.DefaultSubjectRouter;
 import qunar.tc.qmq.meta.service.ReadonlyBrokerGroupSettingService;
@@ -74,18 +76,22 @@ public class ServerWrapper implements Disposable {
         brokerMetaManager.init(brokerStore);
 
         final ReadonlyBrokerGroupSettingStore readonlyBrokerGroupSettingStore = new ReadonlyBrokerGroupSettingStoreImpl(jdbcTemplate);
-        final CachedMetaInfoManager cachedMetaInfoManager = new CachedMetaInfoManager(config, store, readonlyBrokerGroupSettingStore, DefaultPartitionService.getInstance());
+        DefaultPartitionService paritionService = DefaultPartitionService.getInstance();
+        final CachedMetaInfoManager cachedMetaInfoManager = new CachedMetaInfoManager(config, store, readonlyBrokerGroupSettingStore, paritionService);
 
         final SubjectRouter subjectRouter = new DefaultSubjectRouter(config, cachedMetaInfoManager, store);
         final ClientRegisterProcessor clientRegisterProcessor = new ClientRegisterProcessor(subjectRouter, CachedOfflineStateManager.SUPPLIER.get(), store, cachedMetaInfoManager);
         final BrokerRegisterProcessor brokerRegisterProcessor = new BrokerRegisterProcessor(config, cachedMetaInfoManager, store);
         final BrokerAcquireMetaProcessor brokerAcquireMetaProcessor = new BrokerAcquireMetaProcessor(new BrokerStoreImpl(jdbcTemplate));
         final ReadonlyBrokerGroupSettingService readonlyBrokerGroupSettingService = new ReadonlyBrokerGroupSettingService(readonlyBrokerGroupSettingStore);
+        DefaultPartitionNameResolver partitionNameResolver = new DefaultPartitionNameResolver();
+        QuerySubjectProcessor querySubjectProcessor = new QuerySubjectProcessor(partitionNameResolver);
 
         final NettyServer metaNettyServer = new NettyServer("meta", Runtime.getRuntime().availableProcessors(), metaServerPort, new DefaultConnectionEventHandler("meta"));
         metaNettyServer.registerProcessor(CommandCode.CLIENT_REGISTER, clientRegisterProcessor);
         metaNettyServer.registerProcessor(CommandCode.BROKER_REGISTER, brokerRegisterProcessor);
         metaNettyServer.registerProcessor(CommandCode.BROKER_ACQUIRE_META, brokerAcquireMetaProcessor);
+        metaNettyServer.registerProcessor(CommandCode.QUERY_SUBJECT, querySubjectProcessor);
         metaNettyServer.start();
 
         ClientDbConfigurationStore clientDbConfigurationStore = new ClientDbConfigurationStoreImpl();

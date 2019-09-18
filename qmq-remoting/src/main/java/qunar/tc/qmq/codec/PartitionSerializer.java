@@ -32,13 +32,19 @@ public class PartitionSerializer extends ObjectSerializer<Partition> {
 
     @Override
     Partition doDeserialize(ByteBuf buf, Type type) {
-        Partition partition = new Partition();
-        partition.setSubject(PayloadHolderUtils.readString(buf));
-        partition.setPartitionName(PayloadHolderUtils.readString(buf));
-        partition.setPartitionId(buf.readInt());
-        partition.setLogicalPartition(rangeSerializer.deserialize(buf, rangeType));
-        partition.setBrokerGroup(PayloadHolderUtils.readString(buf));
-        partition.setStatus(Partition.Status.valueOf(PayloadHolderUtils.readString(buf)));
-        return partition;
+        String subject = PayloadHolderUtils.readString(buf);
+        String partitionName = PayloadHolderUtils.readString(buf);
+        int partitionId = buf.readInt();
+        Range logicalRange = rangeSerializer.deserialize(buf, rangeType);
+        String brokerGroup = PayloadHolderUtils.readString(buf);
+        Partition.Status status = Partition.Status.valueOf(PayloadHolderUtils.readString(buf));
+        return new Partition(
+                subject,
+                partitionName,
+                partitionId,
+                logicalRange,
+                brokerGroup,
+                status
+        );
     }
 }

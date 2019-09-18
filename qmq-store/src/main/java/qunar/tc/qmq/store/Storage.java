@@ -67,7 +67,7 @@ public interface Storage extends Disposable {
 
     Table<String, String, ConsumerGroupProgress> allConsumerGroupProgresses();
 
-    long getMaxPulledMessageSequence(String subject, String group);
+    long getMaxPulledMessageSequence(String partitionName, String group);
 
     long getMessageSequenceByPullLog(final String subject, final String group, final String consumerId, final long pullLogSequence);
 
@@ -93,5 +93,5 @@ public interface Storage extends Disposable {
 
     Table<String, String, PullLog> allPullLogs();
 
-    void destroyPullLog(final String subject, final String group, final String consumerId);
+    void destroyPullLog(final String partitionName, final String group, final String consumerId);
 }

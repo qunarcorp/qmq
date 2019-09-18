@@ -27,6 +27,7 @@ import java.util.List;
 class PullParam {
     private final ConsumeParam consumeParam;
     private final BrokerGroupInfo brokerGroup;
+    private final String partitionName;
     private final int pullBatchSize;
     private final long timeoutMillis;
     private final long requestTimeoutMillis;
@@ -35,10 +36,11 @@ class PullParam {
     private final long maxPullOffset;
 
     private PullParam(ConsumeParam consumeParam, BrokerGroupInfo brokerGroup,
-                      int pullBatchSize, long timeoutMillis, long requestTimeoutMillis,
+                      String partitionName, int pullBatchSize, long timeoutMillis, long requestTimeoutMillis,
                       long consumeOffset, long minPullOffset, long maxPullOffset) {
         this.consumeParam = consumeParam;
         this.brokerGroup = brokerGroup;
+        this.partitionName = partitionName;
         this.pullBatchSize = pullBatchSize;
         this.timeoutMillis = timeoutMillis;
         this.requestTimeoutMillis = requestTimeoutMillis;
@@ -47,16 +49,16 @@ class PullParam {
         this.maxPullOffset = maxPullOffset;
     }
 
+    public String getPartitionName() {
+        return partitionName;
+    }
+
     public String getSubject() {
         return consumeParam.getSubject();
     }
 
     public String getGroup() {
         return consumeParam.getConsumerGroup();
-    }
-
-    public String getOriginSubject() {
-        return consumeParam.getOriginSubject();
     }
 
     public BrokerGroupInfo getBrokerGroup() {
@@ -123,6 +125,7 @@ class PullParam {
     public static final class PullParamBuilder {
         private ConsumeParam consumeParam;
         private BrokerGroupInfo brokerGroup;
+        private String partitionName;
         private int pullBatchSize;
         private long timeoutMillis;
         private long requestTimeoutMillis;
@@ -131,7 +134,12 @@ class PullParam {
         private long maxPullOffset = -1;
 
         public PullParam create() {
-            return new PullParam(consumeParam, brokerGroup, pullBatchSize, timeoutMillis, requestTimeoutMillis, consumeOffset, minPullOffset, maxPullOffset);
+            return new PullParam(consumeParam, brokerGroup, partitionName, pullBatchSize, timeoutMillis, requestTimeoutMillis, consumeOffset, minPullOffset, maxPullOffset);
+        }
+
+        public PullParamBuilder setPartitionName(String partitionName) {
+            this.partitionName = partitionName;
+            return this;
         }
 
         public PullParamBuilder setConsumeParam(ConsumeParam consumeParam) {

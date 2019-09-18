@@ -21,15 +21,12 @@ import com.google.common.util.concurrent.AbstractFuture;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.ConsumeStrategy;
-import qunar.tc.qmq.PartitionProps;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.ClientMetaManager;
 import qunar.tc.qmq.config.PullSubjectsConfig;
 import qunar.tc.qmq.consumer.pull.exception.PullException;
 import qunar.tc.qmq.meta.ConsumerAllocation;
-import qunar.tc.qmq.meta.PartitionPropsUtils;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.netty.client.NettyClient;
 import qunar.tc.qmq.netty.client.ResponseFuture;
@@ -41,7 +38,6 @@ import qunar.tc.qmq.protocol.consumer.PullRequestV10;
 import qunar.tc.qmq.util.RemotingBuilder;
 import qunar.tc.qmq.utils.Flags;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
-import qunar.tc.qmq.utils.RetrySubjectUtils;
 
 import java.util.Collections;
 import java.util.Date;
@@ -76,7 +72,7 @@ class PullService {
     private void pull(final PullParam pullParam, final PullCallback callback) {
         String subject = pullParam.getSubject();
         ConsumerAllocation allocation = clientMetaManager.getConsumerAllocation(subject, pullParam.getGroup());
-        final PullRequest request = buildPullRequest(pullParam, allocation, pullParam.getBrokerGroup().getGroupName());
+        final PullRequest request = buildPullRequest(pullParam, allocation);
 
         Datagram datagram = RemotingBuilder.buildRequestDatagram(CommandCode.PULL_MESSAGE, new PullRequestPayloadHolder(request));
         long networkTripTimeout = pullParam.getRequestTimeoutMillis();
@@ -91,10 +87,9 @@ class PullService {
         }
     }
 
-    private PullRequest buildPullRequest(PullParam pullParam, ConsumerAllocation allocation, String brokerGroup) {
-        PartitionProps pp = PartitionPropsUtils.getPartitionPropsBrokerGroup(brokerGroup, allocation.getPartitionProps());
+    private PullRequest buildPullRequest(PullParam pullParam, ConsumerAllocation allocation) {
         return new PullRequestV10(
-                pp.getPartitionName(),
+                pullParam.getPartitionName(),
                 pullParam.getGroup(),
                 pullParam.getPullBatchSize(),
                 pullParam.getTimeoutMillis(),
@@ -128,26 +123,26 @@ class PullService {
             try {
                 doProcessResponse(responseFuture);
             } catch (Exception e) {
-                monitorPullError(request.getSubject(), request.getGroup());
+                monitorPullError(request.getPartitionName(), request.getGroup());
                 callback.onException(e);
             }
         }
 
         private void doProcessResponse(ResponseFuture responseFuture) {
-            monitorPullTime(request.getSubject(), request.getGroup(), responseFuture.getRequestCostTime());
+            monitorPullTime(request.getPartitionName(), request.getGroup(), responseFuture.getRequestCostTime());
             if (!responseFuture.isSendOk()) {
-                monitorPullError(request.getSubject(), request.getGroup());
+                monitorPullError(request.getPartitionName(), request.getGroup());
                 callback.onException(new PullException("send fail. opaque=" + responseFuture.getOpaque()));
                 return;
             }
 
             final Datagram response = responseFuture.getResponse();
             if (response == null) {
-                monitorPullError(request.getSubject(), request.getGroup());
+                monitorPullError(request.getPartitionName(), request.getGroup());
                 if (responseFuture.isTimeout()) {
-                    callback.onException(new TimeoutException("pull message " + request.getSubject() + " timeout response: opaque=" + responseFuture.getOpaque() + ". " + responseFuture));
+                    callback.onException(new TimeoutException("pull message " + request.getPartitionName() + " timeout response: opaque=" + responseFuture.getOpaque() + ". " + responseFuture));
                 } else {
-                    callback.onException(new PullException("pull message " + request.getSubject() + "no receive response: opaque=" + responseFuture.getOpaque() + ". " + responseFuture));
+                    callback.onException(new PullException("pull message " + request.getPartitionName() + "no receive response: opaque=" + responseFuture.getOpaque() + ". " + responseFuture));
                 }
                 return;
             }
@@ -164,14 +159,14 @@ class PullService {
             if (responseCode == CommandCode.NO_MESSAGE) {
                 callback.onCompleted(responseCode, Collections.<BaseMessage>emptyList());
             } else if (responseCode != CommandCode.SUCCESS) {
-                monitorPullError(request.getSubject(), request.getGroup());
+                monitorPullError(request.getPartitionName(), request.getGroup());
                 callback.onCompleted(responseCode, Collections.<BaseMessage>emptyList());
             } else {
                 List<BaseMessage> messages = deserializeBaseMessage(response.getBody());
                 if (messages == null) {
                     messages = Collections.emptyList();
                 }
-                monitorPullCount(request.getSubject(), request.getGroup(), messages.size());
+                monitorPullCount(request.getPartitionName(), request.getGroup(), messages.size());
                 for (BaseMessage message : messages) {
                     if (message.getMaxRetryNum() < 0) {
                         String subject = message.getSubject();
@@ -215,7 +210,7 @@ class PullService {
         }
 
         private void resolveRealMessageSubject(BaseMessage message) {
-            message.setSubject(request.getSubject());
+            message.setSubject(message.getStringProperty(BaseMessage.keys.qmq_subject));
         }
 
         private void readTags(ByteBuf input, BaseMessage message, byte flag) {

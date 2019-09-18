@@ -27,7 +27,7 @@ import qunar.tc.qmq.store.ConsumerGroupProgress;
 import qunar.tc.qmq.store.GroupAndSubject;
 import qunar.tc.qmq.store.PullLog;
 import qunar.tc.qmq.store.Storage;
-import qunar.tc.qmq.utils.RetrySubjectUtils;
+import qunar.tc.qmq.utils.RetryPartitionUtils;
 
 import java.util.Collection;
 import java.util.Map;
@@ -153,8 +153,8 @@ public class SubscriberStatusChecker implements ActorSystem.Processor<Subscriber
         return m.get(consumerId);
     }
 
-    public void addSubscriber(String subject, String group, String consumerId) {
-        final String groupAndSubject = GroupAndSubject.groupAndSubject(subject, group);
+    public void addSubscriber(String partitionName, String group, String consumerId) {
+        final String groupAndSubject = GroupAndSubject.groupAndSubject(partitionName, group);
         addSubscriber(groupAndSubject, consumerId);
     }
 
@@ -183,8 +183,8 @@ public class SubscriberStatusChecker implements ActorSystem.Processor<Subscriber
     }
 
     public void heartbeat(String consumerId, String subject, String group) {
-        final String partitionName = RetrySubjectUtils.getPartitionName(subject);
-        final String retryPartition = RetrySubjectUtils.buildRetryPartitionName(partitionName, group);
+        final String partitionName = RetryPartitionUtils.getRealPartitionName(subject);
+        final String retryPartition = RetryPartitionUtils.buildRetryPartitionName(partitionName, group);
 
         refreshSubscriber(partitionName, group, consumerId);
         refreshSubscriber(retryPartition, group, consumerId);

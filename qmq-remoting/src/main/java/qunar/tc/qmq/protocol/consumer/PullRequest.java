@@ -8,7 +8,7 @@ import java.util.List;
  */
 public interface PullRequest {
 
-    String getSubject();
+    String getPartitionName();
 
     String getGroup();
 

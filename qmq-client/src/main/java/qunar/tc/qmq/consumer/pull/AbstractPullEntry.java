@@ -123,14 +123,14 @@ abstract class AbstractPullEntry extends AbstractPullClient implements PullEntry
                 .setRequestTimeoutMillis(pullRequestTimeout.get())
                 .setMinPullOffset(ackSendInfo.getMinPullOffset())
                 .setMaxPullOffset(ackSendInfo.getMaxPullOffset())
+                .setPartitionName(getPartitionName())
                 .create();
     }
 
     private List<PulledMessage> handlePullResult(final PullParam pullParam, final PullResult pullResult, final AckHook ackHook) {
         if (pullResult.getResponseCode() == CommandCode.BROKER_REJECT) {
             pullResult.getBrokerGroup().setAvailable(false);
-            ConsumeParam consumeParam = pullParam.getConsumeParam();
-            brokerService.refresh(ClientType.CONSUMER, pullParam.getSubject(), pullParam.getGroup(), consumeParam.isBroadcast(), consumeParam.isOrdered());
+            brokerService.refresh(ClientType.CONSUMER, pullParam.getSubject(), pullParam.getGroup());
         }
 
         List<BaseMessage> messages = pullResult.getMessages();
