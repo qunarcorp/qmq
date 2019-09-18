@@ -10,6 +10,7 @@ import qunar.tc.qmq.broker.ClientMetaManager;
 import qunar.tc.qmq.common.ExclusiveConsumerLifecycleManager;
 import qunar.tc.qmq.common.OrderStrategy;
 import qunar.tc.qmq.common.OrderStrategyCache;
+import qunar.tc.qmq.common.StrictOrderStrategy;
 import qunar.tc.qmq.consumer.pull.PulledMessage;
 import qunar.tc.qmq.meta.ConsumerAllocation;
 
@@ -93,11 +94,13 @@ public class OrderedConsumeMessageExecutor extends AbstractConsumeMessageExecuto
                 ConsumeStrategy consumeStrategy = consumerAllocation.getConsumeStrategy();
                 MessageExecutionTask task = new MessageExecutionTask(message, messageHandler, getCreateToHandleTimer(), getHandleTimer(), getHandleFailCounter());
                 if (Objects.equals(ConsumeStrategy.EXCLUSIVE, consumeStrategy)) {
-                    // TODO(zhenwei.liu) 如果用户没有 ack, 且为严格有序, 则不能消费下一条
                     // 独占消费使用单线程逐个任务处理
                     boolean success = task.run();
                     if (!success) {
                         // 消息消费不成功, 根据顺序策略处理
+                        orderStrategy.onConsumeFailed(message, this);
+                    } else if (!task.isAcked() && Objects.equals(orderStrategy.name(), StrictOrderStrategy.NAME)) {
+                        // 严格有序消息如果没有 ACK 当做消费失败处理
                         orderStrategy.onConsumeFailed(message, this);
                     }
                 } else {

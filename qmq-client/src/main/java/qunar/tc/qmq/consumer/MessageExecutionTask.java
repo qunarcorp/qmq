@@ -28,6 +28,7 @@ public class MessageExecutionTask {
 
     private final PulledMessage message;
     private final MessageHandler handler;
+    private volatile boolean isAcked = false;
 
 
     public MessageExecutionTask(PulledMessage message, MessageHandler handler,
@@ -106,6 +107,11 @@ public class MessageExecutionTask {
 
             if (!success) return;
             handler.ack(message, System.currentTimeMillis() - start, exception, null);
+            isAcked = true;
         }
+    }
+
+    public boolean isAcked() {
+        return isAcked;
     }
 }
