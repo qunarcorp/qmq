@@ -2,7 +2,6 @@ package qunar.tc.qmq.consumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.AbstractConsumeMessageExecutor;
 import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.MessageListener;
 import qunar.tc.qmq.base.BaseMessage;

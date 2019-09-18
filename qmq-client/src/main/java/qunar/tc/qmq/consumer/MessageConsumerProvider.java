@@ -48,7 +48,6 @@ public class MessageConsumerProvider implements MessageConsumer {
 
     private final PullRegister pullRegister;
     private String appCode;
-    private int destroyWaitInSeconds;
 
     private int maxSubjectLen = 100;
     private int maxConsumerGroupLen = 100;
@@ -159,8 +158,12 @@ public class MessageConsumerProvider implements MessageConsumer {
         this.appCode = appCode;
     }
 
+    /**
+     * 不要删除这个方法兼容API
+     * @param destroyWaitInSeconds
+     */
     public void setDestroyWaitInSeconds(int destroyWaitInSeconds) {
-        this.destroyWaitInSeconds = destroyWaitInSeconds;
+
     }
 
     public void setAutoOnline(boolean autoOnline) {

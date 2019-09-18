@@ -1,6 +1,5 @@
-package qunar.tc.qmq;
+package qunar.tc.qmq.consumer;
 
-import qunar.tc.qmq.consumer.ConsumeMessageExecutor;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.QmqCounter;
 import qunar.tc.qmq.metrics.QmqTimer;
