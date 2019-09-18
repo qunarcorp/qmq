@@ -51,7 +51,7 @@ class PlainPullEntry extends AbstractPullEntry {
 
     PlainPullResult pull(final int fetchSize, final int pullTimeout, final List<Message> output) {
         if (!pullStrategy.needPull()) return PlainPullResult.NOMORE_MESSAGE;
-        BrokerClusterInfo brokerCluster = brokerService.getClusterBySubject(ClientType.CONSUMER, consumeParam.getSubject(), consumeParam.getConsumerGroup(), consumeParam.isBroadcast(), consumeParam.isOrdered());
+        BrokerClusterInfo brokerCluster = brokerService.getConsumerBrokerCluster(ClientType.CONSUMER, consumeParam.getSubject());
         List<BrokerGroupInfo> groups = brokerCluster.getGroups();
         if (groups.isEmpty()) {
             return PlainPullResult.NO_BROKER;

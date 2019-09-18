@@ -69,12 +69,4 @@ public interface PartitionService {
     List<ClientMetaInfo> getOnlineOrderedConsumers();
 
     List<ClientMetaInfo> getOnlineOrderedConsumers(String subject, String consumerGroup);
-
-    /**
-     * 根据给定开始时间计算过期时间
-     *
-     * @param startMills 开始时间
-     * @return 过期时间
-     */
-    long getExpiredMills(long startMills);
 }

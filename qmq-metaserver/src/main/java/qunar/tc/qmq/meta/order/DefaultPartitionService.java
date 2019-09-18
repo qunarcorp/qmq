@@ -22,7 +22,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static qunar.tc.qmq.common.PartitionConstants.EMPTY_VERSION;
-import static qunar.tc.qmq.common.PartitionConstants.ORDERED_CONSUMER_LOCK_LEASE_SECS;
+import static qunar.tc.qmq.common.PartitionConstants.EXCLUSIVE_CONSUMER_LOCK_LEASE_MILLS;
 
 /**
  * @author zhenwei.liu
@@ -142,7 +142,7 @@ public class DefaultPartitionService implements PartitionService {
      *
      * @param subject         主题
      * @param consumeStrategy Meta 分配的消费策略
-     * @param brokerGroups   broker groups
+     * @param brokerGroups    broker groups
      * @return 分配结果
      */
     @Override
@@ -151,7 +151,7 @@ public class DefaultPartitionService implements PartitionService {
         for (BrokerGroup brokerGroup : brokerGroups) {
             partitionProps.add(new PartitionProps(PartitionConstants.EMPTY_PARTITION_ID, subject, brokerGroup.getGroupName()));
         }
-        return new ConsumerAllocation(EMPTY_VERSION, partitionProps, getExpiredMills(System.currentTimeMillis()), consumeStrategy);
+        return new ConsumerAllocation(EMPTY_VERSION, partitionProps, expiredTimestamp(), consumeStrategy);
     }
 
     /**
@@ -176,7 +176,11 @@ public class DefaultPartitionService implements PartitionService {
         }
 
         int version = partitionAllocation.getVersion();
-        return new ConsumerAllocation(version, Lists.newArrayList(partitionProps), getExpiredMills(System.currentTimeMillis()), consumeStrategy);
+        return new ConsumerAllocation(version, Lists.newArrayList(partitionProps), expiredTimestamp(), consumeStrategy);
+    }
+
+    private long expiredTimestamp() {
+        return System.currentTimeMillis() + EXCLUSIVE_CONSUMER_LOCK_LEASE_MILLS;
     }
 
     @Override
@@ -280,19 +284,14 @@ public class DefaultPartitionService implements PartitionService {
 
     @Override
     public List<ClientMetaInfo> getOnlineOrderedConsumers() {
-        Date updateTime = new Date(System.currentTimeMillis() - ORDERED_CONSUMER_LOCK_LEASE_SECS * 1000);
+        Date updateTime = new Date(System.currentTimeMillis() - EXCLUSIVE_CONSUMER_LOCK_LEASE_MILLS);
         return clientMetaInfoStore.queryClientsUpdateAfterDate(ClientType.CONSUMER, OnOfflineState.ONLINE, updateTime);
     }
 
     @Override
     public List<ClientMetaInfo> getOnlineOrderedConsumers(String subject, String consumerGroup) {
-        Date updateTime = new Date(System.currentTimeMillis() - ORDERED_CONSUMER_LOCK_LEASE_SECS * 1000);
+        Date updateTime = new Date(System.currentTimeMillis() - EXCLUSIVE_CONSUMER_LOCK_LEASE_MILLS);
         return clientMetaInfoStore.queryClientsUpdateAfterDate(subject, consumerGroup, ClientType.CONSUMER, OnOfflineState.ONLINE, updateTime);
-    }
-
-    @Override
-    public long getExpiredMills(long startMills) {
-        return startMills + ORDERED_CONSUMER_LOCK_LEASE_SECS * 1000;
     }
 
     private String createPartitionName(Partition partition) {

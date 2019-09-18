@@ -3,6 +3,7 @@ package qunar.tc.qmq.consumer.pull;
 import qunar.tc.qmq.CompositePullClient;
 import qunar.tc.qmq.PullEntry;
 import qunar.tc.qmq.StatusSource;
+import qunar.tc.qmq.broker.BrokerService;
 
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -15,8 +16,8 @@ public class CompositePullEntry<T extends PullEntry> extends AbstractPullClient 
 
     private List<T> pullEntries;
 
-    public CompositePullEntry(String subject, String consumerGroup, int version, List<T> pullEntries) {
-        super(subject, consumerGroup, "", "", version);
+    public CompositePullEntry(String subject, String consumerGroup, int version, List<T> pullEntries, BrokerService brokerService) {
+        super(subject, consumerGroup, "", "", version, brokerService);
         this.pullEntries = pullEntries;
     }
 

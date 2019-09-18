@@ -71,7 +71,7 @@ class DelayMessageService {
     }
 
     private int send(BaseMessage message) {
-        BrokerClusterInfo brokerCluster = brokerService.getClusterBySubject(ClientType.DELAY_PRODUCER, message.getSubject());
+        BrokerClusterInfo brokerCluster = brokerService.getProducerBrokerCluster(ClientType.DELAY_PRODUCER, message.getSubject());
         List<BrokerGroupInfo> groups = brokerCluster.getGroups();
         if (groups == null || groups.isEmpty()) return NO_BROKER;
 

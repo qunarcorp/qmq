@@ -94,9 +94,9 @@ public class NettyClient extends AbstractNettyClient {
         }
     }
 
-    public ListenableFuture<Datagram> sendAsync(String brokerAddr, Datagram request, long responseTimeout) throws ClientSendException {
+    public ListenableFuture<Datagram> sendAsync(String brokerAddr, Datagram request, long responseTimeoutMills) throws ClientSendException {
         ResultFuture result = new ResultFuture(brokerAddr);
-        sendAsync(brokerAddr, request, responseTimeout, result);
+        sendAsync(brokerAddr, request, responseTimeoutMills, result);
         return result;
     }
 
@@ -128,9 +128,9 @@ public class NettyClient extends AbstractNettyClient {
         }
     }
 
-    public void sendAsync(String brokerAddr, Datagram request, long responseTimeout, ResponseFuture.Callback callback) throws ClientSendException {
+    public void sendAsync(String brokerAddr, Datagram request, long responseTimeoutMills, ResponseFuture.Callback callback) throws ClientSendException {
         final Channel channel = getOrCreateChannel(brokerAddr);
-        final ResponseFuture responseFuture = clientHandler.newResponse(channel, responseTimeout, callback);
+        final ResponseFuture responseFuture = clientHandler.newResponse(channel, responseTimeoutMills, callback);
         request.getHeader().setOpaque(responseFuture.getOpaque());
 
         try {

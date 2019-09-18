@@ -23,13 +23,17 @@ import qunar.tc.qmq.ClientType;
  */
 public interface BrokerService extends ClientMetaManager {
 
-    BrokerClusterInfo getClusterBySubject(ClientType clientType, String subject);
+    BrokerClusterInfo getProducerBrokerCluster(ClientType clientType, String subject);
 
-    BrokerClusterInfo getClusterBySubject(ClientType clientType, String subject, String group, boolean isBroadcast, boolean isOrdered);
+    BrokerClusterInfo getConsumerBrokerCluster(ClientType clientType, String subject);
+
+    BrokerClusterInfo getBrokerCluster(ClientType clientType, String subject, String group, boolean isBroadcast, boolean isOrdered);
 
     void refresh(ClientType clientType, String subject);
 
     void refresh(ClientType clientType, String subject, String consumerGroup);
+
+    void releaseLock(String brokerGroupName, String subject, String partitionName, String consumerGroup);
 
     String getAppCode();
 }

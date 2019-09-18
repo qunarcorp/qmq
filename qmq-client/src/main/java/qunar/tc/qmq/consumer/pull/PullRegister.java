@@ -207,7 +207,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         ConsumerAllocation retryConsumerAllocation = consumerAllocation.getRetryConsumerAllocation(consumerGroup);
         PullEntry retryPullEntry = updatePullEntry(entryKey, oldEntry, subject, consumerGroup, param, new WeightPullStrategy(), retryConsumerAllocation);
 
-        entry = new CompositePullEntry<>(subject, consumerGroup, version, Lists.newArrayList(pullEntry, retryPullEntry));
+        entry = new CompositePullEntry<>(subject, consumerGroup, version, Lists.newArrayList(pullEntry, retryPullEntry), brokerService);
 
         pullEntryMap.put(entryKey, entry);
         return entry;
@@ -246,7 +246,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
                 }, new CompositePullClientFactory<CompositePullEntry, PullEntry>() {
                     @Override
                     public CompositePullEntry createPullClient(String subject, String consumerGroup, int version, List<PullEntry> list) {
-                        return new CompositePullEntry(subject, consumerGroup, version, list);
+                        return new CompositePullEntry(subject, consumerGroup, version, list, brokerService);
                     }
                 });
 
@@ -407,7 +407,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
                 new CompositePullClientFactory() {
                     @Override
                     public CompositePullClient createPullClient(String subject, String consumerGroup, int version, List clientList) {
-                        return new CompositePullEntry(subject, consumerGroup, version, clientList);
+                        return new CompositePullEntry(subject, consumerGroup, version, clientList, brokerService);
                     }
                 });
         if (pullEntryMap.containsKey(key)) {

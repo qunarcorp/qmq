@@ -57,7 +57,7 @@ abstract class AbstractPullConsumer extends AbstractPullClient implements PullCo
             AckService ackService,
             BrokerService brokerService,
             SendMessageBack sendMessageBack) {
-        super(subject, consumerGroup, partitionName, brokerGroup, version);
+        super(subject, consumerGroup, partitionName, brokerGroup, version, brokerService);
         this.consumeParam = new ConsumeParam(subject, consumerGroup, isBroadcast, isOrdered, false, clientId);
         this.pullEntry = new PlainPullEntry(consumeParam, partitionName, brokerGroup, version, pullService, ackService, brokerService, new AlwaysPullStrategy(), sendMessageBack);
         this.retryPullEntry = new PlainPullEntry(consumeParam, RetryPartitionUtils.buildRetryPartitionName(subject, consumerGroup), brokerGroup, version, pullService, ackService, brokerService, new WeightPullStrategy(), sendMessageBack);
@@ -136,5 +136,12 @@ abstract class AbstractPullConsumer extends AbstractPullClient implements PullCo
     @Override
     public String getClientId() {
         return consumeParam.getConsumerId();
+    }
+
+    @Override
+    public void destroy() {
+        pullEntry.destroy();
+        retryPullEntry.destroy();
+        super.destroy();
     }
 }

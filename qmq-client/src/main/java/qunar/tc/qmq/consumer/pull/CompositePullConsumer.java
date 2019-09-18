@@ -9,6 +9,7 @@ import qunar.tc.qmq.CompositePullClient;
 import qunar.tc.qmq.Message;
 import qunar.tc.qmq.PullConsumer;
 import qunar.tc.qmq.StatusSource;
+import qunar.tc.qmq.broker.BrokerService;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -24,8 +25,8 @@ public class CompositePullConsumer<T extends PullConsumer> extends AbstractPullC
 
     private List<T> consumers;
 
-    public CompositePullConsumer(String subject, String consumerGroup, int version, List<T> consumers) {
-        super(subject, consumerGroup, "", "", version);
+    public CompositePullConsumer(String subject, String consumerGroup, int version, List<T> consumers, BrokerService brokerService) {
+        super(subject, consumerGroup, "", "", version, brokerService);
         this.consumers = consumers;
     }
 

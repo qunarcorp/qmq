@@ -16,15 +16,18 @@
 
 package qunar.tc.qmq.broker.impl;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
+import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ClientType;
+import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.PartitionProps;
 import qunar.tc.qmq.Versionable;
 import qunar.tc.qmq.base.ClientRequestType;
@@ -32,21 +35,31 @@ import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.broker.ClientMetaManager;
+import qunar.tc.qmq.codec.Serializer;
+import qunar.tc.qmq.codec.Serializers;
 import qunar.tc.qmq.common.ClientLifecycleManagerFactory;
 import qunar.tc.qmq.common.ExclusiveConsumerLifecycleManager;
 import qunar.tc.qmq.meta.*;
 import qunar.tc.qmq.metainfoclient.MetaInfo;
 import qunar.tc.qmq.metainfoclient.MetaInfoService;
+import qunar.tc.qmq.netty.client.NettyClient;
+import qunar.tc.qmq.netty.exception.ClientSendException;
+import qunar.tc.qmq.protocol.CommandCode;
 import qunar.tc.qmq.protocol.MetaInfoResponse;
+import qunar.tc.qmq.protocol.PayloadHolder;
 import qunar.tc.qmq.protocol.consumer.ConsumerMetaInfoResponse;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
+import qunar.tc.qmq.protocol.consumer.ReleasePullLockRequest;
 import qunar.tc.qmq.protocol.producer.ProducerMetaInfoResponse;
+import qunar.tc.qmq.util.RemotingBuilder;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 /**
@@ -60,6 +73,7 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
     private final ConcurrentMap<String, SettableFuture<BrokerClusterInfo>> clusterMap = new ConcurrentHashMap<>();
 
     private final MetaInfoService metaInfoService;
+    private final NettyClient nettyClient = NettyClient.getClient();
     private String appCode;
     private String clientId;
 
@@ -140,12 +154,24 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
     }
 
     @Override
-    public BrokerClusterInfo getClusterBySubject(ClientType clientType, String subject) {
-        return getClusterBySubject(clientType, subject, "", false, false);
+    public BrokerClusterInfo getProducerBrokerCluster(ClientType clientType, String subject) {
+        return getBrokerCluster(clientType, subject, "", false, false);
     }
 
     @Override
-    public BrokerClusterInfo getClusterBySubject(ClientType clientType, String subject, String consumerGroup, boolean isBroadcast, boolean isOrdered) {
+    public BrokerClusterInfo getConsumerBrokerCluster(ClientType clientType, String subject) {
+        String key = buildBrokerClusterKey(clientType, subject);
+        SettableFuture<BrokerClusterInfo> future = clusterMap.get(key);
+        Preconditions.checkNotNull(future, "broker 信息不存在 %s %s", clientType, subject);
+        try {
+            return future.get();
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public BrokerClusterInfo getBrokerCluster(ClientType clientType, String subject, String consumerGroup, boolean isBroadcast, boolean isOrdered) {
         // 这个key上加group不兼容MetaInfoResponse
         String key = buildBrokerClusterKey(clientType, subject);
         Future<BrokerClusterInfo> future = clusterMap.computeIfAbsent(key, k -> {
@@ -208,6 +234,28 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
     @Override
     public void refresh(ClientType clientType, String subject, String consumerGroup) {
         metaInfoService.request(clientType.getCode(), subject, consumerGroup);
+    }
+
+    @Override
+    public void releaseLock(String brokerGroupName, String subject, String partitionName, String consumerGroup) {
+        ConsumerAllocation consumerAllocation = getConsumerAllocation(subject, consumerGroup);
+        if (!Objects.equals(consumerAllocation.getConsumeStrategy(), ConsumeStrategy.EXCLUSIVE)) {
+            return;
+        }
+        BrokerClusterInfo brokerCluster = getConsumerBrokerCluster(ClientType.CONSUMER, subject);
+        BrokerGroupInfo brokerGroup = brokerCluster.getGroupByName(brokerGroupName);
+        ReleasePullLockRequest request = new ReleasePullLockRequest(partitionName, consumerGroup, clientId);
+        try {
+            nettyClient.sendAsync(brokerGroup.getMaster(), RemotingBuilder.buildRequestDatagram(CommandCode.RELEASE_PULL_LOCK, new PayloadHolder() {
+                @Override
+                public void writeBody(ByteBuf out) {
+                    Serializer<ReleasePullLockRequest> serializer = Serializers.getSerializer(ReleasePullLockRequest.class);
+                    serializer.serialize(request, out);
+                }
+            }), 3000);
+        } catch (ClientSendException e) {
+            LOGGER.error("release lock failed broker {} subject {} partition {} consumerGroup {}", brokerGroupName, subject, partitionName, consumerGroup, e);
+        }
     }
 
     @Override

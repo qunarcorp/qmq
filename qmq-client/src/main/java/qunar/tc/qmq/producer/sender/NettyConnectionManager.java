@@ -49,7 +49,7 @@ public class NettyConnectionManager implements ConnectionManager {
         String subject = messageGroup.getSubject();
         ClientType clientType = messageGroup.getClientType();
         String brokerGroup = messageGroup.getBrokerGroup();
-        BrokerClusterInfo cluster = brokerService.getClusterBySubject(clientType, subject);
+        BrokerClusterInfo cluster = brokerService.getProducerBrokerCluster(clientType, subject);
         connection = new NettyConnection(subject, clientType, client, brokerService, cluster.getGroupByName(brokerGroup));
         NettyConnection old = cached.putIfAbsent(messageGroup, connection);
         if (old == null) {

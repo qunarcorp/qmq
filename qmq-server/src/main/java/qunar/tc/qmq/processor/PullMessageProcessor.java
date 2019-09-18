@@ -34,7 +34,7 @@ import qunar.tc.qmq.concurrent.ActorSystem;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.consumer.SubscriberStatusChecker;
 import qunar.tc.qmq.monitor.QMon;
-import qunar.tc.qmq.order.OrderedMessageLockManager;
+import qunar.tc.qmq.order.ExclusiveMessageLockManager;
 import qunar.tc.qmq.protocol.CommandCode;
 import qunar.tc.qmq.protocol.Datagram;
 import qunar.tc.qmq.protocol.RemotingCommand;
@@ -80,17 +80,17 @@ public class PullMessageProcessor extends AbstractRequestProcessor implements Fi
     private final SubscriberStatusChecker subscriberStatusChecker;
     private final PullMessageWorker pullMessageWorker;
     private final PullRequestSerde pullRequestSerde;
-    private final OrderedMessageLockManager orderedMessageLockManager;
+    private final ExclusiveMessageLockManager exclusiveMessageLockManager;
 
     public PullMessageProcessor(final DynamicConfig config,
                                 final ActorSystem actorSystem,
                                 final MessageStoreWrapper messageStoreWrapper,
                                 final SubscriberStatusChecker subscriberStatusChecker,
-                                final OrderedMessageLockManager orderedMessageLockManager) {
+                                final ExclusiveMessageLockManager exclusiveMessageLockManager) {
         this.config = config;
         this.actorSystem = actorSystem;
         this.subscriberStatusChecker = subscriberStatusChecker;
-        this.orderedMessageLockManager = orderedMessageLockManager;
+        this.exclusiveMessageLockManager = exclusiveMessageLockManager;
         this.pullMessageWorker = new PullMessageWorker(messageStoreWrapper, actorSystem);
         this.pullRequestSerde = new PullRequestSerde();
         this.timer.start();
@@ -111,9 +111,11 @@ public class PullMessageProcessor extends AbstractRequestProcessor implements Fi
             String partitionName = pullRequest.getPartitionName();
             String group = pullRequest.getGroup();
             String consumerId = pullRequest.getConsumerId();
-            if (!orderedMessageLockManager.acquireLock(partitionName, group, consumerId, pullRequest.getConsumerAllocationVersion())) {
+            if (!exclusiveMessageLockManager.acquireLock(partitionName, group, consumerId)) {
                 // 获取锁失败
-                return CompletableFuture.completedFuture(crateEmptyResult(command));
+                CompletableFuture<Datagram> future = new CompletableFuture<>();
+                future.completeExceptionally(new UnsupportedOperationException(String.format("acquire lock failed %s %s", partitionName, group)));
+                return future;
             }
         }
 

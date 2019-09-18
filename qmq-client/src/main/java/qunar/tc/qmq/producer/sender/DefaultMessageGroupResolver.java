@@ -66,7 +66,7 @@ public class DefaultMessageGroupResolver implements MessageGroupResolver {
         String subject = message.getSubject();
         ClientType clientType = DelayUtil.isDelayMessage(message) ? ClientType.DELAY_PRODUCER : ClientType.PRODUCER;
         // best tried 策略当分区不可用时, 会使用另一个可用分区
-        BrokerClusterInfo brokerCluster = brokerService.getClusterBySubject(clientType, subject);
+        BrokerClusterInfo brokerCluster = brokerService.getProducerBrokerCluster(clientType, subject);
         List<BrokerGroupInfo> groups = brokerCluster.getGroups();
         int brokerGroupIdx = 0;
         String defaultBrokerGroup = messageGroup.getBrokerGroup();

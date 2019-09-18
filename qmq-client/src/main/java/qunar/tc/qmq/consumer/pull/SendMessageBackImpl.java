@@ -146,7 +146,7 @@ class SendMessageBackImpl implements SendMessageBack {
     }
 
     public void sendBackAndCompleteNack(final int nextRetryCount, final BaseMessage message, final AckEntry ackEntry) {
-        final BrokerClusterInfo brokerCluster = brokerService.getClusterBySubject(ClientType.PRODUCER, message.getSubject());
+        final BrokerClusterInfo brokerCluster = brokerService.getProducerBrokerCluster(ClientType.PRODUCER, message.getSubject());
         final SendMessageBack.Callback callback = new SendMessageBack.Callback() {
             private final int retryTooMuch = brokerCluster.getGroups().size() * 2;
             private final AtomicInteger retryNumOnFail = new AtomicInteger(0);
@@ -186,7 +186,7 @@ class SendMessageBackImpl implements SendMessageBack {
     }
 
     private void sendBackAndCompleteNack(final BaseMessage message, final SendMessageBack.Callback callback) {
-        final BrokerClusterInfo brokerCluster = brokerService.getClusterBySubject(ClientType.PRODUCER, message.getSubject());
+        final BrokerClusterInfo brokerCluster = brokerService.getProducerBrokerCluster(ClientType.PRODUCER, message.getSubject());
         final BrokerGroupInfo brokerGroup = brokerLoadBalance.loadBalance(brokerCluster.getGroups(), null);
         sendBack(brokerGroup, message, callback, ClientType.PRODUCER);
     }

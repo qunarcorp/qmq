@@ -57,9 +57,9 @@ class NettyClientHandler extends SimpleChannelInboundHandler<Datagram> {
         }, 3 * CLEAN_RESPONSE_TABLE_PERIOD_MILLIS, CLEAN_RESPONSE_TABLE_PERIOD_MILLIS, TimeUnit.MILLISECONDS);
     }
 
-    ResponseFuture newResponse(Channel channel, long timeout, ResponseFuture.Callback callback) throws ClientSendException {
+    ResponseFuture newResponse(Channel channel, long timeoutMills, ResponseFuture.Callback callback) throws ClientSendException {
         final int op = opaque.getAndIncrement();
-        ResponseFuture future = new ResponseFuture(op, timeout, callback);
+        ResponseFuture future = new ResponseFuture(op, timeoutMills, callback);
         ConcurrentMap<Integer, ResponseFuture> channelBuffer = requestsInFlight.get(channel);
         if (channelBuffer == null) {
             channelBuffer = new ConcurrentHashMap<>();

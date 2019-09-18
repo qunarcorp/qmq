@@ -313,7 +313,7 @@ class AckSendQueue implements TimerTask {
     }
 
     private BrokerGroupInfo getBrokerGroup() {
-        return brokerService.getClusterBySubject(ClientType.CONSUMER, subject, group, isBroadcast, isOrdered).getGroupByName(brokerGroupName);
+        return brokerService.getBrokerCluster(ClientType.CONSUMER, subject, group, isBroadcast, isOrdered).getGroupByName(brokerGroupName);
     }
 
     AckSendInfo getAckSendInfo() {
@@ -394,6 +394,7 @@ class AckSendQueue implements TimerTask {
     }
 
     public void destroy(long waitTimeMills) {
+        trySendAck(waitTimeMills);
         while (waitTimeMills > 0 && toSendNum.get() > 0) {
             try {
                 Thread.sleep(DESTROY_CHECK_WAIT_MILLIS);

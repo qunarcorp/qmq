@@ -61,7 +61,7 @@ abstract class AbstractPullEntry extends AbstractPullClient implements PullEntry
     private final QmqCounter pullFailCounter;
 
     AbstractPullEntry(String subject, String consumerGroup, String partitionName, String brokerGroup, int version, boolean isBroadcast, boolean isOrdered, PullService pullService, AckService ackService, BrokerService brokerService, SendMessageBack sendMessageBack) {
-        super(subject, consumerGroup, partitionName, brokerGroup, version);
+        super(subject, consumerGroup, partitionName, brokerGroup, version, brokerService);
         this.pullService = pullService;
         this.ackService = ackService;
         this.brokerService = brokerService;
@@ -198,6 +198,7 @@ abstract class AbstractPullEntry extends AbstractPullClient implements PullEntry
     @Override
     public void destroy() {
         this.ackSendQueue.destroy(TimeUnit.SECONDS.toMillis(5));
+        super.destroy();
     }
 
     @Override

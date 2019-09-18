@@ -32,6 +32,7 @@ import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.base.OnOfflineState;
 import qunar.tc.qmq.batch.Stateful;
+import qunar.tc.qmq.common.PartitionConstants;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.meta.MetaServerLocator;
 import qunar.tc.qmq.metrics.Metrics;
@@ -48,7 +49,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static qunar.tc.qmq.common.PartitionConstants.ORDERED_CLIENT_HEARTBEAT_INTERVAL_SECS;
+import static qunar.tc.qmq.common.PartitionConstants.EXCLUSIVE_CLIENT_HEARTBEAT_INTERVAL_MILLS;
+import static qunar.tc.qmq.common.PartitionConstants.EXCLUSIVE_CONSUMER_LOCK_LEASE_MILLS;
 import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_GROUP_ARRAY;
 
 /**
@@ -176,8 +178,8 @@ public class DefaultMetaInfoService implements MetaInfoService {
         this.metaInfoRequestExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("qmq-client-heartbeat-%s"));
         this.orderedMetaInfoRequestExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("qmq-client-heartbeat-order-%s"));
 
-        this.metaInfoRequestExecutor.scheduleAtFixedRate(() -> scheduleRequest(metaInfoRequests), REFRESH_INTERVAL_SECONDS, REFRESH_INTERVAL_SECONDS, TimeUnit.SECONDS);
-        this.orderedMetaInfoRequestExecutor.scheduleAtFixedRate(() -> scheduleRequest(orderedMetaInfoRequests), ORDERED_CLIENT_HEARTBEAT_INTERVAL_SECS, ORDERED_CLIENT_HEARTBEAT_INTERVAL_SECS, TimeUnit.SECONDS);
+        this.metaInfoRequestExecutor.scheduleAtFixedRate(() -> scheduleRequest(metaInfoRequests), 0, REFRESH_INTERVAL_SECONDS, TimeUnit.SECONDS);
+        this.orderedMetaInfoRequestExecutor.scheduleAtFixedRate(() -> scheduleRequest(orderedMetaInfoRequests), 0, EXCLUSIVE_CLIENT_HEARTBEAT_INTERVAL_MILLS, TimeUnit.MILLISECONDS);
     }
 
     public void registerResponseSubscriber(MetaInfoClient.ResponseSubscriber subscriber) {

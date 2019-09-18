@@ -218,7 +218,7 @@ class DefaultPullEntry extends AbstractPullEntry {
     }
 
     private BrokerClusterInfo getBrokerCluster() {
-        return brokerService.getClusterBySubject(ClientType.CONSUMER, consumeParam.getSubject(), consumeParam.getConsumerGroup(), consumeParam.isBroadcast(), consumeParam.isOrdered());
+        return brokerService.getConsumerBrokerCluster(ClientType.CONSUMER, consumeParam.getSubject());
     }
 
     private void doPull(DoPullParam param) {
