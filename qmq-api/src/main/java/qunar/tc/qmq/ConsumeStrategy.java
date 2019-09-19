@@ -10,6 +10,5 @@ public enum ConsumeStrategy {
 
     public static ConsumeStrategy getConsumerStrategy(boolean isBroadcast, boolean isOrdered) {
         return isBroadcast || isOrdered ? ConsumeStrategy.EXCLUSIVE : ConsumeStrategy.SHARED;
-
     }
 }

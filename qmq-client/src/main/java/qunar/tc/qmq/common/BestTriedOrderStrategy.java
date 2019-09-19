@@ -2,6 +2,7 @@ package qunar.tc.qmq.common;
 
 import qunar.tc.qmq.MessageGroup;
 import qunar.tc.qmq.ProduceMessage;
+import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.batch.SendMessageExecutor;
 import qunar.tc.qmq.consumer.ConsumeMessageExecutor;
 import qunar.tc.qmq.consumer.pull.PulledMessage;
@@ -15,8 +16,6 @@ import java.util.Objects;
  * @since 2019-09-10
  */
 public class BestTriedOrderStrategy extends AbstractOrderStrategy {
-
-    public static final String NAME = "BEST_TRIED";
 
     private MessageGroupResolver messageGroupResolver;
 
@@ -44,7 +43,17 @@ public class BestTriedOrderStrategy extends AbstractOrderStrategy {
     }
 
     @Override
+    public void onMessageNotAcked(PulledMessage message, ConsumeMessageExecutor executor) {
+
+    }
+
+    @Override
+    public boolean isDeadRetry(int nextRetryCount, BaseMessage message) {
+        return nextRetryCount > message.getMaxRetryNum();
+    }
+
+    @Override
     public String name() {
-        return NAME;
+        return BEST_TRIED;
     }
 }

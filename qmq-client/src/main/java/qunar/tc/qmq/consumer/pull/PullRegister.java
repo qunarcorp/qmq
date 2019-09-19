@@ -30,8 +30,9 @@ import qunar.tc.qmq.common.EnvProvider;
 import qunar.tc.qmq.common.ExclusiveConsumerLifecycleManager;
 import qunar.tc.qmq.common.OrderStrategyCache;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
+import qunar.tc.qmq.consumer.BaseMessageHandler;
 import qunar.tc.qmq.consumer.ConsumeMessageExecutor;
-import qunar.tc.qmq.consumer.OrderedConsumeMessageExecutor;
+import qunar.tc.qmq.consumer.ConsumeMessageExecutorFactory;
 import qunar.tc.qmq.consumer.exception.DuplicateListenerException;
 import qunar.tc.qmq.consumer.register.ConsumerRegister;
 import qunar.tc.qmq.consumer.register.RegistParam;
@@ -370,7 +371,16 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
     private PullEntry createDefaultPullEntry(String subject, String consumerGroup, String partitionName, String brokerGroup, ConsumeStrategy consumeStrategy, int allocationVersion, RegistParam param, PullStrategy pullStrategy) {
         ConsumeParam consumeParam = new ConsumeParam(subject, consumerGroup, param);
         ExclusiveConsumerLifecycleManager exclusiveConsumerLifecycleManager = ClientLifecycleManagerFactory.get();
-        ConsumeMessageExecutor consumeMessageExecutor = new OrderedConsumeMessageExecutor(subject, consumerGroup, partitionName, consumeStrategy, partitionExecutor, param.getExecutor(), param.getMessageListener(), exclusiveConsumerLifecycleManager, brokerService);
+        ConsumeMessageExecutor consumeMessageExecutor = ConsumeMessageExecutorFactory.createExecutor(
+                consumeStrategy,
+                subject,
+                consumerGroup,
+                partitionName,
+                partitionExecutor,
+                new BaseMessageHandler(param.getMessageListener()),
+                exclusiveConsumerLifecycleManager,
+                param.getExecutor()
+        );
         PullEntry pullEntry = new DefaultPullEntry(consumeMessageExecutor, consumeParam, partitionName, brokerGroup, consumeStrategy, allocationVersion, pullService, ackService, metaInfoService, brokerService, pullStrategy, sendMessageBack);
         pullEntry.startPull(partitionExecutor);
         return pullEntry;

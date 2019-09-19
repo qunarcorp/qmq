@@ -1,6 +1,7 @@
 package qunar.tc.qmq.common;
 
 import qunar.tc.qmq.ProduceMessage;
+import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.batch.SendMessageExecutor;
 import qunar.tc.qmq.consumer.ConsumeMessageExecutor;
 import qunar.tc.qmq.consumer.pull.PulledMessage;
@@ -15,6 +16,9 @@ import java.util.List;
  */
 public interface OrderStrategy {
 
+    String BEST_TRIED = "BEST_TRIED";
+    String STRICT = "STRICT";
+
     void onSendError(ProduceMessage message, QueueSender sender, SendMessageExecutor currentExecutor, Exception e);
 
     void onSendFailed(ProduceMessage pm, QueueSender sender, SendMessageExecutor currentExecutor, Exception e);
@@ -26,6 +30,10 @@ public interface OrderStrategy {
     void onSendFinished(List<ProduceMessage> sourceMessages, QueueSender sender, SendMessageExecutor currentExecutor);
 
     void onConsumeFailed(PulledMessage message, ConsumeMessageExecutor executor);
+
+    void onMessageNotAcked(PulledMessage message, ConsumeMessageExecutor executor);
+
+    boolean isDeadRetry(int nextRetryCount, BaseMessage message);
 
     String name();
 }

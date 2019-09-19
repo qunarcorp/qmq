@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @author zhenwei.liu
  * @since 2019-09-03
  */
-public class MessageExecutionTask {
+public class MessageConsumptionTask {
 
     private final AtomicInteger localRetries = new AtomicInteger(0);  // 本地重试次数
     private final AtomicBoolean handleFail = new AtomicBoolean(false);
@@ -31,8 +31,8 @@ public class MessageExecutionTask {
     private volatile boolean isAcked = false;
 
 
-    public MessageExecutionTask(PulledMessage message, MessageHandler handler,
-                                QmqTimer createToHandleTimer, QmqTimer handleTimer, QmqCounter handleFailCounter) {
+    public MessageConsumptionTask(PulledMessage message, MessageHandler handler,
+                                  QmqTimer createToHandleTimer, QmqTimer handleTimer, QmqCounter handleFailCounter) {
         this.message = message;
         this.handler = handler;
         this.createToHandleTimer = createToHandleTimer;
@@ -44,53 +44,45 @@ public class MessageExecutionTask {
         executor.execute(this::run);
     }
 
-    public boolean run() {
+    public void run() {
+        Throwable exception = null;
+        boolean hasRetried = false;
         long start = System.currentTimeMillis();
-        createToHandleTimer.update(start - message.getCreatedTime().getTime(), TimeUnit.MILLISECONDS);
+        final Map<String, Object> filterContext = new HashMap<>();
         try {
+            createToHandleTimer.update(start - message.getCreatedTime().getTime(), TimeUnit.MILLISECONDS);
             message.setProcessThread(Thread.currentThread());
-            final Map<String, Object> filterContext = new HashMap<>();
             message.localRetries(localRetries.get());
             message.filterContext(filterContext);
 
-            Throwable exception = null;
-            boolean success = false;
-            try {
-                if (!handler.preHandle(message, filterContext)) {
-                    return true;
-                }
-                handler.handle(message);
-                success = true;
-            } catch (NeedRetryException e) {
-                exception = e;
-                try {
-                    success = localRetry(e);
-                } catch (Throwable ex) {
-                    exception = ex;
-                }
-            } catch (Throwable e) {
-                exception = e;
-            } finally {
-                postHandle(success, start, exception, filterContext);
+            if (!handler.preHandle(message, filterContext)) {
+                return;
             }
-            return success;
+            handler.handle(message);
+        } catch (NeedRetryException e) {
+            exception = e;
+            try {
+                hasRetried = localRetry(e);
+            } catch (Throwable ex) {
+                exception = ex;
+            }
+        } catch (Throwable e) {
+            exception = e;
         } finally {
             handleTimer.update(System.currentTimeMillis() - start, TimeUnit.MILLISECONDS);
             if (handleFail.get()) {
                 handleFailCounter.inc();
             }
+            postHandle(hasRetried, start, exception, filterContext);
         }
     }
 
     private boolean localRetry(NeedRetryException e) {
         if (isRetryImmediately(e)) {
             TraceUtil.recordEvent("local_retry");
-            try {
-                message.localRetries(localRetries.incrementAndGet());
-                return this.run();
-            } catch (NeedRetryException ne) {
-                return localRetry(ne);
-            }
+            message.localRetries(localRetries.incrementAndGet());
+            this.run();
+            return true;
         }
         return false;
     }
@@ -100,12 +92,12 @@ public class MessageExecutionTask {
         return next - System.currentTimeMillis() <= 50;
     }
 
-    private void postHandle(boolean success, long start, Throwable exception, Map<String, Object> filterContext) {
+    private void postHandle(boolean hasRetried, long start, Throwable exception, Map<String, Object> filterContext) {
         handleFail.set(exception != null);
         if (message.isAutoAck() || exception != null) {
             handler.postHandle(message, exception, filterContext);
 
-            if (!success) return;
+            if (hasRetried) return;
             handler.ack(message, System.currentTimeMillis() - start, exception, null);
             isAcked = true;
         }

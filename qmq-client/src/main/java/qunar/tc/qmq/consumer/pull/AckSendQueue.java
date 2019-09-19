@@ -29,7 +29,6 @@ import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.common.OrderStrategy;
 import qunar.tc.qmq.common.OrderStrategyCache;
-import qunar.tc.qmq.common.StrictOrderStrategy;
 import qunar.tc.qmq.common.TimerUtil;
 import qunar.tc.qmq.config.PullSubjectsConfig;
 import qunar.tc.qmq.metrics.Metrics;
@@ -38,7 +37,6 @@ import qunar.tc.qmq.metrics.QmqMeter;
 import qunar.tc.qmq.utils.RetryPartitionUtils;
 
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -162,7 +160,7 @@ class AckSendQueue implements TimerTask {
 
     void sendBackAndCompleteNack(final int nextRetryCount, final BaseMessage message, final AckEntry ackEntry) {
         OrderStrategy orderStrategy = OrderStrategyCache.getStrategy(subject);
-        boolean isDeadRetryMessage = (nextRetryCount > message.getMaxRetryNum()) || Objects.equals(orderStrategy.name(), StrictOrderStrategy.NAME);
+        boolean isDeadRetryMessage = orderStrategy.isDeadRetry(nextRetryCount, message);
         final String partitionName = isDeadRetryMessage ? deadRetryPartitionName : retryPartitionName;
         if (deadRetryPartitionName.equals(partitionName)) {
             deadQueueCount.inc();
