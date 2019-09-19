@@ -138,7 +138,7 @@ public class DefaultPartitionService implements PartitionService {
     }
 
     /**
-     * 在还没有自动为 exclusive consumer 分配分区时, 默认返回用户设置的消费模式, 让大家进行抢占消费
+     * 在还没有自动为 exclusive consumer 分配分区时, 为所有 Consumer 返回所有的分区
      *
      * @param subject         主题
      * @param consumeStrategy Meta 分配的消费策略

@@ -2,22 +2,19 @@
 
 class SendMessageExecutor1 {
     Enum clientType
-    String subject
-    String partitionName
-    String brokerGroup
+    String subject#1
+    String partitionName#1
+    String brokerGroup#1
 }
 
 class SendMessageExecutor2 {
+    Enum clientType
+    String subject#1
+    String partitionName#2
+    String brokerGroup#2
 }
 
-class SendMessageExecutor3 {
-}
-
-OrderedQueueSender -up-> SendMessageExecutor1
-OrderedQueueSender -right-> SendMessageExecutor2
-OrderedQueueSender -right-> SendMessageExecutor3
-
-SendMessageExecutor1 -[hidden]down-> SendMessageExecutor2
-SendMessageExecutor2 -[hidden]down-> SendMessageExecutor3
+OrderedQueueSender -down-> SendMessageExecutor1
+OrderedQueueSender -down-> SendMessageExecutor2
 
 @enduml

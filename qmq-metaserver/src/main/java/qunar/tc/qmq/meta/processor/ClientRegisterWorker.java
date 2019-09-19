@@ -195,6 +195,8 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
                 ConsumerAllocation consumerAllocation = null;
                 if (Objects.equals(consumeStrategy, ConsumeStrategy.EXCLUSIVE)) {
                     // 独占消费客户端, 获取预分配的分配信息
+                    // TODO(zhenwei.liu) 将 Exclusive 属性存入 Client 状态表
+                    // TODO(zhenwei.liu) 第一次 Exclusive 获取分区时, 如果当时还没有分配, 则应该先生成分配, 并存入数据库
                     consumerAllocation = partitionService.getConsumerAllocation(subject, consumerGroup, consumeStrategy, clientId);
                 }
                 if (consumerAllocation == null) {

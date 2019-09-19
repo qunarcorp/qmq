@@ -1,0 +1,69 @@
+@startuml
+
+note left of CompositePullClient1: 对应 Subject + ConsumerGroup
+class CompositePullClient1 {
+    String subject#1
+    String consumerGroup#1
+}
+
+class CompositePullClient2 {
+    String subject#2
+    String consumerGroup#2
+}
+
+note left of CompositePullClient1$retry: 对应 \nSubject + ConsumerGroup + retry/normal
+class CompositePullClient1$retry {
+    String subject#1
+    String consumerGroup#1
+}
+
+class CompositePullClient1$normal {
+    String subject#2#retry
+    String consumerGroup#2
+}
+
+class PullClient1 {
+    String subject#1
+    String consumerGroup#1
+    String brokerGroup#1
+    String partitionName#1
+}
+
+class PullClient2 {
+    String subject#1
+    String consumerGroup#1
+    String brokerGroup#2
+    String partitionName#2
+}
+
+note left of PullClient1$retry: 对应 \nSubject + ConsumerGroup + retry + partition
+class PullClient1$retry {
+    String subject#1
+    String consumerGroup#1
+    String brokerGroup#1
+    String partitionName#1#retry
+}
+
+class PullClient2$retry {
+    String subject#1
+    String consumerGroup#1
+    String brokerGroup#2
+    String partitionName#2#retry
+}
+
+class PullRegister {
+}
+
+PullRegister -down-> CompositePullClient1
+PullRegister -down-> CompositePullClient2
+
+CompositePullClient1 -down-> CompositePullClient1$retry
+CompositePullClient1 -down-> CompositePullClient1$normal
+
+CompositePullClient1$retry -down-> PullClient1$retry
+CompositePullClient1$retry -down-> PullClient2$retry
+
+CompositePullClient1$normal -down-> PullClient1
+CompositePullClient1$normal -down-> PullClient2
+
+@enduml

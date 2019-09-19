@@ -37,21 +37,19 @@ public class OrderedConsumerHeartbeatHandler implements HeartbeatHandler {
 
         ConsumeStrategy consumerStrategy = ConsumeStrategy.getConsumerStrategy(request.isBroadcast(), request.isOrdered());
         if (Objects.equals(consumerStrategy, ConsumeStrategy.EXCLUSIVE) && clientType.isConsumer()) {
-            if (ClientRequestType.HEARTBEAT.getCode() == requestType || ClientRequestType.SWITCH_STATE.getCode() == requestType) {
-                // 更新在线状态
-                ClientMetaInfo clientMetaInfo = new ClientMetaInfo();
-                clientMetaInfo.setSubject(subject);
-                clientMetaInfo.setConsumerGroup(consumerGroup);
-                clientMetaInfo.setClientTypeCode(clientTypeCode);
-                clientMetaInfo.setClientId(request.getClientId());
-                clientMetaInfo.setOnlineStatus(request.getOnlineState());
+            // 更新在线状态
+            ClientMetaInfo clientMetaInfo = new ClientMetaInfo();
+            clientMetaInfo.setSubject(subject);
+            clientMetaInfo.setConsumerGroup(consumerGroup);
+            clientMetaInfo.setClientTypeCode(clientTypeCode);
+            clientMetaInfo.setClientId(request.getClientId());
+            clientMetaInfo.setOnlineStatus(request.getOnlineState());
 
-                clientMetaInfoStore.updateClientOnlineState(clientMetaInfo);
+            clientMetaInfoStore.updateClientOnlineState(clientMetaInfo);
 
-                if (ClientRequestType.SWITCH_STATE.getCode() == requestType) {
-                    // 触发重分配
-                    this.partitionAllocationTask.reallocation(subject, consumerGroup);
-                }
+            if (ClientRequestType.SWITCH_STATE.getCode() == requestType) {
+                // 触发重分配
+                this.partitionAllocationTask.reallocation(subject, consumerGroup);
             }
         }
     }
