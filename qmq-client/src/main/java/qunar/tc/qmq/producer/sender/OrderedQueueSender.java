@@ -62,6 +62,7 @@ public class OrderedQueueSender implements QueueSender, MessageProcessor {
         this.timer = Metrics.timer("qmq_client_producer_send_broker_time");
         this.maxQueueSize = configs.getMaxQueueSize();
         this.sendBatch = configs.getSendBatch();
+        // TODO(zhenwei.liu) executor 并发度设计
         this.executor = Executors.newCachedThreadPool(new NamedThreadFactory("batch-ordered-qmq-sender-task", true));
     }
 

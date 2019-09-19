@@ -1,0 +1,38 @@
+@startuml
+
+skinparam backgroundColor #EEEBDC
+
+skinparam defaultFontSize red
+skinparam defaultFontSize 15
+skinparam defaultFontName Aapex
+
+title 顺序消息架构
+
+component Broker1 [
+Broker#1
+
+order.book#1
+order.book#2
+]
+
+component Broker2 [
+Broker#2
+
+order.book#3
+order.book#4
+]
+
+[MessageProducer] <-up-> [MetaServer] : 心跳
+
+[MessageConsumer] <-up-> [MetaServer] : 心跳
+
+[MessageProducer] -down-> [Broker1] : 消息发送
+
+[MessageProducer] -down-> [Broker2] : 消息发送
+
+[MessageConsumer] <-down- [Broker1] : 消息拉取
+
+[MessageConsumer] <-down- [Broker2] : 消息拉取
+
+
+@enduml

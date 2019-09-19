@@ -58,6 +58,7 @@ import static qunar.tc.qmq.StatusSource.*;
  * @author yiqun.fan create on 17-8-17.
  */
 public class PullRegister implements ConsumerRegister, ConsumerStateChangedListener {
+
     private static final Logger LOG = LoggerFactory.getLogger(PullRegister.class);
 
     private volatile Boolean isOnline = false;

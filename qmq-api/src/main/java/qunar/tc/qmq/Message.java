@@ -160,15 +160,11 @@ public interface Message {
     void setDelayTime(long delayTime, TimeUnit timeUnit);
 
     /**
-     * 设置用于排序的key
-     * @param key
+     * 设置用于顺序消息分组的key, 相同的 key 的消息可保证顺序消费模式下, 按照发送顺序消费
+     * @param key key
      */
     void setOrderKey(String key);
 
-    /**
-     * 获取用于排序的key
-     * @return
-     */
     String getOrderKey();
 
     /**
