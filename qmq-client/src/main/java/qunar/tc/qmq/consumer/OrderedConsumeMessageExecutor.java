@@ -40,12 +40,14 @@ public class OrderedConsumeMessageExecutor extends AbstractConsumeMessageExecuto
     private final String subject;
     private final String consumerGroup;
     private final String partitionName;
+    private final ConsumeStrategy consumeStrategy;
     private volatile boolean stopped = false;
 
     public OrderedConsumeMessageExecutor(
             String subject,
             String consumerGroup,
             String partitionName,
+            ConsumeStrategy consumeStrategy,
             Executor partitionExecutor,
             Executor messageHandleExecutor,
             MessageListener messageListener,
@@ -56,6 +58,7 @@ public class OrderedConsumeMessageExecutor extends AbstractConsumeMessageExecuto
         this.partitionName = partitionName;
         this.subject = subject;
         this.consumerGroup = consumerGroup;
+        this.consumeStrategy = consumeStrategy;
         this.partitionExecutor = partitionExecutor;
         this.messageHandleExecutor = messageHandleExecutor;
         this.lifecycleManager = lifecycleManager;
@@ -89,8 +92,6 @@ public class OrderedConsumeMessageExecutor extends AbstractConsumeMessageExecuto
                     continue;
                 }
 
-                ConsumerAllocation consumerAllocation = clientMetaManager.getConsumerAllocation(subject, consumerGroup);
-                ConsumeStrategy consumeStrategy = consumerAllocation.getConsumeStrategy();
                 MessageExecutionTask task = new MessageExecutionTask(message, messageHandler, getCreateToHandleTimer(), getHandleTimer(), getHandleFailCounter());
                 if (Objects.equals(ConsumeStrategy.EXCLUSIVE, consumeStrategy)) {
                     // 独占消费使用单线程逐个任务处理

@@ -23,6 +23,7 @@ import io.netty.util.TimerTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ClientType;
+import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
@@ -62,7 +63,7 @@ class AckSendQueue implements TimerTask {
     private final AtomicBoolean stopped = new AtomicBoolean(false);
     private final String brokerGroupName;
     private final String subject;
-    private final String group;
+    private final String consumerGroup;
     private final boolean isBroadcast;
     private final boolean isOrdered;
 
@@ -71,6 +72,7 @@ class AckSendQueue implements TimerTask {
     private final String partitionName;
     private final String retryPartitionName;
     private final String deadRetryPartitionName;
+    private final ConsumeStrategy consumeStrategy;
 
     private final AtomicReference<Integer> pullBatchSize;
 
@@ -104,9 +106,10 @@ class AckSendQueue implements TimerTask {
 
     AckSendQueue(
             String subject,
-            String group,
+            String consumerGroup,
             String partitionName,
             String brokerGroupName,
+            ConsumeStrategy consumeStrategy,
             AckService ackService,
             BrokerService brokerService,
             SendMessageBack sendMessageBack,
@@ -115,7 +118,8 @@ class AckSendQueue implements TimerTask {
     ) {
         this.brokerGroupName = brokerGroupName;
         this.subject = subject;
-        this.group = group;
+        this.consumerGroup = consumerGroup;
+        this.consumeStrategy = consumeStrategy;
         this.ackService = ackService;
         this.brokerService = brokerService;
         this.sendMessageBack = sendMessageBack;
@@ -123,8 +127,8 @@ class AckSendQueue implements TimerTask {
         this.isOrdered = isOrdered;
 
         this.partitionName = RetryPartitionUtils.getRealPartitionName(partitionName);
-        this.retryPartitionName = RetryPartitionUtils.buildRetryPartitionName(partitionName, group);
-        this.deadRetryPartitionName = RetryPartitionUtils.buildDeadRetryPartitionName(partitionName, group);
+        this.retryPartitionName = RetryPartitionUtils.buildRetryPartitionName(partitionName, consumerGroup);
+        this.deadRetryPartitionName = RetryPartitionUtils.buildDeadRetryPartitionName(partitionName, consumerGroup);
         this.pullBatchSize = PullSubjectsConfig.get().getPullBatchSize(subject);
     }
 
@@ -134,7 +138,7 @@ class AckSendQueue implements TimerTask {
         updateLock.lock();
         try {
             if (lastAppendOffset != -1 && lastAppendOffset + 1 != batch.get(0).pullOffset()) {
-                LOGGER.warn("{}/{} append ack entry not continous. last: {}, new: {}", subject, group, lastAppendOffset, batch.get(0).pullOffset());
+                LOGGER.warn("{}/{} append ack entry not continous. last: {}, new: {}", subject, consumerGroup, lastAppendOffset, batch.get(0).pullOffset());
                 appendErrorCount.inc();
             }
 
@@ -163,7 +167,7 @@ class AckSendQueue implements TimerTask {
         if (deadRetryPartitionName.equals(partitionName)) {
             deadQueueCount.inc();
             LOGGER.warn("process message retry num {} >= {}, and dead retry. subject={}, group={}, msgId={}",
-                    nextRetryCount - 1, message.getMaxRetryNum(), this.subject, group, message.getMessageId());
+                    nextRetryCount - 1, message.getMaxRetryNum(), this.subject, consumerGroup, message.getMessageId());
         }
         message.setPartitionName(partitionName);
         sendMessageBack.sendBackAndCompleteNack(nextRetryCount, message, ackEntry);
@@ -268,16 +272,16 @@ class AckSendQueue implements TimerTask {
     private void doSendAck(final AckSendEntry sendEntry) {
         BrokerGroupInfo brokerGroup = getBrokerGroup();
         if (brokerGroup == null) {
-            LOGGER.debug("lost broker group: {}. subject={}, consumeGroup={}", brokerGroupName, subject, group);
+            LOGGER.debug("lost broker group: {}. subject={}, consumeGroup={}", brokerGroupName, subject, consumerGroup);
             inSending.set(false);
             return;
         }
 
-        ackService.sendAck(brokerGroup, subject, group, sendEntry, new AckService.SendAckCallback() {
+        ackService.sendAck(brokerGroup, subject, consumerGroup, consumeStrategy, sendEntry, new AckService.SendAckCallback() {
             @Override
             public void success() {
                 if (lastSendOkOffset != -1 && lastSendOkOffset + 1 != sendEntry.getPullOffsetBegin()) {
-                    LOGGER.warn("{}/{} ack send not continous. last={}, send={}", subject, group, lastSendOkOffset, sendEntry);
+                    LOGGER.warn("{}/{} ack send not continous. last={}, send={}", subject, consumerGroup, lastSendOkOffset, sendEntry);
                     sendErrorCount.inc();
                 }
                 lastSendOkOffset = sendEntry.getPullOffsetLast();
@@ -313,7 +317,7 @@ class AckSendQueue implements TimerTask {
     }
 
     private BrokerGroupInfo getBrokerGroup() {
-        return brokerService.getBrokerCluster(ClientType.CONSUMER, subject, group, isBroadcast, isOrdered).getGroupByName(brokerGroupName);
+        return brokerService.getBrokerCluster(ClientType.CONSUMER, subject, consumerGroup, isBroadcast, isOrdered).getGroupByName(brokerGroupName);
     }
 
     AckSendInfo getAckSendInfo() {
@@ -328,7 +332,7 @@ class AckSendQueue implements TimerTask {
     void init() {
         TimerUtil.newTimeout(this, ACK_INTERVAL_SECONDS, TimeUnit.SECONDS);
 
-        String[] values = new String[]{subject, group};
+        String[] values = new String[]{subject, consumerGroup};
         sendNumQps = Metrics.meter("qmq_pull_ack_sendnum_qps", SUBJECT_GROUP_ARRAY, values);
         appendErrorCount = Metrics.counter("qmq_pull_ack_appenderror_count", SUBJECT_GROUP_ARRAY, values);
         sendErrorCount = Metrics.counter("qmq_pull_ack_senderror_count", SUBJECT_GROUP_ARRAY, values);
@@ -359,8 +363,8 @@ class AckSendQueue implements TimerTask {
         return subject;
     }
 
-    public String getGroup() {
-        return group;
+    public String getConsumerGroup() {
+        return consumerGroup;
     }
 
     private static final AckSendEntry EMPTY_ACK = new AckSendEntry();
@@ -383,10 +387,10 @@ class AckSendQueue implements TimerTask {
             if (!trySendAck(ACK_TRY_SEND_TIMEOUT_MILLIS)) {
                 final BrokerGroupInfo brokerGroup = getBrokerGroup();
                 if (brokerGroup == null) {
-                    LOGGER.debug("lost broker group: {}. subject={}, consumeGroup={}", brokerGroupName, subject, group);
+                    LOGGER.debug("lost broker group: {}. subject={}, consumeGroup={}", brokerGroupName, subject, consumerGroup);
                     return;
                 }
-                ackService.sendAck(brokerGroup, subject, group, EMPTY_ACK, EMPTY_ACK_CALLBACK);
+                ackService.sendAck(brokerGroup, subject, consumerGroup, consumeStrategy, EMPTY_ACK, EMPTY_ACK_CALLBACK);
             }
         } finally {
             TimerUtil.newTimeout(this, ACK_INTERVAL_SECONDS, TimeUnit.SECONDS);

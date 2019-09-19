@@ -19,6 +19,7 @@ package qunar.tc.qmq.consumer.pull;
 import com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.Message;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.config.PullSubjectsConfig;
@@ -56,6 +57,7 @@ class DefaultPullConsumer extends AbstractPullConsumer {
             String consumerGroup,
             String partitionName,
             String brokerGroup,
+            ConsumeStrategy consumeStrategy,
             int version,
             boolean isBroadcast,
             boolean isOrdered,
@@ -64,7 +66,7 @@ class DefaultPullConsumer extends AbstractPullConsumer {
             AckService ackService,
             BrokerService brokerService,
             SendMessageBack sendMessageBack) {
-        super(subject, consumerGroup, partitionName, brokerGroup, version, isBroadcast, isOrdered, clientId, pullService, ackService, brokerService, sendMessageBack);
+        super(subject, consumerGroup, partitionName, brokerGroup, consumeStrategy, version, isBroadcast, isOrdered, clientId, pullService, ackService, brokerService, sendMessageBack);
         this.preFetchSize = PullSubjectsConfig.get().getPullBatchSize(subject).get();
         this.lowWaterMark = Math.round(preFetchSize * 0.2F);
     }

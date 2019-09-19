@@ -140,34 +140,32 @@ class DefaultAckService implements AckService {
         GET_PULL_OFFSET_ERROR.inc();
     }
 
-    public void sendAck(BrokerGroupInfo brokerGroup, String subject, String group, AckSendEntry ack, SendAckCallback callback) {
-        AckRequest request = buildAckRequest(subject, group, ack);
+    public void sendAck(BrokerGroupInfo brokerGroup, String subject, String consumerGroup, ConsumeStrategy consumeStrategy, AckSendEntry ack, SendAckCallback callback) {
+        AckRequest request = buildAckRequest(subject, consumerGroup, consumeStrategy, ack);
         Datagram datagram = RemotingBuilder.buildRequestDatagram(CommandCode.ACK_REQUEST, new AckRequestPayloadHolder(request));
-        sendRequest(brokerGroup, subject, group, request, datagram, callback);
+        sendRequest(brokerGroup, subject, consumerGroup, request, datagram, callback);
     }
 
-    private AckRequest buildAckRequest(String subject, String group, AckSendEntry ack) {
-        ConsumerAllocation consumerAllocation = brokerService.getConsumerAllocation(subject, group);
-        boolean isExclusiveConsume = ack.isBroadcast() || Objects.equals(consumerAllocation.getConsumeStrategy(), ConsumeStrategy.EXCLUSIVE);
+    private AckRequest buildAckRequest(String subject, String consumerGroup, ConsumeStrategy consumeStrategy, AckSendEntry ack) {
         return new AckRequest(
                 subject,
-                group,
+                consumerGroup,
                 clientId,
                 ack.getPullOffsetBegin(),
                 ack.getPullOffsetLast(),
-                (byte) (isExclusiveConsume ? 1 : 0)
+                (byte) (Objects.equals(consumeStrategy, ConsumeStrategy.EXCLUSIVE) ? 1 : 0)
         );
     }
 
-    private void sendRequest(BrokerGroupInfo brokerGroup, String subject, String group, AckRequest request, Datagram datagram, SendAckCallback callback) {
+    private void sendRequest(BrokerGroupInfo brokerGroup, String subject, String consumerGroup, AckRequest request, Datagram datagram, SendAckCallback callback) {
         try {
             client.sendAsync(brokerGroup.getMaster(), datagram, ACK_REQUEST_TIMEOUT_MILLIS, new AckResponseCallback(request, callback, brokerService));
         } catch (ClientSendException e) {
             ClientSendException.SendErrorCode errorCode = e.getSendErrorCode();
-            monitorAckError(subject, group, errorCode.ordinal());
+            monitorAckError(subject, consumerGroup, errorCode.ordinal());
             callback.fail(e);
         } catch (Exception e) {
-            monitorAckError(subject, group, -1);
+            monitorAckError(subject, consumerGroup, -1);
             callback.fail(e);
         }
     }

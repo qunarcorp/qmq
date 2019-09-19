@@ -16,6 +16,10 @@ public interface PullClient {
 
     String getBrokerGroup();
 
+    ConsumeStrategy getConsumeStrategy();
+
+    void setConsumeStrategy(ConsumeStrategy consumeStrategy);
+
     int getVersion();
 
     void setVersion(int version);

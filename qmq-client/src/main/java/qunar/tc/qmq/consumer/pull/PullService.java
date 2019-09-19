@@ -21,6 +21,7 @@ import com.google.common.util.concurrent.AbstractFuture;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.ClientMetaManager;
@@ -71,8 +72,7 @@ class PullService {
 
     private void pull(final PullParam pullParam, final PullCallback callback) {
         String subject = pullParam.getSubject();
-        ConsumerAllocation allocation = clientMetaManager.getConsumerAllocation(subject, pullParam.getGroup());
-        final PullRequest request = buildPullRequest(pullParam, allocation);
+        final PullRequest request = buildPullRequest(pullParam);
 
         Datagram datagram = RemotingBuilder.buildRequestDatagram(CommandCode.PULL_MESSAGE, new PullRequestPayloadHolder(request));
         long networkTripTimeout = pullParam.getRequestTimeoutMillis();
@@ -87,7 +87,7 @@ class PullService {
         }
     }
 
-    private PullRequest buildPullRequest(PullParam pullParam, ConsumerAllocation allocation) {
+    private PullRequest buildPullRequest(PullParam pullParam) {
         return new PullRequestV10(
                 pullParam.getPartitionName(),
                 pullParam.getGroup(),
@@ -97,9 +97,9 @@ class PullService {
                 pullParam.getMinPullOffset(),
                 pullParam.getMaxPullOffset(),
                 pullParam.getConsumerId(),
-                allocation.getConsumeStrategy(),
+                pullParam.getConsumeStrategy(),
                 pullParam.getFilters(),
-                allocation.getVersion()
+                pullParam.getAllocationVersion()
         );
     }
 

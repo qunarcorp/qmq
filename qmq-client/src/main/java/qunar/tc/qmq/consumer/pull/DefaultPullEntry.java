@@ -19,6 +19,7 @@ package qunar.tc.qmq.consumer.pull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ClientType;
+import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.StatusSource;
 import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
@@ -83,7 +84,7 @@ class DefaultPullEntry extends AbstractPullEntry {
     private final ConsumeParam consumeParam;
 
     private DefaultPullEntry() {
-        super("", "", "", "", -1, false, false, null, null, null, null);
+        super("", "", "", "", null,-1, false, false, null, null, null, null);
         consumeMessageExecutor = null;
         pullBatchSize = pullTimeout = ackNosendLimit = null;
         pullRunCounter = null;
@@ -96,6 +97,7 @@ class DefaultPullEntry extends AbstractPullEntry {
                      ConsumeParam consumeParam,
                      String partitionName,
                      String brokerGroup,
+                     ConsumeStrategy consumeStrategy,
                      int version,
                      PullService pullService,
                      AckService ackService,
@@ -103,7 +105,7 @@ class DefaultPullEntry extends AbstractPullEntry {
                      BrokerService brokerService,
                      PullStrategy pullStrategy,
                      SendMessageBack sendMessageBack) {
-        super(consumeParam.getSubject(), consumeParam.getConsumerGroup(), partitionName, brokerGroup, version, consumeParam.isBroadcast(), consumeParam.isOrdered(), pullService, ackService, brokerService, sendMessageBack);
+        super(consumeParam.getSubject(), consumeParam.getConsumerGroup(), partitionName, brokerGroup, consumeStrategy, version, consumeParam.isBroadcast(), consumeParam.isOrdered(), pullService, ackService, brokerService, sendMessageBack);
         this.consumeParam = consumeParam;
         String subject = consumeParam.getSubject();
         String consumerGroup = consumeParam.getConsumerGroup();

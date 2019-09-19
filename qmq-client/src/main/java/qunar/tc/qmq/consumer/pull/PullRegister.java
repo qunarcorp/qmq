@@ -239,8 +239,8 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
                 oldEntry,
                 new PullClientFactory<PullEntry>() {
                     @Override
-                    public PullEntry createPullClient(String subject, String consumerGroup, String partitionName, String brokerGroup, int version, PullStrategy pullStrategy) {
-                        return createDefaultPullEntry(subject, consumerGroup, partitionName, brokerGroup, version, param, pullStrategy);
+                    public PullEntry createPullClient(String subject, String consumerGroup, String partitionName, String brokerGroup, ConsumeStrategy consumeStrategy, int version, PullStrategy pullStrategy) {
+                        return createDefaultPullEntry(subject, consumerGroup, partitionName, brokerGroup, consumeStrategy, version, param, pullStrategy);
                     }
                 }, new CompositePullClientFactory<CompositePullEntry, PullEntry>() {
                     @Override
@@ -275,7 +275,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
     }
 
     private interface PullClientFactory<T extends PullClient> {
-        T createPullClient(String subject, String consumerGroup, String partitionName, String brokerGroup, int version, PullStrategy pullStrategy);
+        T createPullClient(String subject, String consumerGroup, String partitionName, String brokerGroup, ConsumeStrategy consumeStrategy, int version, PullStrategy pullStrategy);
     }
 
     private interface CompositePullClientFactory<T extends CompositePullClient, E extends PullClient> {
@@ -297,6 +297,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         List<PullClient> stalePullClients = Lists.newArrayList(); // 需要关闭的分区
 
         int newVersion = consumerAllocation.getVersion();
+        ConsumeStrategy newConsumeStrategy = consumerAllocation.getConsumeStrategy();
         int oldVersion = oldClient.getVersion();
         if (oldVersion < newVersion) {
             // 更新
@@ -312,6 +313,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
                 if (newPartitionNames.contains(oldPartitionName)) {
                     // 获取可复用 entry
                     oldPullClient.setVersion(newVersion);
+                    oldPullClient.setConsumeStrategy(newConsumeStrategy);
                     reusePullClients.add(oldPullClient);
                 } else {
                     // 获取需要关闭的 entry
@@ -323,7 +325,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
                 String partitionName = partitionProps.getPartitionName();
                 String brokerGroup = partitionProps.getBrokerGroup();
                 if (!oldPartitionNames.contains(partitionName)) {
-                    PullClient newPullClient = pullClientFactory.createPullClient(subject, consumerGroup, partitionName, brokerGroup, newVersion, pullStrategy);
+                    PullClient newPullClient = pullClientFactory.createPullClient(subject, consumerGroup, partitionName, brokerGroup, newConsumeStrategy, newVersion, pullStrategy);
                     newPullClients.add(newPullClient);
                 }
             }
@@ -354,21 +356,22 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
     ) {
         List<PartitionProps> partitionProps = consumerAllocation.getPartitionProps();
         List<PullClient> clientList = Lists.newArrayList();
+        ConsumeStrategy consumeStrategy = consumerAllocation.getConsumeStrategy();
         int version = consumerAllocation.getVersion();
         for (PartitionProps partitionProp : partitionProps) {
             String partitionName = partitionProp.getPartitionName();
             String brokerGroup = partitionProp.getBrokerGroup();
-            PullClient newDefaultClient = pullClientFactory.createPullClient(subject, consumerGroup, partitionName, brokerGroup, version, pullStrategy);
+            PullClient newDefaultClient = pullClientFactory.createPullClient(subject, consumerGroup, partitionName, brokerGroup, consumeStrategy, version, pullStrategy);
             clientList.add(newDefaultClient);
         }
         return compositePullClientFactory.createPullClient(subject, consumerGroup, version, clientList);
     }
 
-    private PullEntry createDefaultPullEntry(String subject, String consumerGroup, String partitionName, String brokerGroup, int allocationVersion, RegistParam param, PullStrategy pullStrategy) {
+    private PullEntry createDefaultPullEntry(String subject, String consumerGroup, String partitionName, String brokerGroup, ConsumeStrategy consumeStrategy, int allocationVersion, RegistParam param, PullStrategy pullStrategy) {
         ConsumeParam consumeParam = new ConsumeParam(subject, consumerGroup, param);
         ExclusiveConsumerLifecycleManager exclusiveConsumerLifecycleManager = ClientLifecycleManagerFactory.get();
-        ConsumeMessageExecutor consumeMessageExecutor = new OrderedConsumeMessageExecutor(subject, consumerGroup, partitionName, partitionExecutor, param.getExecutor(), param.getMessageListener(), exclusiveConsumerLifecycleManager, brokerService);
-        PullEntry pullEntry = new DefaultPullEntry(consumeMessageExecutor, consumeParam, partitionName, brokerGroup, allocationVersion, pullService, ackService, metaInfoService, brokerService, pullStrategy, sendMessageBack);
+        ConsumeMessageExecutor consumeMessageExecutor = new OrderedConsumeMessageExecutor(subject, consumerGroup, partitionName, consumeStrategy, partitionExecutor, param.getExecutor(), param.getMessageListener(), exclusiveConsumerLifecycleManager, brokerService);
+        PullEntry pullEntry = new DefaultPullEntry(consumeMessageExecutor, consumeParam, partitionName, brokerGroup, consumeStrategy, allocationVersion, pullService, ackService, metaInfoService, brokerService, pullStrategy, sendMessageBack);
         pullEntry.startPull(partitionExecutor);
         return pullEntry;
     }
@@ -385,12 +388,13 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
                 oldConsumer,
                 new PullClientFactory() {
                     @Override
-                    public PullClient createPullClient(String subject, String consumerGroup, String partitionName, String brokerGroup, int version, PullStrategy pullStrategy) {
+                    public PullClient createPullClient(String subject, String consumerGroup, String partitionName, String brokerGroup, ConsumeStrategy consumeStrategy, int version, PullStrategy pullStrategy) {
                         DefaultPullConsumer pullConsumer = new DefaultPullConsumer(
                                 subject,
                                 consumerGroup,
                                 partitionName,
                                 brokerGroup,
+                                consumeStrategy,
                                 version,
                                 isBroadcast,
                                 isOrdered,

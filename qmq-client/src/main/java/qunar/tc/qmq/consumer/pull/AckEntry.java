@@ -78,8 +78,8 @@ public class AckEntry {
                 ackSendQueue.sendBackAndCompleteNack(nextRetryCount, message, this);
                 return;
             } catch (Exception e) {
-                LOGGER.warn("nack exception. subject={}, group={}", ackSendQueue.getSubject(), ackSendQueue.getGroup(), e);
-                Metrics.counter("qmq_pull_sendNack_error", SUBJECT_GROUP_ARRAY, new String[]{message.getSubject(), ackSendQueue.getGroup()}).inc();
+                LOGGER.warn("nack exception. subject={}, group={}", ackSendQueue.getSubject(), ackSendQueue.getConsumerGroup(), e);
+                Metrics.counter("qmq_pull_sendNack_error", SUBJECT_GROUP_ARRAY, new String[]{message.getSubject(), ackSendQueue.getConsumerGroup()}).inc();
             }
         }
     }
@@ -88,15 +88,15 @@ public class AckEntry {
         if (!completing.compareAndSet(false, true)) return;
 
         try {
-            if (delayMessageService.sendDelayMessage(nextRetryCount, nextRetryTime, message, ackSendQueue.getGroup())) {
+            if (delayMessageService.sendDelayMessage(nextRetryCount, nextRetryTime, message, ackSendQueue.getConsumerGroup())) {
                 completed();
                 LOGGER.info("send delay message: " + message.getMessageId());
                 return;
             }
-            Metrics.counter("qmq_pull_sendAckDelay_error", SUBJECT_GROUP_ARRAY, new String[]{message.getSubject(), ackSendQueue.getGroup()}).inc();
+            Metrics.counter("qmq_pull_sendAckDelay_error", SUBJECT_GROUP_ARRAY, new String[]{message.getSubject(), ackSendQueue.getConsumerGroup()}).inc();
         } catch (Exception e) {
             LOGGER.error("发送延迟消息失败，改成发送nack. subject={}, messageId={}", message.getSubject(), message.getMessageId(), e);
-            Metrics.counter("qmq_pull_sendAckDelay_error", SUBJECT_GROUP_ARRAY, new String[]{message.getSubject(), ackSendQueue.getGroup()}).inc();
+            Metrics.counter("qmq_pull_sendAckDelay_error", SUBJECT_GROUP_ARRAY, new String[]{message.getSubject(), ackSendQueue.getConsumerGroup()}).inc();
         }
 
 

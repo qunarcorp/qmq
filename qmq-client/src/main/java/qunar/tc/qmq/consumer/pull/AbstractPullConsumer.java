@@ -19,6 +19,7 @@ package qunar.tc.qmq.consumer.pull;
 import com.google.common.util.concurrent.ListenableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.Message;
 import qunar.tc.qmq.PullConsumer;
 import qunar.tc.qmq.StatusSource;
@@ -49,6 +50,7 @@ abstract class AbstractPullConsumer extends AbstractPullClient implements PullCo
             String consumerGroup,
             String partitionName,
             String brokerGroup,
+            ConsumeStrategy consumeStrategy,
             int version,
             boolean isBroadcast,
             boolean isOrdered,
@@ -57,10 +59,30 @@ abstract class AbstractPullConsumer extends AbstractPullClient implements PullCo
             AckService ackService,
             BrokerService brokerService,
             SendMessageBack sendMessageBack) {
-        super(subject, consumerGroup, partitionName, brokerGroup, version, brokerService);
+        super(subject, consumerGroup, partitionName, brokerGroup, consumeStrategy, version, brokerService);
         this.consumeParam = new ConsumeParam(subject, consumerGroup, isBroadcast, isOrdered, false, clientId);
-        this.pullEntry = new PlainPullEntry(consumeParam, partitionName, brokerGroup, version, pullService, ackService, brokerService, new AlwaysPullStrategy(), sendMessageBack);
-        this.retryPullEntry = new PlainPullEntry(consumeParam, RetryPartitionUtils.buildRetryPartitionName(subject, consumerGroup), brokerGroup, version, pullService, ackService, brokerService, new WeightPullStrategy(), sendMessageBack);
+        this.pullEntry = new PlainPullEntry(
+                consumeParam,
+                partitionName,
+                brokerGroup,
+                consumeStrategy,
+                version,
+                pullService,
+                ackService,
+                brokerService,
+                new AlwaysPullStrategy(),
+                sendMessageBack);
+        this.retryPullEntry = new PlainPullEntry(
+                consumeParam,
+                RetryPartitionUtils.buildRetryPartitionName(subject, consumerGroup),
+                brokerGroup,
+                consumeStrategy,
+                version,
+                pullService,
+                ackService,
+                brokerService,
+                new WeightPullStrategy(),
+                sendMessageBack);
     }
 
     private static long checkAndGetTimeout(long timeout) {

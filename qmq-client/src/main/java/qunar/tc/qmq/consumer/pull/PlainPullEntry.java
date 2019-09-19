@@ -17,6 +17,7 @@
 package qunar.tc.qmq.consumer.pull;
 
 import qunar.tc.qmq.ClientType;
+import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.Message;
 import qunar.tc.qmq.StatusSource;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
@@ -38,13 +39,14 @@ class PlainPullEntry extends AbstractPullEntry {
             ConsumeParam consumeParam,
             String partitionName,
             String brokerGroup,
+            ConsumeStrategy consumeStrategy,
             int allocationVersion,
             PullService pullService,
             AckService ackService,
             BrokerService brokerService,
             PullStrategy pullStrategy,
             SendMessageBack sendMessageBack) {
-        super(consumeParam.getSubject(), consumeParam.getConsumerGroup(), partitionName, brokerGroup, allocationVersion, consumeParam.isBroadcast(), consumeParam.isOrdered(), pullService, ackService, brokerService, sendMessageBack);
+        super(consumeParam.getSubject(), consumeParam.getConsumerGroup(), partitionName, brokerGroup, consumeStrategy, allocationVersion, consumeParam.isBroadcast(), consumeParam.isOrdered(), pullService, ackService, brokerService, sendMessageBack);
         this.consumeParam = consumeParam;
         this.pullStrategy = pullStrategy;
     }

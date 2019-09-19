@@ -1,5 +1,6 @@
 package qunar.tc.qmq.consumer.pull;
 
+import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.PullClient;
 import qunar.tc.qmq.broker.BrokerService;
 
@@ -13,14 +14,16 @@ public abstract class AbstractPullClient implements PullClient {
     private String consumerGroup;
     private String partitionName;
     private String brokerGroup;
+    private ConsumeStrategy consumeStrategy;
     private int version;
     private BrokerService brokerService;
 
-    public AbstractPullClient(String subject, String consumerGroup, String partitionName, String brokerGroup, int version, BrokerService brokerService) {
+    public AbstractPullClient(String subject, String consumerGroup, String partitionName, String brokerGroup, ConsumeStrategy consumeStrategy, int version, BrokerService brokerService) {
         this.subject = subject;
         this.consumerGroup = consumerGroup;
         this.partitionName = partitionName;
         this.brokerGroup = brokerGroup;
+        this.consumeStrategy = consumeStrategy;
         this.version = version;
         this.brokerService = brokerService;
     }
@@ -56,7 +59,17 @@ public abstract class AbstractPullClient implements PullClient {
     }
 
     @Override
+    public ConsumeStrategy getConsumeStrategy() {
+        return consumeStrategy;
+    }
+
+    @Override
+    public void setConsumeStrategy(ConsumeStrategy consumeStrategy) {
+        this.consumeStrategy = consumeStrategy;
+    }
+
+    @Override
     public void destroy() {
-        brokerService.releaseLock(brokerGroup, subject, partitionName, consumerGroup);
+        brokerService.releaseLock(subject, consumerGroup, partitionName, brokerGroup, consumeStrategy);
     }
 }

@@ -11,6 +11,4 @@ import qunar.tc.qmq.meta.ProducerAllocation;
 public interface ClientMetaManager {
 
     ProducerAllocation getProducerAllocation(ClientType clientType, String subject);
-
-    ConsumerAllocation getConsumerAllocation(String subject, String consumerGroup);
 }

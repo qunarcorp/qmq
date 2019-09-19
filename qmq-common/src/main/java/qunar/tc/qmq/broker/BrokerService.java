@@ -17,6 +17,7 @@
 package qunar.tc.qmq.broker;
 
 import qunar.tc.qmq.ClientType;
+import qunar.tc.qmq.ConsumeStrategy;
 
 /**
  * @author yiqun.fan create on 17-8-18.
@@ -33,7 +34,7 @@ public interface BrokerService extends ClientMetaManager {
 
     void refresh(ClientType clientType, String subject, String consumerGroup);
 
-    void releaseLock(String brokerGroupName, String subject, String partitionName, String consumerGroup);
+    void releaseLock(String subject, String consumerGroup, String partitionName, String brokerGroupName, ConsumeStrategy consumeStrategy);
 
     String getAppCode();
 }

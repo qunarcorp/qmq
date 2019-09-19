@@ -237,9 +237,8 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
     }
 
     @Override
-    public void releaseLock(String brokerGroupName, String subject, String partitionName, String consumerGroup) {
-        ConsumerAllocation consumerAllocation = getConsumerAllocation(subject, consumerGroup);
-        if (!Objects.equals(consumerAllocation.getConsumeStrategy(), ConsumeStrategy.EXCLUSIVE)) {
+    public void releaseLock(String subject, String consumerGroup, String partitionName, String brokerGroupName, ConsumeStrategy consumeStrategy) {
+        if (!Objects.equals(consumeStrategy, ConsumeStrategy.EXCLUSIVE)) {
             return;
         }
         BrokerClusterInfo brokerCluster = getConsumerBrokerCluster(ClientType.CONSUMER, subject);
@@ -380,7 +379,6 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
         }
     }
 
-    @Override
     public ConsumerAllocation getConsumerAllocation(String subject, String consumerGroup) {
         String key = createConsumerAllocationKey(subject, consumerGroup, clientId);
         SettableFuture<ConsumerAllocation> future = consumerAllocationMap.computeIfAbsent(key, k -> SettableFuture.create());

@@ -20,6 +20,7 @@ import com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ClientType;
+import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.PullEntry;
 import qunar.tc.qmq.StatusSource;
 import qunar.tc.qmq.base.BaseMessage;
@@ -60,14 +61,14 @@ abstract class AbstractPullEntry extends AbstractPullClient implements PullEntry
     private final QmqCounter pullWorkCounter;
     private final QmqCounter pullFailCounter;
 
-    AbstractPullEntry(String subject, String consumerGroup, String partitionName, String brokerGroup, int version, boolean isBroadcast, boolean isOrdered, PullService pullService, AckService ackService, BrokerService brokerService, SendMessageBack sendMessageBack) {
-        super(subject, consumerGroup, partitionName, brokerGroup, version, brokerService);
+    AbstractPullEntry(String subject, String consumerGroup, String partitionName, String brokerGroup, ConsumeStrategy consumeStrategy, int version, boolean isBroadcast, boolean isOrdered, PullService pullService, AckService ackService, BrokerService brokerService, SendMessageBack sendMessageBack) {
+        super(subject, consumerGroup, partitionName, brokerGroup, consumeStrategy, version, brokerService);
         this.pullService = pullService;
         this.ackService = ackService;
         this.brokerService = brokerService;
         this.loadBalance = new WeightLoadBalance();
 
-        AckSendQueue queue = new AckSendQueue(subject, consumerGroup, partitionName, brokerGroup, ackService, this.brokerService, sendMessageBack, isBroadcast, isOrdered);
+        AckSendQueue queue = new AckSendQueue(subject, consumerGroup, partitionName, brokerGroup, consumeStrategy, ackService, this.brokerService, sendMessageBack, isBroadcast, isOrdered);
         queue.init();
         this.ackSendQueue = queue;
 
@@ -131,6 +132,8 @@ abstract class AbstractPullEntry extends AbstractPullClient implements PullEntry
                 .setMinPullOffset(ackSendInfo.getMinPullOffset())
                 .setMaxPullOffset(ackSendInfo.getMaxPullOffset())
                 .setPartitionName(getPartitionName())
+                .setConsumeStrategy(getConsumeStrategy())
+                .setAllocationVersion(getVersion())
                 .create();
     }
 
