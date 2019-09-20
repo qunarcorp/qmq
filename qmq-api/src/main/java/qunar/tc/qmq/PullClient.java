@@ -33,6 +33,8 @@ public interface PullClient {
 
     void startPull(ExecutorService executor);
 
+    void stopPull();
+
     void destroy();
 
     void online(StatusSource statusSource);

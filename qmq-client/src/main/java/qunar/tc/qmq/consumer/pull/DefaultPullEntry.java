@@ -157,9 +157,9 @@ class DefaultPullEntry extends AbstractPullEntry {
         super.offline(src);
     }
 
-    public void destroy() {
+    @Override
+    public void stopPull() {
         isRunning.set(false);
-        super.destroy();
     }
 
     @Override

@@ -200,8 +200,8 @@ abstract class AbstractPullEntry extends AbstractPullClient implements PullEntry
 
     @Override
     public void destroy() {
-        this.ackSendQueue.destroy(TimeUnit.SECONDS.toMillis(5));
         super.destroy();
+        this.ackSendQueue.destroy(TimeUnit.SECONDS.toMillis(5));
     }
 
     @Override

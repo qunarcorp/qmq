@@ -1,6 +1,7 @@
 package qunar.tc.qmq.consumer.pull;
 
 import qunar.tc.qmq.CompositePullClient;
+import qunar.tc.qmq.PullClient;
 import qunar.tc.qmq.PullEntry;
 import qunar.tc.qmq.StatusSource;
 import qunar.tc.qmq.broker.BrokerService;
@@ -34,6 +35,11 @@ public class CompositePullEntry<T extends PullEntry> extends AbstractPullClient 
     @Override
     public void startPull(ExecutorService executor) {
         pullEntries.forEach(pe -> startPull(executor));
+    }
+
+    @Override
+    public void stopPull() {
+        pullEntries.forEach(PullClient::stopPull);
     }
 
     @Override

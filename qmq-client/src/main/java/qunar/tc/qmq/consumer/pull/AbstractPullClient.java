@@ -83,6 +83,7 @@ public abstract class AbstractPullClient implements PullClient {
 
     @Override
     public void destroy() {
+        stopPull();
         brokerService.releaseLock(subject, consumerGroup, partitionName, brokerGroup, consumeStrategy);
     }
 }

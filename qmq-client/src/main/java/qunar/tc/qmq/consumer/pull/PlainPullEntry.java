@@ -72,6 +72,11 @@ class PlainPullEntry extends AbstractPullEntry {
     }
 
     @Override
+    public void stopPull() {
+
+    }
+
+    @Override
     public void destroy() {
         super.destroy();
     }

@@ -210,6 +210,11 @@ class DefaultPullConsumer extends AbstractPullConsumer {
     }
 
     @Override
+    public void stopPull() {
+
+    }
+
+    @Override
     public void destroy() {
         close();
         super.destroy();
