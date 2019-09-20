@@ -22,7 +22,6 @@ import com.google.common.util.concurrent.SettableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.*;
-import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.broker.impl.BrokerServiceImpl;
 import qunar.tc.qmq.common.EnvProvider;
@@ -41,7 +40,6 @@ import qunar.tc.qmq.metainfoclient.MetaInfoClient;
 import qunar.tc.qmq.producer.sender.DefaultMessageGroupResolver;
 import qunar.tc.qmq.protocol.MetaInfoResponse;
 import qunar.tc.qmq.protocol.consumer.ConsumerMetaInfoResponse;
-import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
 import qunar.tc.qmq.protocol.consumer.SubEnvIsolationPullFilter;
 
 import java.util.*;
@@ -103,17 +101,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
     @Override
     public synchronized Future<PullEntry> registerPullEntry(String subject, String consumerGroup, RegistParam param) {
         SettableFuture<PullEntry> future = SettableFuture.create();
-        MetaInfoRequest request = new MetaInfoRequest(
-                subject,
-                consumerGroup,
-                ClientType.CONSUMER.getCode(),
-                appCode,
-                clientId,
-                ClientRequestType.ONLINE,
-                param.isBroadcast(),
-                param.isOrdered()
-        );
-        metaInfoService.request(request);
+        metaInfoService.registerHeartbeat(appCode, ClientType.CONSUMER.getCode(), subject, consumerGroup, param.isBroadcast(), param.isOrdered());
         metaInfoService.registerResponseSubscriber(new PullEntryUpdater(param, future));
         return future;
     }
@@ -121,17 +109,14 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
     @Override
     public Future<PullConsumer> registerPullConsumer(String subject, String consumerGroup, boolean isBroadcast, boolean isOrdered) {
         SettableFuture<PullConsumer> future = SettableFuture.create();
-        MetaInfoRequest request = new MetaInfoRequest(
+        metaInfoService.registerHeartbeat(
+                appCode,
+                ClientType.CONSUMER.getCode(),
                 subject,
                 consumerGroup,
-                ClientType.CONSUMER.getCode(),
-                appCode,
-                clientId,
-                ClientRequestType.ONLINE,
                 isBroadcast,
                 isOrdered
         );
-        metaInfoService.request(request);
         metaInfoService.registerResponseSubscriber(new PullConsumerUpdater(isBroadcast, isOrdered, future));
         return future;
     }
@@ -303,7 +288,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         int oldVersion = oldClient.getVersion();
         if (oldVersion < newVersion) {
             // 更新
-            List<PartitionProps> newPartitionProps = consumerAllocation.getPartitionProps();
+            Collection<PartitionProps> newPartitionProps = consumerAllocation.getPartitionProps();
             List<PullClient> oldPullClients = oldClient.getComponents();
             Set<String> newPartitionNames = newPartitionProps.stream()
                     .map(PartitionProps::getPartitionName)
@@ -357,7 +342,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
             PullClientFactory pullClientFactory,
             CompositePullClientFactory compositePullClientFactory
     ) {
-        List<PartitionProps> partitionProps = consumerAllocation.getPartitionProps();
+        Collection<PartitionProps> partitionProps = consumerAllocation.getPartitionProps();
         List<PullClient> clientList = Lists.newArrayList();
         ConsumeStrategy consumeStrategy = consumerAllocation.getConsumeStrategy();
         long expired = consumerAllocation.getExpired();

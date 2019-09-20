@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.PartitionAllocation;
 import qunar.tc.qmq.meta.PartitionSet;
+import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 import qunar.tc.qmq.meta.model.ClientMetaInfo;
 
 import java.util.*;
@@ -27,7 +28,13 @@ public class PartitionAllocationTask {
             new ThreadFactoryBuilder().setNameFormat("partition-allocation-thread-%s").build()
     );
 
-    private PartitionService partitionService = DefaultPartitionService.getInstance();
+    private PartitionService partitionService;
+    private CachedMetaInfoManager cachedMetaInfoManager;
+
+    public PartitionAllocationTask(PartitionService partitionService, CachedMetaInfoManager cachedMetaInfoManager) {
+        this.partitionService = partitionService;
+        this.cachedMetaInfoManager = cachedMetaInfoManager;
+    }
 
     public void start() {
         executor.scheduleWithFixedDelay(() -> {
@@ -41,7 +48,8 @@ public class PartitionAllocationTask {
 
     private void updatePartitionAllocation() {
         // 当前 client 在线列表
-        List<ClientMetaInfo> onlineConsumers = partitionService.getOnlineOrderedConsumers();
+        List<ClientMetaInfo> onlineConsumers = partitionService.getOnlineExclusiveConsumers();
+
         // 当前分配情况
         Map<String, List<ClientMetaInfo>> onlineConsumerMap = Maps.newHashMap();
 
@@ -60,17 +68,17 @@ public class PartitionAllocationTask {
     }
 
     public void reallocation(String subject, String consumerGroup) {
-        List<ClientMetaInfo> onlineConsumers = partitionService.getOnlineOrderedConsumers(subject, consumerGroup);
+        List<ClientMetaInfo> onlineConsumers = partitionService.getOnlineExclusiveConsumers(subject, consumerGroup);
         reallocation(subject, consumerGroup, onlineConsumers);
     }
 
     public void reallocation(String subject, String consumerGroup, List<ClientMetaInfo> groupOnlineConsumers) {
         Set<String> groupOnlineConsumerIds = groupOnlineConsumers.stream().map(ClientMetaInfo::getClientId).collect(Collectors.toSet());
 
-        PartitionAllocation allocation = partitionService.getActivatedPartitionAllocation(subject, consumerGroup);
+        PartitionAllocation allocation = cachedMetaInfoManager.getPartitionAllocation(subject, consumerGroup);
         if (allocation != null) {
             PartitionAllocation.AllocationDetail allocationDetail = allocation.getAllocationDetail();
-            Set<String> allocationClientIds = allocationDetail.getClientId2SubjectLocation().keySet();
+            Set<String> allocationClientIds = allocationDetail.getClientId2PartitionProps().keySet();
 
             if (!Objects.equals(allocationClientIds, groupOnlineConsumerIds)) {
                 // 如果当前在线列表与当前分配情况发生变更, 触发重分配
@@ -94,7 +102,7 @@ public class PartitionAllocationTask {
             // TODO(zhenwei.liu) 重分配成功后给 client 发个拉取通知?
             logger.info("分区重分配成功 subject {} group {} oldVersion {} detail {}",
                     subject, consumerGroup, oldVersion,
-                    Arrays.toString(newAllocation.getAllocationDetail().getClientId2SubjectLocation().entrySet().toArray()));
+                    Arrays.toString(newAllocation.getAllocationDetail().getClientId2PartitionProps().entrySet().toArray()));
         } else {
             logger.warn("分区重分配失败 subject {} group {} oldVersion {}",
                     subject, consumerGroup, oldVersion);

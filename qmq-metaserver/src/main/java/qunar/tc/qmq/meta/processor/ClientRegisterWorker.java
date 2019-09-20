@@ -32,8 +32,7 @@ import qunar.tc.qmq.event.EventDispatcher;
 import qunar.tc.qmq.meta.*;
 import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 import qunar.tc.qmq.meta.cache.CachedOfflineStateManager;
-import qunar.tc.qmq.meta.order.DefaultPartitionService;
-import qunar.tc.qmq.meta.order.PartitionService;
+import qunar.tc.qmq.meta.order.AllocationService;
 import qunar.tc.qmq.meta.route.SubjectRouter;
 import qunar.tc.qmq.meta.store.Store;
 import qunar.tc.qmq.meta.utils.ClientLogUtils;
@@ -46,7 +45,6 @@ import qunar.tc.qmq.utils.SubjectUtils;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -61,15 +59,15 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
     private final Store store;
     private final CachedOfflineStateManager offlineStateManager;
     private final CachedMetaInfoManager cachedMetaInfoManager;
-    private final PartitionService partitionService;
+    private final AllocationService allocationService;
 
-    ClientRegisterWorker(final SubjectRouter subjectRouter, final CachedOfflineStateManager offlineStateManager, final Store store, CachedMetaInfoManager cachedMetaInfoManager) {
+    ClientRegisterWorker(final SubjectRouter subjectRouter, final CachedOfflineStateManager offlineStateManager, final Store store, CachedMetaInfoManager cachedMetaInfoManager, AllocationService allocationService) {
         this.subjectRouter = subjectRouter;
         this.cachedMetaInfoManager = cachedMetaInfoManager;
+        this.allocationService = allocationService;
         this.actorSystem = new ActorSystem("qmq_meta");
         this.offlineStateManager = offlineStateManager;
         this.store = store;
-        this.partitionService = DefaultPartitionService.getInstance();
 
         VersionableComponentManager.registerComponent(BrokerFilter.class, Range.closedOpen(Integer.MIN_VALUE, (int) RemotingHeader.VERSION_10), new DefaultBrokerFilter(cachedMetaInfoManager));
         VersionableComponentManager.registerComponent(BrokerFilter.class, Range.closedOpen((int) RemotingHeader.VERSION_10, Integer.MAX_VALUE), new BrokerFilterV10());
@@ -183,26 +181,15 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
             int clientTypeCode = request.getClientTypeCode();
             if (clientType.isProducer()) {
                 // 从数据库缓存中获取分区信息
-                ProducerAllocation producerAllocation = cachedMetaInfoManager.getProducerAllocation(clientType, subject);
-                if (producerAllocation == null) {
-                    // 没有分区信息, 自动根据 subject-broker 信息创建一个临时的虚拟分区
-                    producerAllocation = partitionService.getDefaultProducerAllocation(subject, brokerCluster.getBrokerGroups());
-                }
+                ProducerAllocation producerAllocation = allocationService.getProducerAllocation(clientType, subject, brokerCluster.getBrokerGroups());
                 return new ProducerMetaInfoResponse(updateTime, subject, consumerGroup, clientState, clientTypeCode, brokerCluster, producerAllocation);
             } else if (clientType.isConsumer()) {
                 String clientId = request.getClientId();
                 ConsumeStrategy consumeStrategy = ConsumeStrategy.getConsumerStrategy(request.isBroadcast(), request.isOrdered());
                 ConsumerAllocation consumerAllocation = null;
-                if (Objects.equals(consumeStrategy, ConsumeStrategy.EXCLUSIVE)) {
-                    // 独占消费客户端, 获取预分配的分配信息
-                    // TODO(zhenwei.liu) 将 Exclusive 属性存入 Client 状态表
-                    // TODO(zhenwei.liu) 第一次 Exclusive 获取分区时, 如果当时还没有分配, 则应该先生成分配, 并存入数据库
-                    consumerAllocation = partitionService.getConsumerAllocation(subject, consumerGroup, consumeStrategy, clientId);
-                }
-                if (consumerAllocation == null) {
-                    // 如果此时没有分配, 则先用默认的
-                    consumerAllocation = partitionService.getDefaultConsumerAllocation(subject, consumeStrategy, brokerCluster.getBrokerGroups());
-                }
+                // TODO(zhenwei.liu) 1. 定时和主动通知相结合, 定时是主动通知的补偿机制, 所以不需要实时性, 即拉取最新的分区信息主要靠 meta server 下发, 所以心跳拉取只需要从换粗即可
+                // TODO(zhenwei.liu) 2. Exclusive 心跳使用 batch 更新机制, 减少对数据库的压力
+                consumerAllocation = allocationService.getConsumerAllocation(subject, consumerGroup, clientId, consumeStrategy, brokerCluster.getBrokerGroups());
                 return new ConsumerMetaInfoResponse(updateTime, subject, consumerGroup, clientState, clientTypeCode, brokerCluster, consumerAllocation);
             }
             throw new UnsupportedOperationException("客户端类型不匹配");

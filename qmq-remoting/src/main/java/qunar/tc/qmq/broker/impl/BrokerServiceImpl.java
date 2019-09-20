@@ -172,16 +172,14 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
         // 这个key上加group不兼容MetaInfoResponse
         String key = buildBrokerClusterKey(clientType, subject);
         Future<BrokerClusterInfo> future = clusterMap.computeIfAbsent(key, k -> {
-            MetaInfoRequest request = new MetaInfoRequest(
+            ListenableFuture<MetaInfoResponse> responseFuture = metaInfoService.registerHeartbeat(
+                    appCode,
+                    clientType.getCode(),
                     subject,
                     consumerGroup,
-                    clientType.getCode(),
-                    appCode,
-                    clientId,
-                    ClientRequestType.ONLINE,
                     isBroadcast,
-                    isOrdered);
-            ListenableFuture<MetaInfoResponse> responseFuture = metaInfoService.request(request);
+                    isOrdered
+            );
             Futures.addCallback(responseFuture, new FutureCallback<MetaInfoResponse>() {
                 @Override
                 public void onSuccess(MetaInfoResponse response) {
@@ -228,7 +226,7 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
 
     @Override
     public void refresh(ClientType clientType, String subject, String consumerGroup) {
-        metaInfoService.request(clientType.getCode(), subject, consumerGroup);
+        metaInfoService.triggerHeartbeat(clientType.getCode(), subject, consumerGroup);
     }
 
     @Override

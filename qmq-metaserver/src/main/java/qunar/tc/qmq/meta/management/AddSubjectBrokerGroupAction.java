@@ -68,7 +68,7 @@ public class AddSubjectBrokerGroupAction implements MetaManagementAction {
         final Set<String> brokerGroups = Sets.newHashSet(oldRoute.getBrokerGroups());
         brokerGroups.add(brokerGroup);
         final int affectedRows = store.updateSubjectRoute(subject, oldRoute.getVersion(), new ArrayList<>(brokerGroups));
-        cacheManager.executeRefreshTask();
+        cacheManager.refresh();
 
         if (affectedRows == 1) {
             return store.selectSubjectRoute(subject);

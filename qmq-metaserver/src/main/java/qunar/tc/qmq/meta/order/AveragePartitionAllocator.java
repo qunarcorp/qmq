@@ -38,7 +38,7 @@ public class AveragePartitionAllocator implements PartitionAllocator {
         }
 
         PartitionAllocation.AllocationDetail allocationDetail = new PartitionAllocation.AllocationDetail();
-        allocationDetail.setClientId2SubjectLocation(clientId2SubjectLocations);
+        allocationDetail.setClientId2PartitionProps(clientId2SubjectLocations);
 
         PartitionAllocation partitionAllocation = new PartitionAllocation();
         partitionAllocation.setSubject(partitionSet.getSubject());

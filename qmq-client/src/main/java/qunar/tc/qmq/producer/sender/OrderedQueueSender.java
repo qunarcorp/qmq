@@ -14,7 +14,6 @@ import qunar.tc.qmq.batch.OrderedSendMessageExecutor;
 import qunar.tc.qmq.batch.SendMessageExecutor;
 import qunar.tc.qmq.common.OrderStrategy;
 import qunar.tc.qmq.common.OrderStrategyCache;
-import qunar.tc.qmq.common.OrderStrategyManager;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.MetricsConstants;
@@ -28,7 +27,10 @@ import qunar.tc.qmq.service.exceptions.MessageException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 消息发送队列管理器, 每个队列由一个 MessageGroup 代表
@@ -43,7 +45,7 @@ public class OrderedQueueSender implements QueueSender, MessageProcessor {
 
     private final ExecutorService executor; // 所有分区共享一个线程池
 
-    private final int maxQueueSize;
+    private final LinkedBlockingQueue<ProduceMessage> queue;
     private final int sendBatch;
 
     private final QmqTimer timer;
@@ -60,26 +62,39 @@ public class OrderedQueueSender implements QueueSender, MessageProcessor {
         ConfigCenter configs = ConfigCenter.getInstance();
 
         this.timer = Metrics.timer("qmq_client_producer_send_broker_time");
-        this.maxQueueSize = configs.getMaxQueueSize();
+        int maxQueueSize = configs.getMaxQueueSize();
+        this.queue = new LinkedBlockingQueue<>(maxQueueSize);
         this.sendBatch = configs.getSendBatch();
         // TODO(zhenwei.liu) executor 并发度设计
         this.executor = Executors.newCachedThreadPool(new NamedThreadFactory("batch-ordered-qmq-sender-task", true));
+        executor.submit(this::dispatchMessages);
     }
 
-    // TODO(zhenwei.liu) 落库成功, 入队失败的消息会乱序
+    // TODO(zhenwei.liu) 落库成功, 入队失败的消息会乱序, 考虑数据库扫描任务对 Ordered Message 的处理?
     @Override
     public boolean offer(ProduceMessage pm) {
-        return getExecutor(pm).addMessage(pm);
-    }
-
-    @Override
-    public boolean offer(ProduceMessage pm, MessageGroup messageGroup) {
-        return getExecutor(messageGroup).addMessage(pm);
+        return queue.offer(pm);
     }
 
     @Override
     public boolean offer(ProduceMessage pm, long millisecondWait) {
-        return getExecutor(pm).addMessage(pm, millisecondWait);
+        try {
+            return queue.offer(pm, millisecondWait, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            logger.error("消息入队失败 {} {} {}", pm.getSubject(), pm.getMessageId(), e.getMessage());
+            return false;
+        }
+    }
+
+    private void dispatchMessages() {
+        while (true) {
+            try {
+                ProduceMessage message = queue.take();
+                getExecutor(message).addMessage(message);
+            } catch (InterruptedException e) {
+                logger.error("消息派发失败 {}", e.getMessage());
+            }
+        }
     }
 
     @Override
@@ -106,8 +121,9 @@ public class OrderedQueueSender implements QueueSender, MessageProcessor {
         return getExecutor(messageGroup);
     }
 
-    private OrderedSendMessageExecutor getExecutor(MessageGroup messageGroup) {
-        return executorMap.computeIfAbsent(messageGroup, group -> new OrderedSendMessageExecutor(messageGroup, sendBatch, maxQueueSize, this, executor));
+    @Override
+    public OrderedSendMessageExecutor getExecutor(MessageGroup messageGroup) {
+        return executorMap.computeIfAbsent(messageGroup, group -> new OrderedSendMessageExecutor(messageGroup, sendBatch, this, executor));
     }
 
     @Override

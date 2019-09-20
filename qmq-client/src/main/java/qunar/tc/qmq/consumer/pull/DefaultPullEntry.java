@@ -135,7 +135,7 @@ class DefaultPullEntry extends AbstractPullEntry {
                         consumeParam.isBroadcast(),
                         consumeParam.isOrdered()
                 );
-                metaInfoService.request(request);
+                metaInfoService.sendRequest(request);
             }
         });
     }

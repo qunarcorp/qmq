@@ -1,8 +1,8 @@
 package qunar.tc.qmq.meta.order;
 
-import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.PartitionAllocation;
-import qunar.tc.qmq.meta.*;
+import qunar.tc.qmq.meta.Partition;
+import qunar.tc.qmq.meta.PartitionSet;
 import qunar.tc.qmq.meta.model.ClientMetaInfo;
 
 import java.util.List;
@@ -21,32 +21,18 @@ public interface PartitionService {
      */
     boolean registerOrderedMessage(String subject, int physicalPartitionNum);
 
-    ProducerAllocation getDefaultProducerAllocation(String subject, List<BrokerGroup> brokerGroups);
+    PartitionSet getLatestPartitionSet(String subject);
 
-    ConsumerAllocation getDefaultConsumerAllocation(String subject, ConsumeStrategy consumeStrategy, List<BrokerGroup> brokerGroups);
+    List<PartitionSet> getLatestPartitionSets();
 
-    ConsumerAllocation getConsumerAllocation(String subject, String consumerGroup, ConsumeStrategy consumeStrategy, String clientId);
+    List<Partition> getAllPartitions();
 
     /**
      * 获取正在生效的分区分配列表
      *
      * @return 分区分配列表
      */
-    List<PartitionAllocation> getActivatedPartitionAllocations();
-
-    PartitionAllocation getActivatedPartitionAllocation(String subject, String group);
-
-    /**
-     * 获取最新的分区映射
-     *
-     * @return 分区映射
-     */
-    List<ProducerAllocation> getLatestProducerAllocations();
-
-    ProducerAllocation getLatestProducerAllocation(String subject);
-
-    PartitionSet getLatestPartitionSet(String subject);
-
+    List<PartitionAllocation> getLatestPartitionAllocations();
 
     /**
      * 为 consumer 分配 partition
@@ -66,7 +52,7 @@ public interface PartitionService {
      */
     boolean updatePartitionAllocation(PartitionAllocation newAllocation, int baseVersion);
 
-    List<ClientMetaInfo> getOnlineOrderedConsumers();
+    List<ClientMetaInfo> getOnlineExclusiveConsumers();
 
-    List<ClientMetaInfo> getOnlineOrderedConsumers(String subject, String consumerGroup);
+    List<ClientMetaInfo> getOnlineExclusiveConsumers(String subject, String consumerGroup);
 }

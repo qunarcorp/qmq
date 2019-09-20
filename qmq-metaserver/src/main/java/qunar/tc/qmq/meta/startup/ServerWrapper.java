@@ -26,11 +26,10 @@ import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
 import qunar.tc.qmq.meta.cache.BrokerMetaManager;
 import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 import qunar.tc.qmq.meta.cache.CachedOfflineStateManager;
+import qunar.tc.qmq.meta.cache.DefaultCachedMetaInfoManager;
 import qunar.tc.qmq.meta.event.OrderedConsumerHeartbeatHandler;
 import qunar.tc.qmq.meta.management.*;
-import qunar.tc.qmq.meta.order.DefaultPartitionNameResolver;
-import qunar.tc.qmq.meta.order.DefaultPartitionService;
-import qunar.tc.qmq.meta.order.PartitionAllocationTask;
+import qunar.tc.qmq.meta.order.*;
 import qunar.tc.qmq.meta.processor.BrokerAcquireMetaProcessor;
 import qunar.tc.qmq.meta.processor.BrokerRegisterProcessor;
 import qunar.tc.qmq.meta.processor.ClientRegisterProcessor;
@@ -77,10 +76,11 @@ public class ServerWrapper implements Disposable {
 
         final ReadonlyBrokerGroupSettingStore readonlyBrokerGroupSettingStore = new ReadonlyBrokerGroupSettingStoreImpl(jdbcTemplate);
         DefaultPartitionService paritionService = DefaultPartitionService.getInstance();
-        final CachedMetaInfoManager cachedMetaInfoManager = new CachedMetaInfoManager(config, store, readonlyBrokerGroupSettingStore, paritionService);
+        final CachedMetaInfoManager cachedMetaInfoManager = new DefaultCachedMetaInfoManager(config, store, readonlyBrokerGroupSettingStore, paritionService);
+        AllocationService allocationService = new DefaultAllocationService(cachedMetaInfoManager);
 
         final SubjectRouter subjectRouter = new DefaultSubjectRouter(config, cachedMetaInfoManager, store);
-        final ClientRegisterProcessor clientRegisterProcessor = new ClientRegisterProcessor(subjectRouter, CachedOfflineStateManager.SUPPLIER.get(), store, cachedMetaInfoManager);
+        final ClientRegisterProcessor clientRegisterProcessor = new ClientRegisterProcessor(subjectRouter, CachedOfflineStateManager.SUPPLIER.get(), store, cachedMetaInfoManager, allocationService);
         final BrokerRegisterProcessor brokerRegisterProcessor = new BrokerRegisterProcessor(config, cachedMetaInfoManager, store);
         final BrokerAcquireMetaProcessor brokerAcquireMetaProcessor = new BrokerAcquireMetaProcessor(new BrokerStoreImpl(jdbcTemplate));
         final ReadonlyBrokerGroupSettingService readonlyBrokerGroupSettingService = new ReadonlyBrokerGroupSettingService(readonlyBrokerGroupSettingStore);
@@ -115,7 +115,8 @@ public class ServerWrapper implements Disposable {
         resources.add(brokerMetaManager);
         resources.add(metaNettyServer);
 
-        PartitionAllocationTask partitionAllocationTask = new PartitionAllocationTask();
+        DefaultPartitionService partitionService = DefaultPartitionService.getInstance();
+        PartitionAllocationTask partitionAllocationTask = new PartitionAllocationTask(partitionService, cachedMetaInfoManager);
         partitionAllocationTask.start();
 
         OrderedConsumerHeartbeatHandler orderedConsumerHeartbeatHandler = new OrderedConsumerHeartbeatHandler(clientMetaInfoStore, partitionAllocationTask);

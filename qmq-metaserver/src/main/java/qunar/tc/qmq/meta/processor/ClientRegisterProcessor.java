@@ -22,6 +22,7 @@ import qunar.tc.qmq.meta.cache.AliveClientManager;
 import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 import qunar.tc.qmq.meta.cache.CachedOfflineStateManager;
 import qunar.tc.qmq.meta.monitor.QMon;
+import qunar.tc.qmq.meta.order.AllocationService;
 import qunar.tc.qmq.meta.route.SubjectRouter;
 import qunar.tc.qmq.meta.store.Store;
 import qunar.tc.qmq.netty.NettyRequestProcessor;
@@ -45,8 +46,9 @@ public class ClientRegisterProcessor implements NettyRequestProcessor {
     public ClientRegisterProcessor(final SubjectRouter subjectRouter,
                                    final CachedOfflineStateManager offlineStateManager,
                                    final Store store,
-                                   CachedMetaInfoManager cachedMetaInfoManager) {
-        this.clientRegisterWorker = new ClientRegisterWorker(subjectRouter, offlineStateManager, store, cachedMetaInfoManager);
+                                   final CachedMetaInfoManager cachedMetaInfoManager,
+                                   final AllocationService allocationService) {
+        this.clientRegisterWorker = new ClientRegisterWorker(subjectRouter, offlineStateManager, store, cachedMetaInfoManager, allocationService);
         this.aliveClientManager = AliveClientManager.getInstance();
     }
 

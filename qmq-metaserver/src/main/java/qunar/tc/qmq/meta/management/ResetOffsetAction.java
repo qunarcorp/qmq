@@ -17,14 +17,13 @@
 package qunar.tc.qmq.meta.management;
 
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.ClientType;
-import qunar.tc.qmq.PartitionProps;
 import qunar.tc.qmq.meta.BrokerGroup;
-import qunar.tc.qmq.meta.ProducerAllocation;
+import qunar.tc.qmq.meta.Partition;
+import qunar.tc.qmq.meta.PartitionSet;
 import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
-import qunar.tc.qmq.meta.model.SubjectRoute;
 import qunar.tc.qmq.meta.store.Store;
 import qunar.tc.qmq.netty.NettyClientConfig;
 import qunar.tc.qmq.netty.client.NettyClient;
@@ -34,7 +33,7 @@ import qunar.tc.qmq.protocol.RemotingHeader;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
 
 import javax.servlet.http.HttpServletRequest;
-import java.util.Collection;
+import java.util.List;
 
 public class ResetOffsetAction implements MetaManagementAction {
     private static final Logger LOGGER = LoggerFactory.getLogger(ResetOffsetAction.class);
@@ -64,17 +63,17 @@ public class ResetOffsetAction implements MetaManagementAction {
             return ActionResult.error("action must 1 or 2, LATEST=1, EARLIEST=2");
         }
 
-        ProducerAllocation producerAllocation = cachedMetaInfoManager.getProducerAllocation(ClientType.PRODUCER, subject);
-        Collection<PartitionProps> partitionProps = producerAllocation.getLogical2SubjectLocation().asMapOfRanges().values();
-        for (PartitionProps partitionProp : partitionProps) {
-            String partitionName = partitionProp.getPartitionName();
-            final SubjectRoute subjectRoute = store.selectSubjectRoute(partitionName);
-            if (subjectRoute == null) {
-                return ActionResult.error("find no route");
-            }
+        PartitionSet partitionSet = cachedMetaInfoManager.getPartitionSet(subject);
+        List<Partition> partitionList = Lists.newArrayList();
+        for (Integer partitionId : partitionSet.getPhysicalPartitions()) {
+            Partition partition = cachedMetaInfoManager.getPartition(subject, partitionId);
+            partitionList.add(partition);
+        }
 
-            Datagram datagram = buildResetOffsetDatagram(subject, consumerGroup, action);
-            String brokerGroupName = partitionProp.getBrokerGroup();
+        for (Partition partition : partitionList) {
+            String partitionName = partition.getPartitionName();
+            Datagram datagram = buildResetOffsetDatagram(partitionName, consumerGroup, action);
+            String brokerGroupName = partition.getBrokerGroup();
             try {
                 final BrokerGroup brokerGroup = store.getBrokerGroup(brokerGroupName);
                 client.sendSync(brokerGroup.getMaster(), datagram, 2000);

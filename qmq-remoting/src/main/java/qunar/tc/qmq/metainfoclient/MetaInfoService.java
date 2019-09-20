@@ -16,9 +16,20 @@ import java.util.List;
  */
 public interface MetaInfoService {
 
-    ListenableFuture<MetaInfoResponse> request(int clientTypeCode, String subject, String consumerGroup);
+    /**
+     * 通过 cache 中的 request 来触发心跳
+     */
+    ListenableFuture<MetaInfoResponse> triggerHeartbeat(int clientTypeCode, String subject, String consumerGroup);
 
-    ListenableFuture<MetaInfoResponse> request(MetaInfoRequest request);
+    /**
+     * 注册心跳, 后续会定时发送
+     */
+    ListenableFuture<MetaInfoResponse> registerHeartbeat(String appCode, int clientTypeCode, String subject, String consumerGroup, boolean isBroadcast, boolean isOrdered);
+
+    /**
+     * 发送请求, 且不缓存, 这是为了解决缓存
+     */
+    ListenableFuture<MetaInfoResponse> sendRequest(MetaInfoRequest request);
 
     String getSubject(String partitionName);
 

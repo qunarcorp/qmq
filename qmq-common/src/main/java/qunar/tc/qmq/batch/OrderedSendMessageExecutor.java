@@ -35,10 +35,10 @@ public class OrderedSendMessageExecutor extends StatefulSendMessageExecutor impl
     private MessageProcessor processor;
     private ExecutorService executor;
 
-    public OrderedSendMessageExecutor(MessageGroup messageGroup, int batchSize, int queueSize, MessageProcessor processor, ExecutorService executor) {
+    public OrderedSendMessageExecutor(MessageGroup messageGroup, int batchSize, MessageProcessor processor, ExecutorService executor) {
         this.messageGroup = messageGroup;
         this.batchSize = batchSize;
-        this.queue = new LinkedBlockingQueue<>(queueSize);
+        this.queue = new LinkedBlockingQueue<>();
         this.processor = processor;
         this.executor = executor;
     }

@@ -32,7 +32,6 @@ import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.base.OnOfflineState;
 import qunar.tc.qmq.batch.Stateful;
-import qunar.tc.qmq.common.PartitionConstants;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.meta.MetaServerLocator;
 import qunar.tc.qmq.metrics.Metrics;
@@ -50,7 +49,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static qunar.tc.qmq.common.PartitionConstants.EXCLUSIVE_CLIENT_HEARTBEAT_INTERVAL_MILLS;
-import static qunar.tc.qmq.common.PartitionConstants.EXCLUSIVE_CONSUMER_LOCK_LEASE_MILLS;
 import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_GROUP_ARRAY;
 
 /**
@@ -211,23 +209,15 @@ public class DefaultMetaInfoService implements MetaInfoService {
             Metrics.counter("qmq_pull_metainfo_request_count", SUBJECT_GROUP_ARRAY, new String[]{subject, consumerGroup}).inc();
             ClientRequestType requestType = requestWrapper.hasOnline ? ClientRequestType.HEARTBEAT : ClientRequestType.ONLINE;
             request.setRequestType(requestType.getCode());
-            request(request);
+            triggerHeartbeat(request.getClientTypeCode(), request.getSubject(), request.getConsumerGroup());
         } catch (Exception e) {
             LOGGER.debug("request meta info exception. {} {} {}", ClientType.of(request.getClientTypeCode()), subject, consumerGroup, e);
             Metrics.counter("qmq_pull_metainfo_request_fail", SUBJECT_GROUP_ARRAY, new String[]{subject, consumerGroup}).inc();
         }
     }
 
-    public void request(ConcurrentHashMap<String, MetaInfoRequest> requestMap, ClientRequestType requestType) {
-        for (MetaInfoRequest request : requestMap.values()) {
-            request.setRequestType(requestType.getCode());
-            request(request);
-        }
-    }
-
     @Override
-    public ListenableFuture<MetaInfoResponse> request(int clientType, String subject, String consumerGroup) {
-        // Meta 的请求不能存在并发请求
+    public ListenableFuture<MetaInfoResponse> triggerHeartbeat(int clientType, String subject, String consumerGroup) {
         String key = createMetaInfoRequestKey(clientType, subject, consumerGroup);
         MetaInfoRequestWrapper requestWrapper = metaInfoRequests.get(key);
         Preconditions.checkNotNull(requestWrapper, "subject %s consumerGroup %s meta 请求未注册", subject, consumerGroup);
@@ -235,19 +225,22 @@ public class DefaultMetaInfoService implements MetaInfoService {
     }
 
     @Override
-    public ListenableFuture<MetaInfoResponse> request(MetaInfoRequest request) {
-        // Meta 的请求不能存在并发请求
-        String subject = request.getSubject();
-        String consumerGroup = request.getConsumerGroup();
-        int clientTypeCode = request.getClientTypeCode();
+    public ListenableFuture<MetaInfoResponse> registerHeartbeat(String appCode, int clientTypeCode, String subject, String consumerGroup, boolean isBroadcast, boolean isOrdered) {
         String key = createMetaInfoRequestKey(clientTypeCode, subject, consumerGroup);
-        MetaInfoRequestWrapper requestWrapper = metaInfoRequests.computeIfAbsent(key, k -> new MetaInfoRequestWrapper(request));
+        MetaInfoRequestWrapper requestWrapper = metaInfoRequests.computeIfAbsent(key, k -> {
+            MetaInfoRequest request = new MetaInfoRequest(
+                    subject,
+                    consumerGroup,
+                    ClientType.CONSUMER.getCode(),
+                    appCode,
+                    clientId,
+                    ClientRequestType.ONLINE,
+                    isBroadcast,
+                    isOrdered
+            );
+            return new MetaInfoRequestWrapper(request);
+        });
         return request(requestWrapper);
-    }
-
-    @Override
-    public String getSubject(String partitionName) {
-        return partitionName2Subject.getUnchecked(partitionName);
     }
 
     private ListenableFuture<MetaInfoResponse> request(MetaInfoRequestWrapper requestWrapper) {
@@ -266,6 +259,17 @@ public class DefaultMetaInfoService implements MetaInfoService {
         } else {
             return requestWrapper.getFuture();
         }
+    }
+
+    @Override
+    public ListenableFuture<MetaInfoResponse> sendRequest(MetaInfoRequest request) {
+        // Meta 的请求不能存在并发请求
+        return metaInfoClient.sendMetaInfoRequest(request);
+    }
+
+    @Override
+    public String getSubject(String partitionName) {
+        return partitionName2Subject.getUnchecked(partitionName);
     }
 
     private void updateConsumerState(MetaInfoResponse response) {

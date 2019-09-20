@@ -3,6 +3,7 @@ package qunar.tc.qmq.common;
 import qunar.tc.qmq.MessageGroup;
 import qunar.tc.qmq.ProduceMessage;
 import qunar.tc.qmq.base.BaseMessage;
+import qunar.tc.qmq.batch.OrderedSendMessageExecutor;
 import qunar.tc.qmq.batch.SendMessageExecutor;
 import qunar.tc.qmq.consumer.ConsumeMessageExecutor;
 import qunar.tc.qmq.consumer.pull.PulledMessage;
@@ -33,7 +34,8 @@ public class BestTriedOrderStrategy extends AbstractOrderStrategy {
         MessageGroup oldMessageGroup = currentExecutor.getMessageGroup();
         if (!Objects.equals(messageGroup, oldMessageGroup)) {
             currentExecutor.removeMessage(message);
-            sender.offer(message, messageGroup);
+            OrderedSendMessageExecutor newExecutor = sender.getExecutor(messageGroup);
+            newExecutor.addMessage(message);
         }
     }
 

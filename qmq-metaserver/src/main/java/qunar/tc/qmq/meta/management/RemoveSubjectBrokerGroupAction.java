@@ -73,7 +73,7 @@ public class RemoveSubjectBrokerGroupAction implements MetaManagementAction {
                 }
             }
         } finally {
-            cacheManager.executeRefreshTask();
+            cacheManager.refresh();
         }
 
         if (errors.isEmpty()) {
@@ -97,7 +97,7 @@ public class RemoveSubjectBrokerGroupAction implements MetaManagementAction {
                 return ActionResult.error("路由缩减失败", Collections.singletonMap(subject, result.getMessage()));
             }
         } finally {
-            cacheManager.executeRefreshTask();
+            cacheManager.refresh();
         }
     }
 

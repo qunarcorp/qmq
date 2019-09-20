@@ -25,14 +25,14 @@ public class AllocationDetailSerializer extends ObjectSerializer<PartitionAlloca
 
     @Override
     void doSerialize(PartitionAllocation.AllocationDetail allocationDetail, ByteBuf buf) {
-        Map<String, Set<PartitionProps>> clientId2SubjectLocation = allocationDetail.getClientId2SubjectLocation();
+        Map<String, Set<PartitionProps>> clientId2SubjectLocation = allocationDetail.getClientId2PartitionProps();
         mapSerializer.serialize(clientId2SubjectLocation, buf);
     }
 
     @Override
     PartitionAllocation.AllocationDetail doDeserialize(ByteBuf buf, Type type) {
         PartitionAllocation.AllocationDetail allocationDetail = new PartitionAllocation.AllocationDetail();
-        allocationDetail.setClientId2SubjectLocation(mapSerializer.deserialize(buf, mapType));
+        allocationDetail.setClientId2PartitionProps(mapSerializer.deserialize(buf, mapType));
         return allocationDetail;
     }
 }
