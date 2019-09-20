@@ -45,7 +45,7 @@ public class DelayMessageLogVisitor extends AbstractLogVisitor<LogRecord> {
     protected LogVisitorRecord<LogRecord> readOneRecord(SegmentBuffer segmentBuffer) {
         ByteBuffer buffer = segmentBuffer.getBuffer();
         if (buffer.remaining() < MIN_RECORD_BYTES) {
-            return LogVisitorRecord.empty();
+            return LogVisitorRecord.noMore();
         }
 
         final int startPos = buffer.position();
@@ -55,7 +55,7 @@ public class DelayMessageLogVisitor extends AbstractLogVisitor<LogRecord> {
         final int magic = buffer.getInt();
         if (!MagicCodeSupport.isValidMessageLogMagicCode(magic)) {
             setVisitedBufferSize(getBufferSize());
-            return LogVisitorRecord.empty();
+            return LogVisitorRecord.noMore();
         }
 
         // attr
@@ -64,7 +64,7 @@ public class DelayMessageLogVisitor extends AbstractLogVisitor<LogRecord> {
         buffer.getLong();
         if (attributes == ATTR_SKIP_RECORD.getCode()) {
             if (buffer.remaining() < Integer.BYTES) {
-                return LogVisitorRecord.empty();
+                return LogVisitorRecord.noMore();
             }
             // blank size
             final int blankSize = buffer.getInt();
@@ -72,49 +72,49 @@ public class DelayMessageLogVisitor extends AbstractLogVisitor<LogRecord> {
             return LogVisitorRecord.empty();
         } else if (attributes == ATTR_EMPTY_RECORD.getCode()) {
             setVisitedBufferSize(getBufferSize());
-            return LogVisitorRecord.empty();
+            return LogVisitorRecord.noMore();
         } else {
             // schedule time
             if (buffer.remaining() < Long.BYTES) {
-                return LogVisitorRecord.empty();
+                return LogVisitorRecord.noMore();
             }
             long scheduleTime = buffer.getLong();
 
             // sequence
             if (buffer.remaining() < Long.BYTES) {
-                return LogVisitorRecord.empty();
+                return LogVisitorRecord.noMore();
             }
             long sequence = buffer.getLong();
 
             // message id size
             if (buffer.remaining() < Integer.BYTES) {
-                return LogVisitorRecord.empty();
+                return LogVisitorRecord.noMore();
             }
             final int messageIdSize = buffer.getInt();
 
             // message id
             if (buffer.remaining() < messageIdSize) {
-                return LogVisitorRecord.empty();
+                return LogVisitorRecord.noMore();
             }
             final byte[] messageIdBytes = new byte[messageIdSize];
             buffer.get(messageIdBytes);
 
             // subject size
             if (buffer.remaining() < Integer.BYTES) {
-                return LogVisitorRecord.empty();
+                return LogVisitorRecord.noMore();
             }
             final int subjectSize = buffer.getInt();
 
             // subject
             if (buffer.remaining() < subjectSize) {
-                return LogVisitorRecord.empty();
+                return LogVisitorRecord.noMore();
             }
             final byte[] subjectBytes = new byte[subjectSize];
             buffer.get(subjectBytes);
 
             if (magic >= MagicCode.MESSAGE_LOG_MAGIC_V2) {
                 if (buffer.remaining() < Long.BYTES) {
-                    return LogVisitorRecord.empty();
+                    return LogVisitorRecord.noMore();
                 }
                 // crc
                 buffer.getLong();
@@ -122,13 +122,13 @@ public class DelayMessageLogVisitor extends AbstractLogVisitor<LogRecord> {
 
             // payload size
             if (buffer.remaining() < Integer.BYTES) {
-                return LogVisitorRecord.empty();
+                return LogVisitorRecord.noMore();
             }
             final int payloadSize = buffer.getInt();
 
             // message body && The new buffer's position will be zero
             if (buffer.remaining() < payloadSize) {
-                return LogVisitorRecord.empty();
+                return LogVisitorRecord.noMore();
             }
             final ByteBuffer message = buffer.slice();
             message.limit(payloadSize);

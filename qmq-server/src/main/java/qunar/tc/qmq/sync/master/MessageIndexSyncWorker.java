@@ -61,7 +61,10 @@ public class MessageIndexSyncWorker extends AbstractLogSyncWorker {
                 for (int i = 0; i < MAX_SYNC_NUM; ++i) {
                     LogVisitorRecord<MessageLogRecord> record = visitor.nextRecord();
 
-                    if (record.isNoMore()) break;
+                    if (record.isNoMore()) {
+                        nextSyncOffset = visitor.getStartOffset() + visitor.visitedBufferSize();
+                        break;
+                    }
                     if (!record.hasData()) {
                         nextSyncOffset = visitor.getStartOffset() + visitor.visitedBufferSize();
                         continue;
