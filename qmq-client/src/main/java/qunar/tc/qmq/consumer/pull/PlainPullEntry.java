@@ -41,12 +41,13 @@ class PlainPullEntry extends AbstractPullEntry {
             String brokerGroup,
             ConsumeStrategy consumeStrategy,
             int allocationVersion,
+            long consumptionExpiredTime,
             PullService pullService,
             AckService ackService,
             BrokerService brokerService,
             PullStrategy pullStrategy,
             SendMessageBack sendMessageBack) {
-        super(consumeParam.getSubject(), consumeParam.getConsumerGroup(), partitionName, brokerGroup, consumeStrategy, allocationVersion, consumeParam.isBroadcast(), consumeParam.isOrdered(), pullService, ackService, brokerService, sendMessageBack);
+        super(consumeParam.getSubject(), consumeParam.getConsumerGroup(), partitionName, brokerGroup, consumeStrategy, allocationVersion, consumptionExpiredTime, consumeParam.isBroadcast(), consumeParam.isOrdered(), pullService, ackService, brokerService, sendMessageBack);
         this.consumeParam = consumeParam;
         this.pullStrategy = pullStrategy;
     }

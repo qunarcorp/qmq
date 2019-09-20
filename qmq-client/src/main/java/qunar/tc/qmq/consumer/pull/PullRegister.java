@@ -25,9 +25,7 @@ import qunar.tc.qmq.*;
 import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.broker.impl.BrokerServiceImpl;
-import qunar.tc.qmq.common.ClientLifecycleManagerFactory;
 import qunar.tc.qmq.common.EnvProvider;
-import qunar.tc.qmq.common.ExclusiveConsumerLifecycleManager;
 import qunar.tc.qmq.common.OrderStrategyCache;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.consumer.BaseMessageHandler;
@@ -201,14 +199,15 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         PullEntry oldEntry = pullEntryMap.get(entryKey);
 
         ConsumerAllocation consumerAllocation = response.getConsumerAllocation();
+        long consumptionExpiredTime = consumerAllocation.getExpired();
+        int version = consumerAllocation.getVersion();
 
         // create retry
         PullEntry pullEntry = updatePullEntry(entryKey, oldEntry, subject, consumerGroup, param, new AlwaysPullStrategy(), consumerAllocation);
         ConsumerAllocation retryConsumerAllocation = consumerAllocation.getRetryConsumerAllocation(consumerGroup);
         PullEntry retryPullEntry = updatePullEntry(entryKey, oldEntry, subject, consumerGroup, param, new WeightPullStrategy(), retryConsumerAllocation);
 
-        int version = consumerAllocation.getVersion();
-        PullEntry entry = new CompositePullEntry<>(subject, consumerGroup, version, Lists.newArrayList(pullEntry, retryPullEntry), brokerService);
+        PullEntry entry = new CompositePullEntry<>(subject, consumerGroup, version, consumptionExpiredTime, Lists.newArrayList(pullEntry, retryPullEntry), brokerService);
 
         pullEntryMap.put(entryKey, entry);
         return entry;
@@ -241,13 +240,13 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
                 oldEntry,
                 new PullClientFactory<PullEntry>() {
                     @Override
-                    public PullEntry createPullClient(String subject, String consumerGroup, String partitionName, String brokerGroup, ConsumeStrategy consumeStrategy, int version, PullStrategy pullStrategy) {
-                        return createDefaultPullEntry(subject, consumerGroup, partitionName, brokerGroup, consumeStrategy, version, param, pullStrategy);
+                    public PullEntry createPullClient(String subject, String consumerGroup, String partitionName, String brokerGroup, ConsumeStrategy consumeStrategy, int version, long consumptionExpiredTime, PullStrategy pullStrategy) {
+                        return createDefaultPullEntry(subject, consumerGroup, partitionName, brokerGroup, consumeStrategy, version, consumptionExpiredTime, param, pullStrategy);
                     }
                 }, new CompositePullClientFactory<CompositePullEntry, PullEntry>() {
                     @Override
-                    public CompositePullEntry createPullClient(String subject, String consumerGroup, int version, List<PullEntry> list) {
-                        return new CompositePullEntry(subject, consumerGroup, version, list, brokerService);
+                    public CompositePullEntry createPullClient(String subject, String consumerGroup, int version, long consumptionExpiredTime, List<PullEntry> list) {
+                        return new CompositePullEntry(subject, consumerGroup, version, consumptionExpiredTime, list, brokerService);
                     }
                 });
 
@@ -277,11 +276,11 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
     }
 
     private interface PullClientFactory<T extends PullClient> {
-        T createPullClient(String subject, String consumerGroup, String partitionName, String brokerGroup, ConsumeStrategy consumeStrategy, int version, PullStrategy pullStrategy);
+        T createPullClient(String subject, String consumerGroup, String partitionName, String brokerGroup, ConsumeStrategy consumeStrategy, int version, long consumptionExpiredTime, PullStrategy pullStrategy);
     }
 
     private interface CompositePullClientFactory<T extends CompositePullClient, E extends PullClient> {
-        T createPullClient(String subject, String consumerGroup, int version, List<E> clientList);
+        T createPullClient(String subject, String consumerGroup, int version, long consumptionExpiredTime, List<E> clientList);
     }
 
     private PullClient updatePullClient(
@@ -299,6 +298,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         List<PullClient> stalePullClients = Lists.newArrayList(); // 需要关闭的分区
 
         int newVersion = consumerAllocation.getVersion();
+        long expired = consumerAllocation.getExpired();
         ConsumeStrategy newConsumeStrategy = consumerAllocation.getConsumeStrategy();
         int oldVersion = oldClient.getVersion();
         if (oldVersion < newVersion) {
@@ -316,6 +316,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
                     // 获取可复用 entry
                     oldPullClient.setVersion(newVersion);
                     oldPullClient.setConsumeStrategy(newConsumeStrategy);
+                    oldPullClient.setConsumptionExpiredTime(expired);
                     reusePullClients.add(oldPullClient);
                 } else {
                     // 获取需要关闭的 entry
@@ -327,7 +328,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
                 String partitionName = partitionProps.getPartitionName();
                 String brokerGroup = partitionProps.getBrokerGroup();
                 if (!oldPartitionNames.contains(partitionName)) {
-                    PullClient newPullClient = pullClientFactory.createPullClient(subject, consumerGroup, partitionName, brokerGroup, newConsumeStrategy, newVersion, pullStrategy);
+                    PullClient newPullClient = pullClientFactory.createPullClient(subject, consumerGroup, partitionName, brokerGroup, newConsumeStrategy, newVersion, expired, pullStrategy);
                     newPullClients.add(newPullClient);
                 }
             }
@@ -341,7 +342,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
             ArrayList<PullClient> entries = Lists.newArrayList();
             entries.addAll(reusePullClients);
             entries.addAll(newPullClients);
-            return compositePullClientFactory.createPullClient(subject, consumerGroup, newVersion, entries);
+            return compositePullClientFactory.createPullClient(subject, consumerGroup, newVersion, expired, entries);
         } else {
             // 当前版本比 response 中的高
             return oldClient;
@@ -359,19 +360,19 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         List<PartitionProps> partitionProps = consumerAllocation.getPartitionProps();
         List<PullClient> clientList = Lists.newArrayList();
         ConsumeStrategy consumeStrategy = consumerAllocation.getConsumeStrategy();
+        long expired = consumerAllocation.getExpired();
         int version = consumerAllocation.getVersion();
         for (PartitionProps partitionProp : partitionProps) {
             String partitionName = partitionProp.getPartitionName();
             String brokerGroup = partitionProp.getBrokerGroup();
-            PullClient newDefaultClient = pullClientFactory.createPullClient(subject, consumerGroup, partitionName, brokerGroup, consumeStrategy, version, pullStrategy);
+            PullClient newDefaultClient = pullClientFactory.createPullClient(subject, consumerGroup, partitionName, brokerGroup, consumeStrategy, version, expired, pullStrategy);
             clientList.add(newDefaultClient);
         }
-        return compositePullClientFactory.createPullClient(subject, consumerGroup, version, clientList);
+        return compositePullClientFactory.createPullClient(subject, consumerGroup, version, expired, clientList);
     }
 
-    private PullEntry createDefaultPullEntry(String subject, String consumerGroup, String partitionName, String brokerGroup, ConsumeStrategy consumeStrategy, int allocationVersion, RegistParam param, PullStrategy pullStrategy) {
+    private PullEntry createDefaultPullEntry(String subject, String consumerGroup, String partitionName, String brokerGroup, ConsumeStrategy consumeStrategy, int allocationVersion, long consumptionExpiredTime, RegistParam param, PullStrategy pullStrategy) {
         ConsumeParam consumeParam = new ConsumeParam(subject, consumerGroup, param);
-        ExclusiveConsumerLifecycleManager exclusiveConsumerLifecycleManager = ClientLifecycleManagerFactory.get();
         ConsumeMessageExecutor consumeMessageExecutor = ConsumeMessageExecutorFactory.createExecutor(
                 consumeStrategy,
                 subject,
@@ -379,10 +380,10 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
                 partitionName,
                 partitionExecutor,
                 new BaseMessageHandler(param.getMessageListener()),
-                exclusiveConsumerLifecycleManager,
-                param.getExecutor()
+                param.getExecutor(),
+                consumptionExpiredTime
         );
-        PullEntry pullEntry = new DefaultPullEntry(consumeMessageExecutor, consumeParam, partitionName, brokerGroup, consumeStrategy, allocationVersion, pullService, ackService, metaInfoService, brokerService, pullStrategy, sendMessageBack);
+        PullEntry pullEntry = new DefaultPullEntry(consumeMessageExecutor, consumeParam, partitionName, brokerGroup, consumeStrategy, allocationVersion, consumptionExpiredTime, pullService, ackService, metaInfoService, brokerService, pullStrategy, sendMessageBack);
         pullEntry.startPull(partitionExecutor);
         return pullEntry;
     }
@@ -399,7 +400,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
                 oldConsumer,
                 new PullClientFactory() {
                     @Override
-                    public PullClient createPullClient(String subject, String consumerGroup, String partitionName, String brokerGroup, ConsumeStrategy consumeStrategy, int version, PullStrategy pullStrategy) {
+                    public PullClient createPullClient(String subject, String consumerGroup, String partitionName, String brokerGroup, ConsumeStrategy consumeStrategy, int version, long consumptionExpiredTime, PullStrategy pullStrategy) {
                         DefaultPullConsumer pullConsumer = new DefaultPullConsumer(
                                 subject,
                                 consumerGroup,
@@ -407,6 +408,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
                                 brokerGroup,
                                 consumeStrategy,
                                 version,
+                                consumptionExpiredTime,
                                 isBroadcast,
                                 isOrdered,
                                 clientId,
@@ -420,8 +422,8 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
                 },
                 new CompositePullClientFactory() {
                     @Override
-                    public CompositePullClient createPullClient(String subject, String consumerGroup, int version, List clientList) {
-                        return new CompositePullEntry(subject, consumerGroup, version, clientList, brokerService);
+                    public CompositePullClient createPullClient(String subject, String consumerGroup, int version, long consumptionExpiredTime, List clientList) {
+                        return new CompositePullEntry(subject, consumerGroup, version, consumptionExpiredTime, clientList, brokerService);
                     }
                 });
         if (pullEntryMap.containsKey(key)) {

@@ -2,8 +2,7 @@ package qunar.tc.qmq.consumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.common.OrderStrategy;
-import qunar.tc.qmq.common.OrderStrategyCache;
+import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.consumer.pull.PulledMessage;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.QmqCounter;
@@ -38,7 +37,10 @@ public abstract class AbstractConsumeMessageExecutor implements ConsumeMessageEx
     private final String partitionName;
     private final MessageHandler messageHandler;
 
-    public AbstractConsumeMessageExecutor(String subject, String consumerGroup, String partitionName, Executor partitionExecutor, MessageHandler messageHandler) {
+    private volatile long consumptionExpiredTime;
+
+    public AbstractConsumeMessageExecutor(String subject, String consumerGroup, String partitionName, Executor partitionExecutor, MessageHandler messageHandler, long consumptionExpiredTime) {
+        this.consumptionExpiredTime = consumptionExpiredTime;
         String[] values = {subject, consumerGroup};
         this.createToHandleTimer = Metrics.timer("qmq_pull_createToHandle_timer", SUBJECT_GROUP_ARRAY, values);
         this.handleTimer = Metrics.timer("qmq_pull_handle_timer", SUBJECT_GROUP_ARRAY, values);
@@ -49,6 +51,16 @@ public abstract class AbstractConsumeMessageExecutor implements ConsumeMessageEx
         this.partitionName = partitionName;
         this.partitionExecutor = partitionExecutor;
         this.messageHandler = messageHandler;
+    }
+
+    @Override
+    public void setConsumptionExpiredTime(long timestamp) {
+        this.consumptionExpiredTime = timestamp;
+    }
+
+    @Override
+    public long getConsumptionExpiredTime() {
+        return consumptionExpiredTime;
     }
 
     public QmqTimer getCreateToHandleTimer() {

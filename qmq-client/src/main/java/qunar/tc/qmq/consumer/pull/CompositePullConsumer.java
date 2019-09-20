@@ -5,7 +5,10 @@ import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.AsyncFunction;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import qunar.tc.qmq.*;
+import qunar.tc.qmq.CompositePullClient;
+import qunar.tc.qmq.Message;
+import qunar.tc.qmq.PullConsumer;
+import qunar.tc.qmq.StatusSource;
 import qunar.tc.qmq.broker.BrokerService;
 
 import java.util.ArrayList;
@@ -22,8 +25,8 @@ public class CompositePullConsumer<T extends PullConsumer> extends AbstractPullC
 
     private List<T> consumers;
 
-    public CompositePullConsumer(String subject, String consumerGroup, int version, List<T> consumers, BrokerService brokerService) {
-        super(subject, consumerGroup, "", "", null, version, brokerService);
+    public CompositePullConsumer(String subject, String consumerGroup, int version, long consumptionExpiredTime, List<T> consumers, BrokerService brokerService) {
+        super(subject, consumerGroup, "", "", null, version, consumptionExpiredTime, brokerService);
         this.consumers = consumers;
     }
 

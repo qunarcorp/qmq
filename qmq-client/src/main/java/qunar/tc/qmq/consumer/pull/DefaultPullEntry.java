@@ -84,7 +84,7 @@ class DefaultPullEntry extends AbstractPullEntry {
     private final ConsumeParam consumeParam;
 
     private DefaultPullEntry() {
-        super("", "", "", "", null,-1, false, false, null, null, null, null);
+        super("", "", "", "", null, -1, -1, false, false, null, null, null, null);
         consumeMessageExecutor = null;
         pullBatchSize = pullTimeout = ackNosendLimit = null;
         pullRunCounter = null;
@@ -99,13 +99,14 @@ class DefaultPullEntry extends AbstractPullEntry {
                      String brokerGroup,
                      ConsumeStrategy consumeStrategy,
                      int version,
+                     long consumptionExpiredTime,
                      PullService pullService,
                      AckService ackService,
                      MetaInfoService metaInfoService,
                      BrokerService brokerService,
                      PullStrategy pullStrategy,
                      SendMessageBack sendMessageBack) {
-        super(consumeParam.getSubject(), consumeParam.getConsumerGroup(), partitionName, brokerGroup, consumeStrategy, version, consumeParam.isBroadcast(), consumeParam.isOrdered(), pullService, ackService, brokerService, sendMessageBack);
+        super(consumeParam.getSubject(), consumeParam.getConsumerGroup(), partitionName, brokerGroup, consumeStrategy, version, consumptionExpiredTime, consumeParam.isBroadcast(), consumeParam.isOrdered(), pullService, ackService, brokerService, sendMessageBack);
         this.consumeParam = consumeParam;
         String subject = consumeParam.getSubject();
         String consumerGroup = consumeParam.getConsumerGroup();
@@ -137,6 +138,12 @@ class DefaultPullEntry extends AbstractPullEntry {
                 metaInfoService.request(request);
             }
         });
+    }
+
+    @Override
+    public void setConsumptionExpiredTime(long timestamp) {
+        super.setConsumptionExpiredTime(timestamp);
+        this.consumeMessageExecutor.setConsumptionExpiredTime(timestamp);
     }
 
     public void online(StatusSource src) {

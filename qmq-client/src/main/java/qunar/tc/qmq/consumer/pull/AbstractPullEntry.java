@@ -61,8 +61,8 @@ abstract class AbstractPullEntry extends AbstractPullClient implements PullEntry
     private final QmqCounter pullWorkCounter;
     private final QmqCounter pullFailCounter;
 
-    AbstractPullEntry(String subject, String consumerGroup, String partitionName, String brokerGroup, ConsumeStrategy consumeStrategy, int version, boolean isBroadcast, boolean isOrdered, PullService pullService, AckService ackService, BrokerService brokerService, SendMessageBack sendMessageBack) {
-        super(subject, consumerGroup, partitionName, brokerGroup, consumeStrategy, version, brokerService);
+    AbstractPullEntry(String subject, String consumerGroup, String partitionName, String brokerGroup, ConsumeStrategy consumeStrategy, int version, long consumptionExpiredTime, boolean isBroadcast, boolean isOrdered, PullService pullService, AckService ackService, BrokerService brokerService, SendMessageBack sendMessageBack) {
+        super(subject, consumerGroup, partitionName, brokerGroup, consumeStrategy, version, consumptionExpiredTime, brokerService);
         this.pullService = pullService;
         this.ackService = ackService;
         this.brokerService = brokerService;

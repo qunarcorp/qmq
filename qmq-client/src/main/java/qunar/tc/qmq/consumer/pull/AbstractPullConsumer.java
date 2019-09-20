@@ -52,6 +52,7 @@ abstract class AbstractPullConsumer extends AbstractPullClient implements PullCo
             String brokerGroup,
             ConsumeStrategy consumeStrategy,
             int version,
+            long consumptionExpiredTime,
             boolean isBroadcast,
             boolean isOrdered,
             String clientId,
@@ -59,7 +60,7 @@ abstract class AbstractPullConsumer extends AbstractPullClient implements PullCo
             AckService ackService,
             BrokerService brokerService,
             SendMessageBack sendMessageBack) {
-        super(subject, consumerGroup, partitionName, brokerGroup, consumeStrategy, version, brokerService);
+        super(subject, consumerGroup, partitionName, brokerGroup, consumeStrategy, version, consumptionExpiredTime, brokerService);
         this.consumeParam = new ConsumeParam(subject, consumerGroup, isBroadcast, isOrdered, false, clientId);
         this.pullEntry = new PlainPullEntry(
                 consumeParam,
@@ -67,6 +68,7 @@ abstract class AbstractPullConsumer extends AbstractPullClient implements PullCo
                 brokerGroup,
                 consumeStrategy,
                 version,
+                consumptionExpiredTime,
                 pullService,
                 ackService,
                 brokerService,
@@ -78,6 +80,7 @@ abstract class AbstractPullConsumer extends AbstractPullClient implements PullCo
                 brokerGroup,
                 consumeStrategy,
                 version,
+                consumptionExpiredTime,
                 pullService,
                 ackService,
                 brokerService,

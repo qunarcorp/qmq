@@ -28,7 +28,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.ConsumeStrategy;
-import qunar.tc.qmq.PartitionProps;
 import qunar.tc.qmq.Versionable;
 import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
@@ -37,8 +36,6 @@ import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.broker.ClientMetaManager;
 import qunar.tc.qmq.codec.Serializer;
 import qunar.tc.qmq.codec.Serializers;
-import qunar.tc.qmq.common.ClientLifecycleManagerFactory;
-import qunar.tc.qmq.common.ExclusiveConsumerLifecycleManager;
 import qunar.tc.qmq.meta.*;
 import qunar.tc.qmq.metainfoclient.MetaInfo;
 import qunar.tc.qmq.metainfoclient.MetaInfoService;
@@ -191,8 +188,6 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
                     // update cache
                     updatePartitionCache(response);
 
-                    updateOrderedClientLifecycle(response);
-
                     MetaInfo metaInfo = parseResponse(response);
                     if (metaInfo != null) {
                         LOGGER.debug("meta info: {}", metaInfo);
@@ -260,26 +255,6 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
     @Override
     public String getAppCode() {
         return appCode;
-    }
-
-    private void updateOrderedClientLifecycle(MetaInfoResponse response) {
-        if (!(response instanceof ConsumerMetaInfoResponse)) {
-            return;
-        }
-        String subject = response.getSubject();
-        ProducerAllocation producerAllocation = getProducerAllocation(ClientType.of(response.getClientTypeCode()), subject);
-        if (producerAllocation != null) {
-            ConsumerMetaInfoResponse consumerResponse = (ConsumerMetaInfoResponse) response;
-            String consumerGroup = consumerResponse.getConsumerGroup();
-            ConsumerAllocation consumerAllocation = consumerResponse.getConsumerAllocation();
-            int version = consumerAllocation.getVersion();
-            long expired = consumerAllocation.getExpired();
-            List<PartitionProps> partitionProps = consumerAllocation.getPartitionProps();
-            ExclusiveConsumerLifecycleManager exclusiveConsumerLifecycleManager = ClientLifecycleManagerFactory.get();
-            for (PartitionProps partitionProp : partitionProps) {
-                exclusiveConsumerLifecycleManager.refreshLifecycle(subject, consumerGroup, partitionProp.getBrokerGroup(), partitionProp.getPartitionName(), version, expired);
-            }
-        }
     }
 
     private void updatePartitionCache(MetaInfoResponse response) {

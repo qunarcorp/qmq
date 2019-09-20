@@ -3,8 +3,6 @@ package qunar.tc.qmq.consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ConsumeStrategy;
-import qunar.tc.qmq.base.BaseMessage;
-import qunar.tc.qmq.common.ExclusiveConsumerLifecycleManager;
 import qunar.tc.qmq.common.OrderStrategy;
 import qunar.tc.qmq.common.OrderStrategyCache;
 import qunar.tc.qmq.consumer.pull.PulledMessage;
@@ -19,23 +17,17 @@ public class ExclusiveConsumeMessageExecutor extends AbstractConsumeMessageExecu
 
     private final Logger logger = LoggerFactory.getLogger(ExclusiveConsumeMessageExecutor.class);
 
-    private final ExclusiveConsumerLifecycleManager lifecycleManager;
-
-    public ExclusiveConsumeMessageExecutor(String subject, String consumerGroup, String partitionName, Executor partitionExecutor, MessageHandler messageHandler, ExclusiveConsumerLifecycleManager lifecycleManager) {
-        super(subject, consumerGroup, partitionName, partitionExecutor, messageHandler);
-        this.lifecycleManager = lifecycleManager;
+    public ExclusiveConsumeMessageExecutor(String subject, String consumerGroup, String partitionName, Executor partitionExecutor, MessageHandler messageHandler, long consumptionExpiredTime) {
+        super(subject, consumerGroup, partitionName, partitionExecutor, messageHandler, consumptionExpiredTime);
     }
 
     @Override
     void processMessage(PulledMessage message) {
         String subject = getSubject();
-        String consumerGroup = getConsumerGroup();
-        String partitionName = getPartitionName();
         MessageHandler messageHandler = getMessageHandler();
         OrderStrategy orderStrategy = OrderStrategyCache.getStrategy(subject);
         try {
-            String brokerGroup = message.getStringProperty(BaseMessage.keys.qmq_partitionBroker);
-            if (!lifecycleManager.isAlive(subject, consumerGroup, brokerGroup, partitionName)) {
+            if (System.currentTimeMillis() > getConsumptionExpiredTime()) {
                 // 没有权限, 停一会再看
                 Thread.sleep(10);
                 requeueFirst(message);

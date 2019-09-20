@@ -14,17 +14,20 @@ public abstract class AbstractPullClient implements PullClient {
     private String consumerGroup;
     private String partitionName;
     private String brokerGroup;
-    private ConsumeStrategy consumeStrategy;
-    private int version;
     private BrokerService brokerService;
 
-    public AbstractPullClient(String subject, String consumerGroup, String partitionName, String brokerGroup, ConsumeStrategy consumeStrategy, int version, BrokerService brokerService) {
+    private volatile ConsumeStrategy consumeStrategy;
+    private volatile int version;
+    private volatile long consumptionExpiredTime;
+
+    public AbstractPullClient(String subject, String consumerGroup, String partitionName, String brokerGroup, ConsumeStrategy consumeStrategy, int version, long consumptionExpiredTime, BrokerService brokerService) {
         this.subject = subject;
         this.consumerGroup = consumerGroup;
         this.partitionName = partitionName;
         this.brokerGroup = brokerGroup;
         this.consumeStrategy = consumeStrategy;
         this.version = version;
+        this.consumptionExpiredTime = consumptionExpiredTime;
         this.brokerService = brokerService;
     }
 
@@ -56,6 +59,16 @@ public abstract class AbstractPullClient implements PullClient {
     @Override
     public String getBrokerGroup() {
         return brokerGroup;
+    }
+
+    @Override
+    public long getConsumptionExpiredTime() {
+        return consumptionExpiredTime;
+    }
+
+    @Override
+    public void setConsumptionExpiredTime(long timestamp) {
+        this.consumptionExpiredTime = timestamp;
     }
 
     @Override

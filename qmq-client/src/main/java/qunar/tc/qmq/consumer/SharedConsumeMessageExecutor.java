@@ -13,8 +13,15 @@ public class SharedConsumeMessageExecutor extends AbstractConsumeMessageExecutor
 
     private final Executor messageHandleExecutor;
 
-    public SharedConsumeMessageExecutor(String subject, String consumerGroup, String partitionName, Executor partitionExecutor, MessageHandler messageHandler, Executor messageHandleExecutor) {
-        super(subject, consumerGroup, partitionName, partitionExecutor, messageHandler);
+    public SharedConsumeMessageExecutor(
+            String subject,
+            String consumerGroup,
+            String partitionName,
+            Executor partitionExecutor,
+            MessageHandler messageHandler,
+            Executor messageHandleExecutor,
+            long consumptionExpiredTime) {
+        super(subject, consumerGroup, partitionName, partitionExecutor, messageHandler, consumptionExpiredTime);
         this.messageHandleExecutor = messageHandleExecutor;
     }
 

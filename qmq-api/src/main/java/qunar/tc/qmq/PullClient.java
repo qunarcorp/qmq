@@ -16,6 +16,13 @@ public interface PullClient {
 
     String getBrokerGroup();
 
+    /**
+     * 获取 MetaServer 消费的授权时间, 若当前时间超过授权时间, 则不得再消费消息
+     */
+    long getConsumptionExpiredTime();
+
+    void setConsumptionExpiredTime(long timestamp);
+
     ConsumeStrategy getConsumeStrategy();
 
     void setConsumeStrategy(ConsumeStrategy consumeStrategy);

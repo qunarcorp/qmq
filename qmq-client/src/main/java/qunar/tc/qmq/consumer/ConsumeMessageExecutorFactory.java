@@ -1,7 +1,6 @@
 package qunar.tc.qmq.consumer;
 
 import qunar.tc.qmq.ConsumeStrategy;
-import qunar.tc.qmq.common.ExclusiveConsumerLifecycleManager;
 
 import java.util.Objects;
 import java.util.concurrent.Executor;
@@ -19,13 +18,13 @@ public class ConsumeMessageExecutorFactory {
             String partitionName,
             Executor partitionExecutor,
             MessageHandler messageHandler,
-            ExclusiveConsumerLifecycleManager lifecycleManager,
-            Executor messageHandleExecutor
+            Executor messageHandleExecutor,
+            long consumptionExpiredTime
     ) {
         if (Objects.equals(ConsumeStrategy.EXCLUSIVE, consumeStrategy)) {
-            return new ExclusiveConsumeMessageExecutor(subject, consumerGroup, partitionName, partitionExecutor, messageHandler, lifecycleManager);
+            return new ExclusiveConsumeMessageExecutor(subject, consumerGroup, partitionName, partitionExecutor, messageHandler, consumptionExpiredTime);
         } else if (Objects.equals(ConsumeStrategy.SHARED, consumeStrategy)) {
-            return new SharedConsumeMessageExecutor(subject, consumerGroup, partitionName, partitionExecutor, messageHandler, messageHandleExecutor);
+            return new SharedConsumeMessageExecutor(subject, consumerGroup, partitionName, partitionExecutor, messageHandler, messageHandleExecutor, consumptionExpiredTime);
         } else {
             throw new IllegalArgumentException(String.format("不支持的 consumeStrategy %s", consumeStrategy));
         }

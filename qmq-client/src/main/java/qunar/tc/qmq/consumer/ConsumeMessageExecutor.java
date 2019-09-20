@@ -19,6 +19,10 @@ public interface ConsumeMessageExecutor {
 
     ConsumeStrategy getConsumeStrategy();
 
+    long getConsumptionExpiredTime();
+
+    void setConsumptionExpiredTime(long timestamp);
+
     boolean consume(List<PulledMessage> messages);
 
     MessageHandler getMessageHandler();
