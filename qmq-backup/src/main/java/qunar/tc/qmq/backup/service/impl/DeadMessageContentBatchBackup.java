@@ -16,20 +16,6 @@
 
 package qunar.tc.qmq.backup.service.impl;
 
-import static qunar.tc.qmq.backup.config.DefaultBackupConfig.DEFAULT_BATCH_SIZE;
-import static qunar.tc.qmq.backup.config.DefaultBackupConfig.DEFAULT_RETRY_NUM;
-import static qunar.tc.qmq.backup.config.DefaultBackupConfig.MESSAGE_BATCH_SIZE_CONFIG_KEY;
-import static qunar.tc.qmq.backup.config.DefaultBackupConfig.MESSAGE_RETRY_NUM_CONFIG_KEY;
-import static qunar.tc.qmq.metrics.MetricsConstants.EMPTY;
-import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_ARRAY;
-import static qunar.tc.qmq.utils.RetryPartitionUtils.getConsumerGroup;
-
-import java.util.Date;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
-
 import com.google.common.base.Throwables;
 import org.jboss.netty.util.CharsetUtil;
 import org.slf4j.Logger;
@@ -52,7 +38,7 @@ import java.util.function.Consumer;
 import static qunar.tc.qmq.backup.config.DefaultBackupConfig.DEFAULT_BATCH_SIZE;
 import static qunar.tc.qmq.backup.config.DefaultBackupConfig.MESSAGE_BATCH_SIZE_CONFIG_KEY;
 import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_ARRAY;
-import static qunar.tc.qmq.utils.RetrySubjectUtils.getConsumerGroup;
+import static qunar.tc.qmq.utils.RetryPartitionUtils.getConsumerGroup;
 
 /**
  * @author xufeng.deng dennisdxf@gmail.com
