@@ -19,9 +19,6 @@ package qunar.tc.qmq.broker.impl;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
-import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
@@ -29,14 +26,18 @@ import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.Versionable;
-import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.broker.ClientMetaManager;
 import qunar.tc.qmq.codec.Serializer;
 import qunar.tc.qmq.codec.Serializers;
-import qunar.tc.qmq.meta.*;
+import qunar.tc.qmq.meta.BrokerCluster;
+import qunar.tc.qmq.meta.BrokerGroup;
+import qunar.tc.qmq.meta.BrokerState;
+import qunar.tc.qmq.meta.ProducerAllocation;
+import qunar.tc.qmq.metainfoclient.ConsumerOnlineStateManager;
+import qunar.tc.qmq.metainfoclient.DefaultConsumerOnlineStateManager;
 import qunar.tc.qmq.metainfoclient.MetaInfo;
 import qunar.tc.qmq.metainfoclient.MetaInfoService;
 import qunar.tc.qmq.netty.client.NettyClient;
@@ -44,8 +45,6 @@ import qunar.tc.qmq.netty.exception.ClientSendException;
 import qunar.tc.qmq.protocol.CommandCode;
 import qunar.tc.qmq.protocol.MetaInfoResponse;
 import qunar.tc.qmq.protocol.PayloadHolder;
-import qunar.tc.qmq.protocol.consumer.ConsumerMetaInfoResponse;
-import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
 import qunar.tc.qmq.protocol.consumer.ReleasePullLockRequest;
 import qunar.tc.qmq.protocol.producer.ProducerMetaInfoResponse;
 import qunar.tc.qmq.util.RemotingBuilder;
@@ -66,10 +65,10 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(BrokerServiceImpl.class);
 
     private Map<String, SettableFuture<ProducerAllocation>> producerAllocationMap = Maps.newConcurrentMap();
-    private Map<String, SettableFuture<ConsumerAllocation>> consumerAllocationMap = Maps.newConcurrentMap();
     private final ConcurrentMap<String, SettableFuture<BrokerClusterInfo>> clusterMap = new ConcurrentHashMap<>();
 
     private final MetaInfoService metaInfoService;
+    private final ConsumerOnlineStateManager consumerOnlineStateManager;
     private final NettyClient nettyClient = NettyClient.getClient();
     private String appCode;
     private String clientId;
@@ -78,6 +77,25 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
         this.appCode = appCode;
         this.metaInfoService = metaInfoService;
         this.clientId = clientId;
+        this.consumerOnlineStateManager = DefaultConsumerOnlineStateManager.getInstance();
+        this.metaInfoService.registerResponseSubscriber(response -> {
+            // update cache
+            updatePartitionCache(response);
+
+            MetaInfo metaInfo = parseResponse(response);
+            if (metaInfo != null) {
+                LOGGER.debug("meta info: {}", metaInfo);
+                String key = buildBrokerClusterKey(metaInfo.getClientType(), metaInfo.getSubject());
+                SettableFuture<BrokerClusterInfo> clusterFuture = clusterMap.get(key);
+                if (isEmptyCluster(metaInfo)) {
+                    logMetaInfo(metaInfo, !clusterFuture.isDone());
+                } else {
+                    updateBrokerCluster(key, metaInfo.getClusterInfo());
+                }
+            } else {
+                LOGGER.warn("request meta info fail, will retry in a few seconds.");
+            }
+        });
     }
 
     private void updateBrokerCluster(String key, BrokerClusterInfo clusterInfo) {
@@ -171,43 +189,8 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
     public BrokerClusterInfo getBrokerCluster(ClientType clientType, String subject, String consumerGroup, boolean isBroadcast, boolean isOrdered) {
         // 这个key上加group不兼容MetaInfoResponse
         String key = buildBrokerClusterKey(clientType, subject);
-        Future<BrokerClusterInfo> future = clusterMap.computeIfAbsent(key, k -> {
-            ListenableFuture<MetaInfoResponse> responseFuture = metaInfoService.registerHeartbeat(
-                    appCode,
-                    clientType.getCode(),
-                    subject,
-                    consumerGroup,
-                    isBroadcast,
-                    isOrdered
-            );
-            Futures.addCallback(responseFuture, new FutureCallback<MetaInfoResponse>() {
-                @Override
-                public void onSuccess(MetaInfoResponse response) {
-                    // update cache
-                    updatePartitionCache(response);
-
-                    MetaInfo metaInfo = parseResponse(response);
-                    if (metaInfo != null) {
-                        LOGGER.debug("meta info: {}", metaInfo);
-                        String key = buildBrokerClusterKey(metaInfo.getClientType(), metaInfo.getSubject());
-                        SettableFuture<BrokerClusterInfo> clusterFuture = clusterMap.get(key);
-                        if (isEmptyCluster(metaInfo)) {
-                            logMetaInfo(metaInfo, !clusterFuture.isDone());
-                        } else {
-                            updateBrokerCluster(key, metaInfo.getClusterInfo());
-                        }
-                    } else {
-                        LOGGER.warn("request meta info fail, will retry in a few seconds.");
-                    }
-                }
-
-                @Override
-                public void onFailure(Throwable t) {
-
-                }
-            });
-            return SettableFuture.create();
-        });
+        Future<BrokerClusterInfo> future = clusterMap.computeIfAbsent(key, k -> SettableFuture.create());
+        registerHeartbeat(clientType, subject, consumerGroup, isBroadcast, isOrdered);
         try {
             return future.get();
         } catch (Throwable t) {
@@ -258,15 +241,10 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
     private void updatePartitionCache(MetaInfoResponse response) {
         ClientType clientType = ClientType.of(response.getClientTypeCode());
         String subject = response.getSubject();
-        String group = response.getConsumerGroup();
         if (clientType.isProducer()) {
             String key = createProducerPartitionMappingKey(ClientType.of(response.getClientTypeCode()), subject);
             ProducerMetaInfoResponse producerResponse = (ProducerMetaInfoResponse) response;
             updatePartitionCache(key, producerAllocationMap, producerResponse.getProducerAllocation());
-        } else if (clientType.isConsumer()) {
-            String key = createConsumerAllocationKey(subject, group, clientId);
-            ConsumerMetaInfoResponse consumerResponse = (ConsumerMetaInfoResponse) response;
-            updatePartitionCache(key, consumerAllocationMap, consumerResponse.getConsumerAllocation());
         }
 
     }
@@ -345,6 +323,7 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
     public ProducerAllocation getProducerAllocation(ClientType clientType, String subject) {
         String producerKey = createProducerPartitionMappingKey(clientType, subject);
         SettableFuture<ProducerAllocation> future = producerAllocationMap.computeIfAbsent(producerKey, key -> SettableFuture.create());
+        registerHeartbeat(clientType, subject, "", false, false);
         try {
             return future.get();
         } catch (Throwable t) {
@@ -352,13 +331,18 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
         }
     }
 
-    public ConsumerAllocation getConsumerAllocation(String subject, String consumerGroup) {
-        String key = createConsumerAllocationKey(subject, consumerGroup, clientId);
-        SettableFuture<ConsumerAllocation> future = consumerAllocationMap.computeIfAbsent(key, k -> SettableFuture.create());
-        try {
-            return future.get();
-        } catch (Throwable t) {
-            throw new RuntimeException(t);
+    private void registerHeartbeat(ClientType clientType, String subject, String consumerGroup, boolean isBroadcast, boolean isOrdered) {
+        if (Objects.equals(ClientType.CONSUMER, clientType)) {
+            SwitchWaiter switchWaiter = new SwitchWaiter(false);
+            this.consumerOnlineStateManager.registerConsumer(subject, consumerGroup, clientId, switchWaiter);
         }
+        metaInfoService.registerHeartbeat(
+                appCode,
+                clientType.getCode(),
+                subject,
+                consumerGroup,
+                isBroadcast,
+                isOrdered
+        );
     }
 }

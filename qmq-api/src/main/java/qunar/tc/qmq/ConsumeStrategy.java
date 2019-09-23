@@ -8,7 +8,7 @@ public enum ConsumeStrategy {
 
     EXCLUSIVE, SHARED;
 
-    public static ConsumeStrategy getConsumerStrategy(boolean isBroadcast, boolean isOrdered) {
+    public static ConsumeStrategy getConsumeStrategy(boolean isBroadcast, boolean isOrdered) {
         return isBroadcast || isOrdered ? ConsumeStrategy.EXCLUSIVE : ConsumeStrategy.SHARED;
     }
 }

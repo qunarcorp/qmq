@@ -7,6 +7,8 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import qunar.tc.qmq.*;
 import qunar.tc.qmq.broker.BrokerService;
+import qunar.tc.qmq.broker.impl.SwitchWaiter;
+import qunar.tc.qmq.metainfoclient.MetaInfoService;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -22,18 +24,32 @@ public class CompositePullConsumer<T extends PullConsumer> extends AbstractPullC
 
     private List<T> consumers;
 
-    public CompositePullConsumer(String subject, String consumerGroup, int version, long consumptionExpiredTime, List<T> consumers, BrokerService brokerService) {
-        super(subject, consumerGroup, "", "", null, version, consumptionExpiredTime, brokerService);
+    public CompositePullConsumer(
+            String subject,
+            String consumerGroup,
+            String consumerId,
+            int version,
+            boolean isBroadcast,
+            boolean isOrdered,
+            long consumptionExpiredTime,
+            List<T> consumers,
+            BrokerService brokerService,
+            MetaInfoService metaInfoService,
+            SwitchWaiter onlineSwitcher) {
+        super(subject, consumerGroup, "", "", consumerId, null, version, isBroadcast, isOrdered, consumptionExpiredTime, brokerService, metaInfoService, onlineSwitcher);
+        onlineSwitcher.on(StatusSource.HEALTHCHECKER);
         this.consumers = consumers;
     }
 
     @Override
     public void online() {
+        getOnlineSwitcher().on(StatusSource.CODE);
         consumers.forEach(PullConsumer::online);
     }
 
     @Override
     public void offline() {
+        getOnlineSwitcher().off(StatusSource.CODE);
         consumers.forEach(PullConsumer::offline);
     }
 
@@ -162,11 +178,13 @@ public class CompositePullConsumer<T extends PullConsumer> extends AbstractPullC
 
     @Override
     public void online(StatusSource statusSource) {
+        getOnlineSwitcher().on(statusSource);
         consumers.forEach(pc -> pc.online(statusSource));
     }
 
     @Override
     public void offline(StatusSource statusSource) {
+        getOnlineSwitcher().off(statusSource);
         consumers.forEach(pc -> pc.offline(statusSource));
     }
 

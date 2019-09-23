@@ -22,7 +22,9 @@ import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.Message;
 import qunar.tc.qmq.broker.BrokerService;
+import qunar.tc.qmq.broker.impl.SwitchWaiter;
 import qunar.tc.qmq.config.PullSubjectsConfig;
+import qunar.tc.qmq.metainfoclient.MetaInfoService;
 import qunar.tc.qmq.metrics.Metrics;
 
 import java.util.ArrayList;
@@ -57,17 +59,19 @@ class DefaultPullConsumer extends AbstractPullConsumer {
             String consumerGroup,
             String partitionName,
             String brokerGroup,
+            String clientId,
             ConsumeStrategy consumeStrategy,
             int version,
             long consumptionExpiredTime,
             boolean isBroadcast,
             boolean isOrdered,
-            String clientId,
             PullService pullService,
             AckService ackService,
             BrokerService brokerService,
-            SendMessageBack sendMessageBack) {
-        super(subject, consumerGroup, partitionName, brokerGroup, consumeStrategy, version, consumptionExpiredTime, isBroadcast, isOrdered, clientId, pullService, ackService, brokerService, sendMessageBack);
+            MetaInfoService metaInfoService,
+            SendMessageBack sendMessageBack,
+            SwitchWaiter switchWaiter) {
+        super(subject, consumerGroup, partitionName, brokerGroup, consumeStrategy, version, consumptionExpiredTime, isBroadcast, isOrdered, clientId, pullService, ackService, brokerService, metaInfoService, sendMessageBack, switchWaiter);
         this.preFetchSize = PullSubjectsConfig.get().getPullBatchSize(subject).get();
         this.lowWaterMark = Math.round(preFetchSize * 0.2F);
     }
@@ -196,7 +200,7 @@ class DefaultPullConsumer extends AbstractPullConsumer {
             PullMessageFuture future;
             while (!isStop) {
                 try {
-                    if (!onlineSwitcher.waitOn()) continue;
+                    if (!getOnlineSwitcher().waitOn()) continue;
 
                     future = requestQueue.poll(POLL_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
                     if (future != null) doPull(future);

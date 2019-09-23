@@ -16,6 +16,7 @@ import qunar.tc.qmq.meta.BrokerGroupKind;
 import qunar.tc.qmq.meta.Partition;
 import qunar.tc.qmq.meta.PartitionSet;
 import qunar.tc.qmq.meta.model.ClientMetaInfo;
+import qunar.tc.qmq.meta.model.SubjectRoute;
 import qunar.tc.qmq.meta.store.*;
 import qunar.tc.qmq.meta.store.impl.*;
 
@@ -54,7 +55,6 @@ public class DefaultPartitionService implements PartitionService {
 
     @Override
     public boolean registerOrderedMessage(String subject, int physicalPartitionNum) {
-        // TODO(zhenwei.liu) 这里需要重新分配 subject-broker 表的数据
         synchronized (subject.intern()) {
             PartitionSet oldPartitionSet = partitionSetStore.getLatest(subject);
             if (oldPartitionSet == null) {
@@ -103,9 +103,15 @@ public class DefaultPartitionService implements PartitionService {
 
                     return transactionTemplate.execute(transactionStatus -> {
                         try {
-                            partitionStore.save(partitions);
-                            partitionSetStore.save(partitionSet);
-                            return true;
+                            SubjectRoute oldRoute = store.selectSubjectRoute(subject);
+                            if (store.updateSubjectRoute(subject, oldRoute.getVersion(), brokerGroups) > 0) {
+                                partitionStore.save(partitions);
+                                partitionSetStore.save(partitionSet);
+                                return true;
+                            } else {
+                                logger.warn("subject {} 创建分区失败, subject router 更新失败", subject);
+                                return false;
+                            }
                         } catch (DuplicateKeyException e) {
                             // 并发问题, 忽略
                             logger.warn("subject {} 创建分区信息重复", subject);

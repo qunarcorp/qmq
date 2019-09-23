@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package qunar.tc.qmq.common;
+package qunar.tc.qmq.broker.impl;
 
 import com.google.common.collect.Lists;
 import org.slf4j.Logger;

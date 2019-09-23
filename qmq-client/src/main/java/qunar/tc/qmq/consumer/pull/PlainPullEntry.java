@@ -23,6 +23,8 @@ import qunar.tc.qmq.StatusSource;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
+import qunar.tc.qmq.broker.impl.SwitchWaiter;
+import qunar.tc.qmq.metainfoclient.MetaInfoService;
 
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -39,15 +41,34 @@ class PlainPullEntry extends AbstractPullEntry {
             ConsumeParam consumeParam,
             String partitionName,
             String brokerGroup,
+            String consumerId,
             ConsumeStrategy consumeStrategy,
             int allocationVersion,
             long consumptionExpiredTime,
             PullService pullService,
             AckService ackService,
             BrokerService brokerService,
+            MetaInfoService metaInfoService,
             PullStrategy pullStrategy,
-            SendMessageBack sendMessageBack) {
-        super(consumeParam.getSubject(), consumeParam.getConsumerGroup(), partitionName, brokerGroup, consumeStrategy, allocationVersion, consumptionExpiredTime, consumeParam.isBroadcast(), consumeParam.isOrdered(), pullService, ackService, brokerService, sendMessageBack);
+            SendMessageBack sendMessageBack,
+            SwitchWaiter switchWaiter) {
+        super(
+                consumeParam.getSubject(),
+                consumeParam.getConsumerGroup(),
+                partitionName,
+                brokerGroup,
+                consumerId,
+                consumeStrategy,
+                allocationVersion,
+                consumeParam.isBroadcast(),
+                consumeParam.isOrdered(),
+                consumptionExpiredTime,
+                pullService,
+                ackService,
+                brokerService,
+                metaInfoService,
+                sendMessageBack,
+                switchWaiter);
         this.consumeParam = consumeParam;
         this.pullStrategy = pullStrategy;
     }

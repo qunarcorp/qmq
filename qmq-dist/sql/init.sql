@@ -114,6 +114,7 @@ CREATE TABLE IF NOT EXISTS `client_meta_info`
   `subject_info`   VARCHAR(100)     NOT NULL DEFAULT '' COMMENT '主题',
   `client_type`    TINYINT          NOT NULL DEFAULT 0 COMMENT 'client类型',
   `consumer_group` VARCHAR(100)     NOT NULL DEFAULT '' COMMENT '消费组',
+  `consume_strategy` VARCHAR(100)     NOT NULL DEFAULT 'SHARED' COMMENT '消费模式',
   `client_id`      VARCHAR(100)     NOT NULL DEFAULT '' COMMENT 'client id',
   `app_code`       VARCHAR(100)     NOT NULL DEFAULT '' COMMENT '应用',
   `room`           VARCHAR(20)      NOT NULL DEFAULT '' COMMENT '机房',
@@ -127,7 +128,7 @@ CREATE TABLE IF NOT EXISTS `client_meta_info`
   DEFAULT CHARSET = utf8mb4
   COMMENT = '订阅关系表';
 
-CREATE TABLE `partition` (
+CREATE TABLE `partitions` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT COMMENT '主键',
   `subject` varchar(100) COLLATE utf8mb4_bin NOT NULL COMMENT '主题',
   `partition_id` int(11) NOT NULL COMMENT '物理分区',
@@ -135,11 +136,11 @@ CREATE TABLE `partition` (
   `logical_partition_lower_bound` int(11) COLLATE utf8mb4_bin NOT NULL COMMENT '逻辑分区范围下界, 闭区间, 如 [0, 500)',
   `logical_partition_upper_bound` int(11) COLLATE utf8mb4_bin NOT NULL COMMENT '逻辑分区范围上界, 开区间, 如 [0, 500)',
   `broker_group` varchar(45) COLLATE utf8mb4_bin NOT NULL COMMENT '物理分区所在的 broker',
-  `status` varchar(10) COLLATE utf8mb4_bin NOT NULL COMMENT '状态, RW, R',
+  `rw_status` varchar(10) COLLATE utf8mb4_bin NOT NULL COMMENT '状态, RW, R',
   `create_ts` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_ts` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_subject_physical_partition` (`subject`,`physical_partition`)
+  UNIQUE KEY `idx_subject_physical_partition` (`subject`,`partition_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
 CREATE TABLE `partition_set` (

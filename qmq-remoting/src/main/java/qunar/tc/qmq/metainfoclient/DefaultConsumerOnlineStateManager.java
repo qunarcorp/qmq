@@ -1,6 +1,7 @@
 package qunar.tc.qmq.metainfoclient;
 
 import com.google.common.collect.Maps;
+import qunar.tc.qmq.broker.impl.SwitchWaiter;
 
 import java.util.Map;
 
@@ -19,21 +20,27 @@ public class DefaultConsumerOnlineStateManager implements ConsumerOnlineStateMan
     private DefaultConsumerOnlineStateManager() {
     }
 
-    private Map<String, OnlineStateGetter> stateMap = Maps.newConcurrentMap();
+    private Map<String, SwitchWaiter> stateMap = Maps.newConcurrentMap();
 
     @Override
     public boolean isOnline(String subject, String group, String clientId) {
         String key = createKey(subject, group, clientId);
-        OnlineStateGetter onlineStateGetter = stateMap.get(key);
-        if (onlineStateGetter == null) {
-            throw new IllegalArgumentException(String.format("无法找到 onlineStateGetter subject %s group %s clientId %s", subject, group, clientId));
+        SwitchWaiter switchWaiter = stateMap.get(key);
+        if (switchWaiter == null) {
+            throw new IllegalStateException(String.format("无法找到 switchWaiter subject %s consumerGroup %s", subject, group));
         }
-        return onlineStateGetter.isOnline();
+        return switchWaiter.isOnline();
     }
 
     @Override
-    public void registerConsumer(String subject, String group, String clientId, OnlineStateGetter onlineStateGetter) {
-        stateMap.put(createKey(subject, group, clientId), onlineStateGetter);
+    public void registerConsumer(String subject, String group, String clientId, SwitchWaiter switchWaiter) {
+        stateMap.put(createKey(subject, group, clientId), switchWaiter);
+    }
+
+    @Override
+    public SwitchWaiter getSwitchWaiter(String subject, String group, String clientId) {
+        String key = createKey(subject, group, clientId);
+        return stateMap.get(key);
     }
 
     private String createKey(String subject, String group, String clientId) {

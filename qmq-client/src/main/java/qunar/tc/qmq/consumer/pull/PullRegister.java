@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.*;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.broker.impl.BrokerServiceImpl;
+import qunar.tc.qmq.broker.impl.SwitchWaiter;
 import qunar.tc.qmq.common.EnvProvider;
 import qunar.tc.qmq.common.OrderStrategyCache;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
@@ -34,9 +35,7 @@ import qunar.tc.qmq.consumer.exception.DuplicateListenerException;
 import qunar.tc.qmq.consumer.register.ConsumerRegister;
 import qunar.tc.qmq.consumer.register.RegistParam;
 import qunar.tc.qmq.meta.ConsumerAllocation;
-import qunar.tc.qmq.metainfoclient.ConsumerStateChangedListener;
-import qunar.tc.qmq.metainfoclient.DefaultMetaInfoService;
-import qunar.tc.qmq.metainfoclient.MetaInfoClient;
+import qunar.tc.qmq.metainfoclient.*;
 import qunar.tc.qmq.producer.sender.DefaultMessageGroupResolver;
 import qunar.tc.qmq.protocol.MetaInfoResponse;
 import qunar.tc.qmq.protocol.consumer.ConsumerMetaInfoResponse;
@@ -73,6 +72,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
     private PullService pullService;
     private AckService ackService;
     private SendMessageBack sendMessageBack;
+    private ConsumerOnlineStateManager consumerOnlineStateManager;
 
     private String clientId;
     private String appCode;
@@ -96,6 +96,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
 
         this.ackService.setClientId(clientId);
         this.metaInfoService.setConsumerStateChangedListener(this);
+        this.consumerOnlineStateManager = DefaultConsumerOnlineStateManager.getInstance();
     }
 
     @Override
@@ -192,7 +193,20 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         ConsumerAllocation retryConsumerAllocation = consumerAllocation.getRetryConsumerAllocation(consumerGroup);
         PullEntry retryPullEntry = updatePullEntry(entryKey, oldEntry, subject, consumerGroup, param, new WeightPullStrategy(), retryConsumerAllocation);
 
-        PullEntry entry = new CompositePullEntry<>(subject, consumerGroup, version, consumptionExpiredTime, Lists.newArrayList(pullEntry, retryPullEntry), brokerService);
+        SwitchWaiter switchWaiter = consumerOnlineStateManager.getSwitchWaiter(subject, consumerGroup, clientId);
+        PullEntry entry = new CompositePullEntry<>(
+                subject,
+                consumerGroup,
+                clientId,
+                version,
+                param.isBroadcast(),
+                param.isOrdered(),
+                consumptionExpiredTime,
+                Lists.newArrayList(pullEntry, retryPullEntry),
+                brokerService,
+                metaInfoService,
+                switchWaiter
+        );
 
         pullEntryMap.put(entryKey, entry);
         return entry;
@@ -231,7 +245,8 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
                 }, new CompositePullClientFactory<CompositePullEntry, PullEntry>() {
                     @Override
                     public CompositePullEntry createPullClient(String subject, String consumerGroup, int version, long consumptionExpiredTime, List<PullEntry> list) {
-                        return new CompositePullEntry(subject, consumerGroup, version, consumptionExpiredTime, list, brokerService);
+                        SwitchWaiter switchWaiter = consumerOnlineStateManager.getSwitchWaiter(subject, consumerGroup, clientId);
+                        return new CompositePullEntry(subject, consumerGroup, clientId, version, param.isBroadcast(), param.isOrdered(), consumptionExpiredTime, list, brokerService, metaInfoService, switchWaiter);
                     }
                 });
 
@@ -368,7 +383,23 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
                 param.getExecutor(),
                 consumptionExpiredTime
         );
-        PullEntry pullEntry = new DefaultPullEntry(consumeMessageExecutor, consumeParam, partitionName, brokerGroup, consumeStrategy, allocationVersion, consumptionExpiredTime, pullService, ackService, metaInfoService, brokerService, pullStrategy, sendMessageBack);
+        SwitchWaiter switchWaiter = consumerOnlineStateManager.getSwitchWaiter(subject, consumerGroup, clientId);
+        PullEntry pullEntry = new DefaultPullEntry(
+                consumeMessageExecutor,
+                consumeParam,
+                partitionName,
+                brokerGroup,
+                clientId,
+                consumeStrategy,
+                allocationVersion,
+                consumptionExpiredTime,
+                pullService,
+                ackService,
+                brokerService,
+                metaInfoService,
+                pullStrategy,
+                sendMessageBack,
+                switchWaiter);
         pullEntry.startPull(partitionExecutor);
         return pullEntry;
     }
@@ -376,6 +407,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
     private synchronized PullConsumer createPullConsumer(String subject, String consumerGroup, boolean isBroadcast, boolean isOrdered, ConsumerMetaInfoResponse response) {
         String key = buildPullClientKey(subject, consumerGroup);
         PullConsumer oldConsumer = pullConsumerMap.get(key);
+        SwitchWaiter switchWaiter = consumerOnlineStateManager.getSwitchWaiter(subject, consumerGroup, clientId);
 
         PullConsumer pc = (PullConsumer) createPullClient(
                 subject,
@@ -391,16 +423,18 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
                                 consumerGroup,
                                 partitionName,
                                 brokerGroup,
+                                clientId,
                                 consumeStrategy,
                                 version,
                                 consumptionExpiredTime,
                                 isBroadcast,
                                 isOrdered,
-                                clientId,
                                 pullService,
                                 ackService,
                                 brokerService,
-                                sendMessageBack);
+                                metaInfoService,
+                                sendMessageBack,
+                                switchWaiter);
                         pullConsumer.startPull(partitionExecutor);
                         return pullConsumer;
                     }
@@ -408,7 +442,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
                 new CompositePullClientFactory() {
                     @Override
                     public CompositePullClient createPullClient(String subject, String consumerGroup, int version, long consumptionExpiredTime, List clientList) {
-                        return new CompositePullEntry(subject, consumerGroup, version, consumptionExpiredTime, clientList, brokerService);
+                        return new CompositePullEntry(subject, consumerGroup, clientId, version, isBroadcast, isOrdered, consumptionExpiredTime, clientList, brokerService, metaInfoService, switchWaiter);
                     }
                 });
         if (pullEntryMap.containsKey(key)) {

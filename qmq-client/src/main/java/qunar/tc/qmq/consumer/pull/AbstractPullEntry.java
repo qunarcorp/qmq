@@ -26,7 +26,9 @@ import qunar.tc.qmq.StatusSource;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
+import qunar.tc.qmq.broker.impl.SwitchWaiter;
 import qunar.tc.qmq.config.PullSubjectsConfig;
+import qunar.tc.qmq.metainfoclient.MetaInfoService;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.QmqCounter;
 import qunar.tc.qmq.protocol.CommandCode;
@@ -61,8 +63,24 @@ abstract class AbstractPullEntry extends AbstractPullClient implements PullEntry
     private final QmqCounter pullWorkCounter;
     private final QmqCounter pullFailCounter;
 
-    AbstractPullEntry(String subject, String consumerGroup, String partitionName, String brokerGroup, ConsumeStrategy consumeStrategy, int version, long consumptionExpiredTime, boolean isBroadcast, boolean isOrdered, PullService pullService, AckService ackService, BrokerService brokerService, SendMessageBack sendMessageBack) {
-        super(subject, consumerGroup, partitionName, brokerGroup, consumeStrategy, version, consumptionExpiredTime, brokerService);
+    AbstractPullEntry(
+            String subject,
+            String consumerGroup,
+            String partitionName,
+            String brokerGroup,
+            String consumerId,
+            ConsumeStrategy consumeStrategy,
+            int version,
+            boolean isBroadcast,
+            boolean isOrdered,
+            long consumptionExpiredTime,
+            PullService pullService,
+            AckService ackService,
+            BrokerService brokerService,
+            MetaInfoService metaInfoService,
+            SendMessageBack sendMessageBack,
+            SwitchWaiter onlineSwitcher) {
+        super(subject, consumerGroup, partitionName, brokerGroup, consumerId, consumeStrategy, version, isBroadcast, isOrdered, consumptionExpiredTime, brokerService, metaInfoService, onlineSwitcher);
         this.pullService = pullService;
         this.ackService = ackService;
         this.brokerService = brokerService;

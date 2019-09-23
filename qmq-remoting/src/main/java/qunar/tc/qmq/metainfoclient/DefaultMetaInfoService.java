@@ -231,7 +231,7 @@ public class DefaultMetaInfoService implements MetaInfoService {
             MetaInfoRequest request = new MetaInfoRequest(
                     subject,
                     consumerGroup,
-                    ClientType.CONSUMER.getCode(),
+                    clientTypeCode,
                     appCode,
                     clientId,
                     ClientRequestType.ONLINE,
@@ -249,8 +249,12 @@ public class DefaultMetaInfoService implements MetaInfoService {
         String subject = request.getSubject();
         String consumerGroup = request.getConsumerGroup();
         if (requestWrapper.compareAndSetState(RequestState.IDLE, RequestState.REQUESTING)) {
-            boolean online = consumerOnlineStateManager.isOnline(subject, consumerGroup, this.clientId);
-            request.setOnlineState(online ? OnOfflineState.ONLINE : OnOfflineState.OFFLINE);
+            if (request.getClientTypeCode() == ClientType.CONSUMER.getCode()) {
+                boolean online = consumerOnlineStateManager.isOnline(subject, consumerGroup, this.clientId);
+                request.setOnlineState(online ? OnOfflineState.ONLINE : OnOfflineState.OFFLINE);
+            } else {
+                request.setOnlineState(OnOfflineState.ONLINE);
+            }
 
             LOGGER.debug("meta info request: {}", request);
             ListenableFuture<MetaInfoResponse> future = metaInfoClient.sendMetaInfoRequest(request);

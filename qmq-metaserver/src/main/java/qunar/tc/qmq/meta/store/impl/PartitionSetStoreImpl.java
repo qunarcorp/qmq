@@ -26,7 +26,9 @@ public class PartitionSetStoreImpl implements PartitionSetStore {
             "select subject, physical_partitions, version from partition_set where subject = ? and version = max(version)";
     private static final String SAVE_SQL = "insert into partition_set (subject, physical_partitions, version) values(?, ?, ?)";
     private static final String GET_LATEST_SQL = "select p1.subject, p1.physical_partitions, p1.version from partition_set p1 " +
-            "left join partition_set p2 on p1.subject = p2.subject and p1.version < p2.version where p2.version is NULL";
+            "left join partition_set p2 " +
+            "on p1.subject = p2.subject and p1.version < p2.version " +
+            "where p2.version is NULL";
 
     private static final String PARTITION_DELIMITER = ",";
     private static final Joiner commaJoiner = Joiner.on(PARTITION_DELIMITER);

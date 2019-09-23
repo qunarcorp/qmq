@@ -28,9 +28,12 @@ public class PartitionAllocationStoreImpl implements PartitionAllocationStore {
     private static final String GET_LATEST_SQL = "select p1.subject, p1.consumer_group, p1.allocation_detail, p1.partition_set_version, p1.version " +
             "from partition_allocation p1 " +
             "left join partition_allocation p2 " +
-            "where p1.subject = p2.subject and p1.consuemr_group = p2.subject and p1.version < p2.version and p2.version is NULL ";
+            "on p1.subject = p2.subject and p1.consumer_group = p2.consumer_group and p1.version < p2.version " +
+            "where p2.version is NULL";
 
-    private static final String GET_LATEST_BY_SUBJECT_GROUP_SQL = "select subject, consumer_group, allocation_detail, partition_set_version, version from partition_allocation where subject = ? and group = ? order by id desc limit 1";
+    private static final String GET_LATEST_BY_SUBJECT_GROUP_SQL = "select subject, consumer_group, allocation_detail, partition_set_version, version " +
+            "from partition_allocation " +
+            "where subject = ? and group = ? order by id desc limit 1";
 
     private static final RowMapper<PartitionAllocation> partitionAllocationRowMapper = new RowMapper<PartitionAllocation>() {
         @Override

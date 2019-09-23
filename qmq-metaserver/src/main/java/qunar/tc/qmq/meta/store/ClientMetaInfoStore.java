@@ -16,6 +16,7 @@
 
 package qunar.tc.qmq.meta.store;
 
+import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.base.OnOfflineState;
 import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.meta.model.ClientMetaInfo;
@@ -42,5 +43,5 @@ public interface ClientMetaInfoStore {
 
     List<ClientMetaInfo> queryClientsUpdateAfterDate(String subject, String consumerGroup, ClientType clientType, OnOfflineState onlineStatus, Date updateDate);
 
-    int updateClientOnlineState(ClientMetaInfo clientMetaInfo);
+    int updateClientOnlineState(ClientMetaInfo clientMetaInfo, ConsumeStrategy consumeStrategy);
 }

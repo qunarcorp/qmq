@@ -89,14 +89,14 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
         return true;
     }
 
+
+    // TODO(zhenwei.liu) 这里需要根据 Producer 还是 Consumer 来决定是否返回老分区, 对 Producer 不返回老分区, 对 Consumer 则返回所有
     private MetaInfoResponse handleClientRegister(RemotingHeader header, MetaInfoRequest request) {
         int clientRequestType = request.getRequestType();
-        OnOfflineState onOfflineState = request.getOnlineState();
 
         String subject = request.getSubject();
         if (SubjectUtils.isInValid(subject)) {
-            onOfflineState = OnOfflineState.OFFLINE;
-            return buildResponse(header, request, -2, onOfflineState, new BrokerCluster(new ArrayList<>()));
+            return buildResponse(header, request, -2, OnOfflineState.OFFLINE, new BrokerCluster(new ArrayList<>()));
         }
 
         try {
@@ -107,23 +107,19 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
             final List<BrokerGroup> brokerGroups = subjectRouter.route(subject, request.getClientTypeCode());
             BrokerFilter brokerFilter = VersionableComponentManager.getComponent(BrokerFilter.class, header.getVersion());
             final List<BrokerGroup> filteredBrokerGroups = brokerFilter.filter(subject, request.getClientTypeCode(), brokerGroups);
-            final OnOfflineState clientState = offlineStateManager.queryClientState(request.getClientId(), request.getSubject(), request.getConsumerGroup());
+            OnOfflineState onlineState = offlineStateManager.queryClientState(request.getClientId(), request.getSubject(), request.getConsumerGroup());
 
             ClientLogUtils.log(subject,
                     "client register response, request:{}, realSubject:{}, brokerGroups:{}, clientState:{}",
-                    request, subject, filteredBrokerGroups, clientState);
+                    request, subject, filteredBrokerGroups, onlineState);
 
-            return buildResponse(header, request, offlineStateManager.getLastUpdateTimestamp(), clientState, new BrokerCluster(filteredBrokerGroups));
+            return buildResponse(header, request, offlineStateManager.getLastUpdateTimestamp(), onlineState, new BrokerCluster(filteredBrokerGroups));
         } catch (Exception e) {
             LOG.error("process exception. {}", request, e);
-            onOfflineState = OnOfflineState.OFFLINE;
-            return buildResponse(header, request, -2, onOfflineState, new BrokerCluster(new ArrayList<>()));
+            return buildResponse(header, request, -2, OnOfflineState.OFFLINE, new BrokerCluster(new ArrayList<>()));
         } finally {
-            if (ClientRequestType.HEARTBEAT.getCode() == clientRequestType || ClientRequestType.SWITCH_STATE.getCode() == clientRequestType) {
-                // 上线的时候如果出现异常可能会将客户端上线状态改为下线
-                request.setOnlineState(onOfflineState);
-                EventDispatcher.dispatch(request);
-            }
+            // 上线的时候如果出现异常可能会将客户端上线状态改为下线
+            EventDispatcher.dispatch(request);
         }
     }
 
@@ -185,11 +181,8 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
                 return new ProducerMetaInfoResponse(updateTime, subject, consumerGroup, clientState, clientTypeCode, brokerCluster, producerAllocation);
             } else if (clientType.isConsumer()) {
                 String clientId = request.getClientId();
-                ConsumeStrategy consumeStrategy = ConsumeStrategy.getConsumerStrategy(request.isBroadcast(), request.isOrdered());
-                ConsumerAllocation consumerAllocation = null;
-                // TODO(zhenwei.liu) 1. 定时和主动通知相结合, 定时是主动通知的补偿机制, 所以不需要实时性, 即拉取最新的分区信息主要靠 meta server 下发, 所以心跳拉取只需要从换粗即可
-                // TODO(zhenwei.liu) 2. Exclusive 心跳使用 batch 更新机制, 减少对数据库的压力
-                consumerAllocation = allocationService.getConsumerAllocation(subject, consumerGroup, clientId, consumeStrategy, brokerCluster.getBrokerGroups());
+                ConsumeStrategy consumeStrategy = ConsumeStrategy.getConsumeStrategy(request.isBroadcast(), request.isOrdered());
+                ConsumerAllocation consumerAllocation = allocationService.getConsumerAllocation(subject, consumerGroup, clientId, consumeStrategy, brokerCluster.getBrokerGroups());
                 return new ConsumerMetaInfoResponse(updateTime, subject, consumerGroup, clientState, clientTypeCode, brokerCluster, consumerAllocation);
             }
             throw new UnsupportedOperationException("客户端类型不匹配");

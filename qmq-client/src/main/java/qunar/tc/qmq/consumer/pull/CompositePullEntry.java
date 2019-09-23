@@ -5,6 +5,8 @@ import qunar.tc.qmq.PullClient;
 import qunar.tc.qmq.PullEntry;
 import qunar.tc.qmq.StatusSource;
 import qunar.tc.qmq.broker.BrokerService;
+import qunar.tc.qmq.broker.impl.SwitchWaiter;
+import qunar.tc.qmq.metainfoclient.MetaInfoService;
 
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -17,13 +19,25 @@ public class CompositePullEntry<T extends PullEntry> extends AbstractPullClient 
 
     private List<T> pullEntries;
 
-    public CompositePullEntry(String subject, String consumerGroup, int version, long consumptionExpiredTime, List<T> pullEntries, BrokerService brokerService) {
-        super(subject, consumerGroup, "", "", null, version, consumptionExpiredTime, brokerService);
+    public CompositePullEntry(
+            String subject,
+            String consumerGroup,
+            String consumerId,
+            int version,
+            boolean isBroadcast,
+            boolean isOrdered,
+            long consumptionExpiredTime,
+            List<T> pullEntries,
+            BrokerService brokerService,
+            MetaInfoService metaInfoService,
+            SwitchWaiter onlineSwitcher) {
+        super(subject, consumerGroup, "", "", consumerId, null, version, isBroadcast, isOrdered, consumptionExpiredTime, brokerService, metaInfoService, onlineSwitcher);
         this.pullEntries = pullEntries;
     }
 
     @Override
     public void online(StatusSource statusSource) {
+        getOnlineSwitcher().on(statusSource);
         pullEntries.forEach(pe -> pe.online(statusSource));
     }
 

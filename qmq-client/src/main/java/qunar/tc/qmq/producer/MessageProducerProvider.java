@@ -93,21 +93,23 @@ public class MessageProducerProvider implements MessageProducer {
 
     @PostConstruct
     public void init() {
-        String clientId = clientIdProvider.get();
-        DefaultMetaInfoService metaInfoService = new DefaultMetaInfoService(metaServer);
-        metaInfoService.setClientId(clientId);
-        metaInfoService.init();
+        if (STARTED.compareAndSet(false, true)) {
+            String clientId = clientIdProvider.get();
+            DefaultMetaInfoService metaInfoService = new DefaultMetaInfoService(metaServer);
+            metaInfoService.setClientId(clientId);
+            metaInfoService.init();
 
-        BrokerService brokerService = new BrokerServiceImpl(appCode, clientId, metaInfoService);
+            BrokerService brokerService = new BrokerServiceImpl(appCode, clientId, metaInfoService);
 
-        OrderStrategyCache.initOrderStrategy(new DefaultMessageGroupResolver(brokerService));
+            OrderStrategyCache.initOrderStrategy(new DefaultMessageGroupResolver(brokerService));
 
-        NettyClient client = NettyClient.getClient();
-        client.start();
+            NettyClient client = NettyClient.getClient();
+            client.start();
 
-        ConnectionManager connectionManager = new NettyConnectionManager(client, brokerService);
-        DefaultMessageGroupResolver messageGroupResolver = new DefaultMessageGroupResolver(brokerService);
-        this.queueSender = new OrderedQueueSender(connectionManager, messageGroupResolver);
+            ConnectionManager connectionManager = new NettyConnectionManager(client, brokerService);
+            DefaultMessageGroupResolver messageGroupResolver = new DefaultMessageGroupResolver(brokerService);
+            this.queueSender = new OrderedQueueSender(connectionManager, messageGroupResolver);
+        }
     }
 
     @Override

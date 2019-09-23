@@ -40,4 +40,10 @@ public interface PullClient {
     void online(StatusSource statusSource);
 
     void offline(StatusSource statusSource);
+
+    String getConsumerId();
+
+    boolean isBroadcast();
+
+    boolean isOrdered();
 }

@@ -75,6 +75,7 @@ public class NettyConnectManageHandler extends ChannelDuplexHandler {
         return false;
     }
 
+    // TODO(zhenwei.liu) 之类不是线程安全, handler 带状态不能每次用
     Channel getOrCreateChannel(final String remoteAddr) throws ClientSendException {
         if (Strings.isNullOrEmpty(remoteAddr)) {
             throw new ClientSendException(ClientSendException.SendErrorCode.EMPTY_ADDRESS);

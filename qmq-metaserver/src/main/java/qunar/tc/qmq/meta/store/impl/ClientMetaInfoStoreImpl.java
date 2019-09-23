@@ -18,6 +18,7 @@ package qunar.tc.qmq.meta.store.impl;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.base.OnOfflineState;
 import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
@@ -35,8 +36,7 @@ public class ClientMetaInfoStoreImpl implements ClientMetaInfoStore {
 
     private static final String QUERY_CONSUMER_SQL = "SELECT subject_info,client_type,consumer_group,client_id,app_code,room FROM client_meta_info WHERE subject_info=? AND client_type=?";
     private static final String QUERY_CLIENT_AFTER_DATE_SQL = "SELECT subject_info,client_type,consumer_group,client_id,app_code,room from client_meta_info where client_type=? and online_status = ? and update_time > ?";
-    private static final String QUERY_CLIENT_AFTER_DATE_SQL2 = "SELECT subject_info,client_type,consumer_group,client_id,app_code,room from client_meta_info where subject = ?, consumer_group = ?, client_type=? and online_status = ? and update_time > ?";
-    private static final String UPDATE_CLIENT_STATE_SQL = "update client_meta_info set update_time = now(), online_status = ? where subject_info = ? and client_type = ? and consumer_group = ? and client_id = ?";
+    private static final String UPDATE_CLIENT_STATE_SQL = "update client_meta_info set update_time = now(), online_status = ?, consume_strategy = ? where subject_info = ? and client_type = ? and consumer_group = ? and client_id = ?";
 
     private final JdbcTemplate jdbcTemplate = JdbcTemplateHolder.getOrCreate();
 
@@ -68,9 +68,10 @@ public class ClientMetaInfoStoreImpl implements ClientMetaInfoStore {
     }
 
     @Override
-    public int updateClientOnlineState(ClientMetaInfo clientMetaInfo) {
+    public int updateClientOnlineState(ClientMetaInfo clientMetaInfo, ConsumeStrategy consumeStrategy) {
         return jdbcTemplate.update(UPDATE_CLIENT_STATE_SQL,
                 clientMetaInfo.getOnlineStatus().name(),
+                consumeStrategy,
                 clientMetaInfo.getSubject(),
                 clientMetaInfo.getClientTypeCode(),
                 defaultEmpty(clientMetaInfo.getConsumerGroup()),

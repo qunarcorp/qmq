@@ -21,19 +21,15 @@ import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.StatusSource;
-import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
-import qunar.tc.qmq.common.SwitchWaiter;
+import qunar.tc.qmq.broker.impl.SwitchWaiter;
 import qunar.tc.qmq.config.PullSubjectsConfig;
 import qunar.tc.qmq.consumer.ConsumeMessageExecutor;
-import qunar.tc.qmq.metainfoclient.ConsumerOnlineStateManager;
-import qunar.tc.qmq.metainfoclient.DefaultConsumerOnlineStateManager;
 import qunar.tc.qmq.metainfoclient.MetaInfoService;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.QmqCounter;
-import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
 
 import java.util.HashSet;
 import java.util.List;
@@ -76,15 +72,13 @@ class DefaultPullEntry extends AbstractPullEntry {
     private final Set<String> brokersOfWaitAck = new HashSet<>();
 
     private final AtomicBoolean isRunning = new AtomicBoolean(true);
-    private final SwitchWaiter onlineSwitcher = new SwitchWaiter(false);
-    private final ConsumerOnlineStateManager consumerOnlineStateManager = DefaultConsumerOnlineStateManager.getInstance();
     private final QmqCounter pullRunCounter;
     private final QmqCounter pauseCounter;
     private final PullStrategy pullStrategy;
     private final ConsumeParam consumeParam;
 
     private DefaultPullEntry() {
-        super("", "", "", "", null, -1, -1, false, false, null, null, null, null);
+        super("", "", "", "", "", null, -1, false, false, -1, null, null, null, null, null, null);
         consumeMessageExecutor = null;
         pullBatchSize = pullTimeout = ackNosendLimit = null;
         pullRunCounter = null;
@@ -97,16 +91,18 @@ class DefaultPullEntry extends AbstractPullEntry {
                      ConsumeParam consumeParam,
                      String partitionName,
                      String brokerGroup,
+                     String consumerId,
                      ConsumeStrategy consumeStrategy,
                      int version,
                      long consumptionExpiredTime,
                      PullService pullService,
                      AckService ackService,
-                     MetaInfoService metaInfoService,
                      BrokerService brokerService,
+                     MetaInfoService metaInfoService,
                      PullStrategy pullStrategy,
-                     SendMessageBack sendMessageBack) {
-        super(consumeParam.getSubject(), consumeParam.getConsumerGroup(), partitionName, brokerGroup, consumeStrategy, version, consumptionExpiredTime, consumeParam.isBroadcast(), consumeParam.isOrdered(), pullService, ackService, brokerService, sendMessageBack);
+                     SendMessageBack sendMessageBack,
+                     SwitchWaiter switchWaiter) {
+        super(consumeParam.getSubject(), consumeParam.getConsumerGroup(), partitionName, brokerGroup, consumerId, consumeStrategy, version, consumeParam.isBroadcast(), consumeParam.isOrdered(), consumptionExpiredTime, pullService, ackService, brokerService, metaInfoService, sendMessageBack, switchWaiter);
         this.consumeParam = consumeParam;
         String subject = consumeParam.getSubject();
         String consumerGroup = consumeParam.getConsumerGroup();
@@ -121,23 +117,6 @@ class DefaultPullEntry extends AbstractPullEntry {
         this.pullRunCounter = Metrics.counter("qmq_pull_run_count", SUBJECT_GROUP_ARRAY, values);
         this.pauseCounter = Metrics.counter("qmq_pull_pause_count", SUBJECT_GROUP_ARRAY, values);
 
-        this.consumerOnlineStateManager.registerConsumer(subject, consumerGroup, consumeParam.getConsumerId(), onlineSwitcher::isOnline);
-        this.onlineSwitcher.addListener(isOnline -> {
-            if (metaInfoService != null) {
-                // 上下线主动触发心跳
-                MetaInfoRequest request = new MetaInfoRequest(
-                        subject,
-                        consumerGroup,
-                        ClientType.CONSUMER.getCode(),
-                        brokerService.getAppCode(),
-                        consumeParam.getConsumerId(),
-                        ClientRequestType.SWITCH_STATE,
-                        consumeParam.isBroadcast(),
-                        consumeParam.isOrdered()
-                );
-                metaInfoService.sendRequest(request);
-            }
-        });
     }
 
     @Override
@@ -147,14 +126,12 @@ class DefaultPullEntry extends AbstractPullEntry {
     }
 
     public void online(StatusSource src) {
-        onlineSwitcher.on(src);
         LOGGER.info("pullconsumer online. subject={}, consumerGroup={}", consumeParam.getSubject(), consumeParam.getConsumerGroup());
     }
 
     public void offline(StatusSource src) {
-        onlineSwitcher.off(src);
-        LOGGER.info("pullconsumer offline. subject={}, consumerGroup={}", consumeParam.getSubject(), consumeParam.getConsumerGroup());
         super.offline(src);
+        LOGGER.info("pullconsumer offline. subject={}, consumerGroup={}", consumeParam.getSubject(), consumeParam.getConsumerGroup());
     }
 
     @Override
@@ -179,7 +156,7 @@ class DefaultPullEntry extends AbstractPullEntry {
                         continue;
                     }
 
-                    if (isRunning.get() && onlineSwitcher.waitOn()) {
+                    if (isRunning.get() && getOnlineSwitcher().waitOn()) {
                         // 到这里一定以及收到 metaInfoResponse 且已经上线
                         // 因为 onlineSwitcher 已经 online
                         doPull(doPullParam);

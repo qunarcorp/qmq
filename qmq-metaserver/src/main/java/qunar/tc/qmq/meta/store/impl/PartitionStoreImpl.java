@@ -23,14 +23,18 @@ import java.util.Map;
 public class PartitionStoreImpl implements PartitionStore {
 
     private static final String SAVE_PARTITION_SQL = "insert into partitions " +
-            "(subject, partition_name, partition_id, logical_partition_lower_bound, logical_partition_upper_bound, broker_group, status) " +
+            "(subject, partition_name, partition_id, logical_partition_lower_bound, logical_partition_upper_bound, broker_group, rw_status) " +
             "values (?, ?, ?, ?, ?, ?, ?)";
 
-    private static final String SELECT_BY_IDS = "select subject, partition_name, partition_id, logical_partition_lower_bound, logical_partition_upper_bound, broker_group, status " +
-            "where subject = :subject and physical_partition in (:ids)";
+    private static final String SELECT_BY_IDS =
+            "select subject, partition_name, partition_id, logical_partition_lower_bound, logical_partition_upper_bound, broker_group, rw_status  " +
+                    "from partitions" +
+                    "where subject = :subject and physical_partition in (:ids)";
 
 
-    private static final String SELECT_ALL = "select subject, partition_name, partition_id, logical_partition_lower_bound, logical_partition_upper_bound, broker_group, status";
+    private static final String SELECT_ALL =
+            "select subject, partition_name, partition_id, logical_partition_lower_bound, logical_partition_upper_bound, broker_group, rw_status " +
+                    "from partitions";
 
     private static final RowMapper<Partition> partitionRowMapper = (resultSet, i) -> {
         try {
@@ -43,7 +47,7 @@ public class PartitionStoreImpl implements PartitionStore {
 
             Range<Integer> logicalRange = Range.closedOpen(logicalPartitionLowerBound, logicalPartitionUpperBound);
             String brokerGroup = resultSet.getString("broker_group");
-            Partition.Status status = Partition.Status.valueOf(resultSet.getString("status"));
+            Partition.Status status = Partition.Status.valueOf(resultSet.getString("rw_status"));
 
             return new Partition(subject, partitionName, partitionId, logicalRange, brokerGroup, status);
         } catch (Throwable t) {

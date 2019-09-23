@@ -91,8 +91,8 @@ public class OrderedQueueSender implements QueueSender, MessageProcessor {
             try {
                 ProduceMessage message = queue.take();
                 getExecutor(message).addMessage(message);
-            } catch (InterruptedException e) {
-                logger.error("消息派发失败 {}", e.getMessage());
+            } catch (Throwable t) {
+                logger.error("消息派发失败", t);
             }
         }
     }

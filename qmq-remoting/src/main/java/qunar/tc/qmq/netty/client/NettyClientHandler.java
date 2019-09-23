@@ -57,9 +57,9 @@ class NettyClientHandler extends SimpleChannelInboundHandler<Datagram> {
         }, 3 * CLEAN_RESPONSE_TABLE_PERIOD_MILLIS, CLEAN_RESPONSE_TABLE_PERIOD_MILLIS, TimeUnit.MILLISECONDS);
     }
 
-    ResponseFuture newResponse(Channel channel, long timeoutMills, ResponseFuture.Callback callback) throws ClientSendException {
+    ResponseFuture newResponse(Channel channel, long timeout, ResponseFuture.Callback callback) throws ClientSendException {
         final int op = opaque.getAndIncrement();
-        ResponseFuture future = new ResponseFuture(op, timeoutMills, callback);
+        ResponseFuture future = new ResponseFuture(op, timeout, callback);
         ConcurrentMap<Integer, ResponseFuture> channelBuffer = requestsInFlight.get(channel);
         if (channelBuffer == null) {
             channelBuffer = new ConcurrentHashMap<>();
@@ -101,6 +101,7 @@ class NettyClientHandler extends SimpleChannelInboundHandler<Datagram> {
         for (Map.Entry<Integer, ResponseFuture> entry : channelBuffer.entrySet()) {
             ResponseFuture responseFuture = entry.getValue();
             responseFuture.completeByTimeoutClean();
+            responseFuture.executeCallbackOnlyOnce();
         }
     }
 
@@ -112,6 +113,7 @@ class NettyClientHandler extends SimpleChannelInboundHandler<Datagram> {
         ResponseFuture responseFuture = channelBuffer.remove(opaque);
         if (responseFuture != null) {
             responseFuture.completeByReceiveResponse(response);
+            responseFuture.executeCallbackOnlyOnce();
         } else {
             LOGGER.warn("receive response, but not matched any request, maybe response timeout or channel had been closed, {}", RemoteHelper.parseChannelRemoteAddress(ctx.channel()));
         }
@@ -128,6 +130,7 @@ class NettyClientHandler extends SimpleChannelInboundHandler<Datagram> {
                 ResponseFuture future = next.getValue();
 
                 if (isTimeout(future)) {
+                    future.completeByTimeoutClean();
                     iterator.remove();
 
                     rfList.add(future);
@@ -137,17 +140,17 @@ class NettyClientHandler extends SimpleChannelInboundHandler<Datagram> {
             }
         }
 
-        completeFutures(rfList);
+        executeCallbacks(rfList);
     }
 
     private boolean isTimeout(ResponseFuture future) {
         return future.getTimeout() >= 0 && (future.getBeginTime() + future.getTimeout()) <= System.currentTimeMillis();
     }
 
-    private void completeFutures(List<ResponseFuture> rfList) {
+    private void executeCallbacks(List<ResponseFuture> rfList) {
         for (ResponseFuture responseFuture : rfList) {
             try {
-                responseFuture.completeByTimeoutClean();
+                responseFuture.executeCallbackOnlyOnce();
             } catch (Throwable e) {
                 LOGGER.warn("scanResponseTable, operationComplete Exception", e);
             }

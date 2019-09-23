@@ -24,7 +24,8 @@ import qunar.tc.qmq.Message;
 import qunar.tc.qmq.PullConsumer;
 import qunar.tc.qmq.StatusSource;
 import qunar.tc.qmq.broker.BrokerService;
-import qunar.tc.qmq.common.SwitchWaiter;
+import qunar.tc.qmq.broker.impl.SwitchWaiter;
+import qunar.tc.qmq.metainfoclient.MetaInfoService;
 import qunar.tc.qmq.utils.RetryPartitionUtils;
 
 import java.util.List;
@@ -38,8 +39,6 @@ abstract class AbstractPullConsumer extends AbstractPullClient implements PullCo
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractPullConsumer.class);
 
     private static final long MIN_PULL_TIMEOUT_MILLIS = 1000;  // 最短拉取超时时间是1秒
-
-    final SwitchWaiter onlineSwitcher = new SwitchWaiter(true);
 
     private final ConsumeParam consumeParam;
     final PlainPullEntry pullEntry;
@@ -55,37 +54,45 @@ abstract class AbstractPullConsumer extends AbstractPullClient implements PullCo
             long consumptionExpiredTime,
             boolean isBroadcast,
             boolean isOrdered,
-            String clientId,
+            String consumerId,
             PullService pullService,
             AckService ackService,
             BrokerService brokerService,
-            SendMessageBack sendMessageBack) {
-        super(subject, consumerGroup, partitionName, brokerGroup, consumeStrategy, version, consumptionExpiredTime, brokerService);
-        this.consumeParam = new ConsumeParam(subject, consumerGroup, isBroadcast, isOrdered, false, clientId);
+            MetaInfoService metaInfoService,
+            SendMessageBack sendMessageBack,
+            SwitchWaiter onlineSwitcher) {
+        super(subject, consumerGroup, partitionName, brokerGroup, consumerId, consumeStrategy, version, isBroadcast, isOrdered, consumptionExpiredTime, brokerService, metaInfoService, onlineSwitcher);
+        this.consumeParam = new ConsumeParam(subject, consumerGroup, isBroadcast, isOrdered, false, consumerId);
         this.pullEntry = new PlainPullEntry(
                 consumeParam,
                 partitionName,
                 brokerGroup,
+                getClientId(),
                 consumeStrategy,
                 version,
                 consumptionExpiredTime,
                 pullService,
                 ackService,
                 brokerService,
+                metaInfoService,
                 new AlwaysPullStrategy(),
-                sendMessageBack);
+                sendMessageBack,
+                onlineSwitcher);
         this.retryPullEntry = new PlainPullEntry(
                 consumeParam,
                 RetryPartitionUtils.buildRetryPartitionName(subject, consumerGroup),
                 brokerGroup,
+                getClientId(),
                 consumeStrategy,
                 version,
                 consumptionExpiredTime,
                 pullService,
                 ackService,
                 brokerService,
+                metaInfoService,
                 new WeightPullStrategy(),
-                sendMessageBack);
+                sendMessageBack,
+                onlineSwitcher);
     }
 
     private static long checkAndGetTimeout(long timeout) {
@@ -103,13 +110,11 @@ abstract class AbstractPullConsumer extends AbstractPullClient implements PullCo
     }
 
     public void online(StatusSource src) {
-        onlineSwitcher.on(src);
-        LOGGER.info("defaultpullconsumer online. subject={}, group={}", subject(), group());
+        LOGGER.info("defaultpullconsumer online. subject={}, group={} partition={}", subject(), group(), getPartitionName());
     }
 
     public void offline(StatusSource src) {
-        onlineSwitcher.off(src);
-        LOGGER.info("defaultpullconsumer offline. subject={}, group={}", subject(), group());
+        LOGGER.info("defaultpullconsumer offline. subject={}, group={} partition={}", subject(), group(), getPartitionName());
     }
 
     @Override

@@ -1,17 +1,16 @@
 package qunar.tc.qmq.metainfoclient;
 
+import qunar.tc.qmq.broker.impl.SwitchWaiter;
+
 /**
  * @author zhenwei.liu
  * @since 2019-08-29
  */
 public interface ConsumerOnlineStateManager {
 
-    interface OnlineStateGetter {
-
-        boolean isOnline();
-    }
-
     boolean isOnline(String subject, String group, String clientId);
 
-    void registerConsumer(String subject, String group, String clientId, OnlineStateGetter onlineStateGetter);
+    void registerConsumer(String subject, String group, String clientId, SwitchWaiter switchWaiter);
+
+    SwitchWaiter getSwitchWaiter(String subject, String group, String clientId);
 }

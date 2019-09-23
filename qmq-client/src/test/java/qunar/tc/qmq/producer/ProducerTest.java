@@ -1,23 +1,23 @@
 package qunar.tc.qmq.producer;
 
 import com.google.common.base.Strings;
+import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.Message;
 import qunar.tc.qmq.MessageSendStateListener;
 
-import java.io.File;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ProducerTest {
-    private static final Logger LOG = LoggerFactory.getLogger(ProducerTest.class);
 
-    public static void main(String[] args) throws Exception {
-        final MessageProducerProvider provider = new MessageProducerProvider("producer_test", "http://127.0.0.1:8080/meta/address");
+    private static final Logger logger = LoggerFactory.getLogger(ProducerTest.class);
 
-        final BatchFileAppender appender = new BatchFileAppender(new File("producer.txt"), 10_000);
-
+    @Test
+    public void testSendMessage() throws Exception {
+        MessageProducerProvider provider = new MessageProducerProvider("producer_test", "http://127.0.0.1:8080/meta/address");
+        provider.init();
         final String data = Strings.repeat("1a", 100);
         final AtomicBoolean running = new AtomicBoolean(true);
         new Thread(new Runnable() {
@@ -32,19 +32,23 @@ public class ProducerTest {
                         provider.sendMessage(message, new MessageSendStateListener() {
                             @Override
                             public void onSuccess(Message message) {
-                                LOG.info("message send success id:{}", message.getMessageId());
-                                appender.write(message.getMessageId());
+                                logger.info("message send success id:{}", message.getMessageId());
                             }
 
                             @Override
                             public void onFailed(Message message) {
-                                LOG.error("failed");
+                                logger.error("failed");
                             }
                         });
 
-                        TimeUnit.SECONDS.sleep(1);
                     } catch (Exception e) {
-                        LOG.error("failed send", e);
+                        logger.error("failed send", e);
+                    } finally {
+                        try {
+                            TimeUnit.SECONDS.sleep(2);
+                        } catch (InterruptedException e) {
+                            // ignore
+                        }
                     }
                 }
             }
@@ -54,6 +58,5 @@ public class ProducerTest {
         running.set(false);
         provider.destroy();
         TimeUnit.SECONDS.sleep(5);
-        appender.close();
     }
 }
