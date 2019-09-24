@@ -182,16 +182,25 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         configEnvIsolation(subject, consumerGroup, param);
 
         String entryKey = buildPullClientKey(subject, consumerGroup);
-        PullEntry oldEntry = pullEntryMap.get(entryKey);
+
+        // oldEntry 包含 subject/retry-subject 两个 pullEntry
+        // 这两个 PullEntry 又分别包含多个 Partition
+        CompositePullEntry oldCompositeEntry = (CompositePullEntry) pullEntryMap.get(entryKey);
+        CompositePullEntry oldNormalEntry = oldCompositeEntry == null ? null : (CompositePullEntry) oldCompositeEntry.getComponents().get(0);
+        CompositePullEntry oldRetryEntry = oldCompositeEntry == null ? null : (CompositePullEntry) oldCompositeEntry.getComponents().get(1);
 
         ConsumerAllocation consumerAllocation = response.getConsumerAllocation();
         long consumptionExpiredTime = consumerAllocation.getExpired();
         int version = consumerAllocation.getVersion();
 
         // create retry
-        PullEntry pullEntry = updatePullEntry(entryKey, oldEntry, subject, consumerGroup, param, new AlwaysPullStrategy(), consumerAllocation);
+        PullEntry updatePullEntry = updatePullEntry(entryKey, oldNormalEntry, subject, consumerGroup, param, new AlwaysPullStrategy(), consumerAllocation);
+        if (Objects.equals(updatePullEntry, oldNormalEntry)) {
+            return oldCompositeEntry;
+        }
+
         ConsumerAllocation retryConsumerAllocation = consumerAllocation.getRetryConsumerAllocation(consumerGroup);
-        PullEntry retryPullEntry = updatePullEntry(entryKey, oldEntry, subject, consumerGroup, param, new WeightPullStrategy(), retryConsumerAllocation);
+        PullEntry retryPullEntry = updatePullEntry(entryKey, oldRetryEntry, subject, consumerGroup, param, new WeightPullStrategy(), retryConsumerAllocation);
 
         SwitchWaiter switchWaiter = consumerOnlineStateManager.getSwitchWaiter(subject, consumerGroup, clientId);
         PullEntry entry = new CompositePullEntry<>(
@@ -202,13 +211,20 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
                 param.isBroadcast(),
                 param.isOrdered(),
                 consumptionExpiredTime,
-                Lists.newArrayList(pullEntry, retryPullEntry),
+                Lists.newArrayList(updatePullEntry, retryPullEntry),
                 brokerService,
                 metaInfoService,
                 switchWaiter
         );
 
         pullEntryMap.put(entryKey, entry);
+
+        if (isOnline) {
+            entry.online(param.getActionSrc());
+        } else {
+            entry.offline(param.getActionSrc());
+        }
+
         return entry;
     }
 
@@ -235,28 +251,20 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
             throw new DuplicateListenerException(entryKey);
         }
 
-        PullEntry updatedEntry = (PullEntry) createPullClient(subject, consumerGroup, pullStrategy, consumerAllocation,
+        return (PullEntry) createPullClient(subject, consumerGroup, pullStrategy, consumerAllocation,
                 oldEntry,
                 new PullClientFactory<PullEntry>() {
                     @Override
-                    public PullEntry createPullClient(String subject, String consumerGroup, String partitionName, String brokerGroup, ConsumeStrategy consumeStrategy, int version, long consumptionExpiredTime, PullStrategy pullStrategy) {
-                        return createDefaultPullEntry(subject, consumerGroup, partitionName, brokerGroup, consumeStrategy, version, consumptionExpiredTime, param, pullStrategy);
+                    public PullEntry createPullClient(String subject1, String consumerGroup1, String partitionName, String brokerGroup, ConsumeStrategy consumeStrategy, int version, long consumptionExpiredTime, PullStrategy pullStrategy1) {
+                        return createDefaultPullEntry(subject1, consumerGroup1, partitionName, brokerGroup, consumeStrategy, version, consumptionExpiredTime, param, pullStrategy1);
                     }
                 }, new CompositePullClientFactory<CompositePullEntry, PullEntry>() {
                     @Override
-                    public CompositePullEntry createPullClient(String subject, String consumerGroup, int version, long consumptionExpiredTime, List<PullEntry> list) {
-                        SwitchWaiter switchWaiter = consumerOnlineStateManager.getSwitchWaiter(subject, consumerGroup, clientId);
-                        return new CompositePullEntry(subject, consumerGroup, clientId, version, param.isBroadcast(), param.isOrdered(), consumptionExpiredTime, list, brokerService, metaInfoService, switchWaiter);
+                    public CompositePullEntry createPullClient(String subject1, String consumerGroup1, int version, long consumptionExpiredTime, List<PullEntry> list) {
+                        SwitchWaiter switchWaiter = consumerOnlineStateManager.getSwitchWaiter(subject1, consumerGroup1, clientId);
+                        return new CompositePullEntry(subject1, consumerGroup1, clientId, version, param.isBroadcast(), param.isOrdered(), consumptionExpiredTime, list, brokerService, metaInfoService, switchWaiter);
                     }
                 });
-
-        if (isOnline) {
-            updatedEntry.online(param.getActionSrc());
-        } else {
-            updatedEntry.offline(param.getActionSrc());
-        }
-
-        return updatedEntry;
     }
 
     private PullClient createPullClient(

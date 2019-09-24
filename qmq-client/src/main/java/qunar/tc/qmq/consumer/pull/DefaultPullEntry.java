@@ -126,12 +126,14 @@ class DefaultPullEntry extends AbstractPullEntry {
     }
 
     public void online(StatusSource src) {
-        LOGGER.info("pullconsumer online. subject={}, consumerGroup={}", consumeParam.getSubject(), consumeParam.getConsumerGroup());
+        LOGGER.info("Pull entry online. subject={}, consumerGroup={}, partitionName={}, status={}",
+                consumeParam.getSubject(), consumeParam.getConsumerGroup(), getPartitionName(), src.name());
     }
 
     public void offline(StatusSource src) {
         super.offline(src);
-        LOGGER.info("pullconsumer offline. subject={}, consumerGroup={}", consumeParam.getSubject(), consumeParam.getConsumerGroup());
+        LOGGER.info("Pull entry offline. subject={}, consumerGroup={}, partitionName={}, status={}",
+                consumeParam.getSubject(), consumeParam.getConsumerGroup(), getPartitionName(), src.name());
     }
 
     @Override

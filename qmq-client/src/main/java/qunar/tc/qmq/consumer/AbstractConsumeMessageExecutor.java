@@ -51,6 +51,9 @@ public abstract class AbstractConsumeMessageExecutor implements ConsumeMessageEx
         this.partitionName = partitionName;
         this.partitionExecutor = partitionExecutor;
         this.messageHandler = messageHandler;
+        if (started.compareAndSet(false, true)) {
+            partitionExecutor.execute(this::processMessages);
+        }
     }
 
     @Override
@@ -73,12 +76,6 @@ public abstract class AbstractConsumeMessageExecutor implements ConsumeMessageEx
 
     public QmqCounter getHandleFailCounter() {
         return handleFailCounter;
-    }
-
-    public void start() {
-        if (started.compareAndSet(false, true)) {
-            partitionExecutor.execute(this::processMessages);
-        }
     }
 
     private void processMessages() {

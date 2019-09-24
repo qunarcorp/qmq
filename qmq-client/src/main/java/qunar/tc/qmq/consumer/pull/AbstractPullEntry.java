@@ -19,6 +19,7 @@ package qunar.tc.qmq.consumer.pull;
 import com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.util.StringUtils;
 import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.PullEntry;
@@ -86,9 +87,13 @@ abstract class AbstractPullEntry extends AbstractPullClient implements PullEntry
         this.brokerService = brokerService;
         this.loadBalance = new WeightLoadBalance();
 
-        AckSendQueue queue = new AckSendQueue(subject, consumerGroup, partitionName, brokerGroup, consumeStrategy, ackService, this.brokerService, sendMessageBack, isBroadcast, isOrdered);
-        queue.init();
-        this.ackSendQueue = queue;
+        if (!StringUtils.isEmpty(subject)) {
+            AckSendQueue queue = new AckSendQueue(subject, consumerGroup, partitionName, brokerGroup, consumeStrategy, ackService, this.brokerService, sendMessageBack, isBroadcast, isOrdered);
+            queue.init();
+            this.ackSendQueue = queue;
+        } else {
+            this.ackSendQueue = null;
+        }
 
         pullRequestTimeout = PullSubjectsConfig.get().getPullRequestTimeout(subject);
 

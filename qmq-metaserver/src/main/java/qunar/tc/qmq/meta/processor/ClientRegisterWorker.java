@@ -217,13 +217,8 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
         @Override
         public void writeBody(ByteBuf out) {
             MetaInfoResponse response = getResponse();
-            if (response instanceof ProducerMetaInfoResponse) {
-                Serializer<ProducerMetaInfoResponse> serializer = Serializers.getSerializer(ProducerMetaInfoResponse.class);
-                serializer.serialize((ProducerMetaInfoResponse) response, out);
-            } else if (response instanceof ConsumerMetaInfoResponse) {
-                Serializer<ConsumerMetaInfoResponse> serializer = Serializers.getSerializer(ConsumerMetaInfoResponse.class);
-                serializer.serialize((ConsumerMetaInfoResponse) response, out);
-            }
+            Serializer<MetaInfoResponse> serializer = Serializers.getSerializer(MetaInfoResponse.class);
+            serializer.serialize(response, out);
         }
     }
 
