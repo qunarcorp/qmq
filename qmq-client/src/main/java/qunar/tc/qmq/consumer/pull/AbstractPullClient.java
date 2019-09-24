@@ -55,20 +55,22 @@ public abstract class AbstractPullClient implements PullClient {
         this.consumerId = consumerId;
         this.isBroadcast = isBroadcast;
         this.isOrdered = isOrdered;
-        this.onlineSwitcher.addListener(isOnline -> {
-            // 上下线主动触发心跳
-            MetaInfoRequest request = new MetaInfoRequest(
-                    subject,
-                    consumerGroup,
-                    ClientType.CONSUMER.getCode(),
-                    brokerService.getAppCode(),
-                    consumerId,
-                    ClientRequestType.SWITCH_STATE,
-                    isBroadcast,
-                    isOrdered
-            );
-            metaInfoService.sendRequest(request);
-        });
+        if (this.onlineSwitcher != null) {
+            this.onlineSwitcher.addListener(isOnline -> {
+                // 上下线主动触发心跳
+                MetaInfoRequest request = new MetaInfoRequest(
+                        subject,
+                        consumerGroup,
+                        ClientType.CONSUMER.getCode(),
+                        brokerService.getAppCode(),
+                        consumerId,
+                        ClientRequestType.SWITCH_STATE,
+                        isBroadcast,
+                        isOrdered
+                );
+                metaInfoService.sendRequest(request);
+            });
+        }
     }
 
     @Override

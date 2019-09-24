@@ -15,7 +15,7 @@ public class MetaInfoClientNettyImplTest {
 
     @Test
     public void testSendRequest() throws Exception {
-        MetaInfoClientNettyImpl client = MetaInfoClientNettyImpl.getClient(new MetaServerLocator("http://localhost:8080/meta/address"));
+        MetaInfoClient client = MetaServerNettyClient.getClient(new MetaServerLocator("http://localhost:8080/meta/address"));
         MetaInfoRequest request = new MetaInfoRequest(
                 "test",
                 "test",

@@ -21,23 +21,19 @@ import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ClientType;
-import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.base.OnOfflineState;
 import qunar.tc.qmq.batch.Stateful;
+import qunar.tc.qmq.broker.impl.SwitchWaiter;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.meta.MetaServerLocator;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.protocol.MetaInfoResponse;
 import qunar.tc.qmq.protocol.QuerySubjectRequest;
-import qunar.tc.qmq.protocol.consumer.ConsumerMetaInfoResponse;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
 
 import java.util.Objects;
@@ -48,7 +44,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static qunar.tc.qmq.common.PartitionConstants.EXCLUSIVE_CLIENT_HEARTBEAT_INTERVAL_MILLS;
 import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_GROUP_ARRAY;
 
 /**
@@ -62,33 +57,8 @@ public class DefaultMetaInfoService implements MetaInfoService {
 
     public class MetaInfoRequestWrapper implements Stateful<RequestState> {
 
-        FutureCallback<MetaInfoResponse> callback = new FutureCallback<MetaInfoResponse>() {
-            @Override
-            public void onSuccess(MetaInfoResponse response) {
-                updateConsumerState(response);
-                String heartbeatKey = createMetaInfoRequestKey(response.getClientTypeCode(), response.getSubject(), response.getConsumerGroup());
-                if (isExclusive(response)) {
-                    // 转移 order 心跳请求到 order map
-                    MetaInfoRequestWrapper request = metaInfoRequests.remove(heartbeatKey);
-                    if (request != null) {
-                        orderedMetaInfoRequests.put(heartbeatKey, request);
-                    }
-                }
-                MetaInfoRequestWrapper.this.future.set(response);
-                hasOnline = true;
-                reset();
-            }
-
-            @Override
-            public void onFailure(Throwable t) {
-                MetaInfoRequestWrapper.this.future.setException(t);
-                reset();
-            }
-        };
-
         private volatile boolean hasOnline = false;
         private MetaInfoRequest request;
-        private SettableFuture<MetaInfoResponse> future = SettableFuture.create();
         private AtomicReference<RequestState> state = new AtomicReference<>(RequestState.IDLE);
 
         public MetaInfoRequestWrapper(MetaInfoRequest request) {
@@ -118,14 +88,6 @@ public class DefaultMetaInfoService implements MetaInfoService {
         public MetaInfoRequest getRequest() {
             return request;
         }
-
-        public void updateFuture(ListenableFuture<MetaInfoResponse> future) {
-            Futures.addCallback(future, callback);
-        }
-
-        public ListenableFuture<MetaInfoResponse> getFuture() {
-            return future;
-        }
     }
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultMetaInfoService.class);
@@ -133,22 +95,16 @@ public class DefaultMetaInfoService implements MetaInfoService {
     private static final long REFRESH_INTERVAL_SECONDS = 60;
 
     // partitionName => subject
-    private final LoadingCache<String, String> partitionName2Subject = CacheBuilder.newBuilder()
-            .build(new CacheLoader<String, String>() {
+    private final LoadingCache<String, SettableFuture<String>> partitionName2Subject = CacheBuilder.newBuilder()
+            .build(new CacheLoader<String, SettableFuture<String>>() {
                 @Override
-                public String load(String partitionName) throws Exception {
-                    QuerySubjectRequest request = new QuerySubjectRequest(partitionName);
-                    String subject = metaInfoClient.querySubject(request).get();
-                    if (subject != null) {
-                        return subject;
-                    } else {
-                        throw new IllegalStateException(String.format("无法找到 %s partition subject 映射", partitionName));
-                    }
+                public SettableFuture<String> load(String partitionName) throws Exception {
+                    SettableFuture<String> future = SettableFuture.create();
+                    return future;
                 }
             });
 
     private final ConcurrentHashMap<String, MetaInfoRequestWrapper> metaInfoRequests = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, MetaInfoRequestWrapper> orderedMetaInfoRequests = new ConcurrentHashMap<>();
 
     private final ReentrantLock updateLock = new ReentrantLock();
 
@@ -160,7 +116,6 @@ public class DefaultMetaInfoService implements MetaInfoService {
     private ConsumerOnlineStateManager consumerOnlineStateManager = DefaultConsumerOnlineStateManager.getInstance();
 
     private ScheduledExecutorService metaInfoRequestExecutor;
-    private ScheduledExecutorService orderedMetaInfoRequestExecutor;
 
     private String clientId;
 
@@ -169,15 +124,13 @@ public class DefaultMetaInfoService implements MetaInfoService {
     }
 
     public DefaultMetaInfoService(MetaServerLocator locator) {
-        this.metaInfoClient = MetaInfoClientNettyImpl.getClient(locator);
+        this.metaInfoClient = MetaServerNettyClient.getClient(locator);
+        this.metaInfoClient.registerResponseSubscriber(this::updateConsumerState);
     }
 
     public void init() {
         this.metaInfoRequestExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("qmq-client-heartbeat-%s"));
-        this.orderedMetaInfoRequestExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("qmq-client-heartbeat-order-%s"));
-
         this.metaInfoRequestExecutor.scheduleAtFixedRate(() -> scheduleRequest(metaInfoRequests), 0, REFRESH_INTERVAL_SECONDS, TimeUnit.SECONDS);
-        this.orderedMetaInfoRequestExecutor.scheduleAtFixedRate(() -> scheduleRequest(orderedMetaInfoRequests), 0, EXCLUSIVE_CLIENT_HEARTBEAT_INTERVAL_MILLS, TimeUnit.MILLISECONDS);
     }
 
     public void registerResponseSubscriber(MetaInfoClient.ResponseSubscriber subscriber) {
@@ -186,13 +139,6 @@ public class DefaultMetaInfoService implements MetaInfoService {
 
     private String createMetaInfoRequestKey(int clientType, String subject, String consumerGroup) {
         return clientType + ":" + subject + ":" + consumerGroup;
-    }
-
-    private boolean isExclusive(MetaInfoResponse response) {
-        if (response instanceof ConsumerMetaInfoResponse) {
-            return Objects.equals(((ConsumerMetaInfoResponse) response).getConsumerAllocation().getConsumeStrategy(), ConsumeStrategy.EXCLUSIVE);
-        }
-        return false;
     }
 
     private void scheduleRequest(ConcurrentHashMap<String, MetaInfoRequestWrapper> requestMap) {
@@ -217,15 +163,19 @@ public class DefaultMetaInfoService implements MetaInfoService {
     }
 
     @Override
-    public ListenableFuture<MetaInfoResponse> triggerHeartbeat(int clientType, String subject, String consumerGroup) {
+    public void triggerHeartbeat(int clientType, String subject, String consumerGroup) {
         String key = createMetaInfoRequestKey(clientType, subject, consumerGroup);
         MetaInfoRequestWrapper requestWrapper = metaInfoRequests.get(key);
         Preconditions.checkNotNull(requestWrapper, "subject %s consumerGroup %s meta 请求未注册", subject, consumerGroup);
-        return request(requestWrapper);
+        request(requestWrapper);
     }
 
     @Override
-    public ListenableFuture<MetaInfoResponse> registerHeartbeat(String appCode, int clientTypeCode, String subject, String consumerGroup, boolean isBroadcast, boolean isOrdered) {
+    public void registerHeartbeat(String appCode, int clientTypeCode, String subject, String consumerGroup, boolean isBroadcast, boolean isOrdered) {
+        if (Objects.equals(ClientType.CONSUMER.getCode(), clientTypeCode)) {
+            SwitchWaiter switchWaiter = new SwitchWaiter(false);
+            this.consumerOnlineStateManager.registerConsumer(subject, consumerGroup, clientId, switchWaiter);
+        }
         String key = createMetaInfoRequestKey(clientTypeCode, subject, consumerGroup);
         MetaInfoRequestWrapper requestWrapper = metaInfoRequests.computeIfAbsent(key, k -> {
             MetaInfoRequest request = new MetaInfoRequest(
@@ -240,10 +190,10 @@ public class DefaultMetaInfoService implements MetaInfoService {
             );
             return new MetaInfoRequestWrapper(request);
         });
-        return request(requestWrapper);
+        request(requestWrapper);
     }
 
-    private ListenableFuture<MetaInfoResponse> request(MetaInfoRequestWrapper requestWrapper) {
+    private void request(MetaInfoRequestWrapper requestWrapper) {
         // Meta 的请求不能存在并发请求
         MetaInfoRequest request = requestWrapper.getRequest();
         String subject = request.getSubject();
@@ -257,23 +207,28 @@ public class DefaultMetaInfoService implements MetaInfoService {
             }
 
             LOGGER.debug("meta info request: {}", request);
-            ListenableFuture<MetaInfoResponse> future = metaInfoClient.sendMetaInfoRequest(request);
-            requestWrapper.updateFuture(future);
-            return future;
-        } else {
-            return requestWrapper.getFuture();
+            metaInfoClient.sendMetaInfoRequest(request);
         }
     }
 
     @Override
-    public ListenableFuture<MetaInfoResponse> sendRequest(MetaInfoRequest request) {
+    public void sendRequest(MetaInfoRequest request) {
         // Meta 的请求不能存在并发请求
-        return metaInfoClient.sendMetaInfoRequest(request);
+        metaInfoClient.sendMetaInfoRequest(request);
     }
 
     @Override
     public String getSubject(String partitionName) {
-        return partitionName2Subject.getUnchecked(partitionName);
+        SettableFuture<String> future = partitionName2Subject.getUnchecked(partitionName);
+        if (!future.isDone()) {
+            QuerySubjectRequest request = new QuerySubjectRequest(partitionName);
+            metaInfoClient.querySubject(request, response -> future.set(response.getSubject()));
+        }
+        try {
+            return future.get(5000, TimeUnit.MILLISECONDS);
+        } catch (Throwable t) {
+            throw new RuntimeException(t);
+        }
     }
 
     private void updateConsumerState(MetaInfoResponse response) {
@@ -293,6 +248,10 @@ public class DefaultMetaInfoService implements MetaInfoService {
                 LOGGER.debug("消费者状态发生变更 {}/{}:{}", subject, consumerGroup, online);
                 triggerConsumerStateChanged(subject, consumerGroup, online);
             }
+
+            String key = createMetaInfoRequestKey(response.getClientTypeCode(), subject, consumerGroup);
+            MetaInfoRequestWrapper rw = metaInfoRequests.get(key);
+            rw.reset();
 
         } catch (Exception e) {
             LOGGER.error("update meta info exception. response={}", response, e);

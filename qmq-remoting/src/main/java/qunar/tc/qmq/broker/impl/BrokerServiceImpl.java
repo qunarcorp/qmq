@@ -332,10 +332,6 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
     }
 
     private void registerHeartbeat(ClientType clientType, String subject, String consumerGroup, boolean isBroadcast, boolean isOrdered) {
-        if (Objects.equals(ClientType.CONSUMER, clientType)) {
-            SwitchWaiter switchWaiter = new SwitchWaiter(false);
-            this.consumerOnlineStateManager.registerConsumer(subject, consumerGroup, clientId, switchWaiter);
-        }
         metaInfoService.registerHeartbeat(
                 appCode,
                 clientType.getCode(),

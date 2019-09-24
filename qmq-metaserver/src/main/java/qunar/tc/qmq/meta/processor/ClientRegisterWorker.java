@@ -115,7 +115,7 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
 
             return buildResponse(header, request, offlineStateManager.getLastUpdateTimestamp(), onlineState, new BrokerCluster(filteredBrokerGroups));
         } catch (Exception e) {
-            LOG.error("process exception. {}", request, e);
+            LOG.error("onSuccess exception. {}", request, e);
             return buildResponse(header, request, -2, OnOfflineState.OFFLINE, new BrokerCluster(new ArrayList<>()));
         } finally {
             // 上线的时候如果出现异常可能会将客户端上线状态改为下线
@@ -171,10 +171,10 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
 
         @Override
         public MetaInfoResponse buildResponse(MetaInfoRequest request, long updateTime, OnOfflineState clientState, BrokerCluster brokerCluster) {
-            ClientType clientType = ClientType.of(request.getRequestType());
+            int clientTypeCode = request.getClientTypeCode();
+            ClientType clientType = ClientType.of(clientTypeCode);
             String subject = request.getSubject();
             String consumerGroup = request.getConsumerGroup();
-            int clientTypeCode = request.getClientTypeCode();
             if (clientType.isProducer()) {
                 // 从数据库缓存中获取分区信息
                 ProducerAllocation producerAllocation = allocationService.getProducerAllocation(clientType, subject, brokerCluster.getBrokerGroups());

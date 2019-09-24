@@ -16,7 +16,7 @@ public class ConsumerUtils {
     public static void printError(BaseMessage message, Throwable e) {
         if (e == null) return;
         if (e instanceof NeedRetryException) return;
-        logger.error("message process error. subject={}, msgId={}, times={}, maxRetryNum={}",
+        logger.error("message onSuccess error. subject={}, msgId={}, times={}, maxRetryNum={}",
                 message.getSubject(), message.getMessageId(), message.times(), message.getMaxRetryNum(), e);
     }
 }

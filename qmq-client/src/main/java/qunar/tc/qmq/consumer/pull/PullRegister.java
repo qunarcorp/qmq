@@ -125,7 +125,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
     private abstract class PullClientUpdater<T> implements MetaInfoClient.ResponseSubscriber {
 
         @Override
-        public void onResponse(MetaInfoResponse response) {
+        public void onSuccess(MetaInfoResponse response) {
             if (response.getClientTypeCode() != ClientType.CONSUMER.getCode()) {
                 return;
             }

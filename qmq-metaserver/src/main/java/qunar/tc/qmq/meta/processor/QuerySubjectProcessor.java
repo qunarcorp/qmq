@@ -6,10 +6,7 @@ import qunar.tc.qmq.codec.Serializer;
 import qunar.tc.qmq.codec.Serializers;
 import qunar.tc.qmq.meta.order.PartitionNameResolver;
 import qunar.tc.qmq.netty.NettyRequestProcessor;
-import qunar.tc.qmq.protocol.CommandCode;
-import qunar.tc.qmq.protocol.Datagram;
-import qunar.tc.qmq.protocol.QuerySubjectRequest;
-import qunar.tc.qmq.protocol.RemotingCommand;
+import qunar.tc.qmq.protocol.*;
 import qunar.tc.qmq.util.RemotingBuilder;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
 
@@ -36,7 +33,12 @@ public class QuerySubjectProcessor implements NettyRequestProcessor {
 
         Datagram datagram = RemotingBuilder.buildResponseDatagram(CommandCode.SUCCESS, command.getHeader(), out -> {
             String subject = partitionNameResolver.getSubject(partitionName);
-            PayloadHolderUtils.writeString(subject, out);
+            QuerySubjectResponse response = null;
+            if (subject != null) {
+                response = new QuerySubjectResponse(subject, partitionName);
+            }
+            Serializer<QuerySubjectResponse> serializer = Serializers.getSerializer(QuerySubjectResponse.class);
+            serializer.serialize(response, out);
         });
 
         return CompletableFuture.completedFuture(datagram);

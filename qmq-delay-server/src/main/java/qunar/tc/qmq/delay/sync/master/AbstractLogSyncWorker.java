@@ -49,7 +49,7 @@ abstract class AbstractLogSyncWorker implements DelaySyncRequestProcessor.SyncPr
         final DelaySyncRequest delaySyncRequest = entry.getDelaySyncRequest();
         final SegmentBuffer result = getSyncLog(delaySyncRequest);
         if (result == null || result.getSize() <= 0) {
-            LOGGER.debug("log sync process empty result {}, {}", result, delaySyncRequest);
+            LOGGER.debug("log sync onSuccess empty result {}, {}", result, delaySyncRequest);
             newTimeout(new DelaySyncRequestProcessor.SyncRequestTimeoutTask(entry, this));
             return;
         }

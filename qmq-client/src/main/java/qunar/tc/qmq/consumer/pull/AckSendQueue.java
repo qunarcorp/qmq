@@ -164,7 +164,7 @@ class AckSendQueue implements TimerTask {
         final String partitionName = isDeadRetryMessage ? deadRetryPartitionName : retryPartitionName;
         if (deadRetryPartitionName.equals(partitionName)) {
             deadQueueCount.inc();
-            LOGGER.warn("process message retry num {} >= {}, and dead retry. subject={}, group={}, msgId={}",
+            LOGGER.warn("onSuccess message retry num {} >= {}, and dead retry. subject={}, group={}, msgId={}",
                     nextRetryCount - 1, message.getMaxRetryNum(), this.subject, consumerGroup, message.getMessageId());
         }
         message.setPartitionName(partitionName);

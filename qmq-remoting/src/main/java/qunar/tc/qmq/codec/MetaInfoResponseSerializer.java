@@ -32,6 +32,17 @@ public class MetaInfoResponseSerializer extends ObjectSerializer<MetaInfoRespons
         out.writeByte(response.getClientTypeCode());
         out.writeShort(response.getBrokerCluster().getBrokerGroups().size());
         writeBrokerCluster(response, out);
+
+        if (response instanceof ProducerMetaInfoResponse) {
+            ProducerMetaInfoResponse producerResponse = (ProducerMetaInfoResponse) response;
+            ProducerAllocation partitionMapping = producerResponse.getProducerAllocation();
+            Serializer<ProducerAllocation> serializer = Serializers.getSerializer(ProducerAllocation.class);
+            serializer.serialize(partitionMapping, out);
+        } else if (response instanceof ConsumerMetaInfoResponse) {
+            ConsumerMetaInfoResponse consumerResponse = (ConsumerMetaInfoResponse) response;
+            Serializer<ConsumerAllocation> serializer = Serializers.getSerializer(ConsumerAllocation.class);
+            serializer.serialize(consumerResponse.getConsumerAllocation(), out);
+        }
     }
 
     private void writeBrokerCluster(MetaInfoResponse response, ByteBuf out) {
@@ -45,19 +56,37 @@ public class MetaInfoResponseSerializer extends ObjectSerializer<MetaInfoRespons
 
     @Override
     MetaInfoResponse doDeserialize(ByteBuf buf, Type type) {
-        try {
-            long timestamp = buf.readLong();
-            String subject = PayloadHolderUtils.readString(buf);
-            String consumerGroup = PayloadHolderUtils.readString(buf);
-            OnOfflineState onOfflineState = OnOfflineState.fromCode(buf.readByte());
-            byte clientTypeCode = buf.readByte();
-            BrokerCluster brokerCluster = deserializeBrokerCluster(buf);
+        long timestamp = buf.readLong();
+        String subject = PayloadHolderUtils.readString(buf);
+        String consumerGroup = PayloadHolderUtils.readString(buf);
+        OnOfflineState onOfflineState = OnOfflineState.fromCode(buf.readByte());
+        byte clientTypeCode = buf.readByte();
+        BrokerCluster brokerCluster = deserializeBrokerCluster(buf);
 
-            return new MetaInfoResponse(timestamp, subject, consumerGroup, onOfflineState, clientTypeCode, brokerCluster);
-        } catch (Exception e) {
-            logger.error("deserializeMetaInfoResponse exception", e);
-            return null;
+        if (clientTypeCode == ClientType.PRODUCER.getCode() || clientTypeCode == ClientType.DELAY_PRODUCER.getCode()) {
+            Serializer<ProducerAllocation> serializer = Serializers.getSerializer(ProducerAllocation.class);
+            ProducerAllocation producerAllocation = serializer.deserialize(buf, null);
+            return new ProducerMetaInfoResponse(
+                    timestamp,
+                    subject,
+                    consumerGroup,
+                    onOfflineState,
+                    clientTypeCode,
+                    brokerCluster,
+                    producerAllocation);
+        } else if (clientTypeCode == ClientType.CONSUMER.getCode()) {
+            Serializer<ConsumerAllocation> serializer = Serializers.getSerializer(ConsumerAllocation.class);
+            ConsumerAllocation consumerAllocation = serializer.deserialize(buf, null);
+            return new ConsumerMetaInfoResponse(
+                    timestamp,
+                    subject,
+                    consumerGroup,
+                    onOfflineState,
+                    clientTypeCode,
+                    brokerCluster,
+                    consumerAllocation);
         }
+        throw new IllegalArgumentException(String.format("无法识别的 response 类型", clientTypeCode));
     }
 
     private static BrokerCluster deserializeBrokerCluster(ByteBuf buf) {

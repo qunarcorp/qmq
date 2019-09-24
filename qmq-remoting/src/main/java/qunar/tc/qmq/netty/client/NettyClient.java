@@ -147,7 +147,7 @@ public class NettyClient extends AbstractNettyClient {
                     try {
                         responseFuture.executeCallbackOnlyOnce();
                     } catch (Throwable e) {
-                        LOGGER.error("execute callback when send error exception", e);
+                        LOGGER.error("execute onSuccess when send error exception", e);
                     }
                 }
             });

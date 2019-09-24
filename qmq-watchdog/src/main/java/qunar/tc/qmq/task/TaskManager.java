@@ -100,7 +100,7 @@ class TaskManager {
 
     private void refreshAllTasks() {
         final List<DataSourceInfoModel> dataSources = dataSourceConfigStore.findDataSourceInfos(DataSourceInfoStatus.ONLINE, namespace);
-        LOG.info("need process db: {}", dataSources.size());
+        LOG.info("need onSuccess db: {}", dataSources.size());
         if (dataSources.isEmpty())
             return;
 

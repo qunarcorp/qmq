@@ -103,7 +103,7 @@ class SendMessageTask implements Callable<Void> {
                 processErrorMessages(errorMessages, since);
             }
         } catch (Exception e) {
-            throw new RuntimeException("process message error, url: " + dataSourceInfo.getUrl(), e);
+            throw new RuntimeException("onSuccess message error, url: " + dataSourceInfo.getUrl(), e);
         } finally {
             stop = true;
             Thread.currentThread().setName(name);
@@ -115,7 +115,7 @@ class SendMessageTask implements Callable<Void> {
     private boolean timeout(long begin) {
         boolean isTimeout = (System.currentTimeMillis() - begin) > timeout;
         if (isTimeout) {
-            LOG.error("process db {} timeout", dataSourceInfo.getUrl());
+            LOG.error("onSuccess db {} timeout", dataSourceInfo.getUrl());
         }
         return isTimeout;
     }

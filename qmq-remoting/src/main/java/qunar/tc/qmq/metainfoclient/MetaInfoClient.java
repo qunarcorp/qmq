@@ -16,10 +16,9 @@
 
 package qunar.tc.qmq.metainfoclient;
 
-import com.google.common.util.concurrent.ListenableFuture;
-import qunar.tc.qmq.meta.ProducerAllocation;
 import qunar.tc.qmq.protocol.MetaInfoResponse;
 import qunar.tc.qmq.protocol.QuerySubjectRequest;
+import qunar.tc.qmq.protocol.QuerySubjectResponse;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
 
 /**
@@ -27,7 +26,7 @@ import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
  */
 public interface MetaInfoClient {
 
-    ListenableFuture<MetaInfoResponse> sendMetaInfoRequest(MetaInfoRequest request);
+    void sendMetaInfoRequest(MetaInfoRequest request);
 
     /**
      * 使用 partitionName 查询 subject
@@ -35,11 +34,22 @@ public interface MetaInfoClient {
      * @param request request
      * @return subject
      */
-    ListenableFuture<String> querySubject(QuerySubjectRequest request);
+    void querySubject(QuerySubjectRequest request, QuerySubjectCallback callback);
 
     void registerResponseSubscriber(ResponseSubscriber receiver);
 
-    interface ResponseSubscriber {
-        void onResponse(MetaInfoResponse response);
+    interface ResponseCallback<T> {
+
+        void onSuccess(T response);
+    }
+
+    interface ResponseSubscriber extends ResponseCallback<MetaInfoResponse> {
+
+        void onSuccess(MetaInfoResponse response);
+    }
+
+    interface QuerySubjectCallback extends ResponseCallback<QuerySubjectResponse> {
+
+        void onSuccess(QuerySubjectResponse response);
     }
 }

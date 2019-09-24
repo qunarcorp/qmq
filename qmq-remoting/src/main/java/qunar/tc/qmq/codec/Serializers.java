@@ -3,15 +3,14 @@ package qunar.tc.qmq.codec;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeMap;
+import qunar.tc.qmq.PartitionProps;
 import qunar.tc.qmq.meta.ConsumerAllocation;
 import qunar.tc.qmq.meta.Partition;
 import qunar.tc.qmq.meta.ProducerAllocation;
-import qunar.tc.qmq.PartitionProps;
 import qunar.tc.qmq.protocol.MetaInfoResponse;
 import qunar.tc.qmq.protocol.QuerySubjectRequest;
-import qunar.tc.qmq.protocol.consumer.ConsumerMetaInfoResponse;
+import qunar.tc.qmq.protocol.QuerySubjectResponse;
 import qunar.tc.qmq.protocol.consumer.ReleasePullLockRequest;
-import qunar.tc.qmq.protocol.producer.ProducerMetaInfoResponse;
 
 import java.util.List;
 import java.util.Map;
@@ -38,9 +37,8 @@ public class Serializers {
         serializerMap.put(List.class, new ListSerializer());
         serializerMap.put(ConsumerAllocation.class, new ConsumerAllocationSerializer());
         serializerMap.put(MetaInfoResponse.class, new MetaInfoResponseSerializer());
-        serializerMap.put(ProducerMetaInfoResponse.class, new ProducerMetaInfoResponseSerializer());
-        serializerMap.put(ConsumerMetaInfoResponse.class, new ConsumerMetaInfoResponseSerializer());
         serializerMap.put(QuerySubjectRequest.class, new QuerySubjectRequestSerializer());
+        serializerMap.put(QuerySubjectResponse.class, new QuerySubjectResponseSerializer());
         serializerMap.put(ReleasePullLockRequest.class, new ReleasePullLockRequestSerializer());
     }
 
