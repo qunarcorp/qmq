@@ -43,6 +43,8 @@ public class NettyServer implements Disposable {
     private final ServerBootstrap bootstrap;
     private final NettyServerHandler serverHandler;
     private final ConnectionHandler connectionHandler;
+    private final OutboundExceptionHandler outboundExceptionHandler;
+    private final InboundExceptionHandler inboundExceptionHandler;
 
     private final int port;
     private volatile Channel channel;
@@ -54,6 +56,8 @@ public class NettyServer implements Disposable {
         this.bootstrap = new ServerBootstrap();
         this.serverHandler = new NettyServerHandler();
         this.connectionHandler = new ConnectionHandler(connectionEventHandler);
+        this.outboundExceptionHandler = new OutboundExceptionHandler();
+        this.inboundExceptionHandler = new InboundExceptionHandler();
     }
 
     public void registerProcessor(final short requestCode, final NettyRequestProcessor processor) {
@@ -74,9 +78,11 @@ public class NettyServer implements Disposable {
                 .childHandler(new ChannelInitializer<SocketChannel>() {
                     @Override
                     protected void initChannel(SocketChannel ch) {
+                        ch.pipeline().addLast("inboundExceptionHandler", inboundExceptionHandler);
                         ch.pipeline().addLast("connectionHandler", connectionHandler);
                         ch.pipeline().addLast("encoder", new EncodeHandler());
                         ch.pipeline().addLast("decoder", new DecodeHandler(true));
+                        ch.pipeline().addLast("outboundExceptionHandler", outboundExceptionHandler);
                         ch.pipeline().addLast("dispatcher", serverHandler);
                     }
                 });

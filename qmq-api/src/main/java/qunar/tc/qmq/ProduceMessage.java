@@ -28,8 +28,6 @@ public interface ProduceMessage extends Retriable {
 
     void send();
 
-    void error(Exception e);
-
     void failed();
 
     void block();

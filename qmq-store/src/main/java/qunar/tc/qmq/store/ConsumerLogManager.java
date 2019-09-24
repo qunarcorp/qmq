@@ -32,7 +32,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.common.JsonHolder;
+import qunar.tc.qmq.common.JsonUtils;
 import qunar.tc.qmq.monitor.QMon;
 
 /**
@@ -40,9 +40,10 @@ import qunar.tc.qmq.monitor.QMon;
  * @since 2017/8/19
  */
 public class ConsumerLogManager implements AutoCloseable {
+
     private static final Logger LOG = LoggerFactory.getLogger(ConsumerLogManager.class);
 
-    private static final ObjectMapper MAPPER = JsonHolder.getMapper();
+    private static final ObjectMapper MAPPER = JsonUtils.getMapper();
 
     private final StorageConfig config;
 

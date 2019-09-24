@@ -16,10 +16,10 @@ public abstract class AbstractOrderStrategy implements OrderStrategy {
     @Override
     public void onSendError(ProduceMessage message, QueueSender sender, SendMessageExecutor currentExecutor, Exception e) {
         message.reset();
-        doOnError(message, sender, currentExecutor, e);
+        doOnSendError(message, sender, currentExecutor, e);
     }
 
-    abstract void doOnError(ProduceMessage message, QueueSender sender, SendMessageExecutor currentExecutor, Exception e);
+    abstract void doOnSendError(ProduceMessage message, QueueSender sender, SendMessageExecutor currentExecutor, Exception e);
 
     @Override
     public void onSendFailed(ProduceMessage pm, QueueSender sender, SendMessageExecutor currentExecutor, Exception e) {

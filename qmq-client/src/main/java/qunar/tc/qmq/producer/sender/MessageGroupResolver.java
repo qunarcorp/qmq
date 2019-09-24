@@ -2,6 +2,7 @@ package qunar.tc.qmq.producer.sender;
 
 import qunar.tc.qmq.Message;
 import qunar.tc.qmq.MessageGroup;
+import qunar.tc.qmq.base.BaseMessage;
 
 /**
  * 消息分组, 最终会将消息对应到一个 brokerGroup 的一个 subject 上
@@ -16,12 +17,12 @@ public interface MessageGroupResolver {
      * @param message 消息
      * @return brokerGroup
      */
-    MessageGroup resolveGroup(Message message);
+    MessageGroup resolveGroup(BaseMessage message);
 
     /**
      * 选择一个可用的 brokerGroup, 如不可用则选择下一个可用的 brokerGroup, 但必须保证 PartitionName 在这两个 BrokerGroup 是相同的
      * @param message message
      * @return 可用的 brokerGroup
      */
-    MessageGroup resolveAvailableGroup(Message message);
+    MessageGroup resolveAvailableGroup(BaseMessage message);
 }

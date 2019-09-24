@@ -25,18 +25,20 @@ public class BestTriedOrderStrategy extends AbstractOrderStrategy {
     }
 
     @Override
-    void doOnError(ProduceMessage message, QueueSender sender, SendMessageExecutor currentExecutor, Exception e) {
-        if (message.getTries() > message.getMaxTries()) {
+    void doOnSendError(ProduceMessage message, QueueSender sender, SendMessageExecutor currentExecutor, Exception e) {
+        if (message.getTries() >= message.getMaxTries()) {
             currentExecutor.removeMessage(message);
+            message.failed();
             return;
         }
-        MessageGroup messageGroup = messageGroupResolver.resolveAvailableGroup(message.getBase());
+        MessageGroup messageGroup = messageGroupResolver.resolveAvailableGroup((BaseMessage) message.getBase());
         MessageGroup oldMessageGroup = currentExecutor.getMessageGroup();
         if (!Objects.equals(messageGroup, oldMessageGroup)) {
             currentExecutor.removeMessage(message);
             OrderedSendMessageExecutor newExecutor = sender.getExecutor(messageGroup);
             newExecutor.addMessage(message);
         }
+        message.incTries();
     }
 
     @Override

@@ -20,7 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.common.JsonHolder;
+import qunar.tc.qmq.common.JsonUtils;
 import qunar.tc.qmq.meta.model.GroupedConsumer;
 import qunar.tc.qmq.meta.route.SubjectConsumerService;
 import qunar.tc.qmq.meta.route.impl.SubjectConsumerServiceImpl;
@@ -39,7 +39,7 @@ import java.util.List;
 public class SubjectConsumerServlet extends HttpServlet {
     private static final Logger LOG = LoggerFactory.getLogger(SubjectConsumerServlet.class);
 
-    private static final ObjectMapper MAPPER = JsonHolder.getMapper();
+    private static final ObjectMapper MAPPER = JsonUtils.getMapper();
 
     private final SubjectConsumerService subjectConsumerService = new SubjectConsumerServiceImpl();
 

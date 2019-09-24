@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package qunar.tc.qmq.meta.store.impl;
+package qunar.tc.qmq.common;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -24,7 +24,8 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 
 import java.io.IOException;
 
-class JsonUtils {
+public class JsonUtils {
+
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     static {
@@ -39,7 +40,7 @@ class JsonUtils {
         MAPPER.configure(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true);
     }
 
-    static String serialize(Object data) {
+    public static String serialize(Object data) {
         try {
             return MAPPER.writeValueAsString(data);
         } catch (IOException e) {
@@ -47,7 +48,7 @@ class JsonUtils {
         }
     }
 
-    static <T> T deSerialize(String content, TypeReference typeReference) {
+    public static <T> T deSerialize(String content, TypeReference typeReference) {
         try {
             return MAPPER.readValue(content, typeReference);
         } catch (IOException e) {
@@ -55,11 +56,15 @@ class JsonUtils {
         }
     }
 
-    static <T> T deSerialize(String content, Class<T> clazz) {
+    public static <T> T deSerialize(String content, Class<T> clazz) {
         try {
             return MAPPER.readValue(content, clazz);
         } catch (IOException e) {
             return null;
         }
+    }
+
+    public static ObjectMapper getMapper() {
+        return MAPPER;
     }
 }

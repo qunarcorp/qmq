@@ -17,19 +17,17 @@ import java.util.Map;
  */
 public class RangeMapSerializer extends ObjectSerializer<RangeMap> {
 
-    private Serializer<Range> rangeSerializer = Serializers.getSerializer(Range.class);
 
     @Override
     void doSerialize(RangeMap rangeMap, ByteBuf buf) {
         Map<Range<? extends Comparable>, Object> map = rangeMap.asMapOfRanges();
         buf.writeInt(map.size());
-
+        Serializer<Range> rangeSerializer = Serializers.getSerializer(Range.class);
         for (Map.Entry<Range<? extends Comparable>, Object> entry : map.entrySet()) {
             Range<? extends Comparable> range = entry.getKey();
             Object value = entry.getValue();
 
             Serializer valSerializer = Serializers.getSerializer(value.getClass());
-
             rangeSerializer.serialize(range, buf);
             valSerializer.serialize(value, buf);
         }
@@ -43,6 +41,7 @@ public class RangeMapSerializer extends ObjectSerializer<RangeMap> {
         TreeRangeMap rangeMap = TreeRangeMap.create();
         int size = buf.readInt();
         Serializer valSerializer = getSerializer(valType);
+        Serializer<Range> rangeSerializer = Serializers.getSerializer(Range.class);
         for (int i = 0; i < size; i++) {
             Range range = rangeSerializer.deserialize(buf, keyType);
             Object value = valSerializer.deserialize(buf, valType);

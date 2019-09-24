@@ -4,6 +4,7 @@ import org.springframework.dao.support.DataAccessUtils;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import qunar.tc.qmq.PartitionAllocation;
+import qunar.tc.qmq.common.JsonUtils;
 import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
 import qunar.tc.qmq.meta.store.PartitionAllocationStore;
 

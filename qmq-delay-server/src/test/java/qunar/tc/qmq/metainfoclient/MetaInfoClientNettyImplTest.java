@@ -3,6 +3,7 @@ package qunar.tc.qmq.metainfoclient;
 import org.junit.Test;
 import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.base.ClientRequestType;
+import qunar.tc.qmq.base.OnOfflineState;
 import qunar.tc.qmq.meta.MetaServerLocator;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
 
@@ -15,7 +16,7 @@ public class MetaInfoClientNettyImplTest {
     @Test
     public void testSendRequest() throws Exception {
         MetaInfoClientNettyImpl client = MetaInfoClientNettyImpl.getClient(new MetaServerLocator("http://localhost:8080/meta/address"));
-        client.sendMetaInfoRequest(new MetaInfoRequest(
+        MetaInfoRequest request = new MetaInfoRequest(
                 "test",
                 "test",
                 ClientType.PRODUCER.getCode(),
@@ -24,7 +25,9 @@ public class MetaInfoClientNettyImplTest {
                 ClientRequestType.ONLINE,
                 false,
                 false
-                ));
+        );
+        client.sendMetaInfoRequest(request);
+        request.setOnlineState(OnOfflineState.OFFLINE);
         Thread.sleep(60000);
     }
 }

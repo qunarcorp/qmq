@@ -14,7 +14,7 @@ import qunar.tc.qmq.producer.QueueSender;
 public class StrictOrderStrategy extends AbstractOrderStrategy {
 
     @Override
-    void doOnError(ProduceMessage message, QueueSender sender, SendMessageExecutor currentExecutor, Exception e) {
+    public void doOnSendError(ProduceMessage message, QueueSender sender, SendMessageExecutor currentExecutor, Exception e) {
 
     }
 

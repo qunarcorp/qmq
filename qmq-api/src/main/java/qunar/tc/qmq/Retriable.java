@@ -6,6 +6,8 @@ package qunar.tc.qmq;
  */
 public interface Retriable {
 
+    int incTries();
+
     int getTries();
 
     int getMaxTries();

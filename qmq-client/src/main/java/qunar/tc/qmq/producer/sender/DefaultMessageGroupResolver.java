@@ -3,7 +3,6 @@ package qunar.tc.qmq.producer.sender;
 import com.google.common.base.Preconditions;
 import io.netty.util.internal.ThreadLocalRandom;
 import qunar.tc.qmq.ClientType;
-import qunar.tc.qmq.Message;
 import qunar.tc.qmq.MessageGroup;
 import qunar.tc.qmq.PartitionProps;
 import qunar.tc.qmq.base.BaseMessage;
@@ -31,7 +30,7 @@ public class DefaultMessageGroupResolver implements MessageGroupResolver {
     }
 
     @Override
-    public MessageGroup resolveGroup(Message message) {
+    public MessageGroup resolveGroup(BaseMessage message) {
         String subject = message.getSubject();
         String orderKey = message.getOrderKey();
         ClientType clientType = DelayUtil.isDelayMessage(message) ? ClientType.DELAY_PRODUCER : ClientType.PRODUCER;
@@ -51,17 +50,17 @@ public class DefaultMessageGroupResolver implements MessageGroupResolver {
         String brokerGroup = partitionProps.getBrokerGroup();
         String partitionName = partitionProps.getPartitionName();
 
-        message.setProperty(BaseMessage.keys.qmq_subject.name(), subject);
-        message.setProperty(BaseMessage.keys.qmq_logicPartition.name(), logicalPartition);
-        message.setProperty(BaseMessage.keys.qmq_partitionName.name(), partitionName);
-        message.setProperty(BaseMessage.keys.qmq_partitionBroker.name(), brokerGroup);
-        message.setProperty(BaseMessage.keys.qmq_partitionVersion.name(), producerAllocation.getVersion());
+        message.setProperty(BaseMessage.keys.qmq_subject, subject);
+        message.setProperty(BaseMessage.keys.qmq_logicPartition, logicalPartition);
+        message.setProperty(BaseMessage.keys.qmq_partitionName, partitionName);
+        message.setProperty(BaseMessage.keys.qmq_partitionBroker, brokerGroup);
+        message.setProperty(BaseMessage.keys.qmq_partitionVersion, producerAllocation.getVersion());
 
         return new MessageGroup(clientType, subject, partitionName, brokerGroup);
     }
 
     @Override
-    public MessageGroup resolveAvailableGroup(Message message) {
+    public MessageGroup resolveAvailableGroup(BaseMessage message) {
         MessageGroup messageGroup = resolveGroup(message);
         String subject = message.getSubject();
         ClientType clientType = DelayUtil.isDelayMessage(message) ? ClientType.DELAY_PRODUCER : ClientType.PRODUCER;
@@ -89,8 +88,8 @@ public class DefaultMessageGroupResolver implements MessageGroupResolver {
                         producerAllocation.getLogical2SubjectLocation().asMapOfRanges().values()
                 );
         String partitionName = props.get(0).getPartitionName();
-        message.setProperty(BaseMessage.keys.qmq_partitionName.name(), partitionName);
-        message.setProperty(BaseMessage.keys.qmq_partitionBroker.name(), brokerGroupName);
+        message.setProperty(BaseMessage.keys.qmq_partitionName, partitionName);
+        message.setProperty(BaseMessage.keys.qmq_partitionBroker, brokerGroupName);
         return new MessageGroup(clientType, subject, partitionName, brokerGroupName);
     }
 

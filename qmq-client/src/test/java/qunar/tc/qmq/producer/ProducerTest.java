@@ -18,15 +18,15 @@ public class ProducerTest {
     public void testSendMessage() throws Exception {
         MessageProducerProvider provider = new MessageProducerProvider("producer_test", "http://127.0.0.1:8080/meta/address");
         provider.init();
-        final String data = Strings.repeat("1a", 100);
+        final String data = Strings.repeat("1a", 10);
         final AtomicBoolean running = new AtomicBoolean(true);
         new Thread(new Runnable() {
             @Override
             public void run() {
-                while (running.get()) {
+//                while (running.get()) {
                     try {
                         final Message message = provider.generateMessage("new.qmq.test");
-                        for (int i = 0; i < 20; i++) {
+                        for (int i = 0; i < 10; i++) {
                             message.setProperty("index" + i, data);
                         }
                         provider.sendMessage(message, new MessageSendStateListener() {
@@ -51,7 +51,7 @@ public class ProducerTest {
                         }
                     }
                 }
-            }
+//            }
         }).start();
 
         System.in.read();

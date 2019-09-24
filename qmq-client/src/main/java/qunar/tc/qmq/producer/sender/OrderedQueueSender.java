@@ -147,7 +147,7 @@ public class OrderedQueueSender implements QueueSender, MessageProcessor {
             Futures.addCallback(future, new FutureCallback<Map<String, MessageException>>() {
                 @Override
                 public void onSuccess(Map<String, MessageException> result) {
-                    onSendFinish(messages, result, executor, orderStrategy);
+                    processSendResult(messages, result, executor, orderStrategy);
                 }
 
                 @Override
@@ -158,15 +158,15 @@ public class OrderedQueueSender implements QueueSender, MessageProcessor {
                     } else {
                         ex = (Exception) t;
                     }
-                    onSendError(messages, executor, orderStrategy, ex);
+                    processSendError(messages, executor, orderStrategy, ex);
                 }
             }, this.executor);
         } catch (Exception e) {
-            onSendError(messages, executor, orderStrategy, e);
+            processSendError(messages, executor, orderStrategy, e);
         }
     }
 
-    private void onSendFinish(List<ProduceMessage> messages, Map<String, MessageException> result, SendMessageExecutor executor, OrderStrategy orderStrategy) {
+    private void processSendResult(List<ProduceMessage> messages, Map<String, MessageException> result, SendMessageExecutor executor, OrderStrategy orderStrategy) {
         try {
             if (result.isEmpty())
                 result = Collections.emptyMap();
@@ -193,7 +193,7 @@ public class OrderedQueueSender implements QueueSender, MessageProcessor {
         }
     }
 
-    private void onSendError(List<ProduceMessage> messages, SendMessageExecutor executor, OrderStrategy orderStrategy, Exception ex) {
+    private void processSendError(List<ProduceMessage> messages, SendMessageExecutor executor, OrderStrategy orderStrategy, Exception ex) {
         try {
             for (ProduceMessage pm : messages) {
                 Metrics.counter(SEND_MESSAGE_THROWABLE_COUNTER, MetricsConstants.SUBJECT_ARRAY, new String[]{pm.getSubject()}).inc();

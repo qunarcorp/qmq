@@ -164,6 +164,7 @@ class ProduceMessageImpl implements ProduceMessage {
     @Override
     public void reset() {
         LOGGER.info("消息状态重置 {}:{} tries:maxRetries {}:{}", getSubject(), getMessageId(), tries, getMaxTries());
+        closeTrace();
         state.set(INIT);
     }
 
@@ -172,22 +173,6 @@ class ProduceMessageImpl implements ProduceMessage {
         sendOkQps.mark();
         if (sendStateListener == null) return;
         sendStateListener.onSuccess(base);
-    }
-
-    @Override
-    public void error(Exception e) {
-        state.set(ERROR);
-        try {
-            if (tries.get() < sendTryCount) {
-                sendErrorCount.inc();
-                LOGGER.info("发送失败, 重新发送. tryCount: {} {}:{}", tries.get(), getSubject(), getMessageId());
-                resend();
-            } else {
-                failed();
-            }
-        } finally {
-            closeTrace();
-        }
     }
 
     @Override
@@ -333,6 +318,11 @@ class ProduceMessageImpl implements ProduceMessage {
 
     public void setSyncSend(boolean syncSend) {
         this.syncSend = syncSend;
+    }
+
+    @Override
+    public int incTries() {
+        return tries.incrementAndGet();
     }
 
     @Override

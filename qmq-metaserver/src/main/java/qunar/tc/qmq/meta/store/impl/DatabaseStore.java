@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import qunar.tc.qmq.common.JsonUtils;
 import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
 import qunar.tc.qmq.meta.BrokerGroup;
 import qunar.tc.qmq.meta.BrokerGroupKind;
@@ -36,7 +37,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
-import static qunar.tc.qmq.meta.store.impl.JsonUtils.serialize;
+import static qunar.tc.qmq.common.JsonUtils.serialize;
 
 /**
  * @author yunfeng.yang

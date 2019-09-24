@@ -99,7 +99,7 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
     }
 
     private void updateBrokerCluster(String key, BrokerClusterInfo clusterInfo) {
-        SettableFuture<BrokerClusterInfo> oldFuture = clusterMap.get(key);
+        SettableFuture<BrokerClusterInfo> oldFuture = clusterMap.computeIfAbsent(key, k -> SettableFuture.create());
 
         if (!oldFuture.isDone()) {
             oldFuture.set(clusterInfo);
