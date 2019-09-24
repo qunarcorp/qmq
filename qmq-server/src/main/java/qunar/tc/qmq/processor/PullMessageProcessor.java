@@ -149,13 +149,6 @@ public class PullMessageProcessor extends AbstractRequestProcessor implements Fi
             pullRequest.setRequestNum(10000);
         }
 
-        long pullOffsetBegin = pullRequest.getPullOffsetBegin();
-        long pullOffsetLast = pullRequest.getPullOffsetLast();
-
-        if (pullOffsetLast < pullOffsetBegin) {
-            pullRequest.setPullOffsetLast(pullOffsetBegin);
-        }
-
         return true;
     }
 
