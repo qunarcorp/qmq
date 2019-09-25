@@ -160,8 +160,7 @@ class AckSendQueue implements TimerTask {
 
     void sendBackAndCompleteNack(final int nextRetryCount, final BaseMessage message, final AckEntry ackEntry) {
         OrderStrategy orderStrategy = OrderStrategyCache.getStrategy(subject);
-        boolean isDeadRetryMessage = orderStrategy.isDeadRetry(nextRetryCount, message);
-        final String partitionName = isDeadRetryMessage ? deadRetryPartitionName : retryPartitionName;
+        final String partitionName = orderStrategy.isDeadRetry(nextRetryCount, message) ? deadRetryPartitionName : retryPartitionName;
         if (deadRetryPartitionName.equals(partitionName)) {
             deadQueueCount.inc();
             LOGGER.warn("onSuccess message retry num {} >= {}, and dead retry. subject={}, group={}, msgId={}",

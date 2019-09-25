@@ -2,6 +2,8 @@ package qunar.tc.qmq.common;
 
 import qunar.tc.qmq.ProduceMessage;
 import qunar.tc.qmq.batch.SendMessageExecutor;
+import qunar.tc.qmq.consumer.ConsumeMessageExecutor;
+import qunar.tc.qmq.consumer.pull.PulledMessage;
 import qunar.tc.qmq.producer.QueueSender;
 import qunar.tc.qmq.service.exceptions.MessageException;
 
@@ -42,5 +44,12 @@ public abstract class AbstractOrderStrategy implements OrderStrategy {
     @Override
     public void onSendFinished(List<ProduceMessage> sourceMessages, QueueSender sender, SendMessageExecutor currentExecutor) {
         currentExecutor.reset();
+    }
+
+    @Override
+    public void onConsumeSuccess(PulledMessage message, ConsumeMessageExecutor executor) {
+        if (message.isNotAcked()) {
+            message.ackWithTrace(null);
+        }
     }
 }

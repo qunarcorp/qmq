@@ -17,6 +17,4 @@ public interface MessageHandler extends AckHook {
     void postHandle(ConsumeMessage message, Throwable ex, Map<String, Object> filterContext);
 
     void handle(Message msg);
-
-    void ack(BaseMessage message, long elapsed, Throwable exception, Map<String, String> attachment);
 }

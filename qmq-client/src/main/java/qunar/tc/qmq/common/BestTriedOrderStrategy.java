@@ -42,13 +42,15 @@ public class BestTriedOrderStrategy extends AbstractOrderStrategy {
     }
 
     @Override
-    public void onConsumeFailed(PulledMessage message, ConsumeMessageExecutor executor) {
-
+    public void onConsumeFailed(PulledMessage message, ConsumeMessageExecutor executor, Throwable t) {
+        if (message.isNotAcked()) {
+            message.ackWithTrace(t);
+        }
     }
 
     @Override
     public void onMessageNotAcked(PulledMessage message, ConsumeMessageExecutor executor) {
-
+        // 直接跳过, 处理下一条消息
     }
 
     @Override

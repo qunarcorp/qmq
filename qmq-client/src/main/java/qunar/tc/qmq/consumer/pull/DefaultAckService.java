@@ -56,14 +56,12 @@ class DefaultAckService implements AckService {
 
     private final NettyClient client = NettyClient.getClient();
     private final BrokerService brokerService;
-    private final SendMessageBack sendMessageBack;
     private final DelayMessageService delayMessageService;
 
     private String clientId;
 
     DefaultAckService(BrokerService brokerService, SendMessageBack sendMessageBack) {
         this.brokerService = brokerService;
-        this.sendMessageBack = sendMessageBack;
         this.delayMessageService = new DelayMessageService(brokerService, sendMessageBack);
     }
 

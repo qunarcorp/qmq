@@ -29,7 +29,9 @@ public interface OrderStrategy {
 
     void onSendFinished(List<ProduceMessage> sourceMessages, QueueSender sender, SendMessageExecutor currentExecutor);
 
-    void onConsumeFailed(PulledMessage message, ConsumeMessageExecutor executor);
+    void onConsumeSuccess(PulledMessage message, ConsumeMessageExecutor executor);
+
+    void onConsumeFailed(PulledMessage message, ConsumeMessageExecutor executor, Throwable t);
 
     void onMessageNotAcked(PulledMessage message, ConsumeMessageExecutor executor);
 

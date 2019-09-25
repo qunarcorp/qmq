@@ -2,7 +2,6 @@ package qunar.tc.qmq.consumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.consumer.pull.PulledMessage;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.QmqCounter;
@@ -31,7 +30,6 @@ public abstract class AbstractConsumeMessageExecutor implements ConsumeMessageEx
     private final QmqTimer handleTimer;
     private final QmqCounter handleFailCounter;
     private final BlockingDeque<PulledMessage> messageQueue;
-    private final Executor partitionExecutor;
     private final String subject;
     private final String consumerGroup;
     private final String partitionName;
@@ -49,7 +47,6 @@ public abstract class AbstractConsumeMessageExecutor implements ConsumeMessageEx
         this.subject = subject;
         this.consumerGroup = consumerGroup;
         this.partitionName = partitionName;
-        this.partitionExecutor = partitionExecutor;
         this.messageHandler = messageHandler;
         if (started.compareAndSet(false, true)) {
             partitionExecutor.execute(this::processMessages);
@@ -90,8 +87,9 @@ public abstract class AbstractConsumeMessageExecutor implements ConsumeMessageEx
             try {
                 processMessage(message);
             } catch (Throwable t) {
-                logger.error("消息处理失败 ", t);
+                logger.error("消息处理异常 subject {} consumerGroup {} messageId {}", subject, consumerGroup, message.getMessageId(), t);
             }
+
         }
     }
 

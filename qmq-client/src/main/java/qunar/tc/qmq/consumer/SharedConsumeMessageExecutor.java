@@ -28,7 +28,7 @@ public class SharedConsumeMessageExecutor extends AbstractConsumeMessageExecutor
     @Override
     void processMessage(PulledMessage message) {
         MessageHandler messageHandler = getMessageHandler();
-        MessageConsumptionTask task = new MessageConsumptionTask(message, messageHandler, getCreateToHandleTimer(), getHandleTimer(), getHandleFailCounter());
+        MessageConsumptionTask task = new MessageConsumptionTask(message, messageHandler, this, getCreateToHandleTimer(), getHandleTimer(), getHandleFailCounter());
         task.run(messageHandleExecutor);
     }
 

@@ -73,6 +73,15 @@ public class BaseMessageHandler implements MessageHandler, AckHook {
     @Override
     public void postHandle(ConsumeMessage message, Throwable ex, Map<String, Object> filterContext) {
         traceFilter.postOnMessage(message, ex, filterContext);
+        applyFilters(message, ex, filterContext);
+    }
+
+    @Override
+    public void handle(Message msg) {
+        listener.onMessage(msg);
+    }
+
+    private void applyFilters(ConsumeMessage message, Throwable ex, Map<String, Object> filterContext) {
         int processedFilterIndex = message.processedFilterIndex();
         for (int i = processedFilterIndex; i >= 0; --i) {
             try {
@@ -84,21 +93,8 @@ public class BaseMessageHandler implements MessageHandler, AckHook {
     }
 
     @Override
-    public void handle(Message msg) {
-        listener.onMessage(msg);
-    }
-
-    @Override
-    public void ack(BaseMessage message, long elapsed, Throwable exception, Map<String, String> attachment) {
-        PulledMessage pulledMessage = (PulledMessage) message;
-        if (pulledMessage.isNotAcked()) {
-            pulledMessage.ackWithTrace(exception);
-        }
-    }
-
-    @Override
     public void call(PulledMessage message, Throwable throwable) {
-        postHandle(message, throwable, new HashMap<>(message.filterContext()));
+        applyFilters(message, throwable, new HashMap<>(message.filterContext()));
         message.ackWithTrace(throwable);
     }
 }
