@@ -33,7 +33,6 @@ import qunar.tc.qmq.store.action.ForeverOfflineAction;
 import qunar.tc.qmq.store.action.PullAction;
 import qunar.tc.qmq.store.action.RangeAckAction;
 import qunar.tc.qmq.store.buffer.Buffer;
-import qunar.tc.qmq.utils.ObjectUtils;
 import qunar.tc.qmq.utils.RetryPartitionUtils;
 
 import java.util.ArrayList;
@@ -276,18 +275,8 @@ public class ConsumerSequenceManager {
 
     public ConsumerSequence getOrCreateConsumerSequence(String subject, String consumerGroup, String consumerId, boolean isExclusiveConsume) {
         String exclusiveKey = isExclusiveConsume ? consumerGroup : consumerId;
-        ConcurrentMap<ConsumerGroup, ConsumerSequence> consumerSequences = this.sequences.get(exclusiveKey);
-        if (consumerSequences == null) {
-            final ConcurrentMap<ConsumerGroup, ConsumerSequence> newConsumerSequences = new ConcurrentHashMap<>();
-            consumerSequences = ObjectUtils.defaultIfNull(sequences.putIfAbsent(exclusiveKey, newConsumerSequences), newConsumerSequences);
-        }
-
+        ConcurrentMap<ConsumerGroup, ConsumerSequence> consumerSequences = sequences.computeIfAbsent(exclusiveKey, k -> new ConcurrentHashMap<>());
         final ConsumerGroup consumerGroupKey = new ConsumerGroup(subject, consumerGroup);
-        ConsumerSequence consumerSequence = consumerSequences.get(consumerGroupKey);
-        if (consumerSequence == null) {
-            final ConsumerSequence newConsumerSequence = new ConsumerSequence(ACTION_LOG_ORIGIN_OFFSET, ACTION_LOG_ORIGIN_OFFSET);
-            consumerSequence = ObjectUtils.defaultIfNull(consumerSequences.putIfAbsent(consumerGroupKey, newConsumerSequence), newConsumerSequence);
-        }
-        return consumerSequence;
+        return consumerSequences.computeIfAbsent(consumerGroupKey, k -> new ConsumerSequence(ACTION_LOG_ORIGIN_OFFSET, ACTION_LOG_ORIGIN_OFFSET));
     }
 }

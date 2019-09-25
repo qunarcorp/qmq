@@ -338,7 +338,8 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
                 subject,
                 consumerGroup,
                 isBroadcast,
-                isOrdered
+                isOrdered,
+                false
         );
     }
 }

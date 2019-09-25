@@ -127,6 +127,7 @@ public class PullMessageProcessor extends AbstractRequestProcessor implements Fi
     }
 
     private void subscribe(PullRequest pullRequest) {
+        // TODO(zhenwei.liu) 这里需要抽象一下, 用来处理 Shared/Exclusive 模式切换的 PullLog 逻辑, 而不能完全按照 PullRequest 的属性来决定
         if (pullRequest.isExclusiveConsume()) return;
 
         final String partitionName = pullRequest.getPartitionName();

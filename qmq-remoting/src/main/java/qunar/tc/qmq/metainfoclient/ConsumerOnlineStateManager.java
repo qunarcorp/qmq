@@ -10,7 +10,7 @@ public interface ConsumerOnlineStateManager {
 
     boolean isOnline(String subject, String group, String clientId);
 
-    void registerConsumer(String subject, String group, String clientId, SwitchWaiter switchWaiter);
+    void registerConsumer(String subject, String group, String clientId, boolean healthCheckOnlineState);
 
     SwitchWaiter getSwitchWaiter(String subject, String group, String clientId);
 }

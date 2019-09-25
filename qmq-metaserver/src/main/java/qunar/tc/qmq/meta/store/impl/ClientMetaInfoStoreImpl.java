@@ -18,9 +18,9 @@ package qunar.tc.qmq.meta.store.impl;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.base.OnOfflineState;
-import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
 import qunar.tc.qmq.meta.model.ClientMetaInfo;
 import qunar.tc.qmq.meta.store.ClientMetaInfoStore;
@@ -34,22 +34,31 @@ import java.util.List;
  */
 public class ClientMetaInfoStoreImpl implements ClientMetaInfoStore {
 
-    private static final String QUERY_CONSUMER_SQL = "SELECT subject_info,client_type,consumer_group,client_id,app_code,room FROM client_meta_info WHERE subject_info=? AND client_type=?";
-    private static final String QUERY_CLIENT_AFTER_DATE_SQL = "SELECT subject_info,client_type,consumer_group,client_id,app_code,room from client_meta_info where client_type=? and online_status = ? and update_time > ?";
+    private static final String QUERY_CONSUMER_SQL = "SELECT subject_info,consume_strategy,client_type,consumer_group,client_id,app_code,room FROM client_meta_info WHERE subject_info=? AND client_type=?";
+    private static final String QUERY_CLIENT_AFTER_DATE_SQL = "SELECT subject_info, consume_strategy, client_type,consumer_group,client_id,app_code,room from client_meta_info where client_type=? and online_status = ? and update_time > ?";
     private static final String UPDATE_CLIENT_STATE_SQL = "update client_meta_info set update_time = now(), online_status = ?, consume_strategy = ? where subject_info = ? and client_type = ? and consumer_group = ? and client_id = ?";
 
     private final JdbcTemplate jdbcTemplate = JdbcTemplateHolder.getOrCreate();
 
     private static final RowMapper<ClientMetaInfo> clientMetaInfoRowMapper = (rs, rowNum) -> {
-        final ClientMetaInfo meta = new ClientMetaInfo();
-        meta.setSubject(rs.getString("subject_info"));
-        meta.setClientTypeCode(rs.getInt("client_type"));
-        meta.setConsumerGroup(rs.getString("consumer_group"));
-        meta.setClientId(rs.getString("client_id"));
-        meta.setAppCode(rs.getString("app_code"));
-        meta.setRoom(rs.getString("room"));
-        meta.setOnlineStatus(OnOfflineState.valueOf(rs.getString("online_status")));
-        return meta;
+        String subject = rs.getString("subject_info");
+        int clientType = rs.getInt("client_type");
+        String consumerGroup = rs.getString("consumer_group");
+        ConsumeStrategy consumeStrategy = ConsumeStrategy.valueOf(rs.getString("consume_strategy"));
+        String clientId = rs.getString("client_id");
+        String appCode = rs.getString("app_code");
+        String room = rs.getString("room");
+        OnOfflineState onOfflineState = OnOfflineState.valueOf(rs.getString("online_status"));
+        return new ClientMetaInfo(
+                subject,
+                clientType,
+                appCode,
+                room,
+                clientId,
+                consumerGroup,
+                onOfflineState,
+                consumeStrategy
+        );
     };
 
     @Override

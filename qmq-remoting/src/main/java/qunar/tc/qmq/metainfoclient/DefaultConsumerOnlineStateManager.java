@@ -33,8 +33,8 @@ public class DefaultConsumerOnlineStateManager implements ConsumerOnlineStateMan
     }
 
     @Override
-    public void registerConsumer(String subject, String group, String clientId, SwitchWaiter switchWaiter) {
-        stateMap.put(createKey(subject, group, clientId), switchWaiter);
+    public void registerConsumer(String subject, String group, String clientId, boolean healthCheckOnlineState) {
+        stateMap.computeIfAbsent(createKey(subject, group, clientId), k -> new SwitchWaiter(healthCheckOnlineState));
     }
 
     @Override

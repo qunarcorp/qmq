@@ -55,12 +55,16 @@ public class OrderedConsumerHeartbeatHandler implements HeartbeatHandler {
                 ConsumeStrategy consumeStrategy = ConsumeStrategy.getConsumeStrategy(request.isBroadcast(), request.isOrdered());
                 if (Objects.equals(consumeStrategy, ConsumeStrategy.EXCLUSIVE) && clientType.isConsumer()) {
                     // 更新在线状态
-                    ClientMetaInfo clientMetaInfo = new ClientMetaInfo();
-                    clientMetaInfo.setSubject(subject);
-                    clientMetaInfo.setConsumerGroup(consumerGroup);
-                    clientMetaInfo.setClientTypeCode(clientTypeCode);
-                    clientMetaInfo.setClientId(request.getClientId());
-                    clientMetaInfo.setOnlineStatus(request.getOnlineState());
+                    ClientMetaInfo clientMetaInfo = new ClientMetaInfo(
+                            subject,
+                            clientTypeCode,
+                            request.getAppCode(),
+                            "",
+                            request.getClientId(),
+                            consumerGroup,
+                            request.getOnlineState(),
+                            consumeStrategy
+                    );
 
                     clientMetaInfoStore.updateClientOnlineState(clientMetaInfo, consumeStrategy);
 

@@ -54,22 +54,22 @@ public class MessageConsumptionTask {
     public void run() {
         String subject = (String) message.getProperty(BaseMessage.keys.qmq_subject);
         OrderStrategy orderStrategy = OrderStrategyCache.getStrategy(subject);
-        boolean localRetried = false;
         try {
             processMessage();
-            orderStrategy.onConsumeSuccess(message, messageExecutor);
+            if (message.isNotAcked()) {
+                orderStrategy.onMessageNotAcked(message, messageExecutor);
+            } else {
+                orderStrategy.onConsumeSuccess(message, messageExecutor);
+            }
         } catch (NeedRetryException e) {
             // 如果非 RetryImmediately 会抛出 NeedRetry 异常
-            localRetried = localRetry(message, e);
+            if (!localRetry(message, e)) {
+                throw e;
+            }
         } catch (Throwable t) {
             handleFailCounter.inc();
             logger.error("消息处理失败 {} {}", message.getSubject(), message.getMessageId(), t);
             orderStrategy.onConsumeFailed(message, messageExecutor, t);
-        } finally {
-            // 如果有 localRetry 则 ack 交给 localRetry 来处理
-            if (!localRetried && message.isNotAcked()) {
-                orderStrategy.onMessageNotAcked(message, messageExecutor);
-            }
         }
     }
 
@@ -94,12 +94,11 @@ public class MessageConsumptionTask {
         }
     }
 
-
     private boolean localRetry(PulledMessage message, NeedRetryException e) {
         if (isRetryImmediately(e)) {
             TraceUtil.recordEvent("local_retry");
             message.localRetries(message.localRetries() + 1);
-            processMessage();
+            run();
             return true;
         } else {
             return false;

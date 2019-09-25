@@ -171,10 +171,9 @@ public class DefaultMetaInfoService implements MetaInfoService {
     }
 
     @Override
-    public void registerHeartbeat(String appCode, int clientTypeCode, String subject, String consumerGroup, boolean isBroadcast, boolean isOrdered) {
+    public void registerHeartbeat(String appCode, int clientTypeCode, String subject, String consumerGroup, boolean isBroadcast, boolean isOrdered, boolean healthCheckOnlineState) {
         if (Objects.equals(ClientType.CONSUMER.getCode(), clientTypeCode)) {
-            SwitchWaiter switchWaiter = new SwitchWaiter(false);
-            this.consumerOnlineStateManager.registerConsumer(subject, consumerGroup, clientId, switchWaiter);
+            this.consumerOnlineStateManager.registerConsumer(subject, consumerGroup, clientId, healthCheckOnlineState);
         }
         String key = createMetaInfoRequestKey(clientTypeCode, subject, consumerGroup);
         MetaInfoRequestWrapper requestWrapper = metaInfoRequests.computeIfAbsent(key, k -> {

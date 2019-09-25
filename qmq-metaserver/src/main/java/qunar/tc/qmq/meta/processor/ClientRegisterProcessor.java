@@ -18,7 +18,6 @@ package qunar.tc.qmq.meta.processor;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
-import qunar.tc.qmq.meta.cache.AliveClientManager;
 import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 import qunar.tc.qmq.meta.cache.CachedOfflineStateManager;
 import qunar.tc.qmq.meta.monitor.QMon;
@@ -41,7 +40,6 @@ import java.util.concurrent.CompletableFuture;
 public class ClientRegisterProcessor implements NettyRequestProcessor {
 
     private final ClientRegisterWorker clientRegisterWorker;
-    private final AliveClientManager aliveClientManager;
 
     public ClientRegisterProcessor(final SubjectRouter subjectRouter,
                                    final CachedOfflineStateManager offlineStateManager,
@@ -49,7 +47,6 @@ public class ClientRegisterProcessor implements NettyRequestProcessor {
                                    final CachedMetaInfoManager cachedMetaInfoManager,
                                    final AllocationService allocationService) {
         this.clientRegisterWorker = new ClientRegisterWorker(subjectRouter, offlineStateManager, store, cachedMetaInfoManager, allocationService);
-        this.aliveClientManager = AliveClientManager.getInstance();
     }
 
     @Override
@@ -59,7 +56,6 @@ public class ClientRegisterProcessor implements NettyRequestProcessor {
         final MetaInfoRequest request = deserialize(body);
         QMon.clientRegisterCountInc(request.getSubject(), request.getClientTypeCode());
 
-        aliveClientManager.renew(request);
         clientRegisterWorker.register(new ClientRegisterMessage(request, ctx, header));
         return null;
     }
