@@ -8,6 +8,7 @@ import qunar.tc.qmq.producer.QueueSender;
 
 import java.util.Collections;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -22,7 +23,7 @@ public class OrderedQueueSender implements QueueSender {
     private static final Logger logger = LoggerFactory.getLogger(OrderedQueueSender.class);
 
     private final ExecutorService executor; // 所有分区共享一个线程池
-    private final LinkedBlockingQueue<ProduceMessage> queue;
+    private final LinkedBlockingDeque<ProduceMessage> queue;
     private final SendMessageExecutorManager sendMessageExecutorManager;
     private final MessageSender messageSender;
 
@@ -32,7 +33,7 @@ public class OrderedQueueSender implements QueueSender {
 
         ConfigCenter configs = ConfigCenter.getInstance();
         int maxQueueSize = configs.getMaxQueueSize();
-        this.queue = new LinkedBlockingQueue<>(maxQueueSize);
+        this.queue = new LinkedBlockingDeque<>(maxQueueSize);
         // TODO(zhenwei.liu) executor 并发度设计
         this.executor = executor;
         executor.submit(this::dispatchMessages);
@@ -57,8 +58,11 @@ public class OrderedQueueSender implements QueueSender {
     private void dispatchMessages() {
         while (true) {
             try {
-                ProduceMessage message = queue.take();
-                sendMessageExecutorManager.getExecutor(message).addMessage(message);
+                ProduceMessage message = queue.peek();
+                boolean offered = sendMessageExecutorManager.getExecutor(message).addMessage(message);
+                if (offered) {
+                    queue.poll();
+                }
             } catch (Throwable t) {
                 logger.error("消息派发失败", t);
             }

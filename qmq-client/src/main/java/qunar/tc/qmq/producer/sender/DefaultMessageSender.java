@@ -82,7 +82,7 @@ public class DefaultMessageSender implements MessageSender {
             for (ProduceMessage pm : messages) {
                 MessageException ex = result.get(pm.getMessageId());
                 if (ex == null || ex instanceof DuplicateMessageException) {
-                    orderStrategy.onSendSuccessful(pm, executor, sendMessageExecutorManager);
+                    orderStrategy.onSendSuccess(pm, executor, sendMessageExecutorManager);
                 } else {
                     //如果是消息被拒绝，说明broker已经限速，不立即重试;
                     if (ex.isBrokerBusy()) {

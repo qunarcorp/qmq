@@ -36,7 +36,7 @@ public abstract class AbstractOrderStrategy implements OrderStrategy {
     }
 
     @Override
-    public void onSendSuccessful(ProduceMessage pm, SendMessageExecutor currentExecutor, SendMessageExecutorManager sendMessageExecutorManager) {
+    public void onSendSuccess(ProduceMessage pm, SendMessageExecutor currentExecutor, SendMessageExecutorManager sendMessageExecutorManager) {
         currentExecutor.removeMessage(pm);
         pm.finish();
     }

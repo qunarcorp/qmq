@@ -14,7 +14,5 @@ public interface SendMessageExecutor<State> extends Stateful<State> {
 
     boolean addMessage(ProduceMessage message);
 
-    boolean addMessage(ProduceMessage message, long timeoutMills);
-
     boolean removeMessage(ProduceMessage message);
 }

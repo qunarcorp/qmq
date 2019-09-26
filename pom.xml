@@ -90,9 +90,9 @@
         <slf4j.version>1.7.25</slf4j.version>
         <logback.version>1.2.3</logback.version>
         <async.hbaseclient.version>1.7.2</async.hbaseclient.version>
-        <powermock.version>1.7.4</powermock.version>
-        <powermock-api-mockito2.version>2.0.0</powermock-api-mockito2.version>
+        <powermock.version>2.0.2</powermock.version>
         <commons-codec.version>1.12</commons-codec.version>
+        <commons-lang3.version>3.9</commons-lang3.version>
     </properties>
 
     <dependencyManagement>
@@ -313,6 +313,12 @@
             </dependency>
 
             <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-lang3</artifactId>
+                <version>${commons-lang3.version}</version>
+            </dependency>
+
+            <dependency>
                 <groupId>junit</groupId>
                 <artifactId>junit</artifactId>
                 <version>4.12</version>
@@ -336,7 +342,7 @@
             <dependency>
                 <groupId>org.powermock</groupId>
                 <artifactId>powermock-api-mockito2</artifactId>
-                <version>${powermock-api-mockito2.version}</version>
+                <version>${powermock.version}</version>
                 <scope>test</scope>
             </dependency>
 

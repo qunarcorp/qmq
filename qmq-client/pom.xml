@@ -99,5 +99,6 @@
             <groupId>org.powermock</groupId>
             <artifactId>powermock-core</artifactId>
         </dependency>
+
     </dependencies>
 </project>

@@ -31,7 +31,7 @@ public interface OrderStrategy {
 
     void onSendBlocked(ProduceMessage pm, SendMessageExecutor currentExecutor, SendMessageExecutorManager sendMessageExecutorManager, MessageException ex);
 
-    void onSendSuccessful(ProduceMessage pm, SendMessageExecutor currentExecutor, SendMessageExecutorManager sendMessageExecutorManager);
+    void onSendSuccess(ProduceMessage pm, SendMessageExecutor currentExecutor, SendMessageExecutorManager sendMessageExecutorManager);
 
     void onSendFinished(List<ProduceMessage> sourceMessages, SendMessageExecutor currentExecutor, SendMessageExecutorManager sendMessageExecutorManager);
 

@@ -59,20 +59,6 @@ public class DefaultSendMessageExecutor extends StatefulSendMessageExecutor impl
     }
 
     @Override
-    public boolean addMessage(ProduceMessage message, long timeoutMills) {
-        boolean offer = false;
-        try {
-            offer = this.queue.offer(message, timeoutMills, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) {
-            logger.error("消息入队失败 {} {} {}", message.getSubject(), message.getMessageId(), e.getMessage());
-        }
-        if (offer) {
-            this.executor.execute(this);
-        }
-        return offer;
-    }
-
-    @Override
     public boolean removeMessage(ProduceMessage message) {
         return queue.remove(message);
     }

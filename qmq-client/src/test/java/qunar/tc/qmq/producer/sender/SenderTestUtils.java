@@ -4,14 +4,20 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeMap;
 import com.google.common.collect.TreeRangeMap;
+import qunar.tc.qmq.ClientType;
+import qunar.tc.qmq.MessageGroup;
 import qunar.tc.qmq.PartitionProps;
+import qunar.tc.qmq.ProduceMessage;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
-import qunar.tc.qmq.meta.BrokerCluster;
 import qunar.tc.qmq.meta.ProducerAllocation;
 
 import java.util.ArrayList;
+import java.util.List;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * @author zhenwei.liu
@@ -63,5 +69,29 @@ public class SenderTestUtils {
 
     public static BrokerClusterInfo getBrokerCluster() {
         return testBrokerClusterInfo;
+    }
+
+    public static ProduceMessage getProduceMessage(String id) {
+        ProduceMessage message = mock(ProduceMessage.class);
+        when(message.getMessageId()).thenReturn(id);
+        when(message.getSubject()).thenReturn(TEST_SUBJECT);
+        return message;
+    }
+
+    public static List<ProduceMessage> getProduceMessages(int num) {
+        ArrayList<ProduceMessage> messages = Lists.newArrayList();
+        for (int i = 0; i < num; i++) {
+            messages.add(getProduceMessage(String.valueOf(num)));
+        }
+        return messages;
+    }
+
+    public static MessageGroup getMessageGroup(ClientType clientType) {
+        return new MessageGroup(
+                clientType,
+                TEST_SUBJECT,
+                TEST_PARTITION_1,
+                TEST_BROKER_GROUP_1
+        );
     }
 }
