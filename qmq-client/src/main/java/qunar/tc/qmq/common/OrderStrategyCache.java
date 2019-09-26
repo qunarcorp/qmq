@@ -1,9 +1,8 @@
 package qunar.tc.qmq.common;
 
 import com.google.common.collect.Maps;
-import qunar.tc.qmq.broker.BrokerService;
-import qunar.tc.qmq.producer.sender.DefaultMessageGroupResolver;
 import qunar.tc.qmq.producer.sender.MessageGroupResolver;
+import qunar.tc.qmq.producer.sender.SendMessageExecutorManager;
 
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;

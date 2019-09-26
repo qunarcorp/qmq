@@ -1,7 +1,8 @@
-package qunar.tc.qmq.batch;
+package qunar.tc.qmq.producer.sender;
 
 import qunar.tc.qmq.MessageGroup;
 import qunar.tc.qmq.ProduceMessage;
+import qunar.tc.qmq.batch.Stateful;
 
 /**
  * @author zhenwei.liu

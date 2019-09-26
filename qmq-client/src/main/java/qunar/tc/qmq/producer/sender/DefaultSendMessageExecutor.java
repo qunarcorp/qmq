@@ -1,4 +1,4 @@
-package qunar.tc.qmq.batch;
+package qunar.tc.qmq.producer.sender;
 
 import com.google.common.collect.Lists;
 import org.slf4j.Logger;
@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -25,22 +24,24 @@ import java.util.concurrent.TimeUnit;
  * @author zhenwei.liu
  * @since 2019-08-20
  */
-public class OrderedSendMessageExecutor extends StatefulSendMessageExecutor implements Runnable {
+public class DefaultSendMessageExecutor extends StatefulSendMessageExecutor implements Runnable {
 
-    private static final Logger logger = LoggerFactory.getLogger(OrderedSendMessageExecutor.class);
+    private static final Logger logger = LoggerFactory.getLogger(DefaultSendMessageExecutor.class);
 
     private MessageGroup messageGroup;
     private int batchSize;
     private LinkedBlockingQueue<ProduceMessage> queue;
-    private MessageProcessor processor;
+    private MessageSender messageSender;
     private ExecutorService executor;
+    private SendMessageExecutorManager sendMessageExecutorManager;
 
-    public OrderedSendMessageExecutor(MessageGroup messageGroup, int batchSize, MessageProcessor processor, ExecutorService executor) {
+    public DefaultSendMessageExecutor(MessageGroup messageGroup, SendMessageExecutorManager sendMessageExecutorManager, int batchSize, MessageSender messageSender, ExecutorService executor) {
         this.messageGroup = messageGroup;
         this.batchSize = batchSize;
         this.queue = new LinkedBlockingQueue<>();
-        this.processor = processor;
+        this.messageSender = messageSender;
         this.executor = executor;
+        this.sendMessageExecutorManager = sendMessageExecutorManager;
     }
 
     @Override
@@ -89,7 +90,7 @@ public class OrderedSendMessageExecutor extends StatefulSendMessageExecutor impl
                     count++;
                 }
                 if (messages.size() > 0) {
-                    this.processor.process(messages, this);
+                    this.messageSender.send(messages, this, sendMessageExecutorManager);
                 }
             }
         }

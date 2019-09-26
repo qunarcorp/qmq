@@ -3,12 +3,11 @@ package qunar.tc.qmq.common;
 import qunar.tc.qmq.MessageGroup;
 import qunar.tc.qmq.ProduceMessage;
 import qunar.tc.qmq.base.BaseMessage;
-import qunar.tc.qmq.batch.OrderedSendMessageExecutor;
-import qunar.tc.qmq.batch.SendMessageExecutor;
+import qunar.tc.qmq.producer.sender.SendMessageExecutor;
 import qunar.tc.qmq.consumer.ConsumeMessageExecutor;
 import qunar.tc.qmq.consumer.pull.PulledMessage;
-import qunar.tc.qmq.producer.QueueSender;
 import qunar.tc.qmq.producer.sender.MessageGroupResolver;
+import qunar.tc.qmq.producer.sender.SendMessageExecutorManager;
 
 import java.util.Objects;
 
@@ -25,7 +24,7 @@ public class BestTriedOrderStrategy extends AbstractOrderStrategy {
     }
 
     @Override
-    void doOnSendError(ProduceMessage message, QueueSender sender, SendMessageExecutor currentExecutor, Exception e) {
+    void doOnSendError(ProduceMessage message, SendMessageExecutor currentExecutor, SendMessageExecutorManager sendMessageExecutorManager, Exception e) {
         if (message.getTries() >= message.getMaxTries()) {
             currentExecutor.removeMessage(message);
             message.failed();
@@ -35,7 +34,7 @@ public class BestTriedOrderStrategy extends AbstractOrderStrategy {
         MessageGroup oldMessageGroup = currentExecutor.getMessageGroup();
         if (!Objects.equals(messageGroup, oldMessageGroup)) {
             currentExecutor.removeMessage(message);
-            OrderedSendMessageExecutor newExecutor = sender.getExecutor(messageGroup);
+            SendMessageExecutor newExecutor = sendMessageExecutorManager.getExecutor(messageGroup);
             newExecutor.addMessage(message);
         }
         message.incTries();

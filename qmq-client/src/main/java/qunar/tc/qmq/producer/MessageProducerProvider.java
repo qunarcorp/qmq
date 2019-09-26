@@ -32,6 +32,7 @@ import qunar.tc.qmq.common.ClientIdProvider;
 import qunar.tc.qmq.common.ClientIdProviderFactory;
 import qunar.tc.qmq.common.EnvProvider;
 import qunar.tc.qmq.common.OrderStrategyCache;
+import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.metainfoclient.DefaultMetaInfoService;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.MetricsConstants;
@@ -39,16 +40,15 @@ import qunar.tc.qmq.metrics.QmqTimer;
 import qunar.tc.qmq.netty.client.NettyClient;
 import qunar.tc.qmq.producer.idgenerator.IdGenerator;
 import qunar.tc.qmq.producer.idgenerator.TimestampAndHostIdGenerator;
-import qunar.tc.qmq.producer.sender.ConnectionManager;
-import qunar.tc.qmq.producer.sender.DefaultMessageGroupResolver;
-import qunar.tc.qmq.producer.sender.NettyConnectionManager;
-import qunar.tc.qmq.producer.sender.OrderedQueueSender;
+import qunar.tc.qmq.producer.sender.*;
 import qunar.tc.qmq.producer.tx.MessageTracker;
 import qunar.tc.qmq.tracing.TraceUtil;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -99,16 +99,18 @@ public class MessageProducerProvider implements MessageProducer {
             metaInfoService.setClientId(clientId);
             metaInfoService.init();
 
+            ExecutorService sendMessageExecutor = Executors.newCachedThreadPool(new NamedThreadFactory("qmq-sender-%s", true));
+
             BrokerService brokerService = new BrokerServiceImpl(appCode, clientId, metaInfoService);
-
-            OrderStrategyCache.initOrderStrategy(new DefaultMessageGroupResolver(brokerService));
-
             NettyClient client = NettyClient.getClient();
             client.start();
-
-            ConnectionManager connectionManager = new NettyConnectionManager(client, brokerService);
             DefaultMessageGroupResolver messageGroupResolver = new DefaultMessageGroupResolver(brokerService);
-            this.queueSender = new OrderedQueueSender(connectionManager, messageGroupResolver);
+            ConnectionManager connectionManager = new NettyConnectionManager(client, brokerService);
+            DefaultMessageSender messageSender = new DefaultMessageSender(connectionManager, sendMessageExecutor);
+            SendMessageExecutorManager sendMessageExecutorManager = new DefaultSendMessageExecutorManager(messageSender, sendMessageExecutor, messageGroupResolver);
+
+            OrderStrategyCache.initOrderStrategy(messageGroupResolver);
+            this.queueSender = new OrderedQueueSender(sendMessageExecutorManager, messageSender, sendMessageExecutor);
         }
     }
 

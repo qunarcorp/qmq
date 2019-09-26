@@ -18,7 +18,6 @@ package qunar.tc.qmq.producer;
 
 import qunar.tc.qmq.MessageGroup;
 import qunar.tc.qmq.ProduceMessage;
-import qunar.tc.qmq.batch.OrderedSendMessageExecutor;
 
 /**
  * @author miao.yang susing@gmail.com
@@ -31,10 +30,6 @@ public interface QueueSender {
     boolean offer(ProduceMessage pm, long millisecondWait);
 
     void send(ProduceMessage pm);
-
-    void send(ProduceMessage pm, MessageGroup messageGroup);
-
-    OrderedSendMessageExecutor getExecutor(MessageGroup messageGroup);
 
     void destroy();
 }

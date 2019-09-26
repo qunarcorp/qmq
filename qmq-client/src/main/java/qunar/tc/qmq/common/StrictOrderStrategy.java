@@ -4,10 +4,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ProduceMessage;
 import qunar.tc.qmq.base.BaseMessage;
-import qunar.tc.qmq.batch.SendMessageExecutor;
+import qunar.tc.qmq.producer.sender.SendMessageExecutor;
 import qunar.tc.qmq.consumer.ConsumeMessageExecutor;
 import qunar.tc.qmq.consumer.pull.PulledMessage;
-import qunar.tc.qmq.producer.QueueSender;
+import qunar.tc.qmq.producer.sender.SendMessageExecutorManager;
 
 /**
  * @author zhenwei.liu
@@ -18,7 +18,7 @@ public class StrictOrderStrategy extends AbstractOrderStrategy {
     private static final Logger logger = LoggerFactory.getLogger(StrictOrderStrategy.class);
 
     @Override
-    public void doOnSendError(ProduceMessage message, QueueSender sender, SendMessageExecutor currentExecutor, Exception e) {
+    public void doOnSendError(ProduceMessage message, SendMessageExecutor currentExecutor, SendMessageExecutorManager sendMessageExecutorManager, Exception e) {
         message.incTries();
     }
 

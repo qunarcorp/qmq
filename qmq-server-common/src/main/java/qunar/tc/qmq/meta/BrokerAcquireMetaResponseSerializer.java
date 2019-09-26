@@ -20,13 +20,14 @@ import io.netty.buffer.ByteBuf;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
 
 public class BrokerAcquireMetaResponseSerializer {
+
     public static void serialize(BrokerAcquireMetaResponse response, ByteBuf out) {
         PayloadHolderUtils.writeString(response.getName(), out);
         PayloadHolderUtils.writeString(response.getMaster(), out);
         out.writeInt(response.getRole().getCode());
     }
 
-    public static BrokerAcquireMetaResponse deSerialize(ByteBuf out) {
+    public static BrokerAcquireMetaResponse deserialize(ByteBuf out) {
         BrokerAcquireMetaResponse response = new BrokerAcquireMetaResponse();
         response.setName(PayloadHolderUtils.readString(out));
         response.setMaster(PayloadHolderUtils.readString(out));

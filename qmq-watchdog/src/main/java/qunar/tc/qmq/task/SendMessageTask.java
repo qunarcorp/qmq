@@ -149,12 +149,12 @@ class SendMessageTask implements Callable<Void> {
                     message = serializer.fromJson(content, BaseMessage.class);
                 } catch (Exception e) {
                     error(messageId, VALID_ERROR);
-                    LOG.warn("message deSerialize fail:messageId={},content={}", messageId, content, e);
+                    LOG.warn("message deserialize fail:messageId={},content={}", messageId, content, e);
                     continue;
                 }
                 if (message == null) {
                     error(messageId, VALID_ERROR);
-                    LOG.warn("message deSerialize fail:messageId={},content={}", messageId, content);
+                    LOG.warn("message deserialize fail:messageId={},content={}", messageId, content);
                     continue;
                 }
 

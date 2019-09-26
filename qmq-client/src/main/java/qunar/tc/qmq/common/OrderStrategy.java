@@ -2,10 +2,10 @@ package qunar.tc.qmq.common;
 
 import qunar.tc.qmq.ProduceMessage;
 import qunar.tc.qmq.base.BaseMessage;
-import qunar.tc.qmq.batch.SendMessageExecutor;
+import qunar.tc.qmq.producer.sender.SendMessageExecutor;
 import qunar.tc.qmq.consumer.ConsumeMessageExecutor;
 import qunar.tc.qmq.consumer.pull.PulledMessage;
-import qunar.tc.qmq.producer.QueueSender;
+import qunar.tc.qmq.producer.sender.SendMessageExecutorManager;
 import qunar.tc.qmq.service.exceptions.MessageException;
 
 import java.util.List;
@@ -19,15 +19,21 @@ public interface OrderStrategy {
     String BEST_TRIED = "BEST_TRIED";
     String STRICT = "STRICT";
 
-    void onSendError(ProduceMessage message, QueueSender sender, SendMessageExecutor currentExecutor, Exception e);
+    /**
+     * 发送错误, 如网络异常等第三方因素
+     */
+    void onSendError(ProduceMessage message, SendMessageExecutor currentExecutor, SendMessageExecutorManager sendMessageExecutorManager, Exception e);
 
-    void onSendFailed(ProduceMessage pm, QueueSender sender, SendMessageExecutor currentExecutor, Exception e);
+    /**
+     * 发送错误, 代表 Broker 出现的问题
+     */
+    void onSendBrokerError(ProduceMessage pm, SendMessageExecutor currentExecutor, SendMessageExecutorManager sendMessageExecutorManager, Exception e);
 
-    void onSendBlocked(ProduceMessage pm, QueueSender sender, SendMessageExecutor currentExecutor, MessageException ex);
+    void onSendBlocked(ProduceMessage pm, SendMessageExecutor currentExecutor, SendMessageExecutorManager sendMessageExecutorManager, MessageException ex);
 
-    void onSendSuccessful(ProduceMessage pm, QueueSender sender, SendMessageExecutor currentExecutor, Exception e);
+    void onSendSuccessful(ProduceMessage pm, SendMessageExecutor currentExecutor, SendMessageExecutorManager sendMessageExecutorManager);
 
-    void onSendFinished(List<ProduceMessage> sourceMessages, QueueSender sender, SendMessageExecutor currentExecutor);
+    void onSendFinished(List<ProduceMessage> sourceMessages, SendMessageExecutor currentExecutor, SendMessageExecutorManager sendMessageExecutorManager);
 
     void onConsumeSuccess(PulledMessage message, ConsumeMessageExecutor executor);
 

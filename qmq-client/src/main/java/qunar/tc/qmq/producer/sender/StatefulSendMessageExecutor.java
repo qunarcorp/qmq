@@ -1,4 +1,6 @@
-package qunar.tc.qmq.batch;
+package qunar.tc.qmq.producer.sender;
+
+import qunar.tc.qmq.batch.Stateful;
 
 import java.util.concurrent.atomic.AtomicReference;
 

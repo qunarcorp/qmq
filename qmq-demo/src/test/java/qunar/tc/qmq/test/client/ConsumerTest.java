@@ -1,4 +1,4 @@
-package qunar.tc.qmq.producer;
+package qunar.tc.qmq.test.client;
 
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -8,7 +8,6 @@ import qunar.tc.qmq.Message;
 import qunar.tc.qmq.MessageListener;
 import qunar.tc.qmq.consumer.MessageConsumerProvider;
 
-import java.io.File;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;

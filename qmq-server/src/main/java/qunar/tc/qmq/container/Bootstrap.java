@@ -26,6 +26,7 @@ import qunar.tc.qmq.web.QueryMessageServlet;
 
 public class Bootstrap {
     public static void main(String[] args) throws Exception {
+
         DynamicConfig config = DynamicConfigLoader.load("broker.properties");
         ServerWrapper wrapper = new ServerWrapper(config);
         Runtime.getRuntime().addShutdownHook(new Thread(wrapper::destroy));

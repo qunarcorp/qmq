@@ -41,7 +41,7 @@ public class DefaultMessageGroupResolver implements MessageGroupResolver {
             // 无序消息 orderKey 为 null, 此时从所有 BrokerGroup 中随机选择
             logicalPartition = ThreadLocalRandom.current().nextInt(0, PartitionConstants.DEFAULT_LOGICAL_PARTITION_NUM);
         } else {
-            logicalPartition = computeOrderIdentifier(orderKey) % PartitionConstants.DEFAULT_LOGICAL_PARTITION_NUM;
+            logicalPartition = Math.abs(computeOrderIdentifier(orderKey) % PartitionConstants.DEFAULT_LOGICAL_PARTITION_NUM);
         }
 
         PartitionProps partitionProps = producerAllocation.getLogical2SubjectLocation().get(logicalPartition);
