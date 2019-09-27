@@ -31,8 +31,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
-import static qunar.tc.qmq.producer.sender.SenderTestUtils.getMessageGroup;
-import static qunar.tc.qmq.producer.sender.SenderTestUtils.getProduceMessages;
+import static qunar.tc.qmq.ClientTestUtils.getMessageGroup;
+import static qunar.tc.qmq.ClientTestUtils.getProduceMessages;
 
 /**
  * @author zhenwei.liu

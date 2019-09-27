@@ -53,7 +53,6 @@ public abstract class AbstractPullClientManager<T extends PullClient> implements
         ConsumerAllocation retryConsumerAllocation = consumerAllocation.getRetryConsumerAllocation(consumerGroup);
         CompositePullClient newRetryPullClient = createOrUpdatePullClient(subject, consumerGroup, new WeightPullStrategy(), retryConsumerAllocation, oldRetryClient, registryParam);
 
-
         CompositePullClient finalClient;
         ArrayList<CompositePullClient> newComponents = Lists.newArrayList(newNormalPullClient, newRetryPullClient);
         if (oldCompositeClient == null) {
@@ -64,9 +63,7 @@ public abstract class AbstractPullClientManager<T extends PullClient> implements
             finalClient = oldCompositeClient;
         }
 
-        SwitchWaiter switchWaiter = consumerOnlineStateManager.getSwitchWaiter(subject, consumerGroup, clientId);
-
-        if (switchWaiter.isOnline()) {
+        if (isAutoOnline) {
             finalClient.online(getStatusSource(registryParam));
         } else {
             finalClient.offline(getStatusSource(registryParam));

@@ -121,6 +121,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
             @Override
             void updateClient(ConsumerMetaInfoResponse response) {
                 pullEntryManager.updateClient(response, param, autoOnline);
+                future.set(pullEntryManager.getPullClient(subject, consumerGroup));
             }
         });
         return future;
@@ -142,6 +143,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
             @Override
             void updateClient(ConsumerMetaInfoResponse response) {
                 pullConsumerManager.updateClient(response, new PullConsumerRegistryParam(isBroadcast, isOrdered, HEALTHCHECKER), autoOnline);
+                future.set(pullConsumerManager.getPullClient(subject, consumerGroup));
             }
         });
         return future;

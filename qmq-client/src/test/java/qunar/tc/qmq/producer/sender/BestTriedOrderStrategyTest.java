@@ -8,6 +8,7 @@ import org.mockito.junit.MockitoJUnitRunner;
 import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.MessageGroup;
 import qunar.tc.qmq.ProduceMessage;
+import qunar.tc.qmq.ClientTestUtils;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.common.BestTriedOrderStrategy;
 
@@ -46,7 +47,7 @@ public class BestTriedOrderStrategyTest {
     public void testExceedMaxTriedOnError() throws Exception {
         AtomicBoolean maxTriedFailed = new AtomicBoolean(false);
         int maxTries = 3;
-        ProduceMessage message = SenderTestUtils.getProduceMessage("1");
+        ProduceMessage message = ClientTestUtils.getProduceMessage("1");
         when(message.getTries()).thenReturn(maxTries);
         when(message.getMaxTries()).thenReturn(maxTries);
         doAnswer(invocation -> {
@@ -60,7 +61,7 @@ public class BestTriedOrderStrategyTest {
     @Test
     public void testRetryOnError() throws Exception {
         int maxTries = 3;
-        ProduceMessage message = SenderTestUtils.getProduceMessage("1");
+        ProduceMessage message = ClientTestUtils.getProduceMessage("1");
         AtomicInteger currentTries = new AtomicInteger(maxTries - 1);
         when(message.getTries()).thenReturn(currentTries.get());
         doAnswer(invocation -> {
@@ -68,9 +69,9 @@ public class BestTriedOrderStrategyTest {
             return null;
         }).when(message).incTries();
         when(message.getMaxTries()).thenReturn(maxTries);
-        BaseMessage baseMessage = SenderTestUtils.getBaseMessage();
+        BaseMessage baseMessage = ClientTestUtils.getBaseMessage();
         when(message.getBase()).thenReturn(baseMessage);
-        MessageGroup messageGroup = SenderTestUtils.getMessageGroup(ClientType.PRODUCER);
+        MessageGroup messageGroup = ClientTestUtils.getMessageGroup(ClientType.PRODUCER);
         when(messageGroupResolver.resolveAvailableGroup(baseMessage)).thenReturn(messageGroup);
         when(sendMessageExecutor.getMessageGroup()).thenReturn(messageGroup);
         bestTriedOrderStrategy.onSendError(message, sendMessageExecutor, sendMessageExecutorManager, new RuntimeException());

@@ -18,7 +18,7 @@ import static junit.framework.TestCase.assertEquals;
 import static junit.framework.TestCase.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
-import static qunar.tc.qmq.producer.sender.SenderTestUtils.*;
+import static qunar.tc.qmq.ClientTestUtils.*;
 
 /**
  * @author zhenwei.liu
@@ -73,7 +73,7 @@ public class DefaultMessageGroupResolverTest {
 
     @Test
     public void testResolveAvailableGroupWhenPreviousBrokerGroupIsAvailable() throws Exception {
-        BrokerClusterInfo brokerCluster = getBrokerCluster();
+        BrokerClusterInfo brokerCluster = getBrokerClusterInfo();
 
         when(brokerService.getProducerBrokerCluster(any(), any())).thenReturn(brokerCluster);
 
@@ -101,7 +101,7 @@ public class DefaultMessageGroupResolverTest {
 
     @Test
     public void testResolveAvailableGroupWhenPreviousBrokerGroupIsUnavailable() throws Exception {
-        BrokerClusterInfo brokerCluster = getBrokerCluster();
+        BrokerClusterInfo brokerCluster = getBrokerClusterInfo();
         List<BrokerGroupInfo> brokerGroups = brokerCluster.getGroups();
         BrokerGroupInfo broker1 = brokerGroups.get(0);
         broker1.setAvailable(false);
