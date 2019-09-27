@@ -42,7 +42,6 @@ abstract class AbstractPullConsumer extends AbstractPullClient implements PullCo
 
     private final ConsumeParam consumeParam;
     final PlainPullEntry pullEntry;
-    final PlainPullEntry retryPullEntry;
 
     AbstractPullConsumer(
             String subject,
@@ -76,21 +75,6 @@ abstract class AbstractPullConsumer extends AbstractPullClient implements PullCo
                 brokerService,
                 metaInfoService,
                 new AlwaysPullStrategy(),
-                sendMessageBack,
-                onlineSwitcher);
-        this.retryPullEntry = new PlainPullEntry(
-                consumeParam,
-                RetryPartitionUtils.buildRetryPartitionName(subject, consumerGroup),
-                brokerGroup,
-                getClientId(),
-                consumeStrategy,
-                version,
-                consumptionExpiredTime,
-                pullService,
-                ackService,
-                brokerService,
-                metaInfoService,
-                new WeightPullStrategy(),
                 sendMessageBack,
                 onlineSwitcher);
     }
@@ -171,7 +155,6 @@ abstract class AbstractPullConsumer extends AbstractPullClient implements PullCo
     @Override
     public void destroy() {
         pullEntry.destroy();
-        retryPullEntry.destroy();
         super.destroy();
     }
 }

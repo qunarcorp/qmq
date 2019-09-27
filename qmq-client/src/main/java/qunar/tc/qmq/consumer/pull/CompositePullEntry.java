@@ -65,4 +65,9 @@ public class CompositePullEntry<T extends PullEntry> extends AbstractPullClient 
     public List<T> getComponents() {
         return pullEntries;
     }
+
+    @Override
+    public void setComponents(List<T> components) {
+        this.pullEntries = components;
+    }
 }

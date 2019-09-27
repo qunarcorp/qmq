@@ -9,4 +9,6 @@ import java.util.List;
 public interface CompositePullClient<T> extends PullClient {
 
     List<T> getComponents();
+
+    void setComponents(List<T> components);
 }

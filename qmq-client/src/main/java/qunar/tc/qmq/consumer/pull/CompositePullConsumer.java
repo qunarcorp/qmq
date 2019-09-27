@@ -192,4 +192,9 @@ public class CompositePullConsumer<T extends PullConsumer> extends AbstractPullC
     public List<T> getComponents() {
         return consumers;
     }
+
+    @Override
+    public void setComponents(List<T> components) {
+        this.consumers = components;
+    }
 }

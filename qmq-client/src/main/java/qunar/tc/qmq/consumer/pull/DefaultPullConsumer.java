@@ -126,9 +126,6 @@ class DefaultPullConsumer extends AbstractPullConsumer {
     private void doPull(PullMessageFuture request) {
         List<Message> messages = Lists.newArrayListWithCapacity(request.getFetchSize());
         try {
-            retryPullEntry.pull(request.getFetchSize(), request.getTimeout(), messages);
-            if (messages.size() > 0 && request.isPullOnce()) return;
-
             if (request.isResetCreateTime()) {
                 request.resetCreateTime();
             }
