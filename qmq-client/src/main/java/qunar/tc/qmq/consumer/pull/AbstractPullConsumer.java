@@ -58,9 +58,8 @@ abstract class AbstractPullConsumer extends AbstractPullClient implements PullCo
             AckService ackService,
             BrokerService brokerService,
             MetaInfoService metaInfoService,
-            SendMessageBack sendMessageBack,
-            SwitchWaiter onlineSwitcher) {
-        super(subject, consumerGroup, partitionName, brokerGroup, consumerId, consumeStrategy, version, isBroadcast, isOrdered, consumptionExpiredTime, brokerService, metaInfoService, onlineSwitcher);
+            SendMessageBack sendMessageBack) {
+        super(subject, consumerGroup, partitionName, brokerGroup, consumerId, consumeStrategy, version, isBroadcast, isOrdered, consumptionExpiredTime, brokerService, metaInfoService, null);
         this.consumeParam = new ConsumeParam(subject, consumerGroup, isBroadcast, isOrdered, false, consumerId);
         this.pullEntry = new PlainPullEntry(
                 consumeParam,
@@ -75,8 +74,7 @@ abstract class AbstractPullConsumer extends AbstractPullClient implements PullCo
                 brokerService,
                 metaInfoService,
                 new AlwaysPullStrategy(),
-                sendMessageBack,
-                onlineSwitcher);
+                sendMessageBack);
     }
 
     private static long checkAndGetTimeout(long timeout) {

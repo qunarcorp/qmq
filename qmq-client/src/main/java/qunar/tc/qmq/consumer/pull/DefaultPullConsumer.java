@@ -69,9 +69,8 @@ class DefaultPullConsumer extends AbstractPullConsumer {
             AckService ackService,
             BrokerService brokerService,
             MetaInfoService metaInfoService,
-            SendMessageBack sendMessageBack,
-            SwitchWaiter switchWaiter) {
-        super(subject, consumerGroup, partitionName, brokerGroup, consumeStrategy, version, consumptionExpiredTime, isBroadcast, isOrdered, clientId, pullService, ackService, brokerService, metaInfoService, sendMessageBack, switchWaiter);
+            SendMessageBack sendMessageBack) {
+        super(subject, consumerGroup, partitionName, brokerGroup, consumeStrategy, version, consumptionExpiredTime, isBroadcast, isOrdered, clientId, pullService, ackService, brokerService, metaInfoService, sendMessageBack);
         this.preFetchSize = PullSubjectsConfig.get().getPullBatchSize(subject).get();
         this.lowWaterMark = Math.round(preFetchSize * 0.2F);
     }

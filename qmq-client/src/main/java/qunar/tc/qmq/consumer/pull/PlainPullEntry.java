@@ -50,8 +50,7 @@ class PlainPullEntry extends AbstractPullEntry {
             BrokerService brokerService,
             MetaInfoService metaInfoService,
             PullStrategy pullStrategy,
-            SendMessageBack sendMessageBack,
-            SwitchWaiter switchWaiter) {
+            SendMessageBack sendMessageBack) {
         super(
                 consumeParam.getSubject(),
                 consumeParam.getConsumerGroup(),
@@ -68,7 +67,7 @@ class PlainPullEntry extends AbstractPullEntry {
                 brokerService,
                 metaInfoService,
                 sendMessageBack,
-                switchWaiter);
+                null);
         this.consumeParam = consumeParam;
         this.pullStrategy = pullStrategy;
     }

@@ -100,9 +100,8 @@ class DefaultPullEntry extends AbstractPullEntry {
                      BrokerService brokerService,
                      MetaInfoService metaInfoService,
                      PullStrategy pullStrategy,
-                     SendMessageBack sendMessageBack,
-                     SwitchWaiter switchWaiter) {
-        super(consumeParam.getSubject(), consumeParam.getConsumerGroup(), partitionName, brokerGroup, consumerId, consumeStrategy, version, consumeParam.isBroadcast(), consumeParam.isOrdered(), consumptionExpiredTime, pullService, ackService, brokerService, metaInfoService, sendMessageBack, switchWaiter);
+                     SendMessageBack sendMessageBack) {
+        super(consumeParam.getSubject(), consumeParam.getConsumerGroup(), partitionName, brokerGroup, consumerId, consumeStrategy, version, consumeParam.isBroadcast(), consumeParam.isOrdered(), consumptionExpiredTime, pullService, ackService, brokerService, metaInfoService, sendMessageBack, null);
         this.consumeParam = consumeParam;
         String subject = consumeParam.getSubject();
         String consumerGroup = consumeParam.getConsumerGroup();

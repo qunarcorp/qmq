@@ -43,7 +43,6 @@ public class PullConsumerManager extends AbstractPullClientManager<PullConsumer>
     @Override
     PullConsumer doCreatePullClient(String subject, String consumerGroup, String partitionName, String brokerGroup, ConsumeStrategy consumeStrategy, int version, long consumptionExpiredTime, PullStrategy pullStrategy, Object param) {
         PullConsumerRegistryParam registryParam = (PullConsumerRegistryParam) param;
-        SwitchWaiter switchWaiter = consumerOnlineStateManager.getSwitchWaiter(subject, consumerGroup, clientId);
         DefaultPullConsumer pullConsumer = new DefaultPullConsumer(
                 subject,
                 consumerGroup,
@@ -59,8 +58,7 @@ public class PullConsumerManager extends AbstractPullClientManager<PullConsumer>
                 ackService,
                 brokerService,
                 metaInfoService,
-                sendMessageBack,
-                switchWaiter);
+                sendMessageBack);
         pullConsumer.startPull(partitionExecutor);
         return pullConsumer;
     }

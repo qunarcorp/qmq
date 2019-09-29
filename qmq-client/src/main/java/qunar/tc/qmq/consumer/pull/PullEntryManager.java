@@ -78,7 +78,6 @@ public class PullEntryManager extends AbstractPullClientManager<PullEntry> {
                 registryParam.getExecutor(),
                 consumptionExpiredTime
         );
-        SwitchWaiter switchWaiter = consumerOnlineStateManager.getSwitchWaiter(subject, consumerGroup, clientId);
         PullEntry pullEntry = new DefaultPullEntry(
                 consumeMessageExecutor,
                 consumeParam,
@@ -93,8 +92,7 @@ public class PullEntryManager extends AbstractPullClientManager<PullEntry> {
                 brokerService,
                 metaInfoService,
                 pullStrategy,
-                sendMessageBack,
-                switchWaiter);
+                sendMessageBack);
         pullEntry.startPull(partitionExecutor);
         return pullEntry;
     }

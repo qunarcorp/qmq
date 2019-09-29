@@ -133,7 +133,7 @@ public abstract class AbstractPullClientManager<T extends PullClient> implements
             Set<String> oldPartitionNames = oldPullClients.stream().map(PullClient::getPartitionName).collect(Collectors.toSet());
 
             for (T oldPullClient : oldPullClients) {
-                String oldPartitionName = oldClient.getPartitionName();
+                String oldPartitionName = oldPullClient.getPartitionName();
                 if (newPartitionNames.contains(oldPartitionName)) {
                     // 获取可复用 entry
                     oldPullClient.setVersion(newVersion);
