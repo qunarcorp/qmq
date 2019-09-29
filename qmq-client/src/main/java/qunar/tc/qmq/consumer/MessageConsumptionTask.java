@@ -52,7 +52,7 @@ public class MessageConsumptionTask {
     }
 
     public void run() {
-        String subject = (String) message.getProperty(BaseMessage.keys.qmq_subject);
+        String subject = message.getSubject();
         OrderStrategy orderStrategy = OrderStrategyCache.getStrategy(subject);
         try {
             processMessage();

@@ -4,16 +4,18 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeMap;
 import com.google.common.collect.TreeRangeMap;
-import javafx.scene.effect.InnerShadowBuilder;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.base.OnOfflineState;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
+import qunar.tc.qmq.consumer.pull.AckEntry;
+import qunar.tc.qmq.consumer.pull.AckHook;
 import qunar.tc.qmq.consumer.pull.CompositePullEntry;
+import qunar.tc.qmq.consumer.pull.PulledMessage;
 import qunar.tc.qmq.consumer.register.RegistParam;
 import qunar.tc.qmq.meta.*;
+import qunar.tc.qmq.producer.ProduceMessageImpl;
+import qunar.tc.qmq.producer.QueueSender;
 import qunar.tc.qmq.protocol.consumer.ConsumerMetaInfoResponse;
 import qunar.tc.qmq.utils.RetryPartitionUtils;
 
@@ -68,8 +70,8 @@ public class ClientTestUtils {
         );
     }
 
-    public static BaseMessage getBaseMessage() {
-        return new BaseMessage(TEST_MESSAGE_ID, TEST_SUBJECT);
+    public static BaseMessage getBaseMessage(String id) {
+        return new BaseMessage(id, TEST_SUBJECT);
     }
 
     public static BrokerClusterInfo getBrokerClusterInfo() {
@@ -96,16 +98,27 @@ public class ClientTestUtils {
     }
 
     public static ProduceMessage getProduceMessage(String id) {
-        ProduceMessage message = mock(ProduceMessage.class);
-        when(message.getMessageId()).thenReturn(id);
-        when(message.getSubject()).thenReturn(TEST_SUBJECT);
-        return message;
+        BaseMessage baseMessage = getBaseMessage(id);
+        return new ProduceMessageImpl(baseMessage, mock(QueueSender.class));
     }
 
     public static List<ProduceMessage> getProduceMessages(int num) {
         ArrayList<ProduceMessage> messages = Lists.newArrayList();
         for (int i = 0; i < num; i++) {
             messages.add(getProduceMessage(String.valueOf(num)));
+        }
+        return messages;
+    }
+
+    public static PulledMessage getPulledMessage(String id) {
+        BaseMessage baseMessage = getBaseMessage(id);
+        return new PulledMessage(baseMessage, mock(AckEntry.class), mock(AckHook.class));
+    }
+
+    public static List<PulledMessage> getPulledMessages(int num) {
+        ArrayList<PulledMessage> messages = Lists.newArrayList();
+        for (int i = 0; i < num; i++) {
+            messages.add(getPulledMessage(String.valueOf(num)));
         }
         return messages;
     }

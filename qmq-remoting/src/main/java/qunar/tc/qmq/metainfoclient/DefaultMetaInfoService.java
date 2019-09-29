@@ -212,7 +212,6 @@ public class DefaultMetaInfoService implements MetaInfoService {
 
     @Override
     public void sendRequest(MetaInfoRequest request) {
-        // Meta 的请求不能存在并发请求
         metaInfoClient.sendMetaInfoRequest(request);
     }
 

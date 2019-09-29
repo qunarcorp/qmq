@@ -106,7 +106,7 @@ public abstract class AbstractConsumeMessageExecutor implements ConsumeMessageEx
     @Override
     public boolean isFull() {
         // 如果堆积的消息数超过 maxQueueSize, 则不会再拉取消息
-        return messageQueue.size() < MAX_QUEUE_SIZE;
+        return messageQueue.size() >= MAX_QUEUE_SIZE;
     }
 
     @Override

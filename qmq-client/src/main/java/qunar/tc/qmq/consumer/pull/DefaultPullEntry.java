@@ -158,7 +158,7 @@ class DefaultPullEntry extends AbstractPullEntry {
                     }
 
                     if (isRunning.get() && getOnlineSwitcher().waitOn()) {
-                        // 到这里一定以及收到 metaInfoResponse 且已经上线
+                        // 到这里一定已经收到 metaInfoResponse 且已经上线
                         // 因为 onlineSwitcher 已经 online
                         doPull(doPullParam);
                     }
@@ -171,7 +171,7 @@ class DefaultPullEntry extends AbstractPullEntry {
 
     private boolean preparePull() {
         pullRunCounter.inc();
-        if (!consumeMessageExecutor.isFull()) {
+        if (consumeMessageExecutor.isFull()) {
             pause("wait consumer", PAUSETIME_OF_CLEAN_LAST_MESSAGE);
             return false;
         }

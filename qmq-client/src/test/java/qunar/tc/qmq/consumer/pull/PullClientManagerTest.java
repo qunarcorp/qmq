@@ -12,7 +12,6 @@ import org.powermock.reflect.Whitebox;
 import qunar.tc.qmq.CompositePullClient;
 import qunar.tc.qmq.PartitionProps;
 import qunar.tc.qmq.PullClient;
-import qunar.tc.qmq.PullEntry;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.common.EnvProvider;
 import qunar.tc.qmq.consumer.ConsumeMessageExecutorFactory;
@@ -39,7 +38,7 @@ import static qunar.tc.qmq.ClientTestUtils.*;
  */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(ConsumeMessageExecutorFactory.class)
-public class PullEntryManagerTest {
+public class PullClientManagerTest {
 
     @Mock
     private ConsumerOnlineStateManager consumerOnlineStateManager;

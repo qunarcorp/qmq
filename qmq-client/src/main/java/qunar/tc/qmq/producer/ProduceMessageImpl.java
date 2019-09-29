@@ -38,7 +38,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @author miao.yang susing@gmail.com
  * @date 2013-1-5
  */
-class ProduceMessageImpl implements ProduceMessage {
+public class ProduceMessageImpl implements ProduceMessage {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProduceMessageImpl.class);
 
     private static final int INIT = 0;

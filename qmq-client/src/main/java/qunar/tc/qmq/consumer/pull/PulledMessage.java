@@ -41,7 +41,7 @@ public class PulledMessage extends ConsumeMessage {
     private transient final AckHook ackHook;
     private transient final AtomicBoolean isAcked = new AtomicBoolean(false);
 
-    PulledMessage(BaseMessage message, AckEntry ackEntry, AckHook ackHook) {
+    public PulledMessage(BaseMessage message, AckEntry ackEntry, AckHook ackHook) {
         super(message);
         this.ackEntry = ackEntry;
         this.ackHook = ackHook;
@@ -72,6 +72,7 @@ public class PulledMessage extends ConsumeMessage {
     }
 
     public void ack(Throwable throwable) {
+        isAcked.set(true);
         PulledMessage message = this;
         ConsumerUtils.printError(message, throwable);
         final AckEntry ackEntry = message.getAckEntry();

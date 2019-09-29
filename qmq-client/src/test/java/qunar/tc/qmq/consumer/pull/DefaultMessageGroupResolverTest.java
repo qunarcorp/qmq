@@ -1,4 +1,4 @@
-package qunar.tc.qmq.producer.sender;
+package qunar.tc.qmq.consumer.pull;
 
 import org.junit.Before;
 import org.junit.Test;
