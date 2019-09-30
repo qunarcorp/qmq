@@ -16,9 +16,6 @@
 
 package qunar.tc.qmq.broker.impl;
 
-import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
-import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerLoadBalance;
 
@@ -30,23 +27,8 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 public class PollBrokerLoadBalance implements BrokerLoadBalance {
 
-    private static final Supplier<BrokerLoadBalance> SUPPLIER = Suppliers.memoize(new Supplier<BrokerLoadBalance>() {
-        @Override
-        public BrokerLoadBalance get() {
-            return new PollBrokerLoadBalance();
-        }
-    });
-
-    public static BrokerLoadBalance getInstance() {
-        return SUPPLIER.get();
-    }
-
-    private PollBrokerLoadBalance() {
-    }
-
     @Override
-    public BrokerGroupInfo loadBalance(BrokerClusterInfo cluster, BrokerGroupInfo lastGroup) {
-        List<BrokerGroupInfo> groups = cluster.getGroups();
+    public BrokerGroupInfo loadBalance(List<BrokerGroupInfo> groups, BrokerGroupInfo lastGroup) {
         if (lastGroup == null || lastGroup.getGroupIndex() < 0 || lastGroup.getGroupIndex() >= groups.size()) {
             BrokerGroupInfo group;
             for (int i = 0; i < groups.size(); i++) {

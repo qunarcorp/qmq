@@ -21,6 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.base.ConsumerSequence;
 import qunar.tc.qmq.configuration.DynamicConfig;
+import qunar.tc.qmq.metainfoclient.MetaInfoService;
 import qunar.tc.qmq.monitor.QMon;
 import qunar.tc.qmq.store.Action;
 import qunar.tc.qmq.store.action.RangeAckAction;
@@ -40,6 +41,7 @@ class RetryTask {
     private volatile boolean cancel;
 
     RetryTask(DynamicConfig config, ConsumerSequenceManager consumerSequenceManager, Subscriber subscriber) {
+
         this.config = config;
         this.consumerSequenceManager = consumerSequenceManager;
         this.subscriber = subscriber;
@@ -79,6 +81,7 @@ class RetryTask {
                 final long firstNotAckedSequence = consumerSequence.getAckSequence() + 1;
                 final long lastPulledSequence = consumerSequence.getPullSequence();
                 if (lastPulledSequence < firstNotAckedSequence) return;
+
 
                 subscriber.renew();
 

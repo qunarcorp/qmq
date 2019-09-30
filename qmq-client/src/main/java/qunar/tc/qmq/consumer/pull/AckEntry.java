@@ -28,7 +28,7 @@ import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_GROUP_ARRAY;
 /**
  * @author yiqun.fan create on 17-7-20.
  */
-class AckEntry {
+public class AckEntry {
     private static final Logger LOGGER = LoggerFactory.getLogger(AckEntry.class);
 
     private final AckSendQueue ackSendQueue;
@@ -65,7 +65,7 @@ class AckEntry {
         completed();
     }
 
-    void nack(final int nextRetryCount, final BaseMessage message) {
+    public void nack(final int nextRetryCount, final BaseMessage message) {
         if (!completing.compareAndSet(false, true)) {
             return;
         }
@@ -78,25 +78,25 @@ class AckEntry {
                 ackSendQueue.sendBackAndCompleteNack(nextRetryCount, message, this);
                 return;
             } catch (Exception e) {
-                LOGGER.warn("nack exception. subject={}, group={}", ackSendQueue.getSubject(), ackSendQueue.getGroup(), e);
-                Metrics.counter("qmq_pull_sendNack_error", SUBJECT_GROUP_ARRAY, new String[]{message.getSubject(), ackSendQueue.getGroup()}).inc();
+                LOGGER.warn("nack exception. subject={}, group={}", ackSendQueue.getSubject(), ackSendQueue.getConsumerGroup(), e);
+                Metrics.counter("qmq_pull_sendNack_error", SUBJECT_GROUP_ARRAY, new String[]{message.getSubject(), ackSendQueue.getConsumerGroup()}).inc();
             }
         }
     }
 
-    void ackDelay(int nextRetryCount, long nextRetryTime, BaseMessage message) {
+    public void ackDelay(int nextRetryCount, long nextRetryTime, BaseMessage message) {
         if (!completing.compareAndSet(false, true)) return;
 
         try {
-            if (delayMessageService.sendDelayMessage(nextRetryCount, nextRetryTime, message, ackSendQueue.getGroup())) {
+            if (delayMessageService.sendDelayMessage(nextRetryCount, nextRetryTime, message, ackSendQueue.getConsumerGroup())) {
                 completed();
                 LOGGER.info("send delay message: " + message.getMessageId());
                 return;
             }
-            Metrics.counter("qmq_pull_sendAckDelay_error", SUBJECT_GROUP_ARRAY, new String[]{message.getSubject(), ackSendQueue.getGroup()}).inc();
+            Metrics.counter("qmq_pull_sendAckDelay_error", SUBJECT_GROUP_ARRAY, new String[]{message.getSubject(), ackSendQueue.getConsumerGroup()}).inc();
         } catch (Exception e) {
             LOGGER.error("发送延迟消息失败，改成发送nack. subject={}, messageId={}", message.getSubject(), message.getMessageId(), e);
-            Metrics.counter("qmq_pull_sendAckDelay_error", SUBJECT_GROUP_ARRAY, new String[]{message.getSubject(), ackSendQueue.getGroup()}).inc();
+            Metrics.counter("qmq_pull_sendAckDelay_error", SUBJECT_GROUP_ARRAY, new String[]{message.getSubject(), ackSendQueue.getConsumerGroup()}).inc();
         }
 
 

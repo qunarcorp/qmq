@@ -17,6 +17,7 @@
 package qunar.tc.qmq.netty.client;
 
 import com.google.common.util.concurrent.AbstractFuture;
+import com.google.common.util.concurrent.ListenableFuture;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
@@ -49,19 +50,14 @@ public class NettyClient extends AbstractNettyClient {
         return INSTANCE;
     }
 
-    private NettyClientHandler clientHandler;
+    private NettyClientHandler clientHandler = new NettyClientHandler();
 
     private NettyClient() {
         super("qmq-client");
     }
 
     @Override
-    protected void initHandler() {
-        clientHandler = new NettyClientHandler();
-    }
-
-    @Override
-    protected void destroyHandler() {
+    protected void destroy() {
         clientHandler.shutdown();
     }
 
@@ -98,6 +94,12 @@ public class NettyClient extends AbstractNettyClient {
         }
     }
 
+    public ListenableFuture<Datagram> sendAsync(String brokerAddr, Datagram request, long responseTimeoutMills) throws ClientSendException {
+        ResultFuture result = new ResultFuture(brokerAddr);
+        sendAsync(brokerAddr, request, responseTimeoutMills, result);
+        return result;
+    }
+
     private static final class ResultFuture extends AbstractFuture<Datagram> implements ResponseFuture.Callback {
         private final String brokerAddr;
 
@@ -126,9 +128,9 @@ public class NettyClient extends AbstractNettyClient {
         }
     }
 
-    public void sendAsync(String brokerAddr, Datagram request, long responseTimeout, ResponseFuture.Callback callback) throws ClientSendException {
+    public void sendAsync(String brokerAddr, Datagram request, long responseTimeoutMills, ResponseFuture.Callback callback) throws ClientSendException {
         final Channel channel = getOrCreateChannel(brokerAddr);
-        final ResponseFuture responseFuture = clientHandler.newResponse(channel, responseTimeout, callback);
+        final ResponseFuture responseFuture = clientHandler.newResponse(channel, responseTimeoutMills, callback);
         request.getHeader().setOpaque(responseFuture.getOpaque());
 
         try {
@@ -145,7 +147,7 @@ public class NettyClient extends AbstractNettyClient {
                     try {
                         responseFuture.executeCallbackOnlyOnce();
                     } catch (Throwable e) {
-                        LOGGER.error("execute callback when send error exception", e);
+                        LOGGER.error("execute onSuccess when send error exception", e);
                     }
                 }
             });

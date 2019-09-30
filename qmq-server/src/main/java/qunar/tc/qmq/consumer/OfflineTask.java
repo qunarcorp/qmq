@@ -44,7 +44,7 @@ class OfflineTask {
         LOG.info("run offline task for {}/{}/{}.", subscriber.getSubject(), subscriber.getGroup(), subscriber.getConsumerId());
         QMon.offlineTaskExecuteCountInc(subscriber.getSubject(), subscriber.getGroup());
 
-        final ConsumerSequence consumerSequence = consumerSequenceManager.getOrCreateConsumerSequence(subscriber.getSubject(), subscriber.getGroup(), subscriber.getConsumerId());
+        final ConsumerSequence consumerSequence = consumerSequenceManager.getOrCreateConsumerSequence(subscriber.getSubject(), subscriber.getGroup(), subscriber.getConsumerId(), false);
         if (!consumerSequence.tryLock()) return;
         try {
             if (cancel) return;

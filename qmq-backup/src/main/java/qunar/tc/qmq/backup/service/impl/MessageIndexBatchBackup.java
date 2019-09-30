@@ -25,7 +25,7 @@ import qunar.tc.qmq.backup.store.KvStore;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.store.MessageQueryIndex;
-import qunar.tc.qmq.utils.RetrySubjectUtils;
+import qunar.tc.qmq.utils.RetryPartitionUtils;
 
 import java.util.Date;
 import java.util.List;
@@ -65,12 +65,12 @@ public class MessageIndexBatchBackup extends AbstractBatchBackup<MessageQueryInd
             String subject = index.getSubject();
             monitorBackupIndexQps(subject);
             try {
-                String realSubject = RetrySubjectUtils.getRealSubject(subject);
+                String realSubject = RetryPartitionUtils.getRealPartitionName(subject);
                 String subjectKey = realSubject;
                 String consumerGroup = null;
-                if (RetrySubjectUtils.isRetrySubject(subject)) {
-                    subjectKey = RetrySubjectUtils.buildRetrySubject(realSubject);
-                    consumerGroup = RetrySubjectUtils.getConsumerGroup(subject);
+                if (RetryPartitionUtils.isRetryPartitionName(subject)) {
+                    subjectKey = RetryPartitionUtils.buildRetryPartitionName(realSubject);
+                    consumerGroup = RetryPartitionUtils.getConsumerGroup(subject);
                 }
                 final byte[] key = keyGenerator.generateMessageKey(subjectKey, new Date(index.getCreateTime()), index.getMessageId(), brokerGroup, consumerGroup, index.getSequence());
                 final String messageId = index.getMessageId();

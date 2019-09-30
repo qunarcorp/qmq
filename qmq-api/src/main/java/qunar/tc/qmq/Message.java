@@ -42,6 +42,13 @@ public interface Message {
     String getSubject();
 
     /**
+     * broker 的存储 id
+     *
+     * @return partition name
+     */
+    String getPartitionName();
+
+    /**
      * 消息的创建时间，指的是调用generateMessage方法的时间
      *
      * @return
@@ -151,6 +158,14 @@ public interface Message {
     void setDelayTime(Date date);
 
     void setDelayTime(long delayTime, TimeUnit timeUnit);
+
+    /**
+     * 设置用于顺序消息分组的key, 相同的 key 的消息可保证顺序消费模式下, 按照发送顺序消费
+     * @param key key
+     */
+    void setOrderKey(String key);
+
+    String getOrderKey();
 
     /**
      * 第几次发送

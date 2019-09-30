@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
@@ -99,4 +100,58 @@
             <artifactId>powermock-core</artifactId>
         </dependency>
     </dependencies>
+
+
+    <!--TODO(zhenwei.liu) 测试配置, 测完删掉-->
+    <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources.${deploy.type}</directory>
+            </resource>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+        </resources>
+
+<!--        <plugins>-->
+<!--            <plugin>-->
+<!--                <groupId>org.apache.maven.plugins</groupId>-->
+<!--                <artifactId>maven-compiler-plugin</artifactId>-->
+<!--                <version>3.8.0</version>-->
+<!--                <configuration>-->
+<!--                    <outputDirectory>${output.dir}</outputDirectory>-->
+<!--                </configuration>-->
+<!--            </plugin>-->
+<!--        </plugins>-->
+    </build>
+
+    <profiles>
+        <profile>
+            <id>group1Master</id>
+            <properties>
+                <deploy.type>group1Master</deploy.type>
+            </properties>
+        </profile>
+
+        <profile>
+            <id>group1Slave</id>
+            <properties>
+                <deploy.type>group1Slave</deploy.type>
+            </properties>
+        </profile>
+
+        <profile>
+            <id>group2Master</id>
+            <properties>
+                <deploy.type>group2Master</deploy.type>
+            </properties>
+        </profile>
+
+        <profile>
+            <id>group2Slave</id>
+            <properties>
+                <deploy.type>group2Slave</deploy.type>
+            </properties>
+        </profile>
+    </profiles>
 </project>

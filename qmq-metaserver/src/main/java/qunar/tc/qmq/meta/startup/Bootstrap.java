@@ -20,6 +20,7 @@ import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.configuration.DynamicConfigLoader;
+import qunar.tc.qmq.meta.event.OrderedConsumerHeartbeatHandler;
 import qunar.tc.qmq.meta.web.*;
 
 /**
@@ -27,19 +28,27 @@ import qunar.tc.qmq.meta.web.*;
  * @since 2018-12-04
  */
 public class Bootstrap {
+
+    private static final int DEFAULT_META_SERVER_PORT = 20880;
+
     public static void main(String[] args) throws Exception {
+
         final ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath("/");
         context.setResourceBase(System.getProperty("java.io.tmpdir"));
         DynamicConfig config = DynamicConfigLoader.load("metaserver.properties");
-        final ServerWrapper wrapper = new ServerWrapper(config);
-        wrapper.start(context.getServletContext());
+        final int metaServerPort = config.getInt("meta.server.port", DEFAULT_META_SERVER_PORT);
 
+        final ServerWrapper wrapper = new ServerWrapper(config);
+        wrapper.start(metaServerPort);
+
+        context.setAttribute("port", metaServerPort);
         context.addServlet(MetaServerAddressSupplierServlet.class, "/meta/address");
         context.addServlet(MetaManagementServlet.class, "/management");
         context.addServlet(SubjectConsumerServlet.class, "/subject/consumers");
         context.addServlet(OnOfflineServlet.class, "/onoffline");
         context.addServlet(SlaveServerAddressSupplierServlet.class, "/slave/meta");
+        context.addServlet(OrderedMessageManagementServlet.class, "/orderedMessage/new");
 
         // TODO(keli.wang): allow set port use env
         int port = config.getInt("meta.server.discover.port", 8080);

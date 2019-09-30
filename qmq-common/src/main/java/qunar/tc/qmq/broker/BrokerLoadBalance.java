@@ -16,9 +16,12 @@
 
 package qunar.tc.qmq.broker;
 
+import java.util.List;
+
 /**
  * @author yiqun.fan create on 17-8-18.
  */
 public interface BrokerLoadBalance {
-    BrokerGroupInfo loadBalance(BrokerClusterInfo cluster, BrokerGroupInfo lastGroup);
+
+    BrokerGroupInfo loadBalance(List<BrokerGroupInfo> brokerGroups, BrokerGroupInfo lastGroup);
 }

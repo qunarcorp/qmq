@@ -17,11 +17,13 @@
 package qunar.tc.qmq.protocol.consumer;
 
 import com.google.common.base.Strings;
+import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.base.ClientRequestType;
-import qunar.tc.qmq.common.ClientType;
+import qunar.tc.qmq.base.OnOfflineState;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * @author yiqun.fan create on 17-8-31.
@@ -33,11 +35,32 @@ public class MetaInfoRequest {
     private static final String CLIENT_ID = "clientId";
     private static final String CONSUMER_GROUP = "consumerGroup";
     private static final String REQUEST_TYPE = "requestType";
+    private static final String ONLINE_STATE = "onlineState";
+    private static final String IS_ORDERED = "isOrdered";
+    private static final String IS_BROADCAST = "isBroadcast";
 
     private final Map<String, String> attrs;
 
-    public MetaInfoRequest() {
+    public MetaInfoRequest(
+            String subject,
+            String consumerGroup,
+            int clientTypeCode,
+            String appCode,
+            String clientId,
+            ClientRequestType requestType,
+            boolean isBroadcast,
+            boolean isOrdered
+    ) {
         this.attrs = new HashMap<>();
+        setStringValue(SUBJECT, subject);
+        setStringValue(CONSUMER_GROUP, consumerGroup);
+        setIntValue(CLIENT_TYPE_CODE, clientTypeCode);
+        setStringValue(APP_CODE, appCode);
+        setStringValue(CLIENT_ID, clientId);
+        setIntValue(REQUEST_TYPE, requestType.getCode());
+        // consumer 特有参数
+        setBooleanValue(IS_ORDERED, isOrdered);
+        setBooleanValue(IS_BROADCAST, isBroadcast);
     }
 
     public MetaInfoRequest(Map<String, String> attrs) {
@@ -48,52 +71,48 @@ public class MetaInfoRequest {
         return attrs;
     }
 
-    public String getSubject() {
-        return Strings.nullToEmpty(attrs.get(SUBJECT));
+    public boolean isBroadcast() {
+        return getBooleanValue(IS_BROADCAST);
     }
 
-    public void setSubject(String subject) {
-        setStringValue(SUBJECT, subject);
+    public boolean isOrdered() {
+        return getBooleanValue(IS_ORDERED);
+    }
+
+    public String getSubject() {
+        return Strings.nullToEmpty(attrs.get(SUBJECT));
     }
 
     public int getClientTypeCode() {
         return getIntValue(CLIENT_TYPE_CODE, ClientType.OTHER.getCode());
     }
 
-    public void setClientType(ClientType clientType) {
-        setIntValue(CLIENT_TYPE_CODE, clientType.getCode());
-    }
-
     public String getAppCode() {
         return getStringValue(APP_CODE);
-    }
-
-    public void setAppCode(String appCode) {
-        setStringValue(APP_CODE, appCode);
     }
 
     public String getClientId() {
         return Strings.nullToEmpty(attrs.get(CLIENT_ID));
     }
 
-    public void setClientId(String clientId) {
-        setStringValue(CLIENT_ID, clientId);
-    }
-
     public String getConsumerGroup() {
         return Strings.nullToEmpty(attrs.get(CONSUMER_GROUP));
-    }
-
-    public void setConsumerGroup(String consumerGroup) {
-        setStringValue(CONSUMER_GROUP, consumerGroup);
     }
 
     public int getRequestType() {
         return getIntValue(REQUEST_TYPE, ClientRequestType.ONLINE.getCode());
     }
 
-    public void setRequestType(ClientRequestType requestType) {
-        setIntValue(REQUEST_TYPE, requestType.getCode());
+    public void setRequestType(int typeCode) {
+        setIntValue(REQUEST_TYPE, typeCode);
+    }
+
+    public OnOfflineState getOnlineState() {
+        return OnOfflineState.valueOf(getStringValue(ONLINE_STATE));
+    }
+
+    public void setOnlineState(OnOfflineState state) {
+        setStringValue(ONLINE_STATE, state.name());
     }
 
     private void setIntValue(String attrName, int value) {
@@ -106,6 +125,14 @@ public class MetaInfoRequest {
         } catch (Exception e) {
             return defaultValue;
         }
+    }
+
+    private void setBooleanValue(String key, boolean val) {
+        attrs.put(key, Boolean.toString(val));
+    }
+
+    private boolean getBooleanValue(String key) {
+        return Boolean.valueOf(attrs.get(key));
     }
 
     private void setStringValue(String attrName, String value) {
@@ -128,11 +155,11 @@ public class MetaInfoRequest {
 
         MetaInfoRequest that = (MetaInfoRequest) o;
 
-        return attrs != null ? attrs.equals(that.attrs) : that.attrs == null;
+        return Objects.equals(attrs, that.attrs);
     }
 
     @Override
     public int hashCode() {
-        return attrs != null ? attrs.hashCode() : 0;
+        return attrs.hashCode();
     }
 }

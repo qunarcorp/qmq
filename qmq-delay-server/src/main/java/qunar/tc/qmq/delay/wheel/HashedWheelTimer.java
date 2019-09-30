@@ -397,7 +397,7 @@ public class HashedWheelTimer {
         public void expireTimeouts(long deadline) {
             HashedWheelTimeout timeout = head;
 
-            // process all timeouts
+            // onSuccess all timeouts
             while (timeout != null) {
                 boolean remove = false;
                 if (timeout.remainingRounds <= 0) {

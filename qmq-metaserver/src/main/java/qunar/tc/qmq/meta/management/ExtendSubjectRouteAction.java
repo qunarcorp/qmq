@@ -82,7 +82,7 @@ public class ExtendSubjectRouteAction implements MetaManagementAction {
                 }
             }
         } finally {
-            cache.executeRefreshTask();
+            cache.refresh();
         }
 
         return ActionResult.ok("成功更新" + updated + "个subject的路由");

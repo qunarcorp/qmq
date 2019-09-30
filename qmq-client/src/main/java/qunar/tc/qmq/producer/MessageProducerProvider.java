@@ -15,33 +15,40 @@
  */
 package qunar.tc.qmq.producer;
 
-import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
 import io.opentracing.Scope;
 import io.opentracing.Tracer;
 import io.opentracing.util.GlobalTracer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.Message;
 import qunar.tc.qmq.MessageProducer;
 import qunar.tc.qmq.MessageSendStateListener;
 import qunar.tc.qmq.TransactionProvider;
 import qunar.tc.qmq.base.BaseMessage;
+import qunar.tc.qmq.broker.BrokerService;
+import qunar.tc.qmq.broker.impl.BrokerServiceImpl;
 import qunar.tc.qmq.common.ClientIdProvider;
 import qunar.tc.qmq.common.ClientIdProviderFactory;
 import qunar.tc.qmq.common.EnvProvider;
+import qunar.tc.qmq.common.OrderStrategyCache;
+import qunar.tc.qmq.concurrent.NamedThreadFactory;
+import qunar.tc.qmq.metainfoclient.DefaultMetaInfoService;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.MetricsConstants;
 import qunar.tc.qmq.metrics.QmqTimer;
+import qunar.tc.qmq.netty.client.NettyClient;
 import qunar.tc.qmq.producer.idgenerator.IdGenerator;
 import qunar.tc.qmq.producer.idgenerator.TimestampAndHostIdGenerator;
-import qunar.tc.qmq.producer.sender.NettyRouterManager;
+import qunar.tc.qmq.producer.sender.*;
 import qunar.tc.qmq.producer.tx.MessageTracker;
 import qunar.tc.qmq.tracing.TraceUtil;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
-
-import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -50,13 +57,18 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * @date 2013-1-5
  */
 public class MessageProducerProvider implements MessageProducer {
+
+    private static final Logger logger = LoggerFactory.getLogger(MessageProducerProvider.class);
+
+    private static final int _32K = (32 * 1024) / 4;
+
     private static final ConfigCenter configs = ConfigCenter.getInstance();
 
     private final IdGenerator idGenerator;
 
     private final AtomicBoolean STARTED = new AtomicBoolean(false);
 
-    private final NettyRouterManager routerManager;
+    private QueueSender queueSender;
 
     private ClientIdProvider clientIdProvider;
     private EnvProvider envProvider;
@@ -71,23 +83,34 @@ public class MessageProducerProvider implements MessageProducer {
     /**
      * 自动路由机房
      */
-    public MessageProducerProvider() {
+    public MessageProducerProvider(String appCode, String metaServer) {
+        this.appCode = appCode;
+        this.metaServer = metaServer;
         this.idGenerator = new TimestampAndHostIdGenerator();
         this.clientIdProvider = ClientIdProviderFactory.createDefault();
-        this.routerManager = new NettyRouterManager();
         this.tracer = GlobalTracer.get();
     }
 
     @PostConstruct
     public void init() {
-        Preconditions.checkNotNull(appCode, "appCode唯一标识一个应用");
-        Preconditions.checkNotNull(metaServer, "metaServer的http地址");
-
-        this.routerManager.setMetaServer(this.metaServer);
-        this.routerManager.setAppCode(appCode);
-
         if (STARTED.compareAndSet(false, true)) {
-            routerManager.init(clientIdProvider.get());
+            String clientId = clientIdProvider.get();
+            DefaultMetaInfoService metaInfoService = new DefaultMetaInfoService(metaServer);
+            metaInfoService.setClientId(clientId);
+            metaInfoService.init();
+
+            ExecutorService sendMessageExecutor = Executors.newCachedThreadPool(new NamedThreadFactory("qmq-sender", true));
+
+            BrokerService brokerService = new BrokerServiceImpl(appCode, clientId, metaInfoService);
+            NettyClient client = NettyClient.getClient();
+            client.start();
+            DefaultMessageGroupResolver messageGroupResolver = new DefaultMessageGroupResolver(brokerService);
+            ConnectionManager connectionManager = new NettyConnectionManager(client, brokerService);
+            DefaultMessageSender messageSender = new DefaultMessageSender(connectionManager, sendMessageExecutor);
+            SendMessageExecutorManager sendMessageExecutorManager = new DefaultSendMessageExecutorManager(messageSender, sendMessageExecutor, messageGroupResolver);
+
+            OrderStrategyCache.initOrderStrategy(messageGroupResolver);
+            this.queueSender = new OrderedQueueSender(sendMessageExecutorManager, messageSender, sendMessageExecutor);
         }
     }
 
@@ -101,7 +124,9 @@ public class MessageProducerProvider implements MessageProducer {
     }
 
     private void setupEnv(final BaseMessage message) {
-        if (envProvider == null) return;
+        if (envProvider == null) {
+            return;
+        }
         final String subject = message.getSubject();
         final String env = envProvider.env(subject);
         if (Strings.isNullOrEmpty(env)) {
@@ -123,7 +148,6 @@ public class MessageProducerProvider implements MessageProducer {
         if (!STARTED.get()) {
             throw new RuntimeException("MessageProducerProvider未初始化，如果使用非Spring的方式请确认init()是否调用");
         }
-
 
         String[] tagValues = null;
         long startTime = System.currentTimeMillis();
@@ -162,7 +186,8 @@ public class MessageProducerProvider implements MessageProducer {
 
 
         } finally {
-            QmqTimer timer = Metrics.timer("qmq_client_producer_send_message_time", MetricsConstants.SUBJECT_AND_TYPE_ARRAY, tagValues);
+            QmqTimer timer = Metrics
+                    .timer("qmq_client_producer_send_message_time", MetricsConstants.SUBJECT_AND_TYPE_ARRAY, tagValues);
             timer.update(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
 
             if (scope != null) {
@@ -173,20 +198,33 @@ public class MessageProducerProvider implements MessageProducer {
 
     private ProduceMessageImpl initProduceMessage(Message message, MessageSendStateListener listener) {
         BaseMessage base = (BaseMessage) message;
-        routerManager.validateMessage(message);
-        ProduceMessageImpl pm = new ProduceMessageImpl(base, routerManager.getSender());
+        validateMessage(message);
+        ProduceMessageImpl pm = new ProduceMessageImpl(base, queueSender);
         pm.setSendTryCount(configs.getSendTryCount());
         pm.setSendStateListener(listener);
         pm.setSyncSend(configs.isSyncSend());
-
-        String value = routerManager.registryOf(message);
-        TraceUtil.setTag("registry", value, tracer);
         return pm;
+    }
+
+    private void validateMessage(Message message) {
+        Map<String, Object> attrs = message.getAttrs();
+        if (attrs == null) return;
+        for (Map.Entry<String, Object> entry : attrs.entrySet()) {
+            if (entry.getValue() == null) return;
+            if (!(entry.getValue() instanceof String)) return;
+
+            String value = (String) entry.getValue();
+            if (value.length() > _32K) {
+                TraceUtil.recordEvent("big_message");
+                String msg = entry.getKey() + "的value长度超过32K，请使用Message.setLargeString方法设置，并且使用Message.getLargeString方法获取";
+                logger.error(msg, new RuntimeException());
+            }
+        }
     }
 
     @PreDestroy
     public void destroy() {
-        routerManager.destroy();
+        queueSender.destroy();
     }
 
     /**
@@ -200,8 +238,6 @@ public class MessageProducerProvider implements MessageProducer {
 
     /**
      * 发送线程数，默认3个线程
-     *
-     * @param sendThreads
      */
     public void setSendThreads(int sendThreads) {
         configs.setSendThreads(sendThreads);
@@ -209,8 +245,6 @@ public class MessageProducerProvider implements MessageProducer {
 
     /**
      * 批量发送，每批量大小，默认值30
-     *
-     * @param sendBatch
      */
     public void setSendBatch(int sendBatch) {
         configs.setSendBatch(sendBatch);
@@ -218,8 +252,6 @@ public class MessageProducerProvider implements MessageProducer {
 
     /**
      * 发送失败重试次数，默认值10
-     *
-     * @param sendTryCount
      */
     public void setSendTryCount(int sendTryCount) {
         configs.setSendTryCount(sendTryCount);
@@ -235,25 +267,6 @@ public class MessageProducerProvider implements MessageProducer {
 
     public void setEnvProvider(EnvProvider envProvider) {
         this.envProvider = envProvider;
-    }
-
-    /**
-     * 为了方便维护应用与消息主题之间的关系，每个应用提供一个唯一的标识
-     *
-     * @param appCode
-     */
-    public void setAppCode(String appCode) {
-        this.appCode = appCode;
-    }
-
-    /**
-     * 用于发现meta server集群的地址
-     * 格式: http://<meta server address>/meta/address
-     *
-     * @param metaServer
-     */
-    public void setMetaServer(String metaServer) {
-        this.metaServer = metaServer;
     }
 
     public void setTransactionProvider(TransactionProvider transactionProvider) {

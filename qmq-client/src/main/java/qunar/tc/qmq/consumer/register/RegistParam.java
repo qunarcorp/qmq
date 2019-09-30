@@ -17,8 +17,8 @@
 package qunar.tc.qmq.consumer.register;
 
 import qunar.tc.qmq.MessageListener;
+import qunar.tc.qmq.StatusSource;
 import qunar.tc.qmq.SubscribeParam;
-import qunar.tc.qmq.common.StatusSource;
 import qunar.tc.qmq.protocol.consumer.PullFilter;
 import qunar.tc.qmq.protocol.consumer.TagPullFilter;
 
@@ -33,7 +33,8 @@ public class RegistParam {
     private final Executor executor;
     private final MessageListener messageListener;
     private final boolean isConsumeMostOnce;
-    private boolean isBroadcast = false;
+    private final boolean isBroadcast;
+    private final boolean isOrdered;
     private final String clientId;
     private final List<PullFilter> filters;
 
@@ -44,6 +45,8 @@ public class RegistParam {
         this.messageListener = messageListener;
         this.isConsumeMostOnce = subscribeParam.isConsumeMostOnce();
         this.clientId = clientId;
+        this.isBroadcast = subscribeParam.isBroadcast();
+        this.isOrdered = subscribeParam.isOrdered();
         final ArrayList<PullFilter> filters = new ArrayList<>();
         filters.add(new TagPullFilter(subscribeParam.getTagType(), subscribeParam.getTags()));
         this.filters = filters;
@@ -69,10 +72,6 @@ public class RegistParam {
         return isBroadcast;
     }
 
-    public void setBroadcast(boolean broadcast) {
-        isBroadcast = broadcast;
-    }
-
     public List<PullFilter> getFilters() {
         return filters;
     }
@@ -87,5 +86,9 @@ public class RegistParam {
 
     public StatusSource getActionSrc() {
         return this.actionSrc;
+    }
+
+    public boolean isOrdered() {
+        return isOrdered;
     }
 }

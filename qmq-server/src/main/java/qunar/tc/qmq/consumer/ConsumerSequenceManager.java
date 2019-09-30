@@ -33,8 +33,7 @@ import qunar.tc.qmq.store.action.ForeverOfflineAction;
 import qunar.tc.qmq.store.action.PullAction;
 import qunar.tc.qmq.store.action.RangeAckAction;
 import qunar.tc.qmq.store.buffer.Buffer;
-import qunar.tc.qmq.utils.ObjectUtils;
-import qunar.tc.qmq.utils.RetrySubjectUtils;
+import qunar.tc.qmq.utils.RetryPartitionUtils;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -54,7 +53,8 @@ public class ConsumerSequenceManager {
 
     private final Storage storage;
 
-    // subject -> consumer group -> consumer id
+    // for share consume: consumerId -> ((subject + consumerGroup) -> sequence)
+    // for exclusive consume: consumerGroup -> ((subject + consumerGroup) -> sequence)
     private final ConcurrentMap<String, ConcurrentMap<ConsumerGroup, ConsumerSequence>> sequences;
 
     public ConsumerSequenceManager(final Storage storage) {
@@ -80,26 +80,25 @@ public class ConsumerSequenceManager {
 
     private void putConsumer(final ConcurrentMap<String, ConcurrentMap<ConsumerGroup, ConsumerSequence>> result, final ConsumerProgress consumer) {
         final String consumerId = consumer.getConsumerId();
-
-        ConcurrentMap<ConsumerGroup, ConsumerSequence> consumerSequences = result.get(consumerId);
-        if (consumerSequences == null) {
-            consumerSequences = new ConcurrentHashMap<>();
-            result.putIfAbsent(consumerId, consumerSequences);
-        }
-
+        ConcurrentMap<ConsumerGroup, ConsumerSequence> consumerSequences = result.computeIfAbsent(consumerId, (k) -> new ConcurrentHashMap<>());
         final ConsumerSequence consumerSequence = new ConsumerSequence(consumer.getPull(), consumer.getAck());
         final ConsumerGroup consumerGroup = new ConsumerGroup(consumer.getSubject(), consumer.getGroup());
         consumerSequences.putIfAbsent(consumerGroup, consumerSequence);
 
     }
 
-    public WritePutActionResult putPullActions(final String subject, final String group, final String consumerId, final boolean isBroadcast, final GetMessageResult getMessageResult) {
+    public WritePutActionResult putPullActions(final String subject,
+                                               final String consumerGroup,
+                                               final String consumerId,
+                                               final boolean isExclusiveConsume,
+                                               final GetMessageResult getMessageResult) {
         final OffsetRange consumerLogRange = getMessageResult.getConsumerLogRange();
-        final ConsumerSequence consumerSequence = getOrCreateConsumerSequence(subject, group, consumerId);
+        final ConsumerSequence consumerSequence = getOrCreateConsumerSequence(subject, consumerGroup, consumerId, isExclusiveConsume);
 
         if (consumerLogRange.getEnd() - consumerLogRange.getBegin() + 1 != getMessageResult.getMessageNum()) {
-            LOG.debug("consumer offset range error, subject:{}, group:{}, consumerId:{}, isBroadcast:{}, getMessageResult:{}", subject, group, consumerId, isBroadcast, getMessageResult);
-            QMon.consumerLogOffsetRangeError(subject, group);
+            LOG.debug("consumer offset range error, subject:{}, consumerGroup:{}, consumerId:{}, isExclusiveConsume:{}, getMessageResult:{}",
+                    subject, consumerGroup, consumerId, isExclusiveConsume, getMessageResult);
+            QMon.consumerLogOffsetRangeError(subject, consumerGroup);
         }
         consumerSequence.pullLock();
         try {
@@ -107,11 +106,11 @@ public class ConsumerSequenceManager {
             final long firstConsumerLogSequence = consumerLogRange.getEnd() - getMessageResult.getMessageNum() + 1;
             final long lastConsumerLogSequence = consumerLogRange.getEnd();
 
-            final long firstPullSequence = isBroadcast ? firstConsumerLogSequence : consumerSequence.getPullSequence() + 1;
-            final long lastPullSequence = isBroadcast ? lastConsumerLogSequence : consumerSequence.getPullSequence() + getMessageResult.getMessageNum();
+            final long firstPullSequence = isExclusiveConsume ? firstConsumerLogSequence : consumerSequence.getPullSequence() + 1;
+            final long lastPullSequence = isExclusiveConsume ? lastConsumerLogSequence : consumerSequence.getPullSequence() + getMessageResult.getMessageNum();
 
-            final Action action = new PullAction(subject, group, consumerId,
-                    System.currentTimeMillis(), isBroadcast,
+            final Action action = new PullAction(subject, consumerGroup, consumerId,
+                    System.currentTimeMillis(), isExclusiveConsume,
                     firstPullSequence, lastPullSequence,
                     firstConsumerLogSequence, lastConsumerLogSequence);
 
@@ -121,7 +120,7 @@ public class ConsumerSequenceManager {
             consumerSequence.setPullSequence(lastPullSequence);
             return new WritePutActionResult(true, firstPullSequence);
         } catch (Exception e) {
-            LOG.error("write action log failed, subject: {}, group: {}, consumerId: {}", subject, group, consumerId, e);
+            LOG.error("write action log failed, subject: {}, consumerGroup: {}, consumerId: {}", subject, consumerGroup, consumerId, e);
             return new WritePutActionResult(false, -1);
         } finally {
             consumerSequence.pullUnlock();
@@ -129,40 +128,45 @@ public class ConsumerSequenceManager {
     }
 
     public boolean putAckActions(AckMessageProcessor.AckEntry ackEntry) {
-        final String consumerId = ackEntry.getConsumerId();
         final String subject = ackEntry.getSubject();
-        final String group = ackEntry.getGroup();
+        final String consumerGroup = ackEntry.getGroup();
+        final String consumerId = ackEntry.getConsumerId();
         final long lastPullSequence = ackEntry.getLastPullLogOffset();
         long firstPullSequence = ackEntry.getFirstPullLogOffset();
 
-        final ConsumerSequence consumerSequence = getOrCreateConsumerSequence(subject, group, consumerId);
+        final ConsumerSequence consumerSequence = getOrCreateConsumerSequence(subject, consumerGroup, consumerId, ackEntry.isExclusiveConsume());
 
         consumerSequence.ackLock();
         final long confirmedAckSequence = consumerSequence.getAckSequence();
         try {
+            //         end sequence of current ack range                      confirm ack sequence
+            //   -----------------------|------------------------------------------------|----------
+            // ack已经ack过的消息
             if (lastPullSequence <= confirmedAckSequence) {
                 LOG.warn("receive duplicate ack, ackEntry:{}, consumerSequence:{} ", ackEntry, consumerSequence);
-                QMon.consumerDuplicateAckCountInc(subject, group, (int) (confirmedAckSequence - lastPullSequence));
+                QMon.consumerDuplicateAckCountInc(subject, consumerGroup, (int) (confirmedAckSequence - lastPullSequence));
                 return true;
             }
             final long lostAckCount = firstPullSequence - confirmedAckSequence;
             if (lostAckCount <= 0) {
                 LOG.warn("receive some duplicate ack, ackEntry:{}, consumerSequence:{}", ackEntry, consumerSequence);
                 firstPullSequence = confirmedAckSequence + 1;
-                QMon.consumerDuplicateAckCountInc(subject, group, (int) (confirmedAckSequence - firstPullSequence));
+                QMon.consumerDuplicateAckCountInc(subject, consumerGroup, (int) (confirmedAckSequence - firstPullSequence));
             } else if (lostAckCount > 1) {
                 final long firstNotAckedPullSequence = confirmedAckSequence + 1;
                 final long lastLostPullSequence = firstPullSequence - 1;
-                //如果是广播的话，put need retry也是没有意义的
-                if (!ackEntry.isBroadcast()) {
+                //如果是独占消费，put need retry也是没有意义的
+                if (!ackEntry.isExclusiveConsume()) {
                     LOG.error("lost ack count, ackEntry:{}, consumerSequence:{}", ackEntry, consumerSequence);
-                    putNeedRetryMessages(subject, group, consumerId, firstNotAckedPullSequence, lastLostPullSequence);
+                    putNeedRetryMessages(subject, consumerGroup, consumerId, firstNotAckedPullSequence, lastLostPullSequence);
                 }
                 firstPullSequence = firstNotAckedPullSequence;
-                QMon.consumerLostAckCountInc(subject, group, (int) lostAckCount);
+                QMon.consumerLostAckCountInc(subject, consumerGroup, (int) lostAckCount);
             }
 
-            final Action rangeAckAction = new RangeAckAction(subject, group, consumerId, System.currentTimeMillis(), firstPullSequence, lastPullSequence);
+            //如果是独占消费，则ack sequence是维护在consumerGroup层级的，而共享消费维护在consumerId层级
+            String exclusiveKey = ackEntry.isExclusiveConsume() ? consumerGroup : consumerId;
+            final Action rangeAckAction = new RangeAckAction(subject, consumerGroup, exclusiveKey, System.currentTimeMillis(), firstPullSequence, lastPullSequence);
             if (!putAction(rangeAckAction))
                 return false;
 
@@ -177,8 +181,8 @@ public class ConsumerSequenceManager {
         }
     }
 
-    boolean putForeverOfflineAction(final String subject, final String group, final String consumerId) {
-        final ForeverOfflineAction action = new ForeverOfflineAction(subject, group, consumerId, System.currentTimeMillis());
+    boolean putForeverOfflineAction(final String subject, final String consumerGroup, final String consumerId) {
+        final ForeverOfflineAction action = new ForeverOfflineAction(subject, consumerGroup, consumerId, System.currentTimeMillis());
         return putAction(action);
     }
 
@@ -193,39 +197,39 @@ public class ConsumerSequenceManager {
         return false;
     }
 
-    void putNeedRetryMessages(String subject, String group, String consumerId, long firstNotAckedOffset, long lastPullLogOffset) {
-        if (noPullLog(subject, group, consumerId)) return;
+    void putNeedRetryMessages(String subject, String consumerGroup, String consumerId, long firstNotAckedOffset, long lastPullLogOffset) {
+        if (noPullLog(subject, consumerGroup, consumerId)) return;
 
         // get error msg
-        final List<Buffer> needRetryMessages = getNeedRetryMessages(subject, group, consumerId, firstNotAckedOffset, lastPullLogOffset);
+        final List<Buffer> needRetryMessages = getNeedRetryMessages(subject, consumerGroup, consumerId, firstNotAckedOffset, lastPullLogOffset);
         // put error msg
-        putNeedRetryMessages(subject, group, consumerId, needRetryMessages);
+        putNeedRetryMessages(subject, consumerGroup, consumerId, needRetryMessages);
     }
 
-    private boolean noPullLog(String subject, String group, String consumerId) {
+    private boolean noPullLog(String subject, String consumerGroup, String consumerId) {
         Table<String, String, PullLog> pullLogs = storage.allPullLogs();
         Map<String, PullLog> subscribers = pullLogs.row(consumerId);
         if (subscribers == null || subscribers.isEmpty()) return true;
-        return subscribers.get(GroupAndSubject.groupAndSubject(subject, group)) == null;
+        return subscribers.get(GroupAndSubject.groupAndSubject(subject, consumerGroup)) == null;
     }
 
-    void remove(String subject, String group, String consumerId) {
+    void remove(String subject, String consumerGroup, String consumerId) {
         final ConcurrentMap<ConsumerGroup, ConsumerSequence> consumers = sequences.get(consumerId);
         if (consumers == null) return;
 
-        consumers.remove(new ConsumerGroup(subject, group));
+        consumers.remove(new ConsumerGroup(subject, consumerGroup));
         if (consumers.isEmpty()) {
             sequences.remove(consumerId);
         }
     }
 
-    private List<Buffer> getNeedRetryMessages(String subject, String group, String consumerId, long firstNotAckedSequence, long lastPullSequence) {
+    private List<Buffer> getNeedRetryMessages(String subject, String consumerGroup, String consumerId, long firstNotAckedSequence, long lastPullSequence) {
         final int actualNum = (int) (lastPullSequence - firstNotAckedSequence + 1);
         final List<Buffer> needRetryMessages = new ArrayList<>(actualNum);
         for (long sequence = firstNotAckedSequence; sequence <= lastPullSequence; sequence++) {
-            final long consumerLogSequence = storage.getMessageSequenceByPullLog(subject, group, consumerId, sequence);
+            final long consumerLogSequence = storage.getMessageSequenceByPullLog(subject, consumerGroup, consumerId, sequence);
             if (consumerLogSequence < 0) {
-                LOG.warn("find no consumer log offset for this pull log, subject:{}, group:{}, consumerId:{}, sequence:{}, consumerLogSequence:{}", subject, group, consumerId, sequence, consumerLogSequence);
+                LOG.warn("find no consumer log offset for this pull log, subject:{}, consumerGroup:{}, consumerId:{}, sequence:{}, consumerLogSequence:{}", subject, consumerGroup, consumerId, sequence, consumerLogSequence);
                 continue;
             }
 
@@ -238,19 +242,19 @@ public class ConsumerSequenceManager {
         return needRetryMessages;
     }
 
-    private void putNeedRetryMessages(String subject, String group, String consumerId, List<Buffer> needRetryMessages) {
+    private void putNeedRetryMessages(String subject, String consumerGroup, String consumerId, List<Buffer> needRetryMessages) {
         try {
             for (Buffer buffer : needRetryMessages) {
                 final ByteBuf message = Unpooled.wrappedBuffer(buffer.getBuffer());
                 final RawMessage rawMessage = QMQSerializer.deserializeRawMessage(message);
-                if (!RetrySubjectUtils.isRetrySubject(subject)) {
-                    final String retrySubject = RetrySubjectUtils.buildRetrySubject(subject, group);
+                if (!RetryPartitionUtils.isRetryPartitionName(subject)) {
+                    final String retrySubject = RetryPartitionUtils.buildRetryPartitionName(subject, consumerGroup);
                     rawMessage.setSubject(retrySubject);
                 }
 
                 final PutMessageResult putMessageResult = storage.appendMessage(rawMessage);
                 if (putMessageResult.getStatus() != PutMessageStatus.SUCCESS) {
-                    LOG.error("put message error, consumer:{} {} {}, status:{}", subject, group, consumerId, putMessageResult.getStatus());
+                    LOG.error("put message error, consumer:{} {} {}, status:{}", subject, consumerGroup, consumerId, putMessageResult.getStatus());
                     throw new RuntimeException("put retry message error");
                 }
             }
@@ -258,30 +262,21 @@ public class ConsumerSequenceManager {
             needRetryMessages.forEach(Buffer::release);
         }
 
-        QMon.putNeedRetryMessagesCountInc(subject, group, needRetryMessages.size());
+        QMon.putNeedRetryMessagesCountInc(subject, consumerGroup, needRetryMessages.size());
     }
 
-    public ConsumerSequence getConsumerSequence(String subject, String group, String consumerId) {
+    public ConsumerSequence getConsumerSequence(String subject, String consumerGroup, String consumerId) {
         final ConcurrentMap<ConsumerGroup, ConsumerSequence> consumerSequences = this.sequences.get(consumerId);
         if (consumerSequences == null) {
             return null;
         }
-        return consumerSequences.get(new ConsumerGroup(subject, group));
+        return consumerSequences.get(new ConsumerGroup(subject, consumerGroup));
     }
 
-    public ConsumerSequence getOrCreateConsumerSequence(String subject, String group, String consumerId) {
-        ConcurrentMap<ConsumerGroup, ConsumerSequence> consumerSequences = this.sequences.get(consumerId);
-        if (consumerSequences == null) {
-            final ConcurrentMap<ConsumerGroup, ConsumerSequence> newConsumerSequences = new ConcurrentHashMap<>();
-            consumerSequences = ObjectUtils.defaultIfNull(sequences.putIfAbsent(consumerId, newConsumerSequences), newConsumerSequences);
-        }
-
-        final ConsumerGroup consumerGroup = new ConsumerGroup(subject, group);
-        ConsumerSequence consumerSequence = consumerSequences.get(consumerGroup);
-        if (consumerSequence == null) {
-            final ConsumerSequence newConsumerSequence = new ConsumerSequence(ACTION_LOG_ORIGIN_OFFSET, ACTION_LOG_ORIGIN_OFFSET);
-            consumerSequence = ObjectUtils.defaultIfNull(consumerSequences.putIfAbsent(consumerGroup, newConsumerSequence), newConsumerSequence);
-        }
-        return consumerSequence;
+    public ConsumerSequence getOrCreateConsumerSequence(String subject, String consumerGroup, String consumerId, boolean isExclusiveConsume) {
+        String exclusiveKey = isExclusiveConsume ? consumerGroup : consumerId;
+        ConcurrentMap<ConsumerGroup, ConsumerSequence> consumerSequences = sequences.computeIfAbsent(exclusiveKey, k -> new ConcurrentHashMap<>());
+        final ConsumerGroup consumerGroupKey = new ConsumerGroup(subject, consumerGroup);
+        return consumerSequences.computeIfAbsent(consumerGroupKey, k -> new ConsumerSequence(ACTION_LOG_ORIGIN_OFFSET, ACTION_LOG_ORIGIN_OFFSET));
     }
 }

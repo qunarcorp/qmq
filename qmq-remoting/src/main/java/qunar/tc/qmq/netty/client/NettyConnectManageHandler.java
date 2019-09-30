@@ -75,7 +75,7 @@ public class NettyConnectManageHandler extends ChannelDuplexHandler {
         return false;
     }
 
-    Channel getOrCreateChannel(final String remoteAddr) throws ClientSendException {
+    Channel getOrCreateChannel(String remoteAddr) throws ClientSendException {
         if (Strings.isNullOrEmpty(remoteAddr)) {
             throw new ClientSendException(ClientSendException.SendErrorCode.EMPTY_ADDRESS);
         }
@@ -107,7 +107,7 @@ public class NettyConnectManageHandler extends ChannelDuplexHandler {
                 channelTables.put(remoteAddr, cw);
             }
         } catch (Exception e) {
-            LOGGER.error("create channel exception. remoteAddr={}", remoteAddr, e);
+            LOGGER.error("create channel exception. key={}", remoteAddr, e);
         } finally {
             channelLock.unlock();
         }

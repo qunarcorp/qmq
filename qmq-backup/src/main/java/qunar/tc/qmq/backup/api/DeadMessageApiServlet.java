@@ -19,6 +19,7 @@ package qunar.tc.qmq.backup.api;
 import qunar.tc.qmq.backup.base.BackupQuery;
 import qunar.tc.qmq.backup.base.MessageQueryResult;
 import qunar.tc.qmq.backup.service.MessageService;
+import qunar.tc.qmq.backup.util.GsonUtils;
 
 import javax.servlet.AsyncContext;
 import javax.servlet.http.HttpServletRequest;
@@ -39,7 +40,7 @@ public class DeadMessageApiServlet extends AbstractGetServlet {
         final AsyncContext context = req.startAsync();
         final CompletableFuture<MessageQueryResult> future = messageService.findDeadMessages(query);
         future.exceptionally(throwable -> EMPTY_MESSAGE_QUERY_RESULT).thenAccept(messageQueryResult -> {
-            response(resp, serializer.serialize(messageQueryResult));
+            response(resp, GsonUtils.serialize(messageQueryResult));
             context.complete();
         });
 

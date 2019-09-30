@@ -76,7 +76,7 @@ public class BrokerRegisterService implements Disposable {
         Datagram datagram = null;
         try {
             datagram = client.sendSync(endpoint, buildAcquireMetaDatagram(), TIMEOUT_MS);
-            final BrokerAcquireMetaResponse meta = BrokerAcquireMetaResponseSerializer.deSerialize(datagram.getBody());
+            final BrokerAcquireMetaResponse meta = BrokerAcquireMetaResponseSerializer.deserialize(datagram.getBody());
             BrokerConfig.getInstance().updateMeta(meta);
         } catch (Exception e) {
             LOG.error("Send acquire meta message to meta server failed", e);

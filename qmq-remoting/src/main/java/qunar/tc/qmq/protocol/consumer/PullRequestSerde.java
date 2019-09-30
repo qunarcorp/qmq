@@ -17,7 +17,9 @@
 package qunar.tc.qmq.protocol.consumer;
 
 import io.netty.buffer.ByteBuf;
+import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.TagType;
+import qunar.tc.qmq.protocol.RemotingHeader;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
 
 import java.util.ArrayList;
@@ -32,8 +34,9 @@ import static qunar.tc.qmq.protocol.RemotingHeader.VERSION_9;
  * @since 2019-01-02
  */
 public class PullRequestSerde {
+
     public void write(final PullRequest request, final ByteBuf out) {
-        PayloadHolderUtils.writeString(request.getSubject(), out);
+        PayloadHolderUtils.writeString(request.getPartitionName(), out);
         PayloadHolderUtils.writeString(request.getGroup(), out);
         PayloadHolderUtils.writeString(request.getConsumerId(), out);
 
@@ -42,9 +45,13 @@ public class PullRequestSerde {
         out.writeLong(request.getPullOffsetBegin());
         out.writeLong(request.getPullOffsetLast());
         out.writeLong(request.getTimeoutMillis());
-        out.writeByte(request.isBroadcast() ? 1 : 0);
-
+        out.writeByte(request.isExclusiveConsume() ? 1 : 0);
         writeFilters(request.getFilters(), out);
+
+        if (request instanceof PullRequestV10) {
+            PullRequestV10 requestV10 = (PullRequestV10) request;
+            out.writeInt(requestV10.getConsumerAllocationVersion());
+        }
     }
 
     private void writeFilters(final List<PullFilter> filters, final ByteBuf out) {
@@ -90,7 +97,7 @@ public class PullRequestSerde {
     }
 
     public PullRequest read(final int version, final ByteBuf in) {
-        final String prefix = PayloadHolderUtils.readString(in);
+        final String subject = PayloadHolderUtils.readString(in);
         final String group = PayloadHolderUtils.readString(in);
         final String consumerId = PayloadHolderUtils.readString(in);
         final int requestNum = in.readInt();
@@ -98,22 +105,45 @@ public class PullRequestSerde {
         final long pullOffsetBegin = in.readLong();
         final long pullOffsetLast = in.readLong();
         final long timeout = in.readLong();
-        final byte broadcast = in.readByte();
+        boolean isExclusiveConsume = in.readBoolean();
         final List<PullFilter> filters = readFilters(version, in);
+        ConsumeStrategy consumeStrategy = isExclusiveConsume ? ConsumeStrategy.EXCLUSIVE : ConsumeStrategy.SHARED;
 
-        final PullRequest request = new PullRequest();
-        request.setSubject(prefix);
-        request.setGroup(group);
-        request.setConsumerId(consumerId);
-        request.setRequestNum(requestNum);
-        request.setOffset(offset);
-        request.setPullOffsetBegin(pullOffsetBegin);
-        request.setPullOffsetLast(pullOffsetLast);
-        request.setTimeoutMillis(timeout);
-        request.setBroadcast(broadcast != 0);
-        request.setFilters(filters);
+        final PullRequest request;
+        if (isV10Version(version)) {
+            int allocationVersion = in.readInt();
+            request = new PullRequestV10(
+                    subject,
+                    group,
+                    requestNum,
+                    timeout,
+                    offset,
+                    pullOffsetBegin,
+                    pullOffsetLast,
+                    consumerId,
+                    consumeStrategy,
+                    filters,
+                    allocationVersion);
+        } else {
+            request = new PullRequestV10(
+                    subject,
+                    group,
+                    requestNum,
+                    timeout,
+                    offset,
+                    pullOffsetBegin,
+                    pullOffsetLast,
+                    consumerId,
+                    consumeStrategy,
+                    filters,
+                    -1);
+        }
         return request;
 
+    }
+
+    private boolean isV10Version(int version) {
+        return version >= RemotingHeader.VERSION_10;
     }
 
     private List<PullFilter> readFilters(final int version, final ByteBuf in) {

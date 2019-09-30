@@ -28,11 +28,12 @@ import qunar.tc.qmq.backup.config.BackupConfig;
 import qunar.tc.qmq.backup.service.BackupKeyGenerator;
 import qunar.tc.qmq.backup.store.KvStore;
 import qunar.tc.qmq.backup.store.RocksDBStore;
+import qunar.tc.qmq.metainfoclient.MetaInfoService;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.store.Action;
 import qunar.tc.qmq.store.action.PullAction;
 import qunar.tc.qmq.store.action.RangeAckAction;
-import qunar.tc.qmq.utils.RetrySubjectUtils;
+import qunar.tc.qmq.utils.RetryPartitionUtils;
 
 import java.io.IOException;
 import java.util.List;
@@ -53,14 +54,16 @@ public class RecordBatchBackup extends AbstractBatchBackup<ActionRecord> {
 
     private static final String[] SUBJECT_TYPE_ARRAY = new String[]{"subject", "type"};
 
+    private final MetaInfoService metaInfoService;
     private final BackupKeyGenerator keyGenerator;
     private final RocksDBStore rocksDBStore;
     private final KvStore recordStore;
 
     private final String brokerGroup;
 
-    public RecordBatchBackup(BackupConfig backupConfig, BackupKeyGenerator keyGenerator, RocksDBStore rocksDBStore, KvStore recordStore) {
+    public RecordBatchBackup(MetaInfoService metaInfoService, BackupConfig backupConfig, BackupKeyGenerator keyGenerator, RocksDBStore rocksDBStore, KvStore recordStore) {
         super("actionBackup", backupConfig);
+        this.metaInfoService = metaInfoService;
         this.keyGenerator = keyGenerator;
         this.rocksDBStore = rocksDBStore;
         this.recordStore = recordStore;
@@ -108,18 +111,13 @@ public class RecordBatchBackup extends AbstractBatchBackup<ActionRecord> {
         try {
             for (int i = 0; i < messages.size(); ++i) {
                 BackupMessage message = messages.get(i);
-                String subject = message.getSubject();
+                String partitionName = message.getSubject();
+                String subject = metaInfoService.getSubject(partitionName);
                 try {
                     monitorBackupActionQps(subject);
-
-                    String realSubject = RetrySubjectUtils.getRealSubject(subject);
-                    if (RetrySubjectUtils.isRetrySubject(subject)) {
-                        message.setSubject(RetrySubjectUtils.buildRetrySubject(realSubject));
-                    } else if (RetrySubjectUtils.isDeadRetrySubject(subject)) {
-                        message.setSubject(RetrySubjectUtils.buildDeadRetrySubject(realSubject));
-                    }
+                    // TODO(zhenwei.liu) 这里需要考虑将 partitionName 往哪里放
                     final String consumerGroup = message.getConsumerGroup();
-                    final byte[] key = keyGenerator.generateRecordKey(message.getSubject(), message.getSequence(), brokerGroup, consumerGroup, Bytes.UTF8(Byte.toString(message.getAction())));
+                    final byte[] key = keyGenerator.generateRecordKey(subject, message.getSequence(), brokerGroup, consumerGroup, Bytes.UTF8(Byte.toString(message.getAction())));
                     final String consumerId = message.getConsumerId();
                     final byte[] consumerIdBytes = Bytes.UTF8(consumerId);
                     final int consumerIdBytesLength = consumerIdBytes.length;
@@ -164,7 +162,8 @@ public class RecordBatchBackup extends AbstractBatchBackup<ActionRecord> {
     private void onAckAction(ActionRecord record, List<BackupMessage> batch) {
         final RangeAckAction ackAction = (RangeAckAction) record.getAction();
         final String prefix = getActionPrefix(ackAction);
-        String subject = RetrySubjectUtils.getRealSubject(ackAction.subject());
+        String partitionName = ackAction.subject();
+        String subject = metaInfoService.getSubject(partitionName);
         for (long ackLogOffset = ackAction.getFirstSequence(); ackLogOffset <= ackAction.getLastSequence(); ackLogOffset++) {
             monitorAckAction(subject, ackAction.group());
             final Optional<String> consumerLogSequenceOptional = rocksDBStore.get(prefix + "$" + ackLogOffset);
@@ -186,7 +185,8 @@ public class RecordBatchBackup extends AbstractBatchBackup<ActionRecord> {
     }
 
     private void createBackupMessagesForPullAction(final PullAction pullAction, final List<BackupMessage> batch) {
-        final String subject = RetrySubjectUtils.getRealSubject(pullAction.subject());
+        String partitionName = pullAction.subject();
+        final String subject = metaInfoService.getSubject(partitionName);
         for (long pullLogOffset = pullAction.getFirstSequence(); pullLogOffset <= pullAction.getLastSequence(); pullLogOffset++) {
             monitorPullAction(subject, pullAction.group());
             final Long consumerLogSequence = getConsumerLogSequence(pullAction, pullLogOffset);
@@ -211,7 +211,9 @@ public class RecordBatchBackup extends AbstractBatchBackup<ActionRecord> {
 
     private BackupMessage generateBaseMessage(Action action, long sequence) {
         final BackupMessage message = new BackupMessage();
-        message.setSubject(action.subject());
+        String partitionName = action.subject();
+        String subject = metaInfoService.getSubject(partitionName);
+        message.setSubject(subject);
         message.setConsumerGroup(action.group());
         message.setConsumerId(action.consumerId());
         message.setTimestamp(action.timestamp());

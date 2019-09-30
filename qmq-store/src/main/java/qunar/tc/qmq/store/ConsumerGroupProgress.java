@@ -23,35 +23,30 @@ import java.util.Map;
  * @since 2018/10/24
  */
 public class ConsumerGroupProgress {
-    private final String subject;
-    private final String group;
+    private final String partitionName;
+    private final String consumerGroup;
     private final Map<String, ConsumerProgress> consumers;
-    // TODO(keli.wang): mark broadcast as final after new snapshot file created
-    private boolean broadcast;
+    private boolean exclusiveConsume;
     private long pull;
 
-    public ConsumerGroupProgress(String subject, String group, boolean broadcast, long pull, Map<String, ConsumerProgress> consumers) {
-        this.subject = subject;
-        this.group = group;
-        this.broadcast = broadcast;
+    public ConsumerGroupProgress(String partitionName, String consumerGroup, boolean isExclusiveConsume, long pull, Map<String, ConsumerProgress> consumers) {
+        this.partitionName = partitionName;
+        this.consumerGroup = consumerGroup;
+        this.exclusiveConsume = isExclusiveConsume;
         this.pull = pull;
         this.consumers = consumers;
     }
 
-    public String getSubject() {
-        return subject;
+    public String getPartitionName() {
+        return partitionName;
     }
 
-    public String getGroup() {
-        return group;
+    public String getConsumerGroup() {
+        return consumerGroup;
     }
 
-    public boolean isBroadcast() {
-        return broadcast;
-    }
-
-    public void setBroadcast(boolean broadcast) {
-        this.broadcast = broadcast;
+    public boolean isExclusiveConsume() {
+        return exclusiveConsume;
     }
 
     public Map<String, ConsumerProgress> getConsumers() {

@@ -16,6 +16,11 @@
 
 package qunar.tc.qmq.consumer.register;
 
+import qunar.tc.qmq.PullConsumer;
+import qunar.tc.qmq.PullEntry;
+
+import java.util.concurrent.Future;
+
 /**
  * User: zhaohuiyu
  * Date: 6/5/13
@@ -23,11 +28,11 @@ package qunar.tc.qmq.consumer.register;
  */
 public interface ConsumerRegister {
 
-    void regist(String prefix, String group, RegistParam param);
+    Future<PullEntry> registerPullEntry(String subject, String consumerGroup, RegistParam param);
 
-    void unregist(String prefix, String group);
+    Future<PullConsumer> registerPullConsumer(String subject, String consumerGroup, boolean isBroadcast, boolean isOrdered);
 
-    void setAutoOnline(boolean autoOnline);
+    void unregister(String subject, String consumerGroup);
 
     void destroy();
 }

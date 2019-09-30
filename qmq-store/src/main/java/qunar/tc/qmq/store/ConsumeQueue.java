@@ -19,7 +19,7 @@ package qunar.tc.qmq.store;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.monitor.QMon;
-import qunar.tc.qmq.utils.RetrySubjectUtils;
+import qunar.tc.qmq.utils.RetryPartitionUtils;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -59,7 +59,7 @@ public class ConsumeQueue {
         enableLagMonitor();
 
         long currentSequence = nextSequence.get();
-        if (RetrySubjectUtils.isRetrySubject(subject)) {
+        if (RetryPartitionUtils.isRetryPartitionName(subject)) {
             return storage.pollMessages(subject, currentSequence, maxMessages, this::isDelayReached);
         } else {
             final GetMessageResult result = storage.pollMessages(subject, currentSequence, maxMessages);

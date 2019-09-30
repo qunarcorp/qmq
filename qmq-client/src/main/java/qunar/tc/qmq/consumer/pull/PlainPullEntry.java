@@ -16,40 +16,80 @@
 
 package qunar.tc.qmq.consumer.pull;
 
+import qunar.tc.qmq.ClientType;
+import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.Message;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
-import qunar.tc.qmq.common.ClientType;
 
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 
 /**
  * @author yiqun.fan create on 17-9-21.
  */
 class PlainPullEntry extends AbstractPullEntry {
 
+    private final BrokerService brokerService;
     private final ConsumeParam consumeParam;
     private final PullStrategy pullStrategy;
 
-    PlainPullEntry(ConsumeParam consumeParam, PullService pullService, AckService ackService, BrokerService brokerService, PullStrategy pullStrategy) {
-        super(consumeParam.getSubject(), consumeParam.getGroup(), pullService, ackService, brokerService);
+    PlainPullEntry(
+            ConsumeParam consumeParam,
+            String partitionName,
+            String brokerGroup,
+            String consumerId,
+            ConsumeStrategy consumeStrategy,
+            int allocationVersion,
+            long consumptionExpiredTime,
+            PullService pullService,
+            AckService ackService,
+            BrokerService brokerService,
+            PullStrategy pullStrategy,
+            SendMessageBack sendMessageBack) {
+        super(
+                consumeParam.getSubject(),
+                consumeParam.getConsumerGroup(),
+                partitionName,
+                brokerGroup,
+                consumerId,
+                consumeStrategy,
+                allocationVersion,
+                consumeParam.isBroadcast(),
+                consumeParam.isOrdered(),
+                consumptionExpiredTime,
+                pullService,
+                ackService,
+                brokerService,
+                sendMessageBack);
         this.consumeParam = consumeParam;
         this.pullStrategy = pullStrategy;
+        this.brokerService = brokerService;
     }
 
     PlainPullResult pull(final int fetchSize, final int pullTimeout, final List<Message> output) {
         if (!pullStrategy.needPull()) return PlainPullResult.NOMORE_MESSAGE;
-        BrokerClusterInfo brokerCluster = brokerService.getClusterBySubject(ClientType.CONSUMER, consumeParam.getSubject(), consumeParam.getGroup());
+        BrokerClusterInfo brokerCluster = brokerService.getConsumerBrokerCluster(ClientType.CONSUMER, consumeParam.getSubject());
         List<BrokerGroupInfo> groups = brokerCluster.getGroups();
         if (groups.isEmpty()) {
             return PlainPullResult.NO_BROKER;
         }
-        BrokerGroupInfo group = loadBalance.select(brokerCluster);
-        List<PulledMessage> received = pull(consumeParam, group, fetchSize, pullTimeout, null);
+        BrokerGroupInfo brokerGroup = loadBalance.select(brokerCluster);
+        List<PulledMessage> received = pull(consumeParam, brokerGroup, fetchSize, pullTimeout, null);
         output.addAll(received);
         pullStrategy.record(received.size() > 0);
         return PlainPullResult.NOMORE_MESSAGE;
+    }
+
+    @Override
+    public void startPull(ExecutorService executor) {
+
+    }
+
+    @Override
+    public void stopPull() {
+
     }
 
     enum PlainPullResult {

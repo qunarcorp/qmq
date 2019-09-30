@@ -21,6 +21,7 @@ import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.common.Disposable;
+import qunar.tc.qmq.common.PartitionConstants;
 import qunar.tc.qmq.concurrent.ActorSystem;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.configuration.BrokerConfig;
@@ -32,6 +33,8 @@ import qunar.tc.qmq.meta.BrokerRegisterService;
 import qunar.tc.qmq.meta.BrokerRole;
 import qunar.tc.qmq.meta.MetaServerLocator;
 import qunar.tc.qmq.netty.NettyServer;
+import qunar.tc.qmq.order.DefaultExclusiveMessageLockManager;
+import qunar.tc.qmq.order.ExclusiveMessageLockManager;
 import qunar.tc.qmq.processor.*;
 import qunar.tc.qmq.protocol.CommandCode;
 import qunar.tc.qmq.protocol.Datagram;
@@ -71,6 +74,7 @@ public class ServerWrapper implements Disposable {
     private MasterSyncNettyServer masterSyncNettyServer;
     private MasterSlaveSyncManager masterSlaveSyncManager;
     private BrokerRegisterService brokerRegisterService;
+    private ExclusiveMessageLockManager exclusiveMessageLockManager;
 
     private SubscriberStatusChecker subscriberStatusChecker;
 
@@ -216,18 +220,20 @@ public class ServerWrapper implements Disposable {
 
     private void startServerHandlers() {
         final ActorSystem actorSystem = new ActorSystem("qmq");
-
-        final PullMessageProcessor pullMessageProcessor = new PullMessageProcessor(config, actorSystem, messageStoreWrapper, subscriberStatusChecker);
+        this.exclusiveMessageLockManager = new DefaultExclusiveMessageLockManager(PartitionConstants.EXCLUSIVE_CONSUMER_LOCK_LEASE_MILLS, TimeUnit.MILLISECONDS);
+        final PullMessageProcessor pullMessageProcessor = new PullMessageProcessor(config, actorSystem, messageStoreWrapper, subscriberStatusChecker, exclusiveMessageLockManager);
         this.storage.registerEventListener(ConsumerLogWroteEvent.class, pullMessageProcessor);
         final SendMessageProcessor sendMessageProcessor = new SendMessageProcessor(sendMessageWorker);
         final AckMessageProcessor ackMessageProcessor = new AckMessageProcessor(actorSystem, consumerSequenceManager, subscriberStatusChecker);
         final ConsumerManageProcessor consumerManageProcessor = new ConsumerManageProcessor(storage);
+        final ReleasePullLockProcessor releasePullLockProcessor = new ReleasePullLockProcessor(exclusiveMessageLockManager);
 
         this.nettyServer = new NettyServer("broker", Runtime.getRuntime().availableProcessors(), listenPort, new BrokerConnectionEventHandler());
         this.nettyServer.registerProcessor(CommandCode.SEND_MESSAGE, sendMessageProcessor, sendMessageExecutorService);
         this.nettyServer.registerProcessor(CommandCode.PULL_MESSAGE, pullMessageProcessor);
         this.nettyServer.registerProcessor(CommandCode.ACK_REQUEST, ackMessageProcessor);
         this.nettyServer.registerProcessor(CommandCode.CONSUME_MANAGE, consumerManageProcessor);
+        this.nettyServer.registerProcessor(CommandCode.RELEASE_PULL_LOCK, releasePullLockProcessor);
         this.nettyServer.start();
     }
 

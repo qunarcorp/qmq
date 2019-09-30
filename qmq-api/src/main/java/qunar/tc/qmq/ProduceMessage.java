@@ -20,7 +20,7 @@ package qunar.tc.qmq;
  * Created by zhaohui.yu
  * 10/31/16
  */
-public interface ProduceMessage {
+public interface ProduceMessage extends Retriable {
 
     String getMessageId();
 
@@ -28,13 +28,13 @@ public interface ProduceMessage {
 
     void send();
 
-    void error(Exception e);
-
     void failed();
 
     void block();
 
     void finish();
+
+    void reset();
 
     Message getBase();
 
@@ -49,4 +49,8 @@ public interface ProduceMessage {
     void setRouteKey(Object routeKey);
 
     Object getRouteKey();
+
+    void setMessageGroup(MessageGroup messageGroup);
+
+    MessageGroup getMessageGroup();
 }

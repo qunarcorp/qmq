@@ -76,16 +76,24 @@ public class AckMessageProcessor extends AbstractRequestProcessor {
 
     private AckRequest deserializeAckRequest(RemotingCommand command) {
         ByteBuf input = command.getBody();
-        AckRequest request = new AckRequest();
-        request.setSubject(PayloadHolderUtils.readString(input));
-        request.setGroup(PayloadHolderUtils.readString(input));
-        request.setConsumerId(PayloadHolderUtils.readString(input));
-        request.setPullOffsetBegin(input.readLong());
-        request.setPullOffsetLast(input.readLong());
+        String subject = PayloadHolderUtils.readString(input);
+        String consumerGroup = PayloadHolderUtils.readString(input);
+        String consumerId = PayloadHolderUtils.readString(input);
+        long pullStartOffset = input.readLong();
+        long pullEndOffset = input.readLong();
+        byte isExcludeConsume = AckRequest.UNSET;
         if (command.getHeader().getVersion() >= RemotingHeader.VERSION_8) {
-            request.setBroadcast(input.readByte());
+            isExcludeConsume = input.readByte();
         }
-        return request;
+
+        return new AckRequest(
+                subject,
+                consumerGroup,
+                consumerId,
+                pullStartOffset,
+                pullEndOffset,
+                isExcludeConsume
+        );
     }
 
     private boolean isInvalidRequest(AckRequest ackRequest) {
@@ -114,10 +122,11 @@ public class AckMessageProcessor extends AbstractRequestProcessor {
         private final String consumerId;
         private final long firstPullLogOffset;
         private final long lastPullLogOffset;
+        private final long ackBegin;
+        private final byte isExclusiveConsume;
+
         private final ChannelHandlerContext ctx;
         private final RemotingHeader requestHeader;
-        private final long ackBegin;
-        private final byte isBroadcast;
 
         AckEntry(AckRequest ackRequest, ChannelHandlerContext ctx, RemotingHeader requestHeader) {
             this.subject = ackRequest.getSubject();
@@ -125,11 +134,11 @@ public class AckMessageProcessor extends AbstractRequestProcessor {
             this.consumerId = ackRequest.getConsumerId();
             this.firstPullLogOffset = ackRequest.getPullOffsetBegin();
             this.lastPullLogOffset = ackRequest.getPullOffsetLast();
-            this.isBroadcast = ackRequest.isBroadcast();
+            this.ackBegin = System.currentTimeMillis();
+            this.isExclusiveConsume = ackRequest.getIsExclusiveConsume();
 
             this.ctx = ctx;
             this.requestHeader = requestHeader;
-            this.ackBegin = System.currentTimeMillis();
         }
 
         public long getFirstPullLogOffset() {
@@ -164,8 +173,8 @@ public class AckMessageProcessor extends AbstractRequestProcessor {
             return ackBegin;
         }
 
-        public boolean isBroadcast() {
-            return isBroadcast == 1;
+        public boolean isExclusiveConsume() {
+            return isExclusiveConsume == 1;
         }
 
         @Override

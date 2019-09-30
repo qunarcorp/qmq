@@ -17,10 +17,8 @@
 package qunar.tc.qmq.consumer.pull;
 
 import qunar.tc.qmq.PullConsumer;
-import qunar.tc.qmq.common.MapKeyBuilder;
 import qunar.tc.qmq.consumer.exception.CreatePullConsumerException;
 import qunar.tc.qmq.consumer.exception.DuplicateListenerException;
-import qunar.tc.qmq.utils.RetrySubjectUtils;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -30,6 +28,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * @author yiqun.fan create on 17-9-12.
  */
 public class PullConsumerFactory {
+
     private final ConcurrentMap<String, PullConsumer> pullConsumerMap = new ConcurrentHashMap<>();
 
     private final ReentrantLock pullConsumerMapLock = new ReentrantLock();
@@ -40,9 +39,12 @@ public class PullConsumerFactory {
         this.pullRegister = pullRegister;
     }
 
+    private static String buildPullConsumerKey(String subject, String group) {
+        return subject + ":" + group;
+    }
+
     public PullConsumer getOrCreateDefault(String subject, String group, boolean isBroadcast) {
-        final String realSubject = RetrySubjectUtils.getRealSubject(subject);
-        final String key = MapKeyBuilder.buildSubscribeKey(realSubject, group);
+        final String key = buildPullConsumerKey(subject, group);
         PullConsumer consumer = pullConsumerMap.get(key);
         if (consumer != null) {
             return consumer;
@@ -53,12 +55,12 @@ public class PullConsumerFactory {
             if (consumer != null) {
                 return consumer;
             }
-            PullConsumer consumerImpl = createDefaultPullConsumer(realSubject, group, isBroadcast);
+            PullConsumer consumerImpl = createDefaultPullConsumer(subject, group, isBroadcast);
             pullConsumerMap.put(key, consumerImpl);
             return consumerImpl;
         } catch (Exception e) {
             if (e instanceof DuplicateListenerException) {
-                throw new CreatePullConsumerException("已经使用了onMessage方式处理的主题不能再纯拉模式", realSubject, group);
+                throw new CreatePullConsumerException("已经使用了onMessage方式处理的主题不能再纯拉模式", subject, group);
             }
             throw e;
         } finally {
@@ -66,7 +68,11 @@ public class PullConsumerFactory {
         }
     }
 
-    private DefaultPullConsumer createDefaultPullConsumer(String subject, String group, boolean isBroadcast) {
-        return pullRegister.createDefaultPullConsumer(subject, group, isBroadcast);
+    private PullConsumer createDefaultPullConsumer(String subject, String group, boolean isBroadcast) {
+        try {
+            return pullRegister.registerPullConsumer(subject, group, isBroadcast, false).get();
+        } catch (Throwable e) {
+            throw new RuntimeException(e);
+        }
     }
 }

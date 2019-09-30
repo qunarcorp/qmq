@@ -24,5 +24,6 @@ import java.util.List;
  * Time: 5:21 PM
  */
 public interface Processor<Item> {
+
     void process(List<Item> items);
 }

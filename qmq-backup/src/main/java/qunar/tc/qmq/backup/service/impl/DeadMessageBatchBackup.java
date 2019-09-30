@@ -22,7 +22,7 @@ import static qunar.tc.qmq.backup.config.DefaultBackupConfig.MESSAGE_BATCH_SIZE_
 import static qunar.tc.qmq.backup.config.DefaultBackupConfig.MESSAGE_RETRY_NUM_CONFIG_KEY;
 import static qunar.tc.qmq.metrics.MetricsConstants.EMPTY;
 import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_ARRAY;
-import static qunar.tc.qmq.utils.RetrySubjectUtils.getConsumerGroup;
+import static qunar.tc.qmq.utils.RetryPartitionUtils.getConsumerGroup;
 
 import java.util.Date;
 import java.util.List;
@@ -38,7 +38,7 @@ import qunar.tc.qmq.backup.service.BackupKeyGenerator;
 import qunar.tc.qmq.backup.store.KvStore;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.store.MessageQueryIndex;
-import qunar.tc.qmq.utils.RetrySubjectUtils;
+import qunar.tc.qmq.utils.RetryPartitionUtils;
 
 /**
  * @author xufeng.deng dennisdxf@gmail.com
@@ -92,7 +92,7 @@ public class DeadMessageBatchBackup extends AbstractBatchBackup<MessageQueryInde
                 try {
                     monitorDeadMessageQps(subject);
 
-                    final String realSubject = RetrySubjectUtils.getRealSubject(subject);
+                    final String realSubject = RetryPartitionUtils.getRealPartitionName(subject);
                     final String messageId = index.getMessageId();
                     final String consumerGroup = getConsumerGroup(subject);
                     final Date createTime = new Date(index.getCreateTime());

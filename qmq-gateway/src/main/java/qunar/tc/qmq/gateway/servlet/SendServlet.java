@@ -22,6 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.Message;
 import qunar.tc.qmq.MessageSendStateListener;
+import qunar.tc.qmq.common.JsonUtils;
 import qunar.tc.qmq.producer.MessageProducerProvider;
 
 import javax.servlet.AsyncContext;
@@ -45,12 +46,11 @@ public class SendServlet extends HttpServlet {
 
     private MessageProducerProvider producer;
 
-    private final ObjectMapper MAPPER = new ObjectMapper();
+    private final ObjectMapper MAPPER = JsonUtils.getMapper();
 
     @Override
     public void init(ServletConfig config) throws ServletException {
-        this.producer = new MessageProducerProvider();
-        this.producer.init();
+        this.producer = new MessageProducerProvider(null, null); // TODO(zhenwei.liu) 这里需要写入 appCode, meta server 地址
     }
 
     @Override

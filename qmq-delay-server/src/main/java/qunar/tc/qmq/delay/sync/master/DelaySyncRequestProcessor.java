@@ -161,7 +161,7 @@ public class DelaySyncRequestProcessor implements NettyRequestProcessor, Disposa
             try {
                 processor.process(entry);
             } catch (Exception e) {
-                LOGGER.error("process sync request error", e);
+                LOGGER.error("onSuccess sync request error", e);
             }
         }
     }
@@ -180,7 +180,7 @@ public class DelaySyncRequestProcessor implements NettyRequestProcessor, Disposa
             try {
                 processor.processTimeout(entry);
             } catch (Exception e) {
-                LOGGER.error("process sync timeout request error", e);
+                LOGGER.error("onSuccess sync timeout request error", e);
             }
         }
     }

@@ -1,0 +1,30 @@
+@startuml
+
+class PullClient1 {
+    String subject: order.book
+    String consumerGroup: test_group
+    String brokerGroup: broker_group#1
+    String partitionName: order.book#1
+}
+
+class PullClient2 {
+    String subject: order.book
+    String consumerGroup: test_group
+    String brokerGroup: broker_group#2
+    String partitionName: order.book#2
+}
+
+class PullClient1$retry {
+    String subject: order.book
+    String consumerGroup: test_group
+    String brokerGroup: broker_group#1
+    String partitionName: order.book#1$retry
+}
+
+class PullClient2$retry {
+    String subject: order.book
+    String consumerGroup: test_group
+    String brokerGroup: broker_group#2
+    String partitionName: order.book#2$retry
+}
+@enduml

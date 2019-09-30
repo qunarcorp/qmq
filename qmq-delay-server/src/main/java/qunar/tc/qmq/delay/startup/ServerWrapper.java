@@ -41,10 +41,11 @@ import qunar.tc.qmq.delay.wheel.WheelTickManager;
 import qunar.tc.qmq.meta.BrokerRegisterService;
 import qunar.tc.qmq.meta.BrokerRole;
 import qunar.tc.qmq.meta.MetaServerLocator;
-import qunar.tc.qmq.metainfoclient.MetaInfoService;
+import qunar.tc.qmq.metainfoclient.DefaultMetaInfoService;
 import qunar.tc.qmq.netty.DefaultConnectionEventHandler;
 import qunar.tc.qmq.netty.NettyServer;
 import qunar.tc.qmq.protocol.CommandCode;
+import qunar.tc.qmq.utils.NetworkUtils;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -59,6 +60,7 @@ public class ServerWrapper implements Disposable {
     private static final Logger LOGGER = LoggerFactory.getLogger(ServerWrapper.class);
 
     private static final String META_SERVER_ENDPOINT = "meta.server.endpoint";
+    private static final String APP_CODE_KEY = "app.code";
     private static final String PORT_CONFIG = "broker.port";
 
     private static final Integer DEFAULT_PORT = 20801;
@@ -76,20 +78,21 @@ public class ServerWrapper implements Disposable {
     private DynamicConfig config;
     private DefaultStoreConfiguration storeConfig;
 
-	public void start(boolean autoOnline) {
-		init();
-		register();
-		startServer();
-		sync();
-		if (autoOnline)
-			online();
-	}
+    public void start(boolean autoOnline) {
+        init();
+        register();
+        startServer();
+        sync();
+        if (autoOnline)
+            online();
+    }
 
-	public void online() {
-		BrokerConfig.markAsWritable();
-		brokerRegisterService.healthSwitch(true);
-	}
+    public void online() {
+        BrokerConfig.markAsWritable();
+        brokerRegisterService.healthSwitch(true);
+    }
 
+    // TODO(zhenwei.liu) delay 是不是应该使用 qmq-client 来发消息?
     private void init() {
         this.config = DynamicConfigLoader.load("delay.properties");
         this.listenPort = config.getInt(PORT_CONFIG, DEFAULT_PORT);
@@ -101,15 +104,16 @@ public class ServerWrapper implements Disposable {
         storeConfig = new DefaultStoreConfiguration(config);
         this.facade = new DefaultDelayLogFacade(storeConfig, this::iterateCallback);
 
-        MetaInfoService metaInfoService = new MetaInfoService();
-        metaInfoService.setMetaServer(config.getString(META_SERVER_ENDPOINT));
+        String appCode = config.getString(APP_CODE_KEY, "delay-server");
+        String metaServerAddress = config.getString(META_SERVER_ENDPOINT);
+        DefaultMetaInfoService metaInfoService = new DefaultMetaInfoService(metaServerAddress);
         metaInfoService.init();
-        BrokerService brokerService = new BrokerServiceImpl(metaInfoService);
+        BrokerService brokerService = new BrokerServiceImpl(appCode, "delay-" + NetworkUtils.getLocalAddress(), metaInfoService);
         this.wheelTickManager = new WheelTickManager(storeConfig, brokerService, facade, sender);
 
         this.receiver = new Receiver(config, facade);
 
-        final MetaServerLocator metaServerLocator = new MetaServerLocator(config.getString(META_SERVER_ENDPOINT));
+        final MetaServerLocator metaServerLocator = new MetaServerLocator(metaServerAddress);
         this.brokerRegisterService = new BrokerRegisterService(listenPort, metaServerLocator);
 
         this.processor = new ReceivedDelayMessageProcessor(receiver);

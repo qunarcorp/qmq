@@ -177,7 +177,7 @@ abstract class AbstractLogSyncWorker implements SyncProcessor {
             try {
                 processor.processTimeout(entry);
             } catch (Exception e) {
-                LOG.error("process sync request error", e);
+                LOG.error("onSuccess sync request error", e);
             }
         }
     }

@@ -16,8 +16,7 @@
 
 package qunar.tc.qmq.task;
 
-import java.util.concurrent.CountDownLatch;
-
+import org.springframework.jdbc.core.JdbcTemplate;
 import qunar.tc.qmq.MessageProducer;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.configuration.DynamicConfigLoader;
@@ -29,7 +28,7 @@ import qunar.tc.qmq.task.store.impl.CachedMessageClientStore;
 import qunar.tc.qmq.task.store.impl.DataSourceConfigStoreImpl;
 import qunar.tc.qmq.task.store.impl.LeaderElectionDaoImpl;
 
-import org.springframework.jdbc.core.JdbcTemplate;
+import java.util.concurrent.CountDownLatch;
 
 public class Bootstrap {
     public static void main(String[] args) throws InterruptedException {
@@ -52,11 +51,7 @@ public class Bootstrap {
     }
 
     private static MessageProducer createMessageProducer(DynamicConfig config) {
-        MessageProducerProvider producer = new MessageProducerProvider();
-        producer.setAppCode(config.getString("appCode"));
-        producer.setMetaServer(config.getString("meta.server.endpoint"));
-        producer.init();
-        return producer;
+        return new MessageProducerProvider(config.getString("appCode"), config.getString("meta.server.endpoint"));
     }
 
     private static DatabaseDriverMapping initDriverMapping() {

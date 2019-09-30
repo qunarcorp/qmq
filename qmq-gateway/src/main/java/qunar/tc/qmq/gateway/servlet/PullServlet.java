@@ -22,6 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.Message;
 import qunar.tc.qmq.PullConsumer;
+import qunar.tc.qmq.common.JsonUtils;
 import qunar.tc.qmq.consumer.MessageConsumerProvider;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.MetricsConstants;
@@ -47,7 +48,7 @@ public class PullServlet extends HttpServlet {
 
     private MessageConsumerProvider consumer;
 
-    private final ObjectMapper MAPPER = new ObjectMapper();
+    private final ObjectMapper MAPPER = JsonUtils.getMapper();
 
     private Executor writeExecutor;
 
@@ -56,6 +57,7 @@ public class PullServlet extends HttpServlet {
     @Override
     public void init() throws ServletException {
         consumer = new MessageConsumerProvider();
+        consumer.setMetaServer(null); // TODO(zhenwei.liu) 这个 meta server 地址从哪儿来
         consumer.init();
         writeExecutor = Executors.newCachedThreadPool();
     }

@@ -41,7 +41,7 @@ public class PullActionReaderWriter implements ActionReaderWriter {
         PayloadHolderUtils.writeString(pull.consumerId(), to);
 
         to.putLong(action.timestamp());
-        to.put(toByte(pull.isBroadcast()));
+        to.put(toByte(pull.isExclusiveConsume()));
 
         to.putLong(pull.getFirstSequence());
         to.putLong(pull.getLastSequence());

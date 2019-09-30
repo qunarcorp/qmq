@@ -18,19 +18,22 @@ package qunar.tc.qmq.producer.sender;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
 import io.netty.buffer.ByteBuf;
+import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.ProduceMessage;
 import qunar.tc.qmq.base.BaseMessage;
-import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
-import qunar.tc.qmq.broker.BrokerLoadBalance;
 import qunar.tc.qmq.broker.BrokerService;
-import qunar.tc.qmq.broker.impl.PollBrokerLoadBalance;
-import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.QmqCounter;
 import qunar.tc.qmq.metrics.QmqTimer;
+import qunar.tc.qmq.netty.client.NettyClient;
 import qunar.tc.qmq.netty.exception.*;
+import qunar.tc.qmq.producer.ConfigCenter;
 import qunar.tc.qmq.protocol.*;
 import qunar.tc.qmq.protocol.producer.MessageProducerCode;
 import qunar.tc.qmq.protocol.producer.SendResult;
@@ -51,25 +54,28 @@ import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_ARRAY;
  * @author zhenyu.nie created on 2017 2017/7/5 15:08
  */
 class NettyConnection implements Connection {
+
+    private ConfigCenter config = ConfigCenter.getInstance();
+
     private final String subject;
     private final ClientType clientType;
-    private final NettyProducerClient producerClient;
+    private final NettyClient producerClient;
     private final BrokerService brokerService;
-
-    private volatile BrokerGroupInfo lastSentBroker;
-
-    private final BrokerLoadBalance brokerLoadBalance = PollBrokerLoadBalance.getInstance();
 
     private final QmqCounter sendMessageCountMetrics;
     private final QmqTimer sendMessageTimerMetrics;
 
-    NettyConnection(String subject, ClientType clientType, NettyProducerClient producerClient, BrokerService brokerService) {
+    private BrokerGroupInfo brokerGroup;
+
+    NettyConnection(String subject, ClientType clientType, NettyClient client,
+                    BrokerService brokerService, BrokerGroupInfo brokerGroup) {
         this.subject = subject;
         this.clientType = clientType;
-        this.producerClient = producerClient;
+        this.producerClient = client;
         this.brokerService = brokerService;
 
         sendMessageCountMetrics = Metrics.counter("qmq_client_send_msg_count", SUBJECT_ARRAY, new String[]{subject});
+        this.brokerGroup = brokerGroup;
         sendMessageTimerMetrics = Metrics.timer("qmq_client_send_msg_timer");
     }
 
@@ -78,31 +84,93 @@ class NettyConnection implements Connection {
     }
 
     @Override
-    public Map<String, MessageException> send(List<ProduceMessage> messages) throws ClientSendException, RemoteException, BrokerRejectException {
+    public Map<String, MessageException> send(List<ProduceMessage> messages) throws Exception {
+        return doSend(messages, (request) -> {
+            try {
+                Datagram response = producerClient.sendSync(brokerGroup.getMaster(), request, config.getSendTimeoutMillis());
+                brokerGroup.markSuccess();
+                return processResponse(brokerGroup, response);
+            } catch (ClientSendException | RemoteTimeoutException t1) {
+                brokerGroup.markFailed();
+                Metrics.counter("qmq_client_send_msg_error").inc(messages.size());
+                throw t1;
+            } catch (Throwable t2) {
+                brokerGroup.markFailed();
+                Metrics.counter("qmq_client_send_msg_error").inc(messages.size());
+                throw new RuntimeException(t2);
+            }
+        });
+    }
+
+    @Override
+    public ListenableFuture<Map<String, MessageException>> sendAsync(List<ProduceMessage> messages) throws Exception {
+        return doSend(messages, (request) -> {
+            try {
+                SettableFuture<Map<String, MessageException>> finalFuture = SettableFuture.create();
+                ListenableFuture<Datagram> future = producerClient.sendAsync(brokerGroup.getMaster(), request, config.getSendTimeoutMillis());
+                Futures.addCallback(future, new FutureCallback<Datagram>() {
+                    @Override
+                    public void onSuccess(Datagram result) {
+                        brokerGroup.markSuccess();
+                        Map<String, MessageException> resultMap = null;
+                        try {
+                            resultMap = processResponse(brokerGroup, result);
+                            finalFuture.set(resultMap);
+                        } catch (Throwable t) {
+                            // 抛出异常
+                            finalFuture.setException(t);
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Throwable t) {
+                        if (t instanceof ClientSendException || t instanceof RemoteTimeoutException) {
+                            brokerGroup.markFailed();
+                            Metrics.counter("qmq_client_send_msg_error").inc(messages.size());
+                        } else {
+                            brokerGroup.markFailed();
+                            Metrics.counter("qmq_client_send_msg_error").inc(messages.size());
+                        }
+                        // 抛出异常
+                        finalFuture.setException(t);
+                    }
+                });
+                return finalFuture;
+            } catch (ClientSendException e) {
+                brokerGroup.markFailed();
+                Metrics.counter("qmq_client_send_msg_error").inc(messages.size());
+                throw e;
+            }
+        });
+    }
+
+    private interface MessageSender<T> {
+        T send(Datagram datagram) throws Exception;
+    }
+
+    private <T> T doSend(List<ProduceMessage> messages, MessageSender<T> sender) throws Exception {
         sendMessageCountMetrics.inc(messages.size());
         long start = System.currentTimeMillis();
         try {
-            BrokerClusterInfo cluster = brokerService.getClusterBySubject(clientType, subject);
-            BrokerGroupInfo target = brokerLoadBalance.loadBalance(cluster, lastSentBroker);
-            if (target == null) {
-                throw new ClientSendException(ClientSendException.SendErrorCode.CREATE_CHANNEL_FAIL);
-            }
-
-            lastSentBroker = target;
-            Datagram response = doSend(target, messages);
-            RemotingHeader responseHeader = response.getHeader();
-            int code = responseHeader.getCode();
-            switch (code) {
-                case CommandCode.SUCCESS:
-                    return process(target, response);
-                case CommandCode.BROKER_REJECT:
-                    handleSendReject(target);
-                    throw new BrokerRejectException("");
-                default:
-                    throw new RemoteException();
-            }
+            Datagram datagram = buildDatagram(messages);
+            TraceUtil.setTag("broker", brokerGroup.getGroupName());
+            return sender.send(datagram);
         } finally {
             sendMessageTimerMetrics.update(System.currentTimeMillis() - start, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    private Map<String, MessageException> processResponse(BrokerGroupInfo target, Datagram response) throws RemoteException, BrokerRejectException {
+        RemotingHeader responseHeader = response.getHeader();
+        int code = responseHeader.getCode();
+        switch (code) {
+            case CommandCode.SUCCESS:
+                return process(target, response);
+            case CommandCode.BROKER_REJECT:
+                handleSendReject(target);
+                throw new BrokerRejectException("");
+            default:
+                throw new RemoteException();
         }
     }
 
@@ -113,7 +181,7 @@ class NettyConnection implements Connection {
         this.brokerService.refresh(ClientType.PRODUCER, subject);
     }
 
-    private Map<String, MessageException> process(BrokerGroupInfo target, Datagram response) throws RemoteResponseUnreadableException {
+    private Map<String, MessageException> process(BrokerGroupInfo target, Datagram response) {
         ByteBuf buf = response.getBody();
         try {
             if (buf == null || !buf.isReadable()) {
@@ -159,35 +227,12 @@ class NettyConnection implements Connection {
         }
     }
 
-    private Datagram doSend(BrokerGroupInfo target, List<ProduceMessage> messages) throws ClientSendException, RemoteTimeoutException {
-        try {
-            Datagram datagram = buildDatagram(messages);
-            TraceUtil.setTag("broker", target.getGroupName());
-            Datagram result = producerClient.sendMessage(target, datagram);
-            target.markSuccess();
-            return result;
-        } catch (ClientSendException | RemoteTimeoutException e) {
-            target.markFailed();
-            Metrics.counter("qmq_client_send_msg_error").inc(messages.size());
-            throw e;
-        } catch (Exception e) {
-            target.markFailed();
-            Metrics.counter("qmq_client_send_msg_error").inc(messages.size());
-            throw new RuntimeException(e);
-        }
-    }
-
     private Datagram buildDatagram(List<ProduceMessage> messages) {
         final List<BaseMessage> baseMessages = Lists.newArrayListWithCapacity(messages.size());
         for (ProduceMessage message : messages) {
             baseMessages.add((BaseMessage) message.getBase());
         }
         return RemotingBuilder.buildRequestDatagram(CommandCode.SEND_MESSAGE, new MessagesPayloadHolder(baseMessages));
-    }
-
-    @Override
-    public String url() {
-        return "newqmq://" + subject;
     }
 
     @Override

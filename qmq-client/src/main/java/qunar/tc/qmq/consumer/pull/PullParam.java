@@ -16,6 +16,7 @@
 
 package qunar.tc.qmq.consumer.pull;
 
+import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.protocol.consumer.PullFilter;
 
@@ -27,6 +28,9 @@ import java.util.List;
 class PullParam {
     private final ConsumeParam consumeParam;
     private final BrokerGroupInfo brokerGroup;
+    private final String partitionName;
+    private final ConsumeStrategy consumeStrategy;
+    private final int allocationVersion;
     private final int pullBatchSize;
     private final long timeoutMillis;
     private final long requestTimeoutMillis;
@@ -35,10 +39,14 @@ class PullParam {
     private final long maxPullOffset;
 
     private PullParam(ConsumeParam consumeParam, BrokerGroupInfo brokerGroup,
+                      String partitionName, ConsumeStrategy consumeStrategy, int allocationVersion,
                       int pullBatchSize, long timeoutMillis, long requestTimeoutMillis,
                       long consumeOffset, long minPullOffset, long maxPullOffset) {
         this.consumeParam = consumeParam;
         this.brokerGroup = brokerGroup;
+        this.partitionName = partitionName;
+        this.consumeStrategy = consumeStrategy;
+        this.allocationVersion = allocationVersion;
         this.pullBatchSize = pullBatchSize;
         this.timeoutMillis = timeoutMillis;
         this.requestTimeoutMillis = requestTimeoutMillis;
@@ -47,16 +55,16 @@ class PullParam {
         this.maxPullOffset = maxPullOffset;
     }
 
+    public String getPartitionName() {
+        return partitionName;
+    }
+
     public String getSubject() {
         return consumeParam.getSubject();
     }
 
     public String getGroup() {
-        return consumeParam.getGroup();
-    }
-
-    public String getOriginSubject() {
-        return consumeParam.getOriginSubject();
+        return consumeParam.getConsumerGroup();
     }
 
     public BrokerGroupInfo getBrokerGroup() {
@@ -103,6 +111,18 @@ class PullParam {
         return consumeParam.getFilters();
     }
 
+    public ConsumeParam getConsumeParam() {
+        return consumeParam;
+    }
+
+    public ConsumeStrategy getConsumeStrategy() {
+        return consumeStrategy;
+    }
+
+    public int getAllocationVersion() {
+        return allocationVersion;
+    }
+
     @Override
     public String toString() {
         return "PullParam{" +
@@ -119,6 +139,9 @@ class PullParam {
     public static final class PullParamBuilder {
         private ConsumeParam consumeParam;
         private BrokerGroupInfo brokerGroup;
+        private String partitionName;
+        private ConsumeStrategy consumeStrategy;
+        private int allocationVersion;
         private int pullBatchSize;
         private long timeoutMillis;
         private long requestTimeoutMillis;
@@ -127,7 +150,12 @@ class PullParam {
         private long maxPullOffset = -1;
 
         public PullParam create() {
-            return new PullParam(consumeParam, brokerGroup, pullBatchSize, timeoutMillis, requestTimeoutMillis, consumeOffset, minPullOffset, maxPullOffset);
+            return new PullParam(consumeParam, brokerGroup, partitionName, consumeStrategy, allocationVersion, pullBatchSize, timeoutMillis, requestTimeoutMillis, consumeOffset, minPullOffset, maxPullOffset);
+        }
+
+        public PullParamBuilder setPartitionName(String partitionName) {
+            this.partitionName = partitionName;
+            return this;
         }
 
         public PullParamBuilder setConsumeParam(ConsumeParam consumeParam) {
@@ -137,6 +165,16 @@ class PullParam {
 
         public PullParamBuilder setBrokerGroup(BrokerGroupInfo brokerGroup) {
             this.brokerGroup = brokerGroup;
+            return this;
+        }
+
+        public PullParamBuilder setConsumeStrategy(ConsumeStrategy consumeStrategy) {
+            this.consumeStrategy = consumeStrategy;
+            return this;
+        }
+
+        public PullParamBuilder setAllocationVersion(int allocationVersion) {
+            this.allocationVersion = allocationVersion;
             return this;
         }
 

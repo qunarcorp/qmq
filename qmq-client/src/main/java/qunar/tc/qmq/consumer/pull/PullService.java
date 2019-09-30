@@ -21,10 +21,13 @@ import com.google.common.util.concurrent.AbstractFuture;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
+import qunar.tc.qmq.broker.ClientMetaManager;
 import qunar.tc.qmq.config.PullSubjectsConfig;
 import qunar.tc.qmq.consumer.pull.exception.PullException;
+import qunar.tc.qmq.meta.ConsumerAllocation;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.netty.client.NettyClient;
 import qunar.tc.qmq.netty.client.ResponseFuture;
@@ -32,10 +35,10 @@ import qunar.tc.qmq.protocol.CommandCode;
 import qunar.tc.qmq.protocol.Datagram;
 import qunar.tc.qmq.protocol.consumer.PullRequest;
 import qunar.tc.qmq.protocol.consumer.PullRequestPayloadHolder;
+import qunar.tc.qmq.protocol.consumer.PullRequestV10;
 import qunar.tc.qmq.util.RemotingBuilder;
 import qunar.tc.qmq.utils.Flags;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
-import qunar.tc.qmq.utils.RetrySubjectUtils;
 
 import java.util.Collections;
 import java.util.Date;
@@ -55,6 +58,11 @@ class PullService {
     private static final Logger LOGGER = LoggerFactory.getLogger(PullService.class);
 
     private final NettyClient client = NettyClient.getClient();
+    private final ClientMetaManager clientMetaManager;
+
+    public PullService(ClientMetaManager clientMetaManager) {
+        this.clientMetaManager = clientMetaManager;
+    }
 
     PullResult pull(final PullParam pullParam) throws ExecutionException, InterruptedException {
         final PullResultFuture result = new PullResultFuture(pullParam.getBrokerGroup());
@@ -63,7 +71,9 @@ class PullService {
     }
 
     private void pull(final PullParam pullParam, final PullCallback callback) {
+        String subject = pullParam.getSubject();
         final PullRequest request = buildPullRequest(pullParam);
+
         Datagram datagram = RemotingBuilder.buildRequestDatagram(CommandCode.PULL_MESSAGE, new PullRequestPayloadHolder(request));
         long networkTripTimeout = pullParam.getRequestTimeoutMillis();
         long pullProcessTimeout = pullParam.getTimeoutMillis();
@@ -72,24 +82,25 @@ class PullService {
         try {
             client.sendAsync(pullParam.getBrokerGroup().getMaster(), datagram, responseTimeout, new PullCallbackWrapper(request, callback));
         } catch (Exception e) {
-            monitorPullError(pullParam.getSubject(), pullParam.getGroup());
+            monitorPullError(subject, pullParam.getGroup());
             callback.onException(e);
         }
     }
 
     private PullRequest buildPullRequest(PullParam pullParam) {
-        PullRequest request = new PullRequest();
-        request.setSubject(pullParam.getSubject());
-        request.setGroup(pullParam.getGroup());
-        request.setRequestNum(pullParam.getPullBatchSize());
-        request.setTimeoutMillis(pullParam.getTimeoutMillis());
-        request.setOffset(pullParam.getConsumeOffset());
-        request.setPullOffsetBegin(pullParam.getMinPullOffset());
-        request.setPullOffsetLast(pullParam.getMaxPullOffset());
-        request.setConsumerId(pullParam.getConsumerId());
-        request.setBroadcast(pullParam.isBroadcast());
-        request.setFilters(pullParam.getFilters());
-        return request;
+        return new PullRequestV10(
+                pullParam.getPartitionName(),
+                pullParam.getGroup(),
+                pullParam.getPullBatchSize(),
+                pullParam.getTimeoutMillis(),
+                pullParam.getConsumeOffset(),
+                pullParam.getMinPullOffset(),
+                pullParam.getMaxPullOffset(),
+                pullParam.getConsumerId(),
+                pullParam.getConsumeStrategy(),
+                pullParam.getFilters(),
+                pullParam.getAllocationVersion()
+        );
     }
 
     public interface PullCallback {
@@ -98,7 +109,7 @@ class PullService {
         void onException(Exception ex);
     }
 
-    private static final class PullCallbackWrapper implements ResponseFuture.Callback {
+    private final class PullCallbackWrapper implements ResponseFuture.Callback {
         private final PullRequest request;
         private final PullCallback callback;
 
@@ -112,26 +123,26 @@ class PullService {
             try {
                 doProcessResponse(responseFuture);
             } catch (Exception e) {
-                monitorPullError(request.getSubject(), request.getGroup());
+                monitorPullError(request.getPartitionName(), request.getGroup());
                 callback.onException(e);
             }
         }
 
         private void doProcessResponse(ResponseFuture responseFuture) {
-            monitorPullTime(request.getSubject(), request.getGroup(), responseFuture.getRequestCostTime());
+            monitorPullTime(request.getPartitionName(), request.getGroup(), responseFuture.getRequestCostTime());
             if (!responseFuture.isSendOk()) {
-                monitorPullError(request.getSubject(), request.getGroup());
+                monitorPullError(request.getPartitionName(), request.getGroup());
                 callback.onException(new PullException("send fail. opaque=" + responseFuture.getOpaque()));
                 return;
             }
 
             final Datagram response = responseFuture.getResponse();
             if (response == null) {
-                monitorPullError(request.getSubject(), request.getGroup());
+                monitorPullError(request.getPartitionName(), request.getGroup());
                 if (responseFuture.isTimeout()) {
-                    callback.onException(new TimeoutException("pull message " + request.getSubject() + " timeout response: opaque=" + responseFuture.getOpaque() + ". " + responseFuture));
+                    callback.onException(new TimeoutException("pull message " + request.getPartitionName() + " timeout response: opaque=" + responseFuture.getOpaque() + ". " + responseFuture));
                 } else {
-                    callback.onException(new PullException("pull message " + request.getSubject() + "no receive response: opaque=" + responseFuture.getOpaque() + ". " + responseFuture));
+                    callback.onException(new PullException("pull message " + request.getPartitionName() + "no receive response: opaque=" + responseFuture.getOpaque() + ". " + responseFuture));
                 }
                 return;
             }
@@ -148,18 +159,18 @@ class PullService {
             if (responseCode == CommandCode.NO_MESSAGE) {
                 callback.onCompleted(responseCode, Collections.<BaseMessage>emptyList());
             } else if (responseCode != CommandCode.SUCCESS) {
-                monitorPullError(request.getSubject(), request.getGroup());
+                monitorPullError(request.getPartitionName(), request.getGroup());
                 callback.onCompleted(responseCode, Collections.<BaseMessage>emptyList());
             } else {
                 List<BaseMessage> messages = deserializeBaseMessage(response.getBody());
                 if (messages == null) {
                     messages = Collections.emptyList();
                 }
-                monitorPullCount(request.getSubject(), request.getGroup(), messages.size());
+                monitorPullCount(request.getPartitionName(), request.getGroup(), messages.size());
                 for (BaseMessage message : messages) {
                     if (message.getMaxRetryNum() < 0) {
-                        String realSubject = RetrySubjectUtils.getRealSubject(message.getSubject());
-                        message.setMaxRetryNum(PullSubjectsConfig.get().getMaxRetryNum(realSubject).get());
+                        String subject = message.getSubject();
+                        message.setMaxRetryNum(PullSubjectsConfig.get().getMaxRetryNum(subject).get());
                     }
                 }
                 callback.onCompleted(responseCode, messages);
@@ -188,11 +199,18 @@ class PullService {
                 message.setSubject(subject);
                 message.setAttrs(attrs);
                 message.setProperty(BaseMessage.keys.qmq_pullOffset, pullLogOffset);
+
+                resolveRealMessageSubject(message);
+
                 result.add(message);
 
                 pullLogOffset++;
             }
             return result;
+        }
+
+        private void resolveRealMessageSubject(BaseMessage message) {
+            message.setSubject(message.getStringProperty(BaseMessage.keys.qmq_subject));
         }
 
         private void readTags(ByteBuf input, BaseMessage message, byte flag) {

@@ -18,6 +18,7 @@ package qunar.tc.qmq.delay.store;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import qunar.tc.qmq.common.JsonUtils;
 import qunar.tc.qmq.store.CheckpointStore;
 import qunar.tc.qmq.store.FlushHook;
 import qunar.tc.qmq.store.PeriodicFlushService;
@@ -32,7 +33,7 @@ import java.io.IOException;
 public class IterateOffsetManager {
     private static final String ITERATE_OFFSET_FILE = "message_log_iterate_checkpoint.json";
     private static final int DEFAULT_FLUSH_INTERVAL = 10 * 1000;
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final ObjectMapper MAPPER = JsonUtils.getMapper();
 
     private final CheckpointStore<Long> offsetCheckpointStore;
     private final FlushHook flushHook;

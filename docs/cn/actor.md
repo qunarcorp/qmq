@@ -34,4 +34,4 @@ Actor和消息消费处理相关代码位于:
 
 [ActorSystem](https://github.com/qunarcorp/qmq/blob/master/qmq-server-common/src/main/java/qunar/tc/qmq/concurrent/ActorSystem.java)
 
-[PullMessageWorker](https://github.com/qunarcorp/qmq/blob/master/qmq-server/src/main/java/qunar/tc/qmq/processor/PullMessageWorker.java)
+[PullMessageWorker](https://github.com/qunarcorp/qmq/blob/master/qmq-server/src/main/java/qunar/tc/qmq/messageSender/PullMessageWorker.java)

@@ -1,0 +1,20 @@
+@startuml
+
+class SendMessageExecutor1 {
+    Enum clientType
+    String subject#1
+    String partitionName#1
+    String brokerGroup#1
+}
+
+class SendMessageExecutor2 {
+    Enum clientType
+    String subject#1
+    String partitionName#2
+    String brokerGroup#2
+}
+
+OrderedQueueSender -down-> SendMessageExecutor1
+OrderedQueueSender -down-> SendMessageExecutor2
+
+@enduml

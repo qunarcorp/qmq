@@ -19,14 +19,18 @@ package qunar.tc.qmq.consumer.pull;
 import com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.Message;
 import qunar.tc.qmq.broker.BrokerService;
+import qunar.tc.qmq.broker.impl.SwitchWaiter;
 import qunar.tc.qmq.config.PullSubjectsConfig;
+import qunar.tc.qmq.metainfoclient.ConsumerOnlineStateManager;
 import qunar.tc.qmq.metrics.Metrics;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -35,7 +39,7 @@ import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_GROUP_ARRAY;
 /**
  * @author yiqun.fan create on 17-9-20.
  */
-class DefaultPullConsumer extends AbstractPullConsumer implements Runnable {
+class DefaultPullConsumer extends AbstractPullConsumer {
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultPullConsumer.class);
 
     private static final int POLL_TIMEOUT_MILLIS = 1000;
@@ -46,14 +50,31 @@ class DefaultPullConsumer extends AbstractPullConsumer implements Runnable {
 
     private final LinkedBlockingQueue<PullMessageFuture> requestQueue = new LinkedBlockingQueue<>();
     private final LinkedBlockingQueue<Message> localBuffer = new LinkedBlockingQueue<>();
+    private final ConsumerOnlineStateManager consumerOnlineStateManager;
 
     private final int preFetchSize;
     private final int lowWaterMark;
 
-    DefaultPullConsumer(String subject, String group, boolean isBroadcast, String clientId, PullService pullService, AckService ackService, BrokerService brokerService) {
-        super(subject, group, isBroadcast, clientId, pullService, ackService, brokerService);
+    DefaultPullConsumer(
+            String subject,
+            String consumerGroup,
+            String partitionName,
+            String brokerGroup,
+            String clientId,
+            ConsumeStrategy consumeStrategy,
+            int version,
+            long consumptionExpiredTime,
+            boolean isBroadcast,
+            boolean isOrdered,
+            PullService pullService,
+            AckService ackService,
+            BrokerService brokerService,
+            SendMessageBack sendMessageBack,
+            ConsumerOnlineStateManager consumerOnlineStateManager) {
+        super(subject, consumerGroup, partitionName, brokerGroup, consumeStrategy, version, consumptionExpiredTime, isBroadcast, isOrdered, clientId, pullService, ackService, brokerService, sendMessageBack);
         this.preFetchSize = PullSubjectsConfig.get().getPullBatchSize(subject).get();
         this.lowWaterMark = Math.round(preFetchSize * 0.2F);
+        this.consumerOnlineStateManager = consumerOnlineStateManager;
     }
 
     @Override
@@ -103,29 +124,9 @@ class DefaultPullConsumer extends AbstractPullConsumer implements Runnable {
         }
     }
 
-    @Override
-    public void run() {
-        PullMessageFuture future;
-        while (!isStop) {
-            try {
-                if (!onlineSwitcher.waitOn()) continue;
-
-                future = requestQueue.poll(POLL_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
-                if (future != null) doPull(future);
-            } catch (InterruptedException e) {
-                LOGGER.error("pullConsumer poll be interrupted. subject={}, group={}", subject(), group(), e);
-            } catch (Exception e) {
-                LOGGER.error("pullConsumer poll exception. subject={}, group={}", subject(), group(), e);
-            }
-        }
-    }
-
     private void doPull(PullMessageFuture request) {
         List<Message> messages = Lists.newArrayListWithCapacity(request.getFetchSize());
         try {
-            retryPullEntry.pull(request.getFetchSize(), request.getTimeout(), messages);
-            if (messages.size() > 0 && request.isPullOnce()) return;
-
             if (request.isResetCreateTime()) {
                 request.resetCreateTime();
             }
@@ -139,8 +140,8 @@ class DefaultPullConsumer extends AbstractPullConsumer implements Runnable {
                 }
             } while (messages.size() < request.getFetchSize() && !request.isExpired());
         } catch (Exception e) {
-            LOGGER.error("DefaultPullConsumer doPull exception. subject={}, group={}", subject(), group(), e);
-            Metrics.counter("qmq_pull_defaultPull_doPull_fail", SUBJECT_GROUP_ARRAY, new String[]{subject(), group()}).inc();
+            LOGGER.error("DefaultPullConsumer doPull exception. subject={}, group={}", getSubject(), getConsumerGroup(), e);
+            Metrics.counter("qmq_pull_defaultPull_doPull_fail", SUBJECT_GROUP_ARRAY, new String[]{getSubject(), getConsumerGroup()}).inc();
         } finally {
             setResult(request, messages);
         }
@@ -188,5 +189,42 @@ class DefaultPullConsumer extends AbstractPullConsumer implements Runnable {
     @Override
     public void close() {
         isStop = true;
+    }
+
+    @Override
+    public void startPull(ExecutorService executor) {
+        executor.submit(() -> {
+
+            PullMessageFuture future;
+            SwitchWaiter switchWaiter = consumerOnlineStateManager.getSwitchWaiter(getSubject(), getConsumerGroup());
+            while (!isStop) {
+                try {
+                    if (!switchWaiter.waitOn()) continue;
+
+                    future = requestQueue.poll(POLL_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+                    if (future != null) doPull(future);
+                } catch (InterruptedException e) {
+                    LOGGER.error("pullConsumer poll be interrupted. subject={}, group={}", getSubject(), getConsumerGroup(), e);
+                } catch (Exception e) {
+                    LOGGER.error("pullConsumer poll exception. subject={}, group={}", getSubject(), getConsumerGroup(), e);
+                }
+            }
+        });
+    }
+
+    @Override
+    public void stopPull() {
+
+    }
+
+    @Override
+    public void offline() {
+        pullEntry.offline();
+    }
+
+    @Override
+    public void destroy() {
+        close();
+        super.destroy();
     }
 }

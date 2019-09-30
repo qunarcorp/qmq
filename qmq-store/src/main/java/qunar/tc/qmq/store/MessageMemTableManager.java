@@ -31,8 +31,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  * add competed memtable to pending-evicted queue.
  * At the same time, there is a background thread keep polling completed memtable from
  * pending-evicted queue and use {@link MemTableEvictedCallback} to handle it.
- * After callback complete successfully, remove it from current-active deque.
- * Keep retry if callback failed.
+ * After onSuccess complete successfully, remove it from current-active deque.
+ * Keep retry if onSuccess failed.
  * <p>
  * When get message from memtables, try get from newest memtable to oldest table in current-active deque.
  *

@@ -21,13 +21,13 @@ import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerLoadBalance;
 import qunar.tc.qmq.broker.BrokerService;
-import qunar.tc.qmq.broker.impl.PollBrokerLoadBalance;
-import qunar.tc.qmq.common.ClientType;
+import qunar.tc.qmq.broker.impl.BrokerLoadBalanceFactory;
 import qunar.tc.qmq.common.TimerUtil;
 import qunar.tc.qmq.consumer.pull.exception.SendMessageBackException;
 import qunar.tc.qmq.metrics.Metrics;
@@ -65,7 +65,7 @@ class SendMessageBackImpl implements SendMessageBack {
 
     SendMessageBackImpl(BrokerService brokerService) {
         this.brokerService = brokerService;
-        this.brokerLoadBalance = PollBrokerLoadBalance.getInstance();
+        this.brokerLoadBalance = BrokerLoadBalanceFactory.get();
     }
 
     @Override
@@ -146,7 +146,7 @@ class SendMessageBackImpl implements SendMessageBack {
     }
 
     public void sendBackAndCompleteNack(final int nextRetryCount, final BaseMessage message, final AckEntry ackEntry) {
-        final BrokerClusterInfo brokerCluster = brokerService.getClusterBySubject(ClientType.PRODUCER, message.getSubject());
+        final BrokerClusterInfo brokerCluster = brokerService.getProducerBrokerCluster(ClientType.PRODUCER, message.getSubject());
         final SendMessageBack.Callback callback = new SendMessageBack.Callback() {
             private final int retryTooMuch = brokerCluster.getGroups().size() * 2;
             private final AtomicInteger retryNumOnFail = new AtomicInteger(0);
@@ -173,21 +173,21 @@ class SendMessageBackImpl implements SendMessageBack {
                     }, SEND_BACK_DELAY_SECONDS, TimeUnit.SECONDS);
                 } else {
                     if (e instanceof SendMessageBackException) {
-                        LOGGER.error("send message back fail, and retry {} times. exception: {}", retryNumOnFail.get(), SEND_BACK_DELAY_SECONDS, e.getMessage());
+                        LOGGER.error("send message back fail, and retry {} times after {} seconds. exception: {}", retryNumOnFail.get(), SEND_BACK_DELAY_SECONDS, e.getMessage());
                     } else {
-                        LOGGER.error("send message back fail, and retry {} times", retryNumOnFail.get(), SEND_BACK_DELAY_SECONDS, e);
+                        LOGGER.error("send message back fail, and retry {} times after {} seconds", retryNumOnFail.get(), SEND_BACK_DELAY_SECONDS, e);
                     }
                     SendMessageBackImpl.this.sendBackAndCompleteNack(message, this);
                 }
             }
         };
-        final BrokerGroupInfo brokerGroup = brokerLoadBalance.loadBalance(brokerCluster, null);
+        final BrokerGroupInfo brokerGroup = brokerLoadBalance.loadBalance(brokerCluster.getGroups(), null);
         sendBack(brokerGroup, message, callback, ClientType.PRODUCER);
     }
 
     private void sendBackAndCompleteNack(final BaseMessage message, final SendMessageBack.Callback callback) {
-        final BrokerClusterInfo brokerCluster = brokerService.getClusterBySubject(ClientType.PRODUCER, message.getSubject());
-        final BrokerGroupInfo brokerGroup = brokerLoadBalance.loadBalance(brokerCluster, null);
+        final BrokerClusterInfo brokerCluster = brokerService.getProducerBrokerCluster(ClientType.PRODUCER, message.getSubject());
+        final BrokerGroupInfo brokerGroup = brokerLoadBalance.loadBalance(brokerCluster.getGroups(), null);
         sendBack(brokerGroup, message, callback, ClientType.PRODUCER);
     }
 

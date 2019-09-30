@@ -75,7 +75,7 @@ public class MessagesPayloadHolder implements PayloadHolder {
             out.writeLong(System.currentTimeMillis());
         }
         // subject
-        PayloadHolderUtils.writeString(message.getSubject(), out);
+        writeSubject(message, out);
         // message id
         PayloadHolderUtils.writeString(message.getMessageId(), out);
 
@@ -131,5 +131,9 @@ public class MessagesPayloadHolder implements PayloadHolder {
 
     private long messageCrc(ByteBuf out, int messageStart, int messageLength) {
         return Crc32.crc32(out.nioBuffer(messageStart, messageLength), 0, messageLength);
+    }
+
+    protected void writeSubject(BaseMessage message, ByteBuf out) {
+        PayloadHolderUtils.writeString(message.getPartitionName(), out);
     }
 }

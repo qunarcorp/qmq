@@ -36,11 +36,11 @@ public class ConsumeMessage extends BaseMessage {
         this.processThread = Thread.currentThread();
     }
 
-    boolean isAutoAck() {
+    public boolean isAutoAck() {
         return this.autoAck;
     }
 
-    void setProcessThread(Thread processThread) {
+    public void setProcessThread(Thread processThread) {
         this.processThread = processThread;
     }
 
@@ -56,7 +56,7 @@ public class ConsumeMessage extends BaseMessage {
         return filterContext;
     }
 
-    void filterContext(Map<String, Object> filterContext) {
+    public void filterContext(Map<String, Object> filterContext) {
         this.filterContext = filterContext;
     }
 
@@ -73,7 +73,7 @@ public class ConsumeMessage extends BaseMessage {
         return localRetries;
     }
 
-    void localRetries(int localRetries) {
+    public void localRetries(int localRetries) {
         this.localRetries = localRetries;
     }
 

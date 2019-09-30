@@ -21,6 +21,7 @@ package qunar.tc.qmq.metainfoclient;
  * 4/2/18
  */
 public interface ConsumerStateChangedListener {
+
     void online(String subject, String consumerGroup);
 
     void offline(String subject, String consumerGroup);

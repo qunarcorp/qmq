@@ -1,4 +1,5 @@
 CREATE DATABASE `qmq_produce`;
+USE `qmq_produce`;
 CREATE TABLE `qmq_msg_queue` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT '主键',
   `content` longtext NOT NULL,

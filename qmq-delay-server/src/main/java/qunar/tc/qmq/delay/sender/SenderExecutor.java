@@ -18,12 +18,12 @@ package qunar.tc.qmq.delay.sender;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerLoadBalance;
 import qunar.tc.qmq.broker.BrokerService;
-import qunar.tc.qmq.broker.impl.PollBrokerLoadBalance;
-import qunar.tc.qmq.common.ClientType;
+import qunar.tc.qmq.broker.impl.BrokerLoadBalanceFactory;
 import qunar.tc.qmq.common.Disposable;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.delay.DelayLogFacade;
@@ -50,7 +50,7 @@ class SenderExecutor implements Disposable {
     SenderExecutor(final Sender sender, DelayLogFacade store, DynamicConfig sendConfig) {
         this.sender = sender;
         this.store = store;
-        this.brokerLoadBalance = PollBrokerLoadBalance.getInstance();
+        this.brokerLoadBalance = BrokerLoadBalanceFactory.get();
         this.sendThreads = sendConfig.getInt("delay.send.threads", DEFAULT_SEND_THREAD);
     }
 
@@ -99,8 +99,8 @@ class SenderExecutor implements Disposable {
     }
 
     private BrokerGroupInfo loadGroup(String subject, BrokerService brokerService) {
-        BrokerClusterInfo cluster = brokerService.getClusterBySubject(ClientType.PRODUCER, subject);
-        return brokerLoadBalance.loadBalance(cluster, null);
+        BrokerClusterInfo cluster = brokerService.getProducerBrokerCluster(ClientType.PRODUCER, subject);
+        return brokerLoadBalance.loadBalance(cluster.getGroups(), null);
     }
 
     private Map<String, List<ScheduleIndex>> groupBySubject(List<ScheduleIndex> list) {

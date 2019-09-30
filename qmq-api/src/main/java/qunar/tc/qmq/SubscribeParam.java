@@ -26,11 +26,13 @@ public class SubscribeParam {
     private final boolean consumeMostOnce;
     private final TagType tagType;
     private boolean isBroadcast;
+    private boolean isOrdered;
     private final Set<String> tags;
 
-    private SubscribeParam(boolean consumeMostOnce, boolean isBroadcast, TagType tagType, Set<String> tags) {
+    private SubscribeParam(boolean consumeMostOnce, boolean isBroadcast, boolean isOrdered, TagType tagType, Set<String> tags) {
         this.consumeMostOnce = consumeMostOnce;
         this.isBroadcast = isBroadcast;
+        this.isOrdered = isOrdered;
         this.tags = tags;
         this.tagType = tagType;
     }
@@ -55,14 +57,19 @@ public class SubscribeParam {
         this.isBroadcast = isBroadcast;
     }
 
+    public boolean isOrdered() {
+        return isOrdered;
+    }
+
     public static final class SubscribeParamBuilder {
         private boolean consumeMostOnce = false;
         private Set<String> tags = Collections.emptySet();
         private TagType tagType = TagType.NO_TAG;
         private boolean isBroadcast = false;
+        private boolean isOrdered = false;
 
         public SubscribeParam create() {
-            return new SubscribeParam(consumeMostOnce, isBroadcast, tagType, tags);
+            return new SubscribeParam(consumeMostOnce, isBroadcast, isOrdered, tagType, tags);
         }
 
         public SubscribeParamBuilder setConsumeMostOnce(boolean consumeMostOnce) {
@@ -86,6 +93,15 @@ public class SubscribeParam {
 
         public SubscribeParamBuilder setBroadcast(boolean isBroadcast) {
             this.isBroadcast = isBroadcast;
+            return this;
+        }
+
+        public boolean isOrdered() {
+            return isOrdered;
+        }
+
+        public SubscribeParamBuilder setOrdered(boolean ordered) {
+            isOrdered = ordered;
             return this;
         }
     }

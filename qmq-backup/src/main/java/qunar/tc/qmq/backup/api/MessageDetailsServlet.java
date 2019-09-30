@@ -19,6 +19,7 @@ package qunar.tc.qmq.backup.api;
 import qunar.tc.qmq.backup.base.BackupMessage;
 import qunar.tc.qmq.backup.base.BackupQuery;
 import qunar.tc.qmq.backup.service.MessageService;
+import qunar.tc.qmq.backup.util.GsonUtils;
 
 import javax.servlet.AsyncContext;
 import javax.servlet.http.HttpServletRequest;
@@ -40,7 +41,7 @@ public class MessageDetailsServlet extends AbstractGetServlet {
         final AsyncContext context = req.startAsync();
         final CompletableFuture<BackupMessage> future = messageService.findMessage(query);
         future.exceptionally(throwable -> null).thenAccept(message -> {
-            response(resp, serializer.serialize(message));
+            response(resp, GsonUtils.serialize(message));
             context.complete();
         });
     }

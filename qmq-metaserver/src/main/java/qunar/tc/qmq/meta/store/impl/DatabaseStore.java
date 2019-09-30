@@ -22,7 +22,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
-
+import qunar.tc.qmq.common.JsonUtils;
 import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
 import qunar.tc.qmq.meta.BrokerGroup;
 import qunar.tc.qmq.meta.BrokerGroupKind;
@@ -37,7 +37,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
-import static qunar.tc.qmq.meta.store.impl.Serializer.serialize;
+import static qunar.tc.qmq.common.JsonUtils.serialize;
 
 /**
  * @author yunfeng.yang
@@ -57,7 +57,7 @@ public class DatabaseStore implements Store {
     private static final String UPDATE_BROKER_GROUP_TAG_SQL = "UPDATE broker_group SET tag = ? WHERE group_name = ?";
     private static final String INSERT_OR_UPDATE_BROKER_GROUP_SQL = "INSERT INTO broker_group(group_name,kind,master_address,broker_state,create_time) VALUES(?,?,?,?,?) ON DUPLICATE KEY UPDATE master_address=?,broker_state=?";
 
-    private static final String INSERT_CLIENT_META_INFO_SQL = "INSERT IGNORE INTO client_meta_info(subject_info,client_type,consumer_group,client_id,app_code,create_time) VALUES(?, ?, ?, ?, ?, ?)";
+    private static final String INSERT_CLIENT_META_INFO_SQL = "INSERT INTO client_meta_info(subject_info,client_type,consumer_group,client_id,app_code,create_time) VALUES(?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE online_status = ?, update_time = now()";
 
     private static final String INSERT_SUBJECT_INFO_SQL = "INSERT INTO subject_info(name,tag,create_time) VALUES(?,?,?)";
     private static final String ALL_SUBJECT_INFO_SQL = "SELECT name, tag, update_time FROM subject_info";
@@ -79,7 +79,7 @@ public class DatabaseStore implements Store {
         final String groupInfoJson = rs.getString("broker_group_json");
         final Timestamp updateTime = rs.getTimestamp("update_time");
         final int version = rs.getInt("version");
-        final List<String> groupNames = Serializer.deSerialize(groupInfoJson, new TypeReference<List<String>>() {
+        final List<String> groupNames = JsonUtils.deSerialize(groupInfoJson, new TypeReference<List<String>>() {
         });
         final SubjectRoute subjectRoute = new SubjectRoute();
         subjectRoute.setSubject(subject);
@@ -97,11 +97,7 @@ public class DatabaseStore implements Store {
         return subjectInfo;
     };
 
-    private final JdbcTemplate jdbcTemplate;
-
-    public DatabaseStore(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
-    }
+    private final JdbcTemplate jdbcTemplate = JdbcTemplateHolder.getOrCreate();
 
     @Override
     public int insertSubjectRoute(String subject, int version, List<String> groupNames) {
@@ -190,6 +186,6 @@ public class DatabaseStore implements Store {
     public void insertClientMetaInfo(MetaInfoRequest request) {
         final Timestamp now = new Timestamp(System.currentTimeMillis());
         jdbcTemplate.update(INSERT_CLIENT_META_INFO_SQL, request.getSubject(), request.getClientTypeCode(),
-                request.getConsumerGroup(), request.getClientId(), request.getAppCode(), now);
+                request.getConsumerGroup(), request.getClientId(), request.getAppCode(), now, request.getOnlineState().name());
     }
 }

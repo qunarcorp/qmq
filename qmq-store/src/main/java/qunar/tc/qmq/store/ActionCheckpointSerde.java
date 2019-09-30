@@ -33,6 +33,18 @@ import java.util.Map;
 /**
  * @author keli.wang
  * @since 2018/9/10
+ *
+ * format:
+ *
+ * format version
+ * action log offset
+ * (
+ *  subject/consumer group size
+ *  (
+ *      consumer group/is exclusive consume/pull offset/consumers size
+ *          (consumer id/pull offset/ack offset)*
+ *  )*
+ * )*
  */
 public class ActionCheckpointSerde implements Serde<ActionCheckpoint> {
     private static final int VERSION_V1 = 1;
@@ -59,7 +71,7 @@ public class ActionCheckpointSerde implements Serde<ActionCheckpoint> {
                 final Map<String, ConsumerProgress> consumers = progress.getConsumers();
                 final int consumerCount = consumers == null ? 0 : consumers.size();
 
-                data.append(SLASH_JOINER.join(group, boolean2Short(progress.isBroadcast()), progress.getPull(), consumerCount)).append(NEWLINE);
+                data.append(SLASH_JOINER.join(group, boolean2Short(progress.isExclusiveConsume()), progress.getPull(), consumerCount)).append(NEWLINE);
 
                 if (consumerCount <= 0) {
                     continue;
@@ -113,11 +125,11 @@ public class ActionCheckpointSerde implements Serde<ActionCheckpoint> {
                 final String groupLine = reader.readLine();
                 final List<String> groupParts = SLASH_SPLITTER.splitToList(groupLine);
                 final String group = groupParts.get(0);
-                final boolean broadcast = short2Boolean(Short.parseShort(groupParts.get(1)));
+                final boolean exclusiveConsume = short2Boolean(Short.parseShort(groupParts.get(1)));
                 final long maxPulledMessageSequence = Long.parseLong(groupParts.get(2));
                 final int consumerCount = Integer.parseInt(groupParts.get(3));
 
-                final ConsumerGroupProgress progress = new ConsumerGroupProgress(subject, group, broadcast, maxPulledMessageSequence, new HashMap<>(consumerCount));
+                final ConsumerGroupProgress progress = new ConsumerGroupProgress(subject, group, exclusiveConsume, maxPulledMessageSequence, new HashMap<>(consumerCount));
                 progresses.put(subject, group, progress);
 
                 final Map<String, ConsumerProgress> consumers = progress.getConsumers();

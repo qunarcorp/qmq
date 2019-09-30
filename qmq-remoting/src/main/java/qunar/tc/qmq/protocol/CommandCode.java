@@ -53,6 +53,10 @@ public interface CommandCode {
     short UID_ASSIGN = 50;
     short UID_ACQUIRE = 51;
 
+    // partitions
+    short QUERY_SUBJECT = 60;
+    short RELEASE_PULL_LOCK = 61;
+
     // heartbeat
     short HEARTBEAT = 100;
 

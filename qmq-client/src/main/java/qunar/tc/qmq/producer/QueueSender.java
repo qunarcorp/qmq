@@ -16,6 +16,7 @@
 package qunar.tc.qmq.producer;
 
 
+import qunar.tc.qmq.MessageGroup;
 import qunar.tc.qmq.ProduceMessage;
 
 /**

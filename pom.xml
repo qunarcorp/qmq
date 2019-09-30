@@ -90,8 +90,9 @@
         <slf4j.version>1.7.25</slf4j.version>
         <logback.version>1.2.3</logback.version>
         <async.hbaseclient.version>1.7.2</async.hbaseclient.version>
-        <powermock.version>1.7.4</powermock.version>
-        <powermock-api-mockito2.version>2.0.0</powermock-api-mockito2.version>
+        <powermock.version>2.0.2</powermock.version>
+        <commons-codec.version>1.12</commons-codec.version>
+        <commons-lang3.version>3.9</commons-lang3.version>
     </properties>
 
     <dependencyManagement>
@@ -167,6 +168,13 @@
                 <version>${project.version}</version>
             </dependency>
             <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-bom</artifactId>
+                <version>4.0.46.Final</version>
+                <scope>import</scope>
+                <type>pom</type>
+            </dependency>
+            <dependency>
                 <groupId>mysql</groupId>
                 <artifactId>mysql-connector-java</artifactId>
                 <version>5.1.39</version>
@@ -212,11 +220,6 @@
                 <groupId>com.google.guava</groupId>
                 <artifactId>guava</artifactId>
                 <version>18.0</version>
-            </dependency>
-            <dependency>
-                <groupId>io.netty</groupId>
-                <artifactId>netty-all</artifactId>
-                <version>4.0.46.Final</version>
             </dependency>
 
             <dependency>
@@ -293,9 +296,26 @@
                 <version>2.8.5</version>
             </dependency>
             <dependency>
+                <groupId>net.jodah</groupId>
+                <artifactId>expiringmap</artifactId>
+                <version>0.5.9</version>
+            </dependency>
+            <dependency>
                 <groupId>org.hbase</groupId>
                 <artifactId>asynchbase</artifactId>
                 <version>${async.hbaseclient.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>commons-codec</groupId>
+                <artifactId>commons-codec</artifactId>
+                <version>${commons-codec.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-lang3</artifactId>
+                <version>${commons-lang3.version}</version>
             </dependency>
 
             <dependency>
@@ -322,7 +342,7 @@
             <dependency>
                 <groupId>org.powermock</groupId>
                 <artifactId>powermock-api-mockito2</artifactId>
-                <version>${powermock-api-mockito2.version}</version>
+                <version>${powermock.version}</version>
                 <scope>test</scope>
             </dependency>
 
@@ -330,6 +350,13 @@
                 <groupId>org.powermock</groupId>
                 <artifactId>powermock-core</artifactId>
                 <version>${powermock.version}</version>
+                <scope>test</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>com.diffblue</groupId>
+                <artifactId>deeptestutils</artifactId>
+                <version>1.9.0</version>
                 <scope>test</scope>
             </dependency>
         </dependencies>

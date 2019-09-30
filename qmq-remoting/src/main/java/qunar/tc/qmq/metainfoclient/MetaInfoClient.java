@@ -16,21 +16,40 @@
 
 package qunar.tc.qmq.metainfoclient;
 
-import qunar.tc.qmq.meta.MetaServerLocator;
+import qunar.tc.qmq.protocol.MetaInfoResponse;
+import qunar.tc.qmq.protocol.QuerySubjectRequest;
+import qunar.tc.qmq.protocol.QuerySubjectResponse;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
-import qunar.tc.qmq.protocol.consumer.MetaInfoResponse;
 
 /**
  * @author yiqun.fan create on 17-9-1.
  */
-interface MetaInfoClient {
-    void sendRequest(MetaInfoRequest request);
+public interface MetaInfoClient {
+
+    void sendMetaInfoRequest(MetaInfoRequest request);
+
+    /**
+     * 使用 partitionName 查询 subject
+     *
+     * @param request request
+     * @return subject
+     */
+    void querySubject(QuerySubjectRequest request, QuerySubjectCallback callback);
 
     void registerResponseSubscriber(ResponseSubscriber receiver);
 
-    void setMetaServerLocator(MetaServerLocator locator);
+    interface ResponseCallback<T> {
 
-    interface ResponseSubscriber {
-        void onResponse(MetaInfoResponse response);
+        void onSuccess(T response);
+    }
+
+    interface ResponseSubscriber extends ResponseCallback<MetaInfoResponse> {
+
+        void onSuccess(MetaInfoResponse response);
+    }
+
+    interface QuerySubjectCallback extends ResponseCallback<QuerySubjectResponse> {
+
+        void onSuccess(QuerySubjectResponse response);
     }
 }

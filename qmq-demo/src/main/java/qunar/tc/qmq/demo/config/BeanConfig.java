@@ -39,9 +39,7 @@ public class BeanConfig {
                                     @Value("${metaServer}") String metaServer,
                                     @Autowired DataSource dataSource) {
         SpringTransactionProvider transactionProvider = new SpringTransactionProvider(dataSource);
-        final MessageProducerProvider producer = new MessageProducerProvider();
-        producer.setAppCode(appCode);
-        producer.setMetaServer(metaServer);
+        final MessageProducerProvider producer = new MessageProducerProvider(appCode, metaServer);
         producer.setTransactionProvider(transactionProvider);
         return producer;
     }

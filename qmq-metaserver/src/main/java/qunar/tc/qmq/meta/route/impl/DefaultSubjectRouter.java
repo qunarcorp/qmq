@@ -1,30 +1,10 @@
-/*
- * Copyright 2018 Qunar, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package qunar.tc.qmq.meta.route.impl;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.common.ClientType;
+import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.meta.BrokerGroup;
 import qunar.tc.qmq.meta.BrokerState;
 import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
-import qunar.tc.qmq.meta.loadbalance.LoadBalance;
-import qunar.tc.qmq.meta.loadbalance.RandomLoadBalance;
 import qunar.tc.qmq.meta.model.SubjectInfo;
 import qunar.tc.qmq.meta.model.SubjectRoute;
 import qunar.tc.qmq.meta.monitor.QMon;
@@ -33,53 +13,45 @@ import qunar.tc.qmq.meta.store.Store;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
 
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * @author keli.wang
- * @since 2017/12/4
+ * @author zhenwei.liu
+ * @since 2019-09-11
  */
 public class DefaultSubjectRouter implements SubjectRouter {
-    private static final Logger LOG = LoggerFactory.getLogger(DefaultSubjectRouter.class);
 
     private static final int MIN_SUBJECT_ROUTE_VERSION = 1;
-    private static final int DEFAULT_MIN_NUM = 2;
     private static final int MAX_UPDATE_RETRY_TIMES = 5;
+    private static final int MIN_BROKER_GROUP_NUM = 2;
 
     private final CachedMetaInfoManager cachedMetaInfoManager;
     private final Store store;
-    private final LoadBalance<String> loadBalance;
-    private int minGroupNum = DEFAULT_MIN_NUM;
+    private int minBrokerGroupNum = MIN_BROKER_GROUP_NUM;
 
-    public DefaultSubjectRouter(final DynamicConfig config, final CachedMetaInfoManager cachedMetaInfoManager, final Store store) {
+    public DefaultSubjectRouter(DynamicConfig config, CachedMetaInfoManager cachedMetaInfoManager, Store store) {
         this.cachedMetaInfoManager = cachedMetaInfoManager;
         this.store = store;
-        this.loadBalance = new RandomLoadBalance<>();
-
-        config.addListener(conf -> minGroupNum = conf.getInt("min.group.num", DEFAULT_MIN_NUM));
+        config.addListener(conf -> minBrokerGroupNum = conf.getInt("min.group.num", MIN_BROKER_GROUP_NUM));
     }
 
     @Override
-    public List<BrokerGroup> route(final String subject, final MetaInfoRequest request) {
-        try {
-            QMon.clientSubjectRouteCountInc(subject);
-            return doRoute(subject, request.getClientTypeCode());
-        } catch (Throwable e) {
-            LOG.error("find subject route error", e);
-            return Collections.emptyList();
-        }
-    }
+    public List<BrokerGroup> route(String subject, int clientType) {
 
-    private List<BrokerGroup> doRoute(String subject, int clientTypeCode) {
+        if (clientType == ClientType.DELAY_PRODUCER.getCode()) {
+            return cachedMetaInfoManager.getDelayNewGroups();
+        }
+
         SubjectInfo subjectInfo = getOrCreateSubjectInfo(subject);
 
         //query assigned brokers
-        final List<String> assignedBrokers = cachedMetaInfoManager.getGroups(subject);
+        final List<String> assignedBrokers = cachedMetaInfoManager.getConsumerGroups(subject);
 
         List<String> newAssignedBrokers;
         if (assignedBrokers == null || assignedBrokers.size() == 0) {
-            newAssignedBrokers = assignNewBrokers(subjectInfo, clientTypeCode);
+            newAssignedBrokers = assignNewBrokers(subjectInfo, clientType);
         } else {
-            newAssignedBrokers = reAssignBrokers(subjectInfo, assignedBrokers, clientTypeCode);
+            newAssignedBrokers = reAssignBrokers(subjectInfo, assignedBrokers, clientType);
         }
 
         return selectExistedBrokerGroups(newAssignedBrokers);
@@ -103,72 +75,13 @@ public class DefaultSubjectRouter implements SubjectRouter {
 
         String subject = subjectInfo.getName();
         final List<String> brokerGroupNames = findAvailableBrokerGroupNames(subjectInfo.getTag());
-        final List<String> loadBalanceSelect = loadBalance.select(subject, brokerGroupNames, minGroupNum);
+        final List<String> loadBalanceSelect = selectRandomBrokers(brokerGroupNames, minBrokerGroupNum);
         final int affected = store.insertSubjectRoute(subject, MIN_SUBJECT_ROUTE_VERSION, loadBalanceSelect);
         if (affected == 1) {
             return loadBalanceSelect;
         }
 
         return findOrUpdateInStore(subjectInfo);
-    }
-
-    private List<String> reAssignBrokers(SubjectInfo subjectInfo, List<String> assignedBrokers, int clientTypeCode) {
-        if (clientTypeCode == ClientType.CONSUMER.getCode()) {
-            return assignedBrokers;
-        }
-
-        if (assignedBrokers.size() >= minGroupNum) {
-            return assignedBrokers;
-        }
-
-        return findOrUpdateInStore(subjectInfo);
-    }
-
-    private List<String> findOrUpdateInStore(final SubjectInfo subjectInfo) {
-        String subject = subjectInfo.getName();
-
-        int tries = 0;
-
-        while (tries++ < MAX_UPDATE_RETRY_TIMES) {
-            final SubjectRoute subjectRoute = loadSubjectRoute(subject);
-            List<String> assignedBrokers = subjectRoute.getBrokerGroups();
-            if (assignedBrokers == null) assignedBrokers = new ArrayList<>();
-
-            if (assignedBrokers.size() >= minGroupNum) return assignedBrokers;
-
-            final List<String> brokerGroupNames = findAvailableBrokerGroupNames(subjectInfo.getTag());
-            final List<String> idleBrokers = removeAssignedBrokers(brokerGroupNames, assignedBrokers);
-            if (idleBrokers.isEmpty()) return assignedBrokers;
-
-            final List<String> newAssigned = loadBalance.select(subject, idleBrokers, minGroupNum - assignedBrokers.size());
-            final List<String> merge = merge(assignedBrokers, newAssigned);
-            final int affected = store.updateSubjectRoute(subject, subjectRoute.getVersion(), merge);
-            if (affected == 1) {
-                return merge;
-            }
-        }
-        throw new RuntimeException("find same room subject route error");
-    }
-
-    private List<String> removeAssignedBrokers(List<String> brokerGroupNames, List<String> assignedBrokers) {
-        List<String> result = new ArrayList<>();
-        for (String name : brokerGroupNames) {
-            if (assignedBrokers.contains(name)) continue;
-
-            result.add(name);
-        }
-        return result;
-    }
-
-    private List<String> merge(List<String> oldBrokerGroupNames, List<String> select) {
-        final Set<String> merge = new HashSet<>();
-        merge.addAll(oldBrokerGroupNames);
-        merge.addAll(select);
-        return new ArrayList<>(merge);
-    }
-
-    private SubjectRoute loadSubjectRoute(String subject) {
-        return store.selectSubjectRoute(subject);
     }
 
     private List<String> findAvailableBrokerGroupNames(String tag) {
@@ -188,6 +101,85 @@ public class DefaultSubjectRouter implements SubjectRouter {
             result.add(name);
         }
         return result;
+    }
+
+
+    private List<String> reAssignBrokers(SubjectInfo subjectInfo, List<String> assignedBrokers, int clientTypeCode) {
+        if (clientTypeCode == ClientType.CONSUMER.getCode()) {
+            return assignedBrokers;
+        }
+
+        if (assignedBrokers.size() >= minBrokerGroupNum) {
+            return assignedBrokers;
+        }
+
+        return findOrUpdateInStore(subjectInfo);
+    }
+
+    protected <T> List<T> selectRandomBrokers(final List<T> groups, int minSize) {
+        if (groups == null || groups.size() == 0) {
+            return Collections.emptyList();
+        }
+        if (groups.size() <= minSize) {
+            return groups;
+        }
+
+        final ThreadLocalRandom random = ThreadLocalRandom.current();
+        final Set<T> resultSet = new HashSet<>(minSize);
+        while (resultSet.size() <= minSize) {
+            final int randomIndex = random.nextInt(groups.size());
+            resultSet.add(groups.get(randomIndex));
+        }
+
+        return new ArrayList<>(resultSet);
+    }
+
+    private List<String> findOrUpdateInStore(final SubjectInfo subjectInfo) {
+        String subject = subjectInfo.getName();
+
+        int tries = 0;
+
+        while (tries++ < MAX_UPDATE_RETRY_TIMES) {
+            final SubjectRoute subjectRoute = loadSubjectRoute(subject);
+            List<String> assignedBrokers = subjectRoute.getBrokerGroups();
+            if (assignedBrokers == null) assignedBrokers = new ArrayList<>();
+
+            if (assignedBrokers.size() >= minBrokerGroupNum) return assignedBrokers;
+
+            final List<String> brokerGroupNames = findAvailableBrokerGroupNames(subjectInfo.getTag());
+            final List<String> idleBrokers = removeAssignedBrokers(brokerGroupNames, assignedBrokers);
+            if (idleBrokers.isEmpty()) return assignedBrokers;
+
+            final List<String> newAssigned = selectRandomBrokers(idleBrokers, minBrokerGroupNum - assignedBrokers.size());
+            final List<String> merge = merge(assignedBrokers, newAssigned);
+            final int affected = store.updateSubjectRoute(subject, subjectRoute.getVersion(), merge);
+            if (affected == 1) {
+                return merge;
+            }
+        }
+        throw new RuntimeException("find same room subject route error");
+    }
+
+    private List<String> merge(List<String> oldBrokerGroupNames, List<String> select) {
+        final Set<String> merge = new HashSet<>();
+        merge.addAll(oldBrokerGroupNames);
+        merge.addAll(select);
+        return new ArrayList<>(merge);
+    }
+
+    private List<String> removeAssignedBrokers(List<String> brokerGroupNames, List<String> assignedBrokers) {
+        List<String> result = new ArrayList<>();
+        for (String name : brokerGroupNames) {
+            if (assignedBrokers.contains(name)) continue;
+
+            result.add(name);
+        }
+        return result;
+    }
+
+
+    private SubjectRoute loadSubjectRoute(String subject) {
+        return store.selectSubjectRoute(subject);
     }
 
     private List<BrokerGroup> selectExistedBrokerGroups(final List<String> brokerGroupNames) {

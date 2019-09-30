@@ -19,7 +19,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Sets;
 import qunar.tc.qmq.Message;
-import qunar.tc.qmq.utils.RetrySubjectUtils;
+import qunar.tc.qmq.utils.RetryPartitionUtils;
 
 import java.io.Serializable;
 import java.util.*;
@@ -58,7 +58,14 @@ public class BaseMessage implements Message, Serializable {
         qmq_pullOffset,
         qmq_corruptData,
         qmq_env,
-        qmq_subEnv
+        qmq_subEnv,
+        qmq_orderKey,
+        qmq_orderStrategy,
+        qmq_logicPartition,
+        qmq_partitionName,
+        qmq_subject,
+        qmq_partitionVersion,
+        qmq_partitionBroker
     }
 
     private static final Set<String> keyNames = Sets.newHashSet();
@@ -77,7 +84,7 @@ public class BaseMessage implements Message, Serializable {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(messageId), "message id should not empty");
         Preconditions.checkArgument(!Strings.isNullOrEmpty(subject), "message subject should not empty");
         Preconditions.checkArgument(messageId.length() <= MAX_MESSAGE_ID_LEN, "messageId长度不能超过" + MAX_MESSAGE_ID_LEN + "个字符");
-        if (RetrySubjectUtils.isRealSubject(subject)) {
+        if (RetryPartitionUtils.isRealPartitionName(subject)) {
             Preconditions.checkArgument(subject.length() <= MAX_MESSAGE_ID_LEN, "subject长度不能超过" + MAX_MESSAGE_ID_LEN + "个字符");
         }
 
@@ -112,12 +119,21 @@ public class BaseMessage implements Message, Serializable {
         return subject;
     }
 
+    @Override
+    public String getPartitionName() {
+        return getStringProperty(keys.qmq_partitionName);
+    }
+
     public void setMessageId(String messageId) {
         this.messageId = messageId;
     }
 
     public void setSubject(String subject) {
         this.subject = subject;
+    }
+
+    public void setPartitionName(String partitionName) {
+        this.setProperty(keys.qmq_partitionName, partitionName);
     }
 
     @Override
@@ -292,6 +308,16 @@ public class BaseMessage implements Message, Serializable {
 
     public Object getProperty(keys key) {
         return attrs.get(key.name());
+    }
+
+    @Override
+    public void setOrderKey(String key) {
+        setProperty(keys.qmq_orderKey, key);
+    }
+
+    @Override
+    public String getOrderKey() {
+        return getStringProperty(keys.qmq_orderKey);
     }
 
     public String getStringProperty(keys key) {

@@ -16,240 +16,201 @@
 
 package qunar.tc.qmq.consumer.pull;
 
-import com.google.common.base.Strings;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.google.common.collect.Maps;
+import com.google.common.util.concurrent.SettableFuture;
+import qunar.tc.qmq.ClientType;
+import qunar.tc.qmq.PullConsumer;
+import qunar.tc.qmq.PullEntry;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.broker.impl.BrokerServiceImpl;
+import qunar.tc.qmq.broker.impl.SwitchWaiter;
 import qunar.tc.qmq.common.EnvProvider;
-import qunar.tc.qmq.common.MapKeyBuilder;
-import qunar.tc.qmq.common.StatusSource;
+import qunar.tc.qmq.common.OrderStrategyCache;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.consumer.exception.DuplicateListenerException;
 import qunar.tc.qmq.consumer.register.ConsumerRegister;
 import qunar.tc.qmq.consumer.register.RegistParam;
-import qunar.tc.qmq.metainfoclient.ConsumerStateChangedListener;
-import qunar.tc.qmq.metainfoclient.MetaInfoService;
-import qunar.tc.qmq.protocol.consumer.SubEnvIsolationPullFilter;
-import qunar.tc.qmq.utils.RetrySubjectUtils;
+import qunar.tc.qmq.metainfoclient.ConsumerOnlineStateManager;
+import qunar.tc.qmq.metainfoclient.DefaultConsumerOnlineStateManager;
+import qunar.tc.qmq.metainfoclient.DefaultMetaInfoService;
+import qunar.tc.qmq.metainfoclient.MetaInfoClient;
+import qunar.tc.qmq.producer.sender.DefaultMessageGroupResolver;
+import qunar.tc.qmq.protocol.MetaInfoResponse;
+import qunar.tc.qmq.protocol.consumer.ConsumerMetaInfoResponse;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
-import static qunar.tc.qmq.common.StatusSource.*;
+import static qunar.tc.qmq.StatusSource.CODE;
+import static qunar.tc.qmq.StatusSource.HEALTHCHECKER;
 
 /**
  * @author yiqun.fan create on 17-8-17.
  */
-public class PullRegister implements ConsumerRegister, ConsumerStateChangedListener {
-    private static final Logger LOG = LoggerFactory.getLogger(PullRegister.class);
+public class PullRegister implements ConsumerRegister {
 
-    private volatile Boolean isOnline = false;
+    private abstract class PullClientUpdater implements MetaInfoClient.ResponseSubscriber {
 
-    private final Map<String, PullEntry> pullEntryMap = new HashMap<>();
+        @Override
+        public void onSuccess(MetaInfoResponse response) {
+            if (response.getClientTypeCode() != ClientType.CONSUMER.getCode()) {
+                return;
+            }
 
-    private final Map<String, DefaultPullConsumer> pullConsumerMap = new HashMap<>();
+            updateClient((ConsumerMetaInfoResponse) response);
+        }
 
-    private final ExecutorService pullExecutor = Executors.newCachedThreadPool(new NamedThreadFactory("qmq-pull"));
+        abstract void updateClient(ConsumerMetaInfoResponse response);
+    }
 
-    private final MetaInfoService metaInfoService;
-    private final BrokerService brokerService;
-    private final PullService pullService;
-    private final AckService ackService;
+    private PullClientManager<PullEntry> pullEntryManager;
+    private PullClientManager<PullConsumer> pullConsumerManager;
+
+    /**
+     * 负责执行 partition 的拉取
+     */
+    private final ExecutorService partitionExecutor = Executors.newCachedThreadPool(new NamedThreadFactory("qmq-pull"));
+    private final Object token = new Object();
+    private final ConcurrentMap<String, Object> registerHistory = Maps.newConcurrentMap();
+
+    private ConsumerOnlineStateManager consumerOnlineStateManager;
+    private DefaultMetaInfoService metaInfoService;
 
     private String clientId;
-    private String metaServer;
     private String appCode;
-    private int destroyWaitInSeconds;
+    private String metaServer;
 
     private EnvProvider envProvider;
 
     public PullRegister() {
-        this.metaInfoService = new MetaInfoService();
-        this.brokerService = new BrokerServiceImpl(metaInfoService);
-        this.pullService = new PullService();
-        this.ackService = new AckService(this.brokerService);
     }
 
     public void init() {
-        this.metaInfoService.setMetaServer(metaServer);
+        this.metaInfoService = new DefaultMetaInfoService(metaServer);
         this.metaInfoService.setClientId(clientId);
         this.metaInfoService.init();
 
-        this.ackService.setDestroyWaitInSeconds(destroyWaitInSeconds);
-        this.ackService.setClientId(clientId);
-        this.metaInfoService.setConsumerStateChangedListener(this);
+        BrokerService brokerService = new BrokerServiceImpl(appCode, clientId, metaInfoService);
+        OrderStrategyCache.initOrderStrategy(new DefaultMessageGroupResolver(brokerService));
+        PullService pullService = new PullService(brokerService);
+        SendMessageBack sendMessageBack = new SendMessageBackImpl(brokerService);
+        AckService ackService = new DefaultAckService(brokerService, sendMessageBack);
 
-        this.brokerService.setAppCode(appCode);
+        ackService.setClientId(clientId);
+        this.consumerOnlineStateManager = DefaultConsumerOnlineStateManager.getInstance();
+
+        this.pullEntryManager = new PullEntryManager(
+                clientId,
+                consumerOnlineStateManager,
+                envProvider, pullService,
+                ackService,
+                brokerService,
+                sendMessageBack,
+                partitionExecutor
+        );
+
+        this.pullConsumerManager = new PullConsumerManager(
+                clientId,
+                consumerOnlineStateManager,
+                pullService,
+                ackService,
+                brokerService,
+                sendMessageBack,
+                partitionExecutor
+        );
     }
 
     @Override
-    public synchronized void regist(String subject, String group, RegistParam param) {
-        String env;
-        String subEnv;
-        if (envProvider != null && !Strings.isNullOrEmpty(env = envProvider.env(subject))) {
-            subEnv = envProvider.subEnv(env);
-            final String realGroup = toSubEnvIsolationGroup(group, env, subEnv);
-            LOG.info("enable subenv isolation for {}/{}, rename consumer group to {}", subject, group, realGroup);
-            group = realGroup;
-            param.addFilter(new SubEnvIsolationPullFilter(env, subEnv));
-        }
-
-        registPullEntry(subject, group, param, new AlwaysPullStrategy());
-        if (RetrySubjectUtils.isDeadRetrySubject(subject)) return;
-        registPullEntry(RetrySubjectUtils.buildRetrySubject(subject, group), group, param, new WeightPullStrategy());
-    }
-
-    private String toSubEnvIsolationGroup(final String originGroup, final String env, final String subEnv) {
-        return originGroup + "_" + env + "_" + subEnv;
-    }
-
-    private void registPullEntry(String subject, String group, RegistParam param, PullStrategy pullStrategy) {
-        final String subscribeKey = MapKeyBuilder.buildSubscribeKey(subject, group);
-        PullEntry pullEntry = pullEntryMap.get(subscribeKey);
-        if (pullEntry == PullEntry.EMPTY_PULL_ENTRY) {
-            throw new DuplicateListenerException(subscribeKey);
-        }
-        if (pullEntry == null) {
-            pullEntry = createAndSubmitPullEntry(subject, group, param, pullStrategy);
-        }
-        if (isOnline) {
-            pullEntry.online(param.getActionSrc());
-        } else {
-            pullEntry.offline(param.getActionSrc());
-        }
-    }
-
-    private PullEntry createAndSubmitPullEntry(String subject, String group, RegistParam param, PullStrategy pullStrategy) {
-        PushConsumerImpl pushConsumer = new PushConsumerImpl(subject, group, param);
-        PullEntry pullEntry = new PullEntry(pushConsumer, pullService, ackService, brokerService, pullStrategy);
-        pullEntryMap.put(MapKeyBuilder.buildSubscribeKey(subject, group), pullEntry);
-        pullExecutor.submit(pullEntry);
-        return pullEntry;
-    }
-
-    DefaultPullConsumer createDefaultPullConsumer(String subject, String group, boolean isBroadcast) {
-        DefaultPullConsumer pullConsumer = new DefaultPullConsumer(subject, group, isBroadcast, clientId, pullService, ackService, brokerService);
-        registerDefaultPullConsumer(pullConsumer);
-        return pullConsumer;
-    }
-
-    private synchronized void registerDefaultPullConsumer(DefaultPullConsumer pullConsumer) {
-        final String subscribeKey = MapKeyBuilder.buildSubscribeKey(pullConsumer.subject(), pullConsumer.group());
-        if (pullEntryMap.containsKey(subscribeKey)) {
-            throw new DuplicateListenerException(subscribeKey);
-        }
-        pullEntryMap.put(subscribeKey, PullEntry.EMPTY_PULL_ENTRY);
-        pullConsumerMap.put(subscribeKey, pullConsumer);
-        pullExecutor.submit(pullConsumer);
+    public Future<PullEntry> registerPullEntry(String subject, String consumerGroup, RegistParam param) {
+        checkDuplicatedConsumer(subject, consumerGroup);
+        SettableFuture<PullEntry> future = SettableFuture.create();
+        consumerOnlineStateManager.registerConsumer(appCode, subject, consumerGroup, clientId, param.isBroadcast(), param.isOrdered(), metaInfoService, () -> {
+            PullEntry pullClient = pullEntryManager.getPullClient(subject, consumerGroup);
+            pullClient.offline();
+        });
+        metaInfoService.registerHeartbeat(appCode, ClientType.CONSUMER.getCode(), subject, consumerGroup, param.isBroadcast(), param.isOrdered());
+        metaInfoService.registerResponseSubscriber(new PullClientUpdater() {
+            @Override
+            void updateClient(ConsumerMetaInfoResponse response) {
+                pullEntryManager.updateClient(response, param);
+                future.set(pullEntryManager.getPullClient(subject, consumerGroup));
+            }
+        });
+        return future;
     }
 
     @Override
-    public void unregist(String subject, String group) {
-        changeOnOffline(subject, group, false, CODE);
+    public Future<PullConsumer> registerPullConsumer(String subject, String consumerGroup, boolean isBroadcast, boolean isOrdered) {
+        checkDuplicatedConsumer(subject, consumerGroup);
+        SettableFuture<PullConsumer> future = SettableFuture.create();
+        consumerOnlineStateManager.registerConsumer(appCode, subject, consumerGroup, clientId, isBroadcast, isOrdered, metaInfoService, () -> {
+            PullConsumer pullClient = pullConsumerManager.getPullClient(subject, consumerGroup);
+            pullClient.offline();
+        });
+        metaInfoService.registerHeartbeat(
+                appCode,
+                ClientType.CONSUMER.getCode(),
+                subject,
+                consumerGroup,
+                isBroadcast,
+                isOrdered
+        );
+        metaInfoService.registerResponseSubscriber(new PullClientUpdater() {
+            @Override
+            void updateClient(ConsumerMetaInfoResponse response) {
+                pullConsumerManager.updateClient(response, new PullConsumerRegistryParam(isBroadcast, isOrdered, HEALTHCHECKER));
+                future.set(pullConsumerManager.getPullClient(subject, consumerGroup));
+            }
+        });
+        return future;
+    }
+
+    private void checkDuplicatedConsumer(String subject, String consumerGroup) {
+        String consumerKey = getConsumerKey(subject, consumerGroup);
+        Object old = registerHistory.putIfAbsent(consumerKey, token);
+        if (old != null) {
+            throw new DuplicateListenerException(consumerKey);
+        }
+    }
+
+    private String getConsumerKey(String subject, String consumerGroup) {
+        return subject + ":" + consumerGroup;
     }
 
     @Override
-    public void online(String subject, String group) {
-        changeOnOffline(subject, group, true, OPS);
-    }
-
-    @Override
-    public void offline(String subject, String group) {
-        changeOnOffline(subject, group, false, OPS);
-    }
-
-    private synchronized void changeOnOffline(String subject, String group, boolean isOnline, StatusSource src) {
-        final String realSubject = RetrySubjectUtils.getRealSubject(subject);
-        final String retrySubject = RetrySubjectUtils.buildRetrySubject(realSubject, group);
-
-        final String key = MapKeyBuilder.buildSubscribeKey(realSubject, group);
-        final PullEntry pullEntry = pullEntryMap.get(key);
-        changeOnOffline(pullEntry, isOnline, src);
-
-        final PullEntry retryPullEntry = pullEntryMap.get(MapKeyBuilder.buildSubscribeKey(retrySubject, group));
-        changeOnOffline(retryPullEntry, isOnline, src);
-
-        final DefaultPullConsumer pullConsumer = pullConsumerMap.get(key);
-        if (pullConsumer == null) return;
-
-        if (isOnline) {
-            pullConsumer.online(src);
-        } else {
-            pullConsumer.offline(src);
-        }
-    }
-
-    private void changeOnOffline(PullEntry pullEntry, boolean isOnline, StatusSource src) {
-        if (pullEntry == null) return;
-
-        if (isOnline) {
-            pullEntry.online(src);
-        } else {
-            pullEntry.offline(src);
-        }
-    }
-
-    @Override
-    public synchronized void setAutoOnline(boolean autoOnline) {
-        if (autoOnline) {
-            online();
-        } else {
-            offline();
-        }
-        isOnline = autoOnline;
-    }
-
-    public synchronized boolean offline() {
-        isOnline = false;
-        for (PullEntry pullEntry : pullEntryMap.values()) {
-            pullEntry.offline(HEALTHCHECKER);
-        }
-        for (DefaultPullConsumer pullConsumer : pullConsumerMap.values()) {
-            pullConsumer.offline(HEALTHCHECKER);
-        }
-        ackService.tryCleanAck();
-        return true;
-    }
-
-    public synchronized boolean online() {
-        isOnline = true;
-        for (PullEntry pullEntry : pullEntryMap.values()) {
-            pullEntry.online(HEALTHCHECKER);
-        }
-        for (DefaultPullConsumer pullConsumer : pullConsumerMap.values()) {
-            pullConsumer.online(HEALTHCHECKER);
-        }
-        return true;
+    public void unregister(String subject, String consumerGroup) {
+        SwitchWaiter switchWaiter = consumerOnlineStateManager.getSwitchWaiter(subject, consumerGroup);
+        switchWaiter.off(CODE);
     }
 
     public void setClientId(String clientId) {
         this.clientId = clientId;
     }
 
-    public void setMetaServer(String metaServer) {
-        this.metaServer = metaServer;
-    }
-
     public void setEnvProvider(EnvProvider envProvider) {
         this.envProvider = envProvider;
     }
 
-	public void setAppCode(String appCode) {
-		this.appCode = appCode;
-	}
+    public void setAppCode(String appCode) {
+        this.appCode = appCode;
+    }
 
     @Override
     public synchronized void destroy() {
-        for (PullEntry pullEntry : pullEntryMap.values()) {
+        consumerOnlineStateManager.offlineHealthCheck();
+        for (PullEntry pullEntry : pullEntryManager.getPullClients()) {
             pullEntry.destroy();
         }
-        ackService.destroy();
+
+        for (PullConsumer pullConsumer : pullConsumerManager.getPullClients()) {
+            pullConsumer.destroy();
+        }
     }
 
-    public void setDestroyWaitInSeconds(int destroyWaitInSeconds) {
-        this.destroyWaitInSeconds = destroyWaitInSeconds;
+    public PullRegister setMetaServer(String metaServer) {
+        this.metaServer = metaServer;
+        return this;
     }
 }

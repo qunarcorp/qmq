@@ -16,20 +16,25 @@
 
 package qunar.tc.qmq.broker;
 
-import qunar.tc.qmq.common.ClientType;
+import qunar.tc.qmq.ClientType;
+import qunar.tc.qmq.ConsumeStrategy;
 
 /**
  * @author yiqun.fan create on 17-8-18.
  */
-public interface BrokerService {
+public interface BrokerService extends ClientMetaManager {
 
-    BrokerClusterInfo getClusterBySubject(ClientType clientType, String subject);
+    BrokerClusterInfo getProducerBrokerCluster(ClientType clientType, String subject);
 
-    BrokerClusterInfo getClusterBySubject(ClientType clientType, String subject, String group);
+    BrokerClusterInfo getConsumerBrokerCluster(ClientType clientType, String subject);
+
+    BrokerClusterInfo getBrokerCluster(ClientType clientType, String subject, String group, boolean isBroadcast, boolean isOrdered);
 
     void refresh(ClientType clientType, String subject);
 
-    void refresh(ClientType clientType, String subject, String group);
+    void refresh(ClientType clientType, String subject, String consumerGroup);
 
-    void setAppCode(String appCode);
+    void releaseLock(String subject, String consumerGroup, String partitionName, String brokerGroupName, ConsumeStrategy consumeStrategy);
+
+    String getAppCode();
 }

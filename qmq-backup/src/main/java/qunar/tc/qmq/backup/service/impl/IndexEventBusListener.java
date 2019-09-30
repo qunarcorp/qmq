@@ -18,7 +18,7 @@ package qunar.tc.qmq.backup.service.impl;
 
 import qunar.tc.qmq.backup.service.BatchBackup;
 import qunar.tc.qmq.store.MessageQueryIndex;
-import qunar.tc.qmq.utils.RetrySubjectUtils;
+import qunar.tc.qmq.utils.RetryPartitionUtils;
 
 import java.util.function.Consumer;
 
@@ -40,7 +40,7 @@ public class IndexEventBusListener extends AbstractEventBusListener {
     @Override
     void post(MessageQueryIndex index) {
         // handle message attributes
-        if (RetrySubjectUtils.isDeadRetrySubject(index.getSubject())) {
+        if (RetryPartitionUtils.isDeadRetryPartitionName(index.getSubject())) {
             consumer.accept(index);
             return;
         }

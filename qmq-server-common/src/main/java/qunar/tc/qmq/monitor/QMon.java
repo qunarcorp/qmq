@@ -179,9 +179,9 @@ public final class QMon {
         subjectAndGroupCountInc("findLostMessageEmptyCount", subject, group);
     }
 
-    public static void pullRequestCountInc(String subject, String group) {
-        subjectAndGroupCountInc("pullRequestCount", subject, group);
-        Metrics.meter("pullRequestEx", SUBJECT_GROUP_ARRAY, new String[]{subject, group}).mark();
+    public static void pullRequestCountInc(String partitionName, String group) {
+        subjectAndGroupCountInc("pullRequestCount", partitionName, group);
+        Metrics.meter("pullRequestEx", SUBJECT_GROUP_ARRAY, new String[]{partitionName, group}).mark();
     }
 
     public static void ackRequestCountInc(String subject, String group) {
@@ -189,8 +189,8 @@ public final class QMon {
         Metrics.meter("ackRequestEx", SUBJECT_GROUP_ARRAY, new String[]{subject, group}).mark();
     }
 
-    public static void pullParamErrorCountInc(String subject, String group) {
-        subjectAndGroupCountInc("pullParamErrorCount", subject, group);
+    public static void pullParamErrorCountInc(String partitionName, String group) {
+        subjectAndGroupCountInc("pullParamErrorCount", partitionName, group);
     }
 
     public static void nonPositiveRequestNumCountInc(String subject, String group) {

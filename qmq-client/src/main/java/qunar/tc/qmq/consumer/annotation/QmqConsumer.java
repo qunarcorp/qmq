@@ -54,6 +54,11 @@ public @interface QmqConsumer {
     boolean isBroadcast() default false;
 
     /**
+     * 是否是顺序消费
+     */
+    boolean isOrdered() default false;
+
+    /**
      * 设成true时，每条消息(包括可靠)最多消费一次
      */
     boolean consumeMostOnce() default false;

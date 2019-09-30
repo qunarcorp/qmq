@@ -25,6 +25,7 @@ import qunar.tc.qmq.netty.NettyRequestProcessor;
  * 6/19/18
  */
 public abstract class AbstractRequestProcessor implements NettyRequestProcessor {
+
     @Override
     public boolean rejectRequest() {
         return BrokerConfig.getBrokerRole() == BrokerRole.SLAVE;

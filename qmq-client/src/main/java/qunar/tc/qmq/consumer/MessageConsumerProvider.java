@@ -25,6 +25,8 @@ import qunar.tc.qmq.config.NettyClientConfigManager;
 import qunar.tc.qmq.consumer.handler.MessageDistributor;
 import qunar.tc.qmq.consumer.pull.PullConsumerFactory;
 import qunar.tc.qmq.consumer.pull.PullRegister;
+import qunar.tc.qmq.metainfoclient.ConsumerOnlineStateManager;
+import qunar.tc.qmq.metainfoclient.DefaultConsumerOnlineStateManager;
 import qunar.tc.qmq.netty.client.NettyClient;
 
 import javax.annotation.PostConstruct;
@@ -44,11 +46,11 @@ public class MessageConsumerProvider implements MessageConsumer {
 
     private ClientIdProvider clientIdProvider;
     private EnvProvider envProvider;
+    private String metaServer;
 
     private final PullRegister pullRegister;
+    private final ConsumerOnlineStateManager consumerOnlineStateManager = DefaultConsumerOnlineStateManager.getInstance();
     private String appCode;
-    private String metaServer;
-    private int destroyWaitInSeconds;
 
     private int maxSubjectLen = 100;
     private int maxConsumerGroupLen = 100;
@@ -74,17 +76,20 @@ public class MessageConsumerProvider implements MessageConsumer {
             NettyClient.getClient().start(NettyClientConfigManager.get().getDefaultClientConfig());
 
             String clientId = this.clientIdProvider.get();
-            this.pullRegister.setDestroyWaitInSeconds(destroyWaitInSeconds);
-            this.pullRegister.setMetaServer(metaServer);
             this.pullRegister.setEnvProvider(envProvider);
             this.pullRegister.setClientId(clientId);
             this.pullRegister.setAppCode(appCode);
+            this.pullRegister.setMetaServer(metaServer);
             this.pullRegister.init();
 
-            distributor = new MessageDistributor(pullRegister);
-            distributor.setClientId(clientId);
+            this.distributor = new MessageDistributor(pullRegister);
+            this.distributor.setClientId(clientId);
 
-            pullRegister.setAutoOnline(autoOnline);
+            if (autoOnline) {
+                consumerOnlineStateManager.onlineHealthCheck();
+            } else {
+                consumerOnlineStateManager.offlineHealthCheck();
+            }
             inited = true;
         }
     }
@@ -97,11 +102,13 @@ public class MessageConsumerProvider implements MessageConsumer {
     @Override
     public ListenerHolder addListener(String subject, String consumerGroup, MessageListener listener, Executor executor, SubscribeParam subscribeParam) {
         init();
+
         Preconditions.checkArgument(subject != null && subject.length() <= maxSubjectLen, "subject长度不允许超过" + maxSubjectLen + "个字符");
         Preconditions.checkArgument(consumerGroup == null || consumerGroup.length() <= maxConsumerGroupLen, "consumerGroup长度不允许超过" + maxConsumerGroupLen + "个字符");
-
         Preconditions.checkArgument(!subject.contains("${"), "请确保subject已经正确解析: " + subject);
         Preconditions.checkArgument(consumerGroup == null || !consumerGroup.contains("${"), "请确保consumerGroup已经正确解析: " + consumerGroup);
+        Preconditions.checkNotNull(executor, "消费逻辑将在该线程池里执行，必须设置");
+        Preconditions.checkNotNull(subscribeParam, "订阅时候的参数需要指定，如果使用默认参数的话请使用无此参数的重载，但不允许直接传null");
 
         if (Strings.isNullOrEmpty(consumerGroup)) {
             subscribeParam.setBroadcast(true);
@@ -111,8 +118,6 @@ public class MessageConsumerProvider implements MessageConsumer {
             consumerGroup = clientIdProvider.get();
         }
 
-        Preconditions.checkNotNull(executor, "消费逻辑将在该线程池里执行");
-        Preconditions.checkNotNull(subscribeParam, "订阅时候的参数需要指定，如果使用默认参数的话请使用无此参数的重载");
 
         return distributor.addListener(subject, consumerGroup, listener, executor, subscribeParam);
     }
@@ -122,6 +127,7 @@ public class MessageConsumerProvider implements MessageConsumer {
         init();
 
         Preconditions.checkArgument(!Strings.isNullOrEmpty(subject), "subject不能是nullOrEmpty");
+
         if (!isBroadcast) {
             Preconditions.checkArgument(!Strings.isNullOrEmpty(group), "非广播订阅时，group不能是nullOrEmpty");
         } else {
@@ -160,29 +166,24 @@ public class MessageConsumerProvider implements MessageConsumer {
     }
 
     /**
-     * 用于发现meta server集群的地址
-     * 格式: http://<meta server address>/meta/address
+     * 不要删除这个方法兼容API
      *
-     * @param metaServer
+     * @param destroyWaitInSeconds
      */
-    public void setMetaServer(String metaServer) {
-        this.metaServer = metaServer;
-    }
-
     public void setDestroyWaitInSeconds(int destroyWaitInSeconds) {
-        this.destroyWaitInSeconds = destroyWaitInSeconds;
+
     }
 
-    public void setAutoOnline(boolean autoOnline){
+    public void setAutoOnline(boolean autoOnline) {
         this.autoOnline = autoOnline;
     }
 
     public void online() {
-        this.pullRegister.online();
+        this.consumerOnlineStateManager.onlineHealthCheck();
     }
 
     public void offline() {
-        this.pullRegister.offline();
+        this.consumerOnlineStateManager.offlineHealthCheck();
     }
 
     public void setMaxConsumerGroupLen(int maxConsumerGroupLen) {
@@ -191,6 +192,11 @@ public class MessageConsumerProvider implements MessageConsumer {
 
     public void setMaxSubjectLen(int maxSubjectLen) {
         this.maxSubjectLen = maxSubjectLen;
+    }
+
+    public MessageConsumerProvider setMetaServer(String metaServer) {
+        this.metaServer = metaServer;
+        return this;
     }
 
     @PreDestroy

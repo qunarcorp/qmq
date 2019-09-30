@@ -17,7 +17,6 @@
 package qunar.tc.qmq.meta.route;
 
 import qunar.tc.qmq.meta.BrokerGroup;
-import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
 
 import java.util.List;
 
@@ -26,5 +25,6 @@ import java.util.List;
  * @since 2017/12/4
  */
 public interface SubjectRouter {
-    List<BrokerGroup> route(final String realSubject, final MetaInfoRequest request);
+
+    List<BrokerGroup> route(final String realSubject, final int clientType);
 }

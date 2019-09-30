@@ -22,11 +22,10 @@ import java.util.concurrent.Future;
 /**
  * @author yiqun.fan create on 17-9-11.
  */
-public interface PullConsumer extends BaseConsumer, AutoCloseable {
+public interface PullConsumer extends AutoCloseable, PullClient {
 
-    void online();
-
-    void offline();
+    long MAX_PULL_TIMEOUT_MILLIS = Long.MAX_VALUE / 2;  // 最长拉取超时时间
+    boolean DEFAULT_RESET_CREATE_TIME = false;
 
     /**
      * 设置true时，每条消息(包括可靠)只消费一次，拉取后自动ack，无需调用ack方法。
@@ -68,7 +67,7 @@ public interface PullConsumer extends BaseConsumer, AutoCloseable {
      * 当broker上剩余的消息数小于size时，pull方法会阻塞至超时。
      * 实际调用时间可能大于timeoutMillis。
      * timeoutMillis最小值是1000，应尽量设置大的timeout。
-     *
+     * <p>
      * 如果timeoutMillis设置为小于0的时候，则表示不管队列里有没有消息都拉一下立即返回，
      * 这样实际返回的消息条数可能小于size，但是不会大于size
      * <p>
@@ -97,4 +96,6 @@ public interface PullConsumer extends BaseConsumer, AutoCloseable {
     Future<List<Message>> pullFuture(int size, long timeoutMillis);
 
     Future<List<Message>> pullFuture(int size, long timeoutMillis, boolean isResetCreateTime);
+
+    String getClientId();
 }

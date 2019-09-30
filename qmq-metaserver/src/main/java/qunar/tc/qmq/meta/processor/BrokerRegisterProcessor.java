@@ -124,7 +124,7 @@ public class BrokerRegisterProcessor implements NettyRequestProcessor {
         refreshHeartbeat(groupName);
 
         store.insertOrUpdateBrokerGroup(groupName, kind, brokerAddress, BrokerState.RW);
-        cachedMetaInfoManager.executeRefreshTask();
+        cachedMetaInfoManager.refresh();
         LOG.info("Broker online success, request:{}", brokerRequest);
         return RemotingBuilder.buildEmptyResponseDatagram(CommandCode.SUCCESS, request.getHeader());
     }
@@ -135,7 +135,7 @@ public class BrokerRegisterProcessor implements NettyRequestProcessor {
         final BrokerGroupKind kind = BrokerRole.fromCode(brokerRequest.getBrokerRole()).getKind();
 
         store.insertOrUpdateBrokerGroup(groupName, kind, brokerAddress, BrokerState.NRW);
-        cachedMetaInfoManager.executeRefreshTask();
+        cachedMetaInfoManager.refresh();
         LOG.info("broker offline success, request:{}", brokerRequest);
         return RemotingBuilder.buildEmptyResponseDatagram(CommandCode.SUCCESS, request.getHeader());
     }

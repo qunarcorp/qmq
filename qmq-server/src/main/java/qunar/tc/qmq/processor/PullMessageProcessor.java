@@ -34,6 +34,7 @@ import qunar.tc.qmq.concurrent.ActorSystem;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.consumer.SubscriberStatusChecker;
 import qunar.tc.qmq.monitor.QMon;
+import qunar.tc.qmq.order.ExclusiveMessageLockManager;
 import qunar.tc.qmq.protocol.CommandCode;
 import qunar.tc.qmq.protocol.Datagram;
 import qunar.tc.qmq.protocol.RemotingCommand;
@@ -79,14 +80,17 @@ public class PullMessageProcessor extends AbstractRequestProcessor implements Fi
     private final SubscriberStatusChecker subscriberStatusChecker;
     private final PullMessageWorker pullMessageWorker;
     private final PullRequestSerde pullRequestSerde;
+    private final ExclusiveMessageLockManager exclusiveMessageLockManager;
 
     public PullMessageProcessor(final DynamicConfig config,
                                 final ActorSystem actorSystem,
                                 final MessageStoreWrapper messageStoreWrapper,
-                                final SubscriberStatusChecker subscriberStatusChecker) {
+                                final SubscriberStatusChecker subscriberStatusChecker,
+                                final ExclusiveMessageLockManager exclusiveMessageLockManager) {
         this.config = config;
         this.actorSystem = actorSystem;
         this.subscriberStatusChecker = subscriberStatusChecker;
+        this.exclusiveMessageLockManager = exclusiveMessageLockManager;
         this.pullMessageWorker = new PullMessageWorker(messageStoreWrapper, actorSystem);
         this.pullRequestSerde = new PullRequestSerde();
         this.timer.start();
@@ -97,10 +101,22 @@ public class PullMessageProcessor extends AbstractRequestProcessor implements Fi
         final PullRequest pullRequest = pullRequestSerde.read(command.getHeader().getVersion(), command.getBody());
 
         BrokerStats.getInstance().getLastMinutePullRequestCount().add(1);
-        QMon.pullRequestCountInc(pullRequest.getSubject(), pullRequest.getGroup());
+        QMon.pullRequestCountInc(pullRequest.getPartitionName(), pullRequest.getGroup());
 
         if (!checkAndRepairPullRequest(pullRequest)) {
-            return CompletableFuture.completedFuture(crateErrorParamResult(command));
+            return CompletableFuture.completedFuture(crateEmptyResult(command));
+        }
+
+        if (pullRequest.isExclusiveConsume()) {
+            String partitionName = pullRequest.getPartitionName();
+            String group = pullRequest.getGroup();
+            String consumerId = pullRequest.getConsumerId();
+            if (!exclusiveMessageLockManager.acquireLock(partitionName, group, consumerId)) {
+                // 获取锁失败
+                CompletableFuture<Datagram> future = new CompletableFuture<>();
+                future.completeExceptionally(new UnsupportedOperationException(String.format("acquire lock failed %s %s", partitionName, group)));
+                return future;
+            }
         }
 
         subscribe(pullRequest);
@@ -110,19 +126,19 @@ public class PullMessageProcessor extends AbstractRequestProcessor implements Fi
         return null;
     }
 
-    // TODO(keli.wang): how to handle broadcast subscriber correctly?
     private void subscribe(PullRequest pullRequest) {
-        if (pullRequest.isBroadcast()) return;
+        // TODO(zhenwei.liu) 这里需要抽象一下, 用来处理 Shared/Exclusive 模式切换的 PullLog 逻辑, 而不能完全按照 PullRequest 的属性来决定
+        if (pullRequest.isExclusiveConsume()) return;
 
-        final String subject = pullRequest.getSubject();
+        final String partitionName = pullRequest.getPartitionName();
         final String group = pullRequest.getGroup();
         final String consumerId = pullRequest.getConsumerId();
-        subscriberStatusChecker.addSubscriber(subject, group, consumerId);
-        subscriberStatusChecker.heartbeat(consumerId, subject, group);
+        subscriberStatusChecker.addSubscriber(partitionName, group, consumerId);
+        subscriberStatusChecker.heartbeat(consumerId, partitionName, group);
     }
 
     private boolean checkAndRepairPullRequest(PullRequest pullRequest) {
-        final String subject = pullRequest.getSubject();
+        final String subject = pullRequest.getPartitionName();
         final String group = pullRequest.getGroup();
         final String consumerId = pullRequest.getConsumerId();
 
@@ -162,7 +178,7 @@ public class PullMessageProcessor extends AbstractRequestProcessor implements Fi
         return false;
     }
 
-    private Datagram crateErrorParamResult(RemotingCommand command) {
+    private Datagram crateEmptyResult(RemotingCommand command) {
         return RemotingBuilder.buildEmptyResponseDatagram(CommandCode.NO_MESSAGE, command.getHeader());
     }
 
@@ -261,7 +277,7 @@ public class PullMessageProcessor extends AbstractRequestProcessor implements Fi
 
         PullEntry(PullRequest pullRequest, RemotingHeader requestHeader, ChannelHandlerContext ctx) {
             this.pullRequest = pullRequest;
-            this.subject = pullRequest.getSubject();
+            this.subject = pullRequest.getPartitionName();
             this.group = pullRequest.getGroup();
             this.requestHeader = requestHeader;
             this.ctx = ctx;

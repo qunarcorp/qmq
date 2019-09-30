@@ -16,17 +16,9 @@
 
 package qunar.tc.qmq.store;
 
-import java.util.ArrayList;
-import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.base.ConsumerSequence;
-import qunar.tc.qmq.base.MessageHeader;
-import qunar.tc.qmq.base.PullMessageResult;
-import qunar.tc.qmq.base.RawMessage;
-import qunar.tc.qmq.base.ReceiveResult;
-import qunar.tc.qmq.base.ReceivingMessage;
-import qunar.tc.qmq.base.WritePutActionResult;
+import qunar.tc.qmq.base.*;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.consumer.ConsumerSequenceManager;
 import qunar.tc.qmq.monitor.QMon;
@@ -35,6 +27,9 @@ import qunar.tc.qmq.protocol.consumer.PullRequest;
 import qunar.tc.qmq.protocol.producer.MessageProducerCode;
 import qunar.tc.qmq.store.action.RangeAckAction;
 import qunar.tc.qmq.store.buffer.Buffer;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * @author yunfeng.yang
@@ -91,16 +86,16 @@ public class MessageStoreWrapper {
             return findNewExistMessages(pullRequest);
         } catch (Throwable e) {
             LOG.error("find messages error, consumer: {}", pullRequest, e);
-            QMon.findMessagesErrorCountInc(pullRequest.getSubject(), pullRequest.getGroup());
+            QMon.findMessagesErrorCountInc(pullRequest.getPartitionName(), pullRequest.getGroup());
         }
         return PullMessageResult.EMPTY;
     }
 
     private PullMessageResult findNewExistMessages(final PullRequest pullRequest) {
-        final String subject = pullRequest.getSubject();
+        final String subject = pullRequest.getPartitionName();
         final String group = pullRequest.getGroup();
         final String consumerId = pullRequest.getConsumerId();
-        final boolean isBroadcast = pullRequest.isBroadcast();
+        final boolean isExclusiveConsume = pullRequest.isExclusiveConsume();
 
         final long start = System.currentTimeMillis();
         try {
@@ -114,7 +109,7 @@ public class MessageStoreWrapper {
                     }
 
                     if (noPullFilter(pullRequest)) {
-                        final WritePutActionResult writeResult = consumerSequenceManager.putPullActions(subject, group, consumerId, isBroadcast, getMessageResult);
+                        final WritePutActionResult writeResult = consumerSequenceManager.putPullActions(subject, group, consumerId, isExclusiveConsume, getMessageResult);
                         if (writeResult.isSuccess()) {
                             consumeQueue.setNextSequence(getMessageResult.getNextBeginSequence());
                             return new PullMessageResult(writeResult.getPullLogOffset(), getMessageResult.getBuffers(), getMessageResult.getBufferTotalSize(), getMessageResult.getMessageNum());
@@ -143,10 +138,10 @@ public class MessageStoreWrapper {
     }
 
     private PullMessageResult doPullResultFilter(PullRequest pullRequest, GetMessageResult getMessageResult, ConsumeQueue consumeQueue) {
-        final String subject = pullRequest.getSubject();
+        final String subject = pullRequest.getPartitionName();
         final String group = pullRequest.getGroup();
         final String consumerId = pullRequest.getConsumerId();
-        final boolean isBroadcast = pullRequest.isBroadcast();
+        final boolean isExclusiveConsume = pullRequest.isExclusiveConsume();
 
         shiftRight(getMessageResult);
         List<GetMessageResult> filterResult = filter(pullRequest, getMessageResult);
@@ -154,7 +149,8 @@ public class MessageStoreWrapper {
         int index;
         for (index = 0; index < filterResult.size(); ++index) {
             GetMessageResult item = filterResult.get(index);
-            if (!putAction(item, consumeQueue, subject, group, consumerId, isBroadcast, retList)) break;
+            if (!putAction(item, consumeQueue, subject, group, consumerId, isExclusiveConsume, retList))
+                break;
         }
         releaseRemain(index, filterResult);
         if (retList.isEmpty()) return PullMessageResult.FILTER_EMPTY;
@@ -218,9 +214,9 @@ public class MessageStoreWrapper {
     }
 
     private boolean putAction(GetMessageResult range, ConsumeQueue consumeQueue,
-                              String subject, String group, String consumerId, boolean isBroadcast,
+                              String subject, String group, String consumerId, boolean isExclusiveConsume,
                               List<PullMessageResult> retList) {
-        final WritePutActionResult writeResult = consumerSequenceManager.putPullActions(subject, group, consumerId, isBroadcast, range);
+        final WritePutActionResult writeResult = consumerSequenceManager.putPullActions(subject, group, consumerId, isExclusiveConsume, range);
         if (writeResult.isSuccess()) {
             consumeQueue.setNextSequence(range.getNextBeginSequence());
             retList.add(new PullMessageResult(writeResult.getPullLogOffset(), range.getBuffers(), range.getBufferTotalSize(), range.getMessageNum()));
@@ -265,15 +261,15 @@ public class MessageStoreWrapper {
         try {
             return doFindUnAckMessages(pullRequest);
         } finally {
-            QMon.findLostMessagesTime(pullRequest.getSubject(), pullRequest.getGroup(), System.currentTimeMillis() - start);
+            QMon.findLostMessagesTime(pullRequest.getPartitionName(), pullRequest.getGroup(), System.currentTimeMillis() - start);
         }
     }
 
     private PullMessageResult doFindUnAckMessages(final PullRequest pullRequest) {
-        final String subject = pullRequest.getSubject();
-        final String group = pullRequest.getGroup();
+        final String subject = pullRequest.getPartitionName();
+        final String consumerGroup = pullRequest.getGroup();
         final String consumerId = pullRequest.getConsumerId();
-        final ConsumerSequence consumerSequence = consumerSequenceManager.getOrCreateConsumerSequence(subject, group, consumerId);
+        final ConsumerSequence consumerSequence = consumerSequenceManager.getOrCreateConsumerSequence(subject, consumerGroup, consumerId, pullRequest.isExclusiveConsume());
 
         final long ackSequence = consumerSequence.getAckSequence();
         long pullLogSequenceInConsumer = pullRequest.getPullOffsetLast();
@@ -309,7 +305,7 @@ public class MessageStoreWrapper {
                 final GetMessageResult getMessageResult = storage.getMessage(subject, consumerLogSequence);
                 if (getMessageResult.getStatus() != GetMessageStatus.SUCCESS || getMessageResult.getMessageNum() == 0) {
                     LOG.error("getMessageResult error, consumer:{}, consumerLogSequence:{}, pullLogSequence:{}, getMessageResult:{}", pullRequest, consumerLogSequence, seq, getMessageResult);
-                    QMon.getMessageErrorCountInc(subject, group);
+                    QMon.getMessageErrorCountInc(subject, consumerGroup);
                     if (firstValidSeq == -1) {
                         continue;
                     } else {
@@ -341,7 +337,7 @@ public class MessageStoreWrapper {
                 if (totalSize >= MAX_MEMORY_LIMIT) break;
             } catch (Exception e) {
                 LOG.error("error occurs when find messages by pull log offset, request: {}, consumerSequence: {}", pullRequest, consumerSequence, e);
-                QMon.getMessageErrorCountInc(subject, group);
+                QMon.getMessageErrorCountInc(subject, consumerGroup);
 
                 if (firstValidSeq != -1) {
                     break;
@@ -356,25 +352,26 @@ public class MessageStoreWrapper {
             }
         } else {
             LOG.error("find lost messages empty, consumer:{}, consumerSequence:{}, pullLogSequence:{}", pullRequest, consumerSequence, pullLogSequenceInServer);
-            QMon.findLostMessageEmptyCountInc(subject, group);
+            QMon.findLostMessageEmptyCountInc(subject, consumerGroup);
             firstValidSeq = pullLogSequenceInServer;
             consumerSequence.setAckSequence(pullLogSequenceInServer);
 
             // auto ack all deleted pulled message
-            LOG.info("auto ack deleted pulled message. subject: {}, group: {}, consumerId: {}, firstSeq: {}, lastSeq: {}",
-                    subject, group, consumerId, firstLostAckPullLogSeq, firstValidSeq);
-            consumerSequenceManager.putAction(new RangeAckAction(subject, group, consumerId, System.currentTimeMillis(), firstLostAckPullLogSeq, firstValidSeq));
+            LOG.info("auto ack deleted pulled message. subject: {}, consumerGroup: {}, consumerId: {}, firstSeq: {}, lastSeq: {}",
+                    subject, consumerGroup, consumerId, firstLostAckPullLogSeq, firstValidSeq);
+            String exclusiveKey = pullRequest.isExclusiveConsume() ? consumerGroup : consumerId;
+            consumerSequenceManager.putAction(new RangeAckAction(subject, consumerGroup, exclusiveKey, System.currentTimeMillis(), firstLostAckPullLogSeq, firstValidSeq));
         }
 
         final PullMessageResult result = new PullMessageResult(firstValidSeq, buffers, totalSize, buffers.size());
-        QMon.findLostMessageCountInc(subject, group, result.getMessageNum());
+        QMon.findLostMessageCountInc(subject, consumerGroup, result.getMessageNum());
         LOG.info("found lost ack messages request: {}, consumerSequence: {}, result: {}", pullRequest, consumerSequence, result);
         return result;
     }
 
     private long getConsumerLogSequence(PullRequest pullRequest, long offset) {
-        if (pullRequest.isBroadcast()) return offset;
-        return storage.getMessageSequenceByPullLog(pullRequest.getSubject(), pullRequest.getGroup(), pullRequest.getConsumerId(), offset);
+        if (pullRequest.isExclusiveConsume()) return offset;
+        return storage.getMessageSequenceByPullLog(pullRequest.getPartitionName(), pullRequest.getGroup(), pullRequest.getConsumerId(), offset);
     }
 
     public long getQueueCount(String subject, String group) {
