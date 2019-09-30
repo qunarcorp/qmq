@@ -93,6 +93,9 @@ public class PartitionAllocationTask {
     private void reallocation(String subject, String consumerGroup, List<String> groupOnlineConsumerIds, int oldVersion) {
 
         PartitionSet partitionSet = partitionService.getLatestPartitionSet(subject);
+        if (partitionSet == null) {
+            return;
+        }
 
         // 重新分配
         PartitionAllocation newAllocation = partitionService.allocatePartitions(partitionSet, groupOnlineConsumerIds, consumerGroup);
