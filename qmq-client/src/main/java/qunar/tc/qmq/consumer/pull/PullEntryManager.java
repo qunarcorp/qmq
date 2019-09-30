@@ -5,14 +5,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.*;
 import qunar.tc.qmq.broker.BrokerService;
-import qunar.tc.qmq.broker.impl.SwitchWaiter;
 import qunar.tc.qmq.common.EnvProvider;
 import qunar.tc.qmq.consumer.BaseMessageHandler;
 import qunar.tc.qmq.consumer.ConsumeMessageExecutor;
 import qunar.tc.qmq.consumer.ConsumeMessageExecutorFactory;
 import qunar.tc.qmq.consumer.register.RegistParam;
 import qunar.tc.qmq.metainfoclient.ConsumerOnlineStateManager;
-import qunar.tc.qmq.metainfoclient.MetaInfoService;
 import qunar.tc.qmq.protocol.consumer.SubEnvIsolationPullFilter;
 
 import java.util.List;
@@ -30,7 +28,6 @@ public class PullEntryManager extends AbstractPullClientManager<PullEntry> {
     private PullService pullService;
     private AckService ackService;
     private BrokerService brokerService;
-    private MetaInfoService metaInfoService;
     private SendMessageBack sendMessageBack;
     private ExecutorService partitionExecutor;
 
@@ -40,7 +37,6 @@ public class PullEntryManager extends AbstractPullClientManager<PullEntry> {
             EnvProvider envProvider, PullService pullService,
             AckService ackService,
             BrokerService brokerService,
-            MetaInfoService metaInfoService,
             SendMessageBack sendMessageBack,
             ExecutorService partitionExecutor) {
         super(clientId, consumerOnlineStateManager);
@@ -48,7 +44,6 @@ public class PullEntryManager extends AbstractPullClientManager<PullEntry> {
         this.pullService = pullService;
         this.ackService = ackService;
         this.brokerService = brokerService;
-        this.metaInfoService = metaInfoService;
         this.sendMessageBack = sendMessageBack;
         this.partitionExecutor = partitionExecutor;
     }
@@ -90,9 +85,9 @@ public class PullEntryManager extends AbstractPullClientManager<PullEntry> {
                 pullService,
                 ackService,
                 brokerService,
-                metaInfoService,
                 pullStrategy,
-                sendMessageBack);
+                sendMessageBack,
+                consumerOnlineStateManager);
         pullEntry.startPull(partitionExecutor);
         return pullEntry;
     }
@@ -100,8 +95,7 @@ public class PullEntryManager extends AbstractPullClientManager<PullEntry> {
     @Override
     CompositePullClient doCreateCompositePullClient(String subject, String consumerGroup, int version, long consumptionExpiredTime, List<? extends PullClient> clientList, Object registryParam) {
         RegistParam param = (RegistParam) registryParam;
-        SwitchWaiter switchWaiter = consumerOnlineStateManager.getSwitchWaiter(subject, consumerGroup, clientId);
-        return new CompositePullEntry(subject, consumerGroup, clientId, version, param.isBroadcast(), param.isOrdered(), consumptionExpiredTime, clientList, brokerService, metaInfoService, switchWaiter);
+        return new CompositePullEntry(subject, consumerGroup, clientId, version, param.isBroadcast(), param.isOrdered(), consumptionExpiredTime, clientList);
 
     }
 

@@ -49,9 +49,9 @@ public class SwitchWaiter {
 
     private byte onlineResult;
 
-    public SwitchWaiter(boolean healthcheckOnlineState) {
-        this.onlineResult = (byte) (healthcheckOnlineState ? 1 : 0);
-        this.onlineResult |= OPS.getCode();
+    public SwitchWaiter(boolean healthCheckInitVal) {
+        this.onlineResult = (byte) (healthCheckInitVal ? 1 : 0);
+//        this.onlineResult |= OPS.getCode(); // TODO(zhenwei.liu) 这里不应该默认下线吗
         this.onlineResult |= CODE.getCode();
     }
 

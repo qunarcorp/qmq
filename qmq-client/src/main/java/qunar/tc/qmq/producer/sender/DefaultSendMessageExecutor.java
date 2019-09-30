@@ -18,7 +18,6 @@ import java.util.concurrent.TimeUnit;
  * 1. 每次处理一批 Item, 并将状态改为 Running
  * 2. 当 Item 处理完, 将状态改为 Idle, 并触发下一次 Item 处理
  * 3. 使用 Callback 判断处理成功的 Item, 并将处理成功的 Item 移除
- * 4. Callback 过程中遇到任务执行失败, 则立即退出, 以保证有 Item 处理失败后不会继续执行
  * </pre>
  *
  * @author zhenwei.liu
@@ -69,6 +68,8 @@ public class DefaultSendMessageExecutor extends StatefulSendMessageExecutor impl
             if (compareAndSetState(Status.IDLE, Status.RUNNING)) {
                 List<ProduceMessage> messages = Lists.newArrayListWithCapacity(batchSize);
                 int count = 0;
+                // LinkBlockingQueue 的 iterator 具备弱一致性, 即便 take() 发生也可以保证拿到旧的节点
+                // 且不会发生 ConcurrentModificationException
                 for (ProduceMessage message : queue) {
                     if (count < batchSize) {
                         messages.add(message);

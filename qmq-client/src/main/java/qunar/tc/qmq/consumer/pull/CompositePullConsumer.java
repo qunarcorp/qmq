@@ -5,24 +5,24 @@ import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.AsyncFunction;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import qunar.tc.qmq.*;
-import qunar.tc.qmq.broker.BrokerService;
+import org.springframework.util.CollectionUtils;
+import qunar.tc.qmq.CompositePullClient;
+import qunar.tc.qmq.Message;
+import qunar.tc.qmq.PullConsumer;
+import qunar.tc.qmq.StatusSource;
 import qunar.tc.qmq.broker.impl.SwitchWaiter;
-import qunar.tc.qmq.metainfoclient.MetaInfoService;
+import qunar.tc.qmq.metainfoclient.ConsumerOnlineStateManager;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author zhenwei.liu
  * @since 2019-09-02
  */
-public class CompositePullConsumer<T extends PullConsumer> extends AbstractPullClient implements PullConsumer, CompositePullClient<T> {
-
-    private List<T> consumers;
+public class CompositePullConsumer<T extends PullConsumer> extends AbstractCompositePullClient<T> implements PullConsumer, CompositePullClient<T> {
 
     public CompositePullConsumer(
             String subject,
@@ -33,40 +33,31 @@ public class CompositePullConsumer<T extends PullConsumer> extends AbstractPullC
             boolean isOrdered,
             long consumptionExpiredTime,
             List<T> consumers,
-            BrokerService brokerService,
-            MetaInfoService metaInfoService,
-            SwitchWaiter onlineSwitcher) {
-        super(subject, consumerGroup, "", "", consumerId, null, version, isBroadcast, isOrdered, consumptionExpiredTime, brokerService, metaInfoService, onlineSwitcher);
-        onlineSwitcher.on(StatusSource.HEALTHCHECKER);
-        this.consumers = consumers;
-    }
-
-    @Override
-    public void online() {
-        getOnlineSwitcher().on(StatusSource.CODE);
-        consumers.forEach(PullConsumer::online);
-    }
-
-    @Override
-    public void offline() {
-        getOnlineSwitcher().off(StatusSource.CODE);
-        consumers.forEach(PullConsumer::offline);
+            ConsumerOnlineStateManager consumerOnlineStateManager) {
+        super(subject, consumerGroup, "", "", consumerId, null, version, isBroadcast, isOrdered, consumptionExpiredTime, consumers);
+        SwitchWaiter switchWaiter = consumerOnlineStateManager.getSwitchWaiter(subject, consumerGroup);
+        switchWaiter.on(StatusSource.HEALTHCHECKER);
     }
 
     @Override
     public void setConsumeMostOnce(boolean consumeMostOnce) {
-        consumers.forEach(pc -> pc.setConsumeMostOnce(consumeMostOnce));
+        getComponents().forEach(pc -> pc.setConsumeMostOnce(consumeMostOnce));
     }
 
     @Override
     public boolean isConsumeMostOnce() {
-        return consumers.get(0).isConsumeMostOnce();
+        List<T> components = getComponents();
+        if (CollectionUtils.isEmpty(components)) {
+            return false;
+        } else {
+            return components.get(0).isConsumeMostOnce();
+        }
     }
 
     @Override
     public List<Message> pull(int size) {
         List<Message> result = Lists.newArrayListWithCapacity(size);
-        for (PullConsumer consumer : consumers) {
+        for (PullConsumer consumer : getComponents()) {
             result.addAll(consumer.pull(size));
             if (result.size() >= size) {
                 break;
@@ -78,7 +69,7 @@ public class CompositePullConsumer<T extends PullConsumer> extends AbstractPullC
     @Override
     public List<Message> pull(int size, long timeoutMillis) {
         List<Message> result = Lists.newArrayListWithCapacity(size);
-        for (PullConsumer consumer : consumers) {
+        for (PullConsumer consumer : getComponents()) {
             long start = System.currentTimeMillis();
             result.addAll(consumer.pull(size, timeoutMillis));
             if (result.size() >= size) {
@@ -105,9 +96,14 @@ public class CompositePullConsumer<T extends PullConsumer> extends AbstractPullC
 
     @Override
     public ListenableFuture<List<Message>> pullFuture(int size, long timeoutMillis, boolean isResetCreateTime) {
-        PullConsumer consumer = consumers.get(0);
-        ListenableFuture<List<Message>> future = (ListenableFuture<List<Message>>) consumer.pullFuture(size, timeoutMillis, isResetCreateTime);
-        return chainNextPullFuture(size, timeoutMillis, isResetCreateTime, System.currentTimeMillis(), future, new AtomicInteger(0));
+        List<T> components = getComponents();
+        if (CollectionUtils.isEmpty(components)) {
+            return Futures.immediateFuture(Collections.emptyList());
+        } else {
+            PullConsumer consumer = components.get(0);
+            ListenableFuture<List<Message>> future = (ListenableFuture<List<Message>>) consumer.pullFuture(size, timeoutMillis, isResetCreateTime);
+            return chainNextPullFuture(size, timeoutMillis, isResetCreateTime, System.currentTimeMillis(), future, new AtomicInteger(0));
+        }
     }
 
     private ListenableFuture<List<Message>> chainNextPullFuture(int size, long timeoutMillis, boolean isResetCreateTime, long startMills, ListenableFuture<List<Message>> future, AtomicInteger currentConsumerIdx) {
@@ -117,11 +113,11 @@ public class CompositePullConsumer<T extends PullConsumer> extends AbstractPullC
                 int messageLeft = size - messages.size();
                 long elapsed = System.currentTimeMillis() - startMills;
                 long timeoutLeft = timeoutMillis - elapsed;
-                if (currentConsumerIdx.get() == (consumers.size() - 1) || messageLeft <= 0 || timeoutLeft <= 0) {
+                if (currentConsumerIdx.get() == (getComponents().size() - 1) || messageLeft <= 0 || timeoutLeft <= 0) {
                     // 最后一个 Consumer / 消息条数够了 / 超时, 则直接返回
                     return future;
                 }
-                PullConsumer nextConsumer = consumers.get(currentConsumerIdx.incrementAndGet());
+                PullConsumer nextConsumer = getComponents().get(currentConsumerIdx.incrementAndGet());
                 // 还不够
                 ListenableFuture<List<Message>> nextFuture = (ListenableFuture<List<Message>>) nextConsumer.pullFuture(messageLeft, timeoutLeft, isResetCreateTime);
                 nextFuture = Futures.transform(nextFuture, (Function<List<Message>, List<Message>>) nextResult -> {
@@ -141,60 +137,13 @@ public class CompositePullConsumer<T extends PullConsumer> extends AbstractPullC
 
     @Override
     public String getClientId() {
-        return consumers.get(0).getClientId();
+        return getConsumerId();
     }
 
     @Override
     public void close() throws Exception {
-        for (PullConsumer consumer : consumers) {
+        for (PullConsumer consumer : getComponents()) {
             consumer.close();
         }
-    }
-
-    @Override
-    public String subject() {
-        return consumers.get(0).subject();
-    }
-
-    @Override
-    public String group() {
-        return consumers.get(0).group();
-    }
-
-    @Override
-    public void startPull(ExecutorService executor) {
-        consumers.forEach(pc -> pc.startPull(executor));
-    }
-
-    @Override
-    public void stopPull() {
-        consumers.forEach(PullClient::stopPull);
-    }
-
-    @Override
-    public void destroy() {
-        consumers.forEach(PullConsumer::destroy);
-    }
-
-    @Override
-    public void online(StatusSource statusSource) {
-        getOnlineSwitcher().on(statusSource);
-        consumers.forEach(pc -> pc.online(statusSource));
-    }
-
-    @Override
-    public void offline(StatusSource statusSource) {
-        getOnlineSwitcher().off(statusSource);
-        consumers.forEach(pc -> pc.offline(statusSource));
-    }
-
-    @Override
-    public List<T> getComponents() {
-        return consumers;
-    }
-
-    @Override
-    public void setComponents(List<T> components) {
-        this.consumers = components;
     }
 }

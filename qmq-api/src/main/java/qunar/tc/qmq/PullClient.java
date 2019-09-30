@@ -37,11 +37,9 @@ public interface PullClient {
 
     void destroy();
 
-    void online(StatusSource statusSource);
-
-    void offline(StatusSource statusSource);
-
     String getConsumerId();
+
+    void offline();
 
     boolean isBroadcast();
 

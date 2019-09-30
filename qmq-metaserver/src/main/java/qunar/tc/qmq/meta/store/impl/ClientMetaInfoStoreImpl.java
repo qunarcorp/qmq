@@ -34,8 +34,8 @@ import java.util.List;
  */
 public class ClientMetaInfoStoreImpl implements ClientMetaInfoStore {
 
-    private static final String QUERY_CONSUMER_SQL = "SELECT subject_info,consume_strategy,client_type,consumer_group,client_id,app_code,room FROM client_meta_info WHERE subject_info=? AND client_type=?";
-    private static final String QUERY_CLIENT_AFTER_DATE_SQL = "SELECT subject_info, consume_strategy, client_type,consumer_group,client_id,app_code,room from client_meta_info where client_type=? and online_status = ? and update_time > ?";
+    private static final String QUERY_CONSUMER_SQL = "SELECT subject_info, consume_strategy, online_status, client_type, consumer_group, client_id, app_code, room FROM client_meta_info WHERE subject_info=? AND client_type=?";
+    private static final String QUERY_CLIENT_AFTER_DATE_SQL = "SELECT subject_info, consume_strategy, online_status, client_type, consumer_group, client_id, app_code, room from client_meta_info where client_type=? and online_status = ? and update_time > ?";
     private static final String UPDATE_CLIENT_STATE_SQL = "update client_meta_info set update_time = now(), online_status = ?, consume_strategy = ? where subject_info = ? and client_type = ? and consumer_group = ? and client_id = ?";
 
     private final JdbcTemplate jdbcTemplate = JdbcTemplateHolder.getOrCreate();

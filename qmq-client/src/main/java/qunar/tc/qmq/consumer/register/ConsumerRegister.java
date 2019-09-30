@@ -34,7 +34,5 @@ public interface ConsumerRegister {
 
     void unregister(String subject, String consumerGroup);
 
-    void setAutoOnline(boolean autoOnline);
-
     void destroy();
 }

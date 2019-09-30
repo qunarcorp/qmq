@@ -20,6 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.ConsumeStrategy;
+import qunar.tc.qmq.PullEntry;
 import qunar.tc.qmq.StatusSource;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
@@ -27,7 +28,7 @@ import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.broker.impl.SwitchWaiter;
 import qunar.tc.qmq.config.PullSubjectsConfig;
 import qunar.tc.qmq.consumer.ConsumeMessageExecutor;
-import qunar.tc.qmq.metainfoclient.MetaInfoService;
+import qunar.tc.qmq.metainfoclient.ConsumerOnlineStateManager;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.QmqCounter;
 
@@ -46,25 +47,12 @@ import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_GROUP_ARRAY;
 class DefaultPullEntry extends AbstractPullEntry {
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultPullEntry.class);
 
-    static final DefaultPullEntry EMPTY_PULL_ENTRY = new DefaultPullEntry() {
-        @Override
-        public void online(StatusSource src) {
-        }
-
-        @Override
-        public void offline(StatusSource src) {
-        }
-
-        @Override
-        public void startPull(ExecutorService executor) {
-        }
-    };
-
     private static final long PAUSETIME_OF_CLEAN_LAST_MESSAGE = 200;
     private static final long PAUSETIME_OF_NOAVAILABLE_BROKER = 100;
     private static final long PAUSETIME_OF_NOMESSAGE = 500;
 
     private final ConsumeMessageExecutor consumeMessageExecutor;
+    private final ConsumerOnlineStateManager consumerOnlineStateManager;
     private final AtomicReference<Integer> pullBatchSize;
     private final AtomicReference<Integer> pullTimeout;
     private final AtomicReference<Integer> ackNosendLimit;
@@ -77,16 +65,6 @@ class DefaultPullEntry extends AbstractPullEntry {
     private final PullStrategy pullStrategy;
     private final ConsumeParam consumeParam;
 
-    private DefaultPullEntry() {
-        super("", "", "", "", "", null, -1, false, false, -1, null, null, null, null, null, null);
-        consumeMessageExecutor = null;
-        pullBatchSize = pullTimeout = ackNosendLimit = null;
-        pullRunCounter = null;
-        pauseCounter = null;
-        pullStrategy = null;
-        consumeParam = null;
-    }
-
     DefaultPullEntry(ConsumeMessageExecutor consumeMessageExecutor,
                      ConsumeParam consumeParam,
                      String partitionName,
@@ -98,11 +76,12 @@ class DefaultPullEntry extends AbstractPullEntry {
                      PullService pullService,
                      AckService ackService,
                      BrokerService brokerService,
-                     MetaInfoService metaInfoService,
                      PullStrategy pullStrategy,
-                     SendMessageBack sendMessageBack) {
-        super(consumeParam.getSubject(), consumeParam.getConsumerGroup(), partitionName, brokerGroup, consumerId, consumeStrategy, version, consumeParam.isBroadcast(), consumeParam.isOrdered(), consumptionExpiredTime, pullService, ackService, brokerService, metaInfoService, sendMessageBack, null);
+                     SendMessageBack sendMessageBack,
+                     ConsumerOnlineStateManager consumerOnlineStateManager) {
+        super(consumeParam.getSubject(), consumeParam.getConsumerGroup(), partitionName, brokerGroup, consumerId, consumeStrategy, version, consumeParam.isBroadcast(), consumeParam.isOrdered(), consumptionExpiredTime, pullService, ackService, brokerService, sendMessageBack);
         this.consumeParam = consumeParam;
+        this.consumerOnlineStateManager = consumerOnlineStateManager;
         String subject = consumeParam.getSubject();
         String consumerGroup = consumeParam.getConsumerGroup();
 
@@ -122,17 +101,6 @@ class DefaultPullEntry extends AbstractPullEntry {
     public void setConsumptionExpiredTime(long timestamp) {
         super.setConsumptionExpiredTime(timestamp);
         this.consumeMessageExecutor.setConsumptionExpiredTime(timestamp);
-    }
-
-    public void online(StatusSource src) {
-        LOGGER.info("Pull entry online. subject={}, consumerGroup={}, partitionName={}, status={}",
-                consumeParam.getSubject(), consumeParam.getConsumerGroup(), getPartitionName(), src.name());
-    }
-
-    public void offline(StatusSource src) {
-        super.offline(src);
-        LOGGER.info("Pull entry offline. subject={}, consumerGroup={}, partitionName={}, status={}",
-                consumeParam.getSubject(), consumeParam.getConsumerGroup(), getPartitionName(), src.name());
     }
 
     @Override
@@ -157,7 +125,8 @@ class DefaultPullEntry extends AbstractPullEntry {
                         continue;
                     }
 
-                    if (isRunning.get() && getOnlineSwitcher().waitOn()) {
+                    SwitchWaiter switchWaiter = consumerOnlineStateManager.getSwitchWaiter(getSubject(), getConsumerGroup());
+                    if (isRunning.get() && switchWaiter.waitOn()) {
                         // 到这里一定已经收到 metaInfoResponse 且已经上线
                         // 因为 onlineSwitcher 已经 online
                         doPull(doPullParam);

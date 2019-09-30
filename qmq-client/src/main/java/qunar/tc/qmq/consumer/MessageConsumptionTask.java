@@ -56,7 +56,7 @@ public class MessageConsumptionTask {
         OrderStrategy orderStrategy = OrderStrategyCache.getStrategy(subject);
         try {
             processMessage();
-            if (message.isNotAcked()) {
+            if (!message.isAutoAck() && message.isNotAcked()) {
                 orderStrategy.onMessageNotAcked(message, messageExecutor);
             } else {
                 orderStrategy.onConsumeSuccess(message, messageExecutor);

@@ -26,14 +26,16 @@ public class OrderedQueueSender implements QueueSender {
     private final LinkedBlockingDeque<ProduceMessage> queue;
     private final SendMessageExecutorManager sendMessageExecutorManager;
     private final MessageSender messageSender;
+    private final int maxQueueSize;
 
     public OrderedQueueSender(SendMessageExecutorManager sendMessageExecutorManager, MessageSender messageSender, ExecutorService executor) {
         this.sendMessageExecutorManager = sendMessageExecutorManager;
         this.messageSender = messageSender;
 
         ConfigCenter configs = ConfigCenter.getInstance();
-        int maxQueueSize = configs.getMaxQueueSize();
-        this.queue = new LinkedBlockingDeque<>(maxQueueSize);
+        this.maxQueueSize = configs.getMaxQueueSize();
+        // 由于需要使用 Deque PutFirst 的特性, 不能限制 queue 的最大长度
+        this.queue = new LinkedBlockingDeque<>();
         // TODO(zhenwei.liu) executor 并发度设计
         this.executor = executor;
         executor.submit(this::dispatchMessages);
@@ -42,11 +44,17 @@ public class OrderedQueueSender implements QueueSender {
     // TODO(zhenwei.liu) 落库成功, 入队失败的消息会乱序, 考虑数据库扫描任务对 Ordered Message 的处理?
     @Override
     public boolean offer(ProduceMessage pm) {
+        if (queue.size() > maxQueueSize) {
+            return false;
+        }
         return queue.offer(pm);
     }
 
     @Override
     public boolean offer(ProduceMessage pm, long millisecondWait) {
+        if (queue.size() > maxQueueSize) {
+            return false;
+        }
         try {
             return queue.offer(pm, millisecondWait, TimeUnit.MILLISECONDS);
         } catch (Throwable t) {
@@ -57,14 +65,23 @@ public class OrderedQueueSender implements QueueSender {
 
     private void dispatchMessages() {
         while (true) {
+            ProduceMessage message;
             try {
-                ProduceMessage message = queue.peek();
-                boolean offered = sendMessageExecutorManager.getExecutor(message).addMessage(message);
-                if (offered) {
-                    queue.poll();
-                }
+                message = queue.take();
+            } catch (InterruptedException e) {
+                logger.error("消息派发失败", e);
+                continue;
+            }
+            try {
+                sendMessageExecutorManager.getExecutor(message).addMessage(message);
             } catch (Throwable t) {
-                logger.error("消息派发失败", t);
+                try {
+                    logger.error("消息派发失败", t);
+                    queue.putFirst(message);
+                } catch (InterruptedException e) {
+                    // queue 没有长度限制, 基本是不会发生的
+                    logger.error("消息重新入队失败", e);
+                }
             }
         }
     }

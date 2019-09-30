@@ -28,13 +28,14 @@ public class ConsumerTest {
         provider.setAppCode("consumer_test");
         provider.init();
 
-        final ListenerHolder listener = provider.addListener("new.qmq.test", "consumer_group1", new MessageListener() {
+        final ListenerHolder listener = provider.addListener("ordered.qmq.test.1", "consumer_group1", new MessageListener() {
             @Override
             public void onMessage(Message msg) {
                 logger.info("msgId:{}", msg.getMessageId());
             }
         }, executor);
 
+        provider.online();
         System.in.read();
         listener.stopListen();
         provider.destroy();

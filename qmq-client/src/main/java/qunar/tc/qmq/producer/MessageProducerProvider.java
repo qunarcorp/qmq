@@ -99,7 +99,7 @@ public class MessageProducerProvider implements MessageProducer {
             metaInfoService.setClientId(clientId);
             metaInfoService.init();
 
-            ExecutorService sendMessageExecutor = Executors.newCachedThreadPool(new NamedThreadFactory("qmq-sender-%s", true));
+            ExecutorService sendMessageExecutor = Executors.newCachedThreadPool(new NamedThreadFactory("qmq-sender", true));
 
             BrokerService brokerService = new BrokerServiceImpl(appCode, clientId, metaInfoService);
             NettyClient client = NettyClient.getClient();

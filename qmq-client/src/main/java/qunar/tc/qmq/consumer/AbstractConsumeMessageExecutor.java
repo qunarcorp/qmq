@@ -87,6 +87,7 @@ public abstract class AbstractConsumeMessageExecutor implements ConsumeMessageEx
             try {
                 processMessage(message);
             } catch (Throwable t) {
+                requeueFirst(message);
                 logger.error("消息处理异常 subject {} consumerGroup {} messageId {}", subject, consumerGroup, message.getMessageId(), t);
             }
 

@@ -22,15 +22,9 @@ import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.Message;
 import qunar.tc.qmq.PullConsumer;
-import qunar.tc.qmq.StatusSource;
 import qunar.tc.qmq.broker.BrokerService;
-import qunar.tc.qmq.broker.impl.SwitchWaiter;
-import qunar.tc.qmq.metainfoclient.MetaInfoService;
-import qunar.tc.qmq.utils.RetryPartitionUtils;
 
 import java.util.List;
-
-import static qunar.tc.qmq.StatusSource.CODE;
 
 /**
  * @author yiqun.fan create on 17-10-19.
@@ -57,9 +51,8 @@ abstract class AbstractPullConsumer extends AbstractPullClient implements PullCo
             PullService pullService,
             AckService ackService,
             BrokerService brokerService,
-            MetaInfoService metaInfoService,
             SendMessageBack sendMessageBack) {
-        super(subject, consumerGroup, partitionName, brokerGroup, consumerId, consumeStrategy, version, isBroadcast, isOrdered, consumptionExpiredTime, brokerService, metaInfoService, null);
+        super(subject, consumerGroup, partitionName, brokerGroup, consumerId, consumeStrategy, version, isBroadcast, isOrdered, consumptionExpiredTime);
         this.consumeParam = new ConsumeParam(subject, consumerGroup, isBroadcast, isOrdered, false, consumerId);
         this.pullEntry = new PlainPullEntry(
                 consumeParam,
@@ -72,41 +65,12 @@ abstract class AbstractPullConsumer extends AbstractPullClient implements PullCo
                 pullService,
                 ackService,
                 brokerService,
-                metaInfoService,
                 new AlwaysPullStrategy(),
                 sendMessageBack);
     }
 
     private static long checkAndGetTimeout(long timeout) {
         return timeout < 0 ? timeout : Math.min(Math.max(timeout, MIN_PULL_TIMEOUT_MILLIS), MAX_PULL_TIMEOUT_MILLIS);
-    }
-
-    @Override
-    public void online() {
-        online(CODE);
-    }
-
-    @Override
-    public void offline() {
-        offline(CODE);
-    }
-
-    public void online(StatusSource src) {
-        LOGGER.info("defaultpullconsumer online. subject={}, group={} partition={}", subject(), group(), getPartitionName());
-    }
-
-    public void offline(StatusSource src) {
-        LOGGER.info("defaultpullconsumer offline. subject={}, group={} partition={}", subject(), group(), getPartitionName());
-    }
-
-    @Override
-    public String subject() {
-        return consumeParam.getSubject();
-    }
-
-    @Override
-    public String group() {
-        return consumeParam.getConsumerGroup();
     }
 
     @Override

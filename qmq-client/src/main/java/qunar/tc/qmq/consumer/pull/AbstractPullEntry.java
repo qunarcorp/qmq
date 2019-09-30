@@ -78,10 +78,8 @@ abstract class AbstractPullEntry extends AbstractPullClient implements PullEntry
             PullService pullService,
             AckService ackService,
             BrokerService brokerService,
-            MetaInfoService metaInfoService,
-            SendMessageBack sendMessageBack,
-            SwitchWaiter onlineSwitcher) {
-        super(subject, consumerGroup, partitionName, brokerGroup, consumerId, consumeStrategy, version, isBroadcast, isOrdered, consumptionExpiredTime, brokerService, metaInfoService, onlineSwitcher);
+            SendMessageBack sendMessageBack) {
+        super(subject, consumerGroup, partitionName, brokerGroup, consumerId, consumeStrategy, version, isBroadcast, isOrdered, consumptionExpiredTime);
         this.pullService = pullService;
         this.ackService = ackService;
         this.brokerService = brokerService;
@@ -228,11 +226,12 @@ abstract class AbstractPullEntry extends AbstractPullClient implements PullEntry
     }
 
     @Override
-    public void offline(StatusSource statusSource) {
+    public void offline() {
         try {
             ackSendQueue.trySendAck(1000);
+            brokerService.releaseLock(getSubject(), getConsumerGroup(), getPartitionName(), getBrokerGroup(), getConsumeStrategy());
         } catch (Exception e) {
-            LOGGER.error("try clean ack exception", e);
+            LOGGER.error("offline error", e);
         }
     }
 

@@ -30,6 +30,7 @@ public class ProducerTest {
         provider.init();
         for (int i = 0; i < 10; i++) {
             Message message = provider.generateMessage("ordered.qmq.test.1");
+            message.setProperty("mytag", i);
             provider.sendMessage(message, new MessageSendStateListener() {
                 @Override
                 public void onSuccess(Message message) {

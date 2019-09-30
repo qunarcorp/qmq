@@ -19,12 +19,9 @@ package qunar.tc.qmq.consumer.pull;
 import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.Message;
-import qunar.tc.qmq.StatusSource;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
-import qunar.tc.qmq.broker.impl.SwitchWaiter;
-import qunar.tc.qmq.metainfoclient.MetaInfoService;
 
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -34,6 +31,7 @@ import java.util.concurrent.ExecutorService;
  */
 class PlainPullEntry extends AbstractPullEntry {
 
+    private final BrokerService brokerService;
     private final ConsumeParam consumeParam;
     private final PullStrategy pullStrategy;
 
@@ -48,7 +46,6 @@ class PlainPullEntry extends AbstractPullEntry {
             PullService pullService,
             AckService ackService,
             BrokerService brokerService,
-            MetaInfoService metaInfoService,
             PullStrategy pullStrategy,
             SendMessageBack sendMessageBack) {
         super(
@@ -65,11 +62,10 @@ class PlainPullEntry extends AbstractPullEntry {
                 pullService,
                 ackService,
                 brokerService,
-                metaInfoService,
-                sendMessageBack,
-                null);
+                sendMessageBack);
         this.consumeParam = consumeParam;
         this.pullStrategy = pullStrategy;
+        this.brokerService = brokerService;
     }
 
     PlainPullResult pull(final int fetchSize, final int pullTimeout, final List<Message> output) {
@@ -94,21 +90,6 @@ class PlainPullEntry extends AbstractPullEntry {
     @Override
     public void stopPull() {
 
-    }
-
-    @Override
-    public void destroy() {
-        super.destroy();
-    }
-
-    @Override
-    public void online(StatusSource statusSource) {
-
-    }
-
-    @Override
-    public void offline(StatusSource statusSource) {
-        super.offline(statusSource);
     }
 
     enum PlainPullResult {

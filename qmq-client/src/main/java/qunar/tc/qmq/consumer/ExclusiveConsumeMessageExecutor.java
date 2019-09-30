@@ -21,7 +21,6 @@ public class ExclusiveConsumeMessageExecutor extends AbstractConsumeMessageExecu
             if (System.currentTimeMillis() > getConsumptionExpiredTime()) {
                 // 没有权限, 停一会再看
                 Thread.sleep(10);
-                requeueFirst(message);
                 return;
             }
 
@@ -37,4 +36,5 @@ public class ExclusiveConsumeMessageExecutor extends AbstractConsumeMessageExecu
     public ConsumeStrategy getConsumeStrategy() {
         return ConsumeStrategy.EXCLUSIVE;
     }
+
 }

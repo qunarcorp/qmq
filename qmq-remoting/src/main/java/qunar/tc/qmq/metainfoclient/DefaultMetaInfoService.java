@@ -17,7 +17,6 @@
 package qunar.tc.qmq.metainfoclient;
 
 import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -28,7 +27,6 @@ import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.base.OnOfflineState;
 import qunar.tc.qmq.batch.Stateful;
-import qunar.tc.qmq.broker.impl.SwitchWaiter;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.meta.MetaServerLocator;
 import qunar.tc.qmq.metrics.Metrics;
@@ -42,7 +40,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.ReentrantLock;
 
 import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_GROUP_ARRAY;
 
@@ -57,12 +54,16 @@ public class DefaultMetaInfoService implements MetaInfoService {
 
     public class MetaInfoRequestWrapper implements Stateful<RequestState> {
 
+        private final long TIMEOUT_MILLS = TimeUnit.SECONDS.toMillis(5);
+
         private volatile boolean hasOnline = false;
+        private long timeoutTimestamp;
         private MetaInfoRequest request;
         private AtomicReference<RequestState> state = new AtomicReference<>(RequestState.IDLE);
 
         public MetaInfoRequestWrapper(MetaInfoRequest request) {
             this.request = request;
+            refreshTimeout();
         }
 
         @Override
@@ -88,6 +89,14 @@ public class DefaultMetaInfoService implements MetaInfoService {
         public MetaInfoRequest getRequest() {
             return request;
         }
+
+        public void refreshTimeout() {
+            this.timeoutTimestamp = System.currentTimeMillis() + TIMEOUT_MILLS;
+        }
+
+        public long getTimeout() {
+            return timeoutTimestamp;
+        }
     }
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultMetaInfoService.class);
@@ -106,13 +115,9 @@ public class DefaultMetaInfoService implements MetaInfoService {
 
     private final ConcurrentHashMap<String, MetaInfoRequestWrapper> metaInfoRequests = new ConcurrentHashMap<>();
 
-    private final ReentrantLock updateLock = new ReentrantLock();
-
-    private long lastUpdateTimestamp = -1;
 
     private final MetaInfoClient metaInfoClient;
 
-    private ConsumerStateChangedListener consumerStateChangedListener;
     private ConsumerOnlineStateManager consumerOnlineStateManager = DefaultConsumerOnlineStateManager.getInstance();
 
     private ScheduledExecutorService metaInfoRequestExecutor;
@@ -125,7 +130,16 @@ public class DefaultMetaInfoService implements MetaInfoService {
 
     public DefaultMetaInfoService(MetaServerLocator locator) {
         this.metaInfoClient = MetaServerNettyClient.getClient(locator);
-        this.metaInfoClient.registerResponseSubscriber(this::updateConsumerState);
+        this.metaInfoClient.registerResponseSubscriber(consumerOnlineStateManager);
+        this.metaInfoClient.registerResponseSubscriber(response -> {
+            // 如果是异常退出, 只能等待 timeout 了
+            int clientTypeCode = response.getClientTypeCode();
+            String subject = response.getSubject();
+            String consumerGroup = response.getConsumerGroup();
+            String key = createMetaInfoRequestKey(clientTypeCode, subject, consumerGroup);
+            MetaInfoRequestWrapper rw = metaInfoRequests.get(key);
+            rw.reset();
+        });
     }
 
     public void init() {
@@ -171,10 +185,7 @@ public class DefaultMetaInfoService implements MetaInfoService {
     }
 
     @Override
-    public void registerHeartbeat(String appCode, int clientTypeCode, String subject, String consumerGroup, boolean isBroadcast, boolean isOrdered, boolean healthCheckOnlineState) {
-        if (Objects.equals(ClientType.CONSUMER.getCode(), clientTypeCode)) {
-            this.consumerOnlineStateManager.registerConsumer(subject, consumerGroup, clientId, healthCheckOnlineState);
-        }
+    public void registerHeartbeat(String appCode, int clientTypeCode, String subject, String consumerGroup, boolean isBroadcast, boolean isOrdered) {
         String key = createMetaInfoRequestKey(clientTypeCode, subject, consumerGroup);
         MetaInfoRequestWrapper requestWrapper = metaInfoRequests.computeIfAbsent(key, k -> {
             MetaInfoRequest request = new MetaInfoRequest(
@@ -197,9 +208,15 @@ public class DefaultMetaInfoService implements MetaInfoService {
         MetaInfoRequest request = requestWrapper.getRequest();
         String subject = request.getSubject();
         String consumerGroup = request.getConsumerGroup();
+        boolean timeout = System.currentTimeMillis() > requestWrapper.getTimeout();
+        if (timeout) {
+            // 这里可能会出现一些并发请求, 但问题不大
+            requestWrapper.reset();
+        }
         if (requestWrapper.compareAndSetState(RequestState.IDLE, RequestState.REQUESTING)) {
+            requestWrapper.refreshTimeout();
             if (request.getClientTypeCode() == ClientType.CONSUMER.getCode()) {
-                boolean online = consumerOnlineStateManager.isOnline(subject, consumerGroup, this.clientId);
+                boolean online = consumerOnlineStateManager.isOnline(subject, consumerGroup);
                 request.setOnlineState(online ? OnOfflineState.ONLINE : OnOfflineState.OFFLINE);
             } else {
                 request.setOnlineState(OnOfflineState.ONLINE);
@@ -226,53 +243,6 @@ public class DefaultMetaInfoService implements MetaInfoService {
             return future.get(5000, TimeUnit.MILLISECONDS);
         } catch (Throwable t) {
             throw new RuntimeException(t);
-        }
-    }
-
-    private void updateConsumerState(MetaInfoResponse response) {
-        updateLock.lock();
-        try {
-            if (isStale(response.getTimestamp(), lastUpdateTimestamp)) {
-                LOGGER.debug("skip response {}", response);
-                return;
-            }
-            lastUpdateTimestamp = response.getTimestamp();
-
-            final String subject = response.getSubject();
-            final String consumerGroup = response.getConsumerGroup();
-
-            if (!Strings.isNullOrEmpty(consumerGroup)) {
-                boolean online = response.getOnOfflineState() == OnOfflineState.ONLINE;
-                LOGGER.debug("消费者状态发生变更 {}/{}:{}", subject, consumerGroup, online);
-                triggerConsumerStateChanged(subject, consumerGroup, online);
-            }
-
-            String key = createMetaInfoRequestKey(response.getClientTypeCode(), subject, consumerGroup);
-            MetaInfoRequestWrapper rw = metaInfoRequests.get(key);
-            rw.reset();
-
-        } catch (Exception e) {
-            LOGGER.error("update meta info exception. response={}", response, e);
-        } finally {
-            updateLock.unlock();
-        }
-    }
-
-    private boolean isStale(long thisTimestamp, long lastUpdateTimestamp) {
-        return thisTimestamp < lastUpdateTimestamp;
-    }
-
-    public void setConsumerStateChangedListener(ConsumerStateChangedListener listener) {
-        this.consumerStateChangedListener = listener;
-    }
-
-    private void triggerConsumerStateChanged(String subject, String consumerGroup, boolean online) {
-        if (this.consumerStateChangedListener == null) return;
-
-        if (online) {
-            this.consumerStateChangedListener.online(subject, consumerGroup);
-        } else {
-            this.consumerStateChangedListener.offline(subject, consumerGroup);
         }
     }
 

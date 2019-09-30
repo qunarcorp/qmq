@@ -76,7 +76,6 @@ public class PullClientManagerTest {
                 pullService,
                 ackService,
                 brokerService,
-                metaInfoService,
                 sendMessageBack,
                 executorService
         );
@@ -93,7 +92,7 @@ public class PullClientManagerTest {
         when(clientMap.get(anyString())).thenReturn(pullClient);
         Whitebox.setInternalState(pullEntryManager, "clientMap", clientMap);
 
-        pullEntryManager.updateClient(response, null, false);
+        pullEntryManager.updateClient(response, null);
         assertEquals(components, pullClient.getComponents());
     }
 
@@ -104,7 +103,7 @@ public class PullClientManagerTest {
         String subject = response.getSubject();
         String consumerGroup = response.getConsumerGroup();
 
-        pullEntryManager.updateClient(response, getRegistParam(), false);
+        pullEntryManager.updateClient(response, getRegistParam());
 
         CompositePullClient compositePullClient = (CompositePullClient) pullEntryManager.getPullClient(subject, consumerGroup);
         List components = compositePullClient.getComponents();
@@ -159,7 +158,7 @@ public class PullClientManagerTest {
         clientMap.put(TEST_SUBJECT + ":" + TEST_CONSUMER_GROUP, oldCompositeClient);
         Whitebox.setInternalState(pullEntryManager, "clientMap", clientMap);
 
-        pullEntryManager.updateClient(response, getRegistParam(), false);
+        pullEntryManager.updateClient(response, getRegistParam());
 
         CompositePullClient compositePullClient = (CompositePullClient) pullEntryManager.getPullClient(subject, consumerGroup);
         List components = compositePullClient.getComponents();

@@ -25,6 +25,8 @@ import qunar.tc.qmq.config.NettyClientConfigManager;
 import qunar.tc.qmq.consumer.handler.MessageDistributor;
 import qunar.tc.qmq.consumer.pull.PullConsumerFactory;
 import qunar.tc.qmq.consumer.pull.PullRegister;
+import qunar.tc.qmq.metainfoclient.ConsumerOnlineStateManager;
+import qunar.tc.qmq.metainfoclient.DefaultConsumerOnlineStateManager;
 import qunar.tc.qmq.netty.client.NettyClient;
 
 import javax.annotation.PostConstruct;
@@ -47,6 +49,7 @@ public class MessageConsumerProvider implements MessageConsumer {
     private String metaServer;
 
     private final PullRegister pullRegister;
+    private final ConsumerOnlineStateManager consumerOnlineStateManager = DefaultConsumerOnlineStateManager.getInstance();
     private String appCode;
 
     private int maxSubjectLen = 100;
@@ -82,7 +85,11 @@ public class MessageConsumerProvider implements MessageConsumer {
             this.distributor = new MessageDistributor(pullRegister);
             this.distributor.setClientId(clientId);
 
-            this.pullRegister.setAutoOnline(autoOnline);
+            if (autoOnline) {
+                consumerOnlineStateManager.onlineHealthCheck();
+            } else {
+                consumerOnlineStateManager.offlineHealthCheck();
+            }
             inited = true;
         }
     }
@@ -160,6 +167,7 @@ public class MessageConsumerProvider implements MessageConsumer {
 
     /**
      * 不要删除这个方法兼容API
+     *
      * @param destroyWaitInSeconds
      */
     public void setDestroyWaitInSeconds(int destroyWaitInSeconds) {
@@ -171,11 +179,11 @@ public class MessageConsumerProvider implements MessageConsumer {
     }
 
     public void online() {
-        this.pullRegister.online();
+        this.consumerOnlineStateManager.onlineHealthCheck();
     }
 
     public void offline() {
-        this.pullRegister.offline();
+        this.consumerOnlineStateManager.offlineHealthCheck();
     }
 
     public void setMaxConsumerGroupLen(int maxConsumerGroupLen) {

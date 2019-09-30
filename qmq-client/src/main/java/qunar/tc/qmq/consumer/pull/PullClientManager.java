@@ -11,7 +11,7 @@ import java.util.Collection;
  */
 public interface PullClientManager<T extends PullClient> {
 
-    void updateClient(ConsumerMetaInfoResponse response, Object registryParam, boolean isAutoOnline);
+    void updateClient(ConsumerMetaInfoResponse response, Object registryParam);
 
     T getPullClient(String subject, String consumerGroup);
 

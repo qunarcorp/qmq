@@ -2,9 +2,7 @@ package qunar.tc.qmq.consumer.pull;
 
 import qunar.tc.qmq.*;
 import qunar.tc.qmq.broker.BrokerService;
-import qunar.tc.qmq.broker.impl.SwitchWaiter;
 import qunar.tc.qmq.metainfoclient.ConsumerOnlineStateManager;
-import qunar.tc.qmq.metainfoclient.MetaInfoService;
 
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -18,7 +16,6 @@ public class PullConsumerManager extends AbstractPullClientManager<PullConsumer>
     private PullService pullService;
     private AckService ackService;
     private BrokerService brokerService;
-    private MetaInfoService metaInfoService;
     private SendMessageBack sendMessageBack;
     private ExecutorService partitionExecutor;
 
@@ -28,14 +25,12 @@ public class PullConsumerManager extends AbstractPullClientManager<PullConsumer>
             PullService pullService,
             AckService ackService,
             BrokerService brokerService,
-            MetaInfoService metaInfoService,
             SendMessageBack sendMessageBack,
             ExecutorService partitionExecutor) {
         super(clientId, consumerOnlineStateManager);
         this.pullService = pullService;
         this.ackService = ackService;
         this.brokerService = brokerService;
-        this.metaInfoService = metaInfoService;
         this.sendMessageBack = sendMessageBack;
         this.partitionExecutor = partitionExecutor;
     }
@@ -57,8 +52,8 @@ public class PullConsumerManager extends AbstractPullClientManager<PullConsumer>
                 pullService,
                 ackService,
                 brokerService,
-                metaInfoService,
-                sendMessageBack);
+                sendMessageBack,
+                consumerOnlineStateManager);
         pullConsumer.startPull(partitionExecutor);
         return pullConsumer;
     }
@@ -66,8 +61,7 @@ public class PullConsumerManager extends AbstractPullClientManager<PullConsumer>
     @Override
     CompositePullClient doCreateCompositePullClient(String subject, String consumerGroup, int version, long consumptionExpiredTime, List<? extends PullClient> clientList, Object param) {
         PullConsumerRegistryParam registryParam = (PullConsumerRegistryParam) param;
-        SwitchWaiter switchWaiter = consumerOnlineStateManager.getSwitchWaiter(subject, consumerGroup, clientId);
-        CompositePullConsumer<? extends PullConsumer> consumer = new CompositePullConsumer<>(
+        return new CompositePullConsumer<>(
                 subject,
                 consumerGroup,
                 clientId,
@@ -76,11 +70,8 @@ public class PullConsumerManager extends AbstractPullClientManager<PullConsumer>
                 registryParam.isOrdered(),
                 consumptionExpiredTime,
                 (List<? extends PullConsumer>) clientList,
-                brokerService,
-                metaInfoService,
-                switchWaiter
+                consumerOnlineStateManager
         );
-        return consumer;
     }
 
     @Override

@@ -73,13 +73,13 @@ public class ConsumeMessageExecutorTest {
     }
 
     @Test
-    public void testRequeueFirst() throws Exception {
+    public void testRemoveMessage() throws Exception {
         exclusiveExecutor.consume(getPulledMessages(10));
         BlockingDeque<PulledMessage> messageQueue = Whitebox.getInternalState(exclusiveExecutor, "messageQueue");
-        PulledMessage firstMsg = messageQueue.take();
+        PulledMessage firstMsg = messageQueue.takeFirst();
         exclusiveExecutor.requeueFirst(firstMsg);
         assertEquals(messageQueue.size(), 10);
-        PulledMessage secondMsg = messageQueue.take();
+        PulledMessage secondMsg = messageQueue.peek();
         assertEquals(firstMsg, secondMsg);
     }
 
@@ -90,13 +90,13 @@ public class ConsumeMessageExecutorTest {
         BlockingDeque<PulledMessage> messageQueue = Whitebox.getInternalState(exclusiveExecutor, "messageQueue");
         PulledMessage firstMsg = messageQueue.take();
         Whitebox.invokeMethod(exclusiveExecutor, "processMessage", firstMsg);
-        PulledMessage secondMsg = messageQueue.take();
+        exclusiveExecutor.requeueFirst(firstMsg);
+        PulledMessage secondMsg = messageQueue.peek();
         assertEquals(firstMsg, secondMsg);
     }
 
     @Test
     public void testProcessSharedMessage() throws Exception {
-        sharedExecutor.setConsumptionExpiredTime(System.currentTimeMillis() - 1000);
         sharedExecutor.consume(getPulledMessages(10));
         BlockingDeque<PulledMessage> messageQueue = Whitebox.getInternalState(sharedExecutor, "messageQueue");
         PulledMessage firstMsg = messageQueue.take();

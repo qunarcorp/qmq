@@ -4,9 +4,8 @@ import qunar.tc.qmq.CompositePullClient;
 import qunar.tc.qmq.PullClient;
 import qunar.tc.qmq.PullEntry;
 import qunar.tc.qmq.StatusSource;
-import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.broker.impl.SwitchWaiter;
-import qunar.tc.qmq.metainfoclient.MetaInfoService;
+import qunar.tc.qmq.metainfoclient.ConsumerOnlineStateManager;
 
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -15,9 +14,7 @@ import java.util.concurrent.ExecutorService;
  * @author zhenwei.liu
  * @since 2019-09-02
  */
-public class CompositePullEntry<T extends PullEntry> extends AbstractPullClient implements PullEntry, CompositePullClient<T> {
-
-    private List<T> pullEntries;
+public class CompositePullEntry<T extends PullEntry> extends AbstractCompositePullClient<T> implements PullEntry, CompositePullClient<T> {
 
     public CompositePullEntry(
             String subject,
@@ -27,47 +24,7 @@ public class CompositePullEntry<T extends PullEntry> extends AbstractPullClient 
             boolean isBroadcast,
             boolean isOrdered,
             long consumptionExpiredTime,
-            List<T> pullEntries,
-            BrokerService brokerService,
-            MetaInfoService metaInfoService,
-            SwitchWaiter onlineSwitcher) {
-        super(subject, consumerGroup, "", "", consumerId, null, version, isBroadcast, isOrdered, consumptionExpiredTime, brokerService, metaInfoService, onlineSwitcher);
-        this.pullEntries = pullEntries;
-    }
-
-    @Override
-    public void online(StatusSource statusSource) {
-        getOnlineSwitcher().on(statusSource);
-        pullEntries.forEach(pe -> pe.online(statusSource));
-    }
-
-    @Override
-    public void offline(StatusSource statusSource) {
-        pullEntries.forEach(pe -> pe.offline(statusSource));
-    }
-
-    @Override
-    public void startPull(ExecutorService executor) {
-        pullEntries.forEach(pe -> startPull(executor));
-    }
-
-    @Override
-    public void stopPull() {
-        pullEntries.forEach(PullClient::stopPull);
-    }
-
-    @Override
-    public void destroy() {
-        pullEntries.forEach(PullEntry::destroy);
-    }
-
-    @Override
-    public List<T> getComponents() {
-        return pullEntries;
-    }
-
-    @Override
-    public void setComponents(List<T> components) {
-        this.pullEntries = components;
+            List<T> pullEntries) {
+        super(subject, consumerGroup, "", "", consumerId, null, version, isBroadcast, isOrdered, consumptionExpiredTime, pullEntries);
     }
 }

@@ -27,7 +27,7 @@ public abstract class AbstractPullClientManager<T extends PullClient> implements
     }
 
     @Override
-    public void updateClient(ConsumerMetaInfoResponse response, Object registryParam, boolean isAutoOnline) {
+    public void updateClient(ConsumerMetaInfoResponse response, Object registryParam) {
 
         // TODO(zhenwei.liu) 这里应该加锁, 防止并发问题
         String subject = response.getSubject();
@@ -61,12 +61,6 @@ public abstract class AbstractPullClientManager<T extends PullClient> implements
         } else {
             oldCompositeClient.setComponents(newComponents);
             finalClient = oldCompositeClient;
-        }
-
-        if (isAutoOnline) {
-            finalClient.online(getStatusSource(registryParam));
-        } else {
-            finalClient.offline(getStatusSource(registryParam));
         }
     }
 

@@ -24,7 +24,7 @@ import qunar.tc.qmq.Message;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.broker.impl.SwitchWaiter;
 import qunar.tc.qmq.config.PullSubjectsConfig;
-import qunar.tc.qmq.metainfoclient.MetaInfoService;
+import qunar.tc.qmq.metainfoclient.ConsumerOnlineStateManager;
 import qunar.tc.qmq.metrics.Metrics;
 
 import java.util.ArrayList;
@@ -50,6 +50,7 @@ class DefaultPullConsumer extends AbstractPullConsumer {
 
     private final LinkedBlockingQueue<PullMessageFuture> requestQueue = new LinkedBlockingQueue<>();
     private final LinkedBlockingQueue<Message> localBuffer = new LinkedBlockingQueue<>();
+    private final ConsumerOnlineStateManager consumerOnlineStateManager;
 
     private final int preFetchSize;
     private final int lowWaterMark;
@@ -68,11 +69,12 @@ class DefaultPullConsumer extends AbstractPullConsumer {
             PullService pullService,
             AckService ackService,
             BrokerService brokerService,
-            MetaInfoService metaInfoService,
-            SendMessageBack sendMessageBack) {
-        super(subject, consumerGroup, partitionName, brokerGroup, consumeStrategy, version, consumptionExpiredTime, isBroadcast, isOrdered, clientId, pullService, ackService, brokerService, metaInfoService, sendMessageBack);
+            SendMessageBack sendMessageBack,
+            ConsumerOnlineStateManager consumerOnlineStateManager) {
+        super(subject, consumerGroup, partitionName, brokerGroup, consumeStrategy, version, consumptionExpiredTime, isBroadcast, isOrdered, clientId, pullService, ackService, brokerService, sendMessageBack);
         this.preFetchSize = PullSubjectsConfig.get().getPullBatchSize(subject).get();
         this.lowWaterMark = Math.round(preFetchSize * 0.2F);
+        this.consumerOnlineStateManager = consumerOnlineStateManager;
     }
 
     @Override
@@ -138,8 +140,8 @@ class DefaultPullConsumer extends AbstractPullConsumer {
                 }
             } while (messages.size() < request.getFetchSize() && !request.isExpired());
         } catch (Exception e) {
-            LOGGER.error("DefaultPullConsumer doPull exception. subject={}, group={}", subject(), group(), e);
-            Metrics.counter("qmq_pull_defaultPull_doPull_fail", SUBJECT_GROUP_ARRAY, new String[]{subject(), group()}).inc();
+            LOGGER.error("DefaultPullConsumer doPull exception. subject={}, group={}", getSubject(), getConsumerGroup(), e);
+            Metrics.counter("qmq_pull_defaultPull_doPull_fail", SUBJECT_GROUP_ARRAY, new String[]{getSubject(), getConsumerGroup()}).inc();
         } finally {
             setResult(request, messages);
         }
@@ -194,16 +196,17 @@ class DefaultPullConsumer extends AbstractPullConsumer {
         executor.submit(() -> {
 
             PullMessageFuture future;
+            SwitchWaiter switchWaiter = consumerOnlineStateManager.getSwitchWaiter(getSubject(), getConsumerGroup());
             while (!isStop) {
                 try {
-                    if (!getOnlineSwitcher().waitOn()) continue;
+                    if (!switchWaiter.waitOn()) continue;
 
                     future = requestQueue.poll(POLL_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
                     if (future != null) doPull(future);
                 } catch (InterruptedException e) {
-                    LOGGER.error("pullConsumer poll be interrupted. subject={}, group={}", subject(), group(), e);
+                    LOGGER.error("pullConsumer poll be interrupted. subject={}, group={}", getSubject(), getConsumerGroup(), e);
                 } catch (Exception e) {
-                    LOGGER.error("pullConsumer poll exception. subject={}, group={}", subject(), group(), e);
+                    LOGGER.error("pullConsumer poll exception. subject={}, group={}", getSubject(), getConsumerGroup(), e);
                 }
             }
         });
@@ -212,6 +215,11 @@ class DefaultPullConsumer extends AbstractPullConsumer {
     @Override
     public void stopPull() {
 
+    }
+
+    @Override
+    public void offline() {
+        pullEntry.offline();
     }
 
     @Override

@@ -24,7 +24,7 @@ public interface MetaInfoService {
     /**
      * 注册心跳, 后续会定时发送
      */
-    void registerHeartbeat(String appCode, int clientTypeCode, String subject, String consumerGroup, boolean isBroadcast, boolean isOrdered, boolean healthCheckOnlineState);
+    void registerHeartbeat(String appCode, int clientTypeCode, String subject, String consumerGroup, boolean isBroadcast, boolean isOrdered);
 
     void sendRequest(MetaInfoRequest request);
 

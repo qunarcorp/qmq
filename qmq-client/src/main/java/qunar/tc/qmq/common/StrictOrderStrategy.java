@@ -29,8 +29,8 @@ public class StrictOrderStrategy extends AbstractOrderStrategy {
 
     @Override
     public void onMessageNotAcked(PulledMessage message, ConsumeMessageExecutor executor) {
-        logger.error("消息未 ACK, 将进行重复消费, 请检查程序是否存在 BUG");
         executor.requeueFirst(message);
+        logger.error("消息未 ACK, 将进行重复消费, 请检查程序是否存在 BUG");
     }
 
     @Override
