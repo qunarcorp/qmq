@@ -35,7 +35,7 @@ import java.util.concurrent.ExecutorService;
  * @since 2017/6/30
  */
 public class NettyServer implements Disposable {
-    private static final Logger LOG = LoggerFactory.getLogger(NettyServer.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(NettyServer.class);
 
     private final NioEventLoopGroup bossGroup;
     private final NioEventLoopGroup workerGroup;
@@ -89,9 +89,9 @@ public class NettyServer implements Disposable {
         try {
             channel = bootstrap.bind(port).await().channel();
         } catch (InterruptedException e) {
-            LOG.error("server start fail", e);
+            LOGGER.error("server start fail", e);
         }
-        LOG.info("listen on port {}", port);
+        LOGGER.info("listen on port {}", port);
     }
 
     @Override

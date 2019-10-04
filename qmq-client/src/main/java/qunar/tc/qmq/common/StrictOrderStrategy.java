@@ -15,7 +15,7 @@ import qunar.tc.qmq.producer.sender.SendMessageExecutorManager;
  */
 public class StrictOrderStrategy extends AbstractOrderStrategy {
 
-    private static final Logger logger = LoggerFactory.getLogger(StrictOrderStrategy.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(StrictOrderStrategy.class);
 
     @Override
     public void doOnSendError(ProduceMessage message, SendMessageExecutor currentExecutor, SendMessageExecutorManager sendMessageExecutorManager, Exception e) {
@@ -30,7 +30,7 @@ public class StrictOrderStrategy extends AbstractOrderStrategy {
     @Override
     public void onMessageNotAcked(PulledMessage message, ConsumeMessageExecutor executor) {
         executor.requeueFirst(message);
-        logger.error("消息未 ACK, 将进行重复消费, 请检查程序是否存在 BUG");
+        LOGGER.error("消息未 ACK, 将进行重复消费, 请检查程序是否存在 BUG");
     }
 
     @Override

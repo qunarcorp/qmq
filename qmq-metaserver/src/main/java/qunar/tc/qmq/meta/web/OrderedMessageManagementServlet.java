@@ -20,7 +20,7 @@ import java.io.PrintWriter;
  */
 public class OrderedMessageManagementServlet extends HttpServlet {
 
-    private static final Logger logger = LoggerFactory.getLogger(OrderedMessageManagementServlet.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(OrderedMessageManagementServlet.class);
     private static final ObjectMapper jsonMapper = JsonUtils.getMapper();
     private final PartitionService partitionService = DefaultPartitionService.getInstance();
 
@@ -38,7 +38,7 @@ public class OrderedMessageManagementServlet extends HttpServlet {
             partitionService.registerOrderedMessage(subject, physicalPartitionNum);
             writer.println(jsonMapper.writeValueAsString(new JsonResult<>(ResultStatus.OK, "成功", null)));
         } catch (Throwable t) {
-            logger.error("顺序消息分配失败 {}", subject, t);
+            LOGGER.error("顺序消息分配失败 {}", subject, t);
             writer.println(jsonMapper.writeValueAsString(new JsonResult<>(ResultStatus.SYSTEM_ERROR, String.format("失败 %s", t.getMessage()), null)));
         }
 

@@ -38,7 +38,7 @@ import java.util.concurrent.TimeUnit;
  * @since 2017/9/1
  */
 public class BrokerRegisterService implements Disposable {
-    private static final Logger LOG = LoggerFactory.getLogger(BrokerRegisterService.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(BrokerRegisterService.class);
 
     private static final long TIMEOUT_MS = TimeUnit.SECONDS.toMillis(2);
     private static final int HEARTBEAT_DELAY_SECONDS = 10;
@@ -79,7 +79,7 @@ public class BrokerRegisterService implements Disposable {
             final BrokerAcquireMetaResponse meta = BrokerAcquireMetaResponseSerializer.deserialize(datagram.getBody());
             BrokerConfig.getInstance().updateMeta(meta);
         } catch (Exception e) {
-            LOG.error("Send acquire meta message to meta server failed", e);
+            LOGGER.error("Send acquire meta message to meta server failed", e);
             throw new RuntimeException(e);
         } finally {
             if (datagram != null) {
@@ -94,7 +94,7 @@ public class BrokerRegisterService implements Disposable {
             try {
                 datagram = client.sendSync(endpoint, buildRegisterDatagram(BrokerRequestType.HEARTBEAT), TIMEOUT_MS);
             } catch (Exception e) {
-                LOG.error("Send HEARTBEAT message to meta server failed", e);
+                LOGGER.error("Send HEARTBEAT message to meta server failed", e);
                 repickEndpoint();
             } finally {
                 if (datagram != null) {
@@ -102,7 +102,7 @@ public class BrokerRegisterService implements Disposable {
                 }
             }
         }catch (Exception e){
-            LOG.error("Heartbeat error", e);
+            LOGGER.error("Heartbeat error", e);
         }
     }
 
@@ -120,7 +120,7 @@ public class BrokerRegisterService implements Disposable {
             brokerState = BrokerState.RW.getCode();
             datagram = client.sendSync(endpoint, buildRegisterDatagram(BrokerRequestType.ONLINE), TIMEOUT_MS);
         } catch (Exception e) {
-            LOG.error("Send ONLINE message to meta server failed", e);
+            LOGGER.error("Send ONLINE message to meta server failed", e);
             repickEndpoint();
             throw new RuntimeException("broker online failed", e);
         } finally {
@@ -136,7 +136,7 @@ public class BrokerRegisterService implements Disposable {
             brokerState = BrokerState.NRW.getCode();
             datagram = client.sendSync(endpoint, buildRegisterDatagram(BrokerRequestType.OFFLINE), TIMEOUT_MS);
         } catch (Exception e) {
-            LOG.error("Send OFFLINE message to meta server failed", e);
+            LOGGER.error("Send OFFLINE message to meta server failed", e);
             repickEndpoint();
             throw new RuntimeException("broker offline failed", e);
         } finally {
@@ -195,7 +195,7 @@ public class BrokerRegisterService implements Disposable {
         try {
             heartbeatScheduler.awaitTermination(10, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
-            LOG.error("Shutdown heartbeat scheduler interrupted.");
+            LOGGER.error("Shutdown heartbeat scheduler interrupted.");
         }
     }
 }

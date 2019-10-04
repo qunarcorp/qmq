@@ -30,7 +30,7 @@ import qunar.tc.qmq.utils.Flags;
  */
 public class EnvPullMessageFilter implements PullMessageFilter {
 
-	private static final Logger LOG = LoggerFactory.getLogger(EnvPullMessageFilter.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(EnvPullMessageFilter.class);
 
 	private static final Joiner RULE_KEY_JOINER = Joiner.on('_');
 
@@ -88,7 +88,7 @@ public class EnvPullMessageFilter implements PullMessageFilter {
 			skipUntilBody(message);
 			return isEnvMatch(filter, request, readBody(message));
 		} catch (Exception e) {
-			LOG.error("check env match failed.", e);
+			LOGGER.error("check env match failed.", e);
 			return false;
 		} finally {
 			message.reset();
@@ -102,7 +102,7 @@ public class EnvPullMessageFilter implements PullMessageFilter {
 				this.ruleMap = toMap(rules);
 			}
 		} catch (Throwable t) {
-			LOG.error("update evn rules error", t);
+			LOGGER.error("update evn rules error", t);
 		}
 	}
 

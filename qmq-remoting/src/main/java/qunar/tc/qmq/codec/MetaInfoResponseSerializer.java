@@ -1,8 +1,6 @@
 package qunar.tc.qmq.codec;
 
 import io.netty.buffer.ByteBuf;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.base.OnOfflineState;
 import qunar.tc.qmq.meta.*;
@@ -19,9 +17,7 @@ import java.util.List;
  * @author zhenwei.liu
  * @since 2019-09-09
  */
-public class MetaInfoResponseSerializer extends ObjectSerializer<MetaInfoResponse> {
-
-    private static final Logger logger = LoggerFactory.getLogger(MetaInfoResponseSerializer.class);
+class MetaInfoResponseSerializer extends ObjectSerializer<MetaInfoResponse> {
 
     @Override
     void doSerialize(MetaInfoResponse response, ByteBuf out) {

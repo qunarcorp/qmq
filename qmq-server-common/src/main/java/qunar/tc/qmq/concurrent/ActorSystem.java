@@ -31,7 +31,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * 16/4/8
  */
 public class ActorSystem {
-    private static final Logger LOG = LoggerFactory.getLogger(ActorSystem.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ActorSystem.class);
 
     private static final int DEFAULT_QUEUE_SIZE = 10000;
 
@@ -82,7 +82,7 @@ public class ActorSystem {
         Actor<E> add = new Actor<>(this.name, actorPath, this, processor, DEFAULT_QUEUE_SIZE);
         Actor<E> old = actors.putIfAbsent(actorPath, add);
         if (old == null) {
-            LOG.info("create actorSystem: {}", actorPath);
+            LOGGER.info("create actorSystem: {}", actorPath);
             actorsCount.incrementAndGet();
             return add;
         }

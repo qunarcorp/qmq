@@ -49,7 +49,7 @@ import java.util.stream.Collectors;
  * @since 2017/8/30
  */
 public class DefaultCachedMetaInfoManager implements Disposable, CachedMetaInfoManager {
-    private static final Logger LOG = LoggerFactory.getLogger(DefaultCachedMetaInfoManager.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(DefaultCachedMetaInfoManager.class);
 
     private static final ScheduledExecutorService SCHEDULE_POOL = Executors.newSingleThreadScheduledExecutor(
             new ThreadFactoryBuilder().setNameFormat("meta-info-refresh-%d").build());
@@ -175,7 +175,7 @@ public class DefaultCachedMetaInfoManager implements Disposable, CachedMetaInfoM
     }
 
     private void doRefresh() {
-        LOG.info("refresh meta info");
+        LOGGER.info("refresh meta info");
         refreshBrokerGroups();
         refreshSubjectInfoCache();
         refreshGroupsAndSubjects();

@@ -52,18 +52,16 @@ import java.util.Set;
  * @since 2017/9/1
  */
 class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProcessor.ClientRegisterMessage> {
-    private static final Logger LOG = LoggerFactory.getLogger(ClientRegisterWorker.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ClientRegisterWorker.class);
 
     private final SubjectRouter subjectRouter;
     private final ActorSystem actorSystem;
     private final Store store;
     private final CachedOfflineStateManager offlineStateManager;
-    private final CachedMetaInfoManager cachedMetaInfoManager;
     private final AllocationService allocationService;
 
     ClientRegisterWorker(final SubjectRouter subjectRouter, final CachedOfflineStateManager offlineStateManager, final Store store, CachedMetaInfoManager cachedMetaInfoManager, AllocationService allocationService) {
         this.subjectRouter = subjectRouter;
-        this.cachedMetaInfoManager = cachedMetaInfoManager;
         this.allocationService = allocationService;
         this.actorSystem = new ActorSystem("qmq_meta");
         this.offlineStateManager = offlineStateManager;
@@ -115,7 +113,7 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
 
             return buildResponse(header, request, offlineStateManager.getLastUpdateTimestamp(), onlineState, new BrokerCluster(filteredBrokerGroups));
         } catch (Exception e) {
-            LOG.error("onSuccess exception. {}", request, e);
+            LOGGER.error("onSuccess exception. {}", request, e);
             return buildResponse(header, request, -2, OnOfflineState.OFFLINE, new BrokerCluster(new ArrayList<>()));
         } finally {
             // 上线的时候如果出现异常可能会将客户端上线状态改为下线

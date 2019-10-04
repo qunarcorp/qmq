@@ -38,7 +38,7 @@ import java.util.concurrent.Executor;
 import static qunar.tc.qmq.consumer.annotation.QmqClientBeanDefinitionParser.DEFAULT_ID;
 
 class ConsumerAnnotationScanner implements BeanPostProcessor, ApplicationContextAware, BeanFactoryAware {
-    private static final Logger logger = LoggerFactory.getLogger(ConsumerAnnotationScanner.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ConsumerAnnotationScanner.class);
 
     private static final Set<Method> registeredMethods = new HashSet<Method>();
 
@@ -74,11 +74,11 @@ class ConsumerAnnotationScanner implements BeanPostProcessor, ApplicationContext
             Class[] args = method.getParameterTypes();
             String message = String.format("如果想配置成为message listener,方法必须有且只有一个参数,类型必须为qunar.tc.qmq.Message类型: %s method:%s", beanName, methodName);
             if (args.length != 1) {
-                logger.error(message);
+                LOGGER.error(message);
                 throw new RuntimeException(message);
             }
             if (args[0] != Message.class) {
-                logger.error(message);
+                LOGGER.error(message);
                 throw new RuntimeException(message);
             }
 
@@ -86,7 +86,7 @@ class ConsumerAnnotationScanner implements BeanPostProcessor, ApplicationContext
 
             if (Strings.isNullOrEmpty(subject)) {
                 String err = String.format("使用@QmqConsumer,必须提供subject, class:%s method:%s", beanName, methodName);
-                logger.error(err);
+                LOGGER.error(err);
                 throw new RuntimeException(err);
             }
             registeredMethods.add(method);

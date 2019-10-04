@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
  */
 public class PartitionAllocationTask {
 
-    private static final Logger logger = LoggerFactory.getLogger(PartitionAllocationTask.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(PartitionAllocationTask.class);
 
     private ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(
             new ThreadFactoryBuilder().setNameFormat("partition-allocation-thread-%s").build()
@@ -41,7 +41,7 @@ public class PartitionAllocationTask {
             try {
                 updatePartitionAllocation();
             } catch (Throwable t) {
-                logger.error("检查顺序消息分配失败 ", t);
+                LOGGER.error("检查顺序消息分配失败 ", t);
             }
         }, 0, 5, TimeUnit.SECONDS);
     }
@@ -103,11 +103,11 @@ public class PartitionAllocationTask {
         // 乐观锁更新
         if (partitionService.updatePartitionAllocation(newAllocation, oldVersion)) {
             // TODO(zhenwei.liu) 重分配成功后给 client 发个拉取通知?
-            logger.info("分区重分配成功 subject {} group {} oldVersion {} detail {}",
+            LOGGER.info("分区重分配成功 subject {} group {} oldVersion {} detail {}",
                     subject, consumerGroup, oldVersion,
                     Arrays.toString(newAllocation.getAllocationDetail().getClientId2PartitionProps().entrySet().toArray()));
         } else {
-            logger.warn("分区重分配失败 subject {} group {} oldVersion {}",
+            LOGGER.warn("分区重分配失败 subject {} group {} oldVersion {}",
                     subject, consumerGroup, oldVersion);
         }
     }

@@ -33,7 +33,7 @@ import java.util.Arrays;
  * @since 2017/7/4
  */
 public class MessageLog implements AutoCloseable, Visitable<MessageLogRecord> {
-    private static final Logger LOG = LoggerFactory.getLogger(MessageLog.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(MessageLog.class);
 
     static final int PER_SEGMENT_FILE_SIZE = 1024 * 1024 * 1024;
 
@@ -169,10 +169,10 @@ public class MessageLog implements AutoCloseable, Visitable<MessageLogRecord> {
             final File file = new File(path, fileName);
             try {
                 if (!file.delete()) {
-                    LOG.warn("delete offset file failed. file: {}", fileName);
+                    LOGGER.warn("delete offset file failed. file: {}", fileName);
                 }
             } catch (Exception e) {
-                LOG.warn("delete offset file failed.. file: {}", fileName, e);
+                LOGGER.warn("delete offset file failed.. file: {}", fileName, e);
             }
         });
     }
@@ -229,7 +229,7 @@ public class MessageLog implements AutoCloseable, Visitable<MessageLogRecord> {
                 if (computedCrc == crc) {
                     return recordSize(subjectSize, payloadSize);
                 } else {
-                    LOG.warn("crc check failed. stored crc: {}, computed crc: {}, segment: {}", crc, computedCrc, segment);
+                    LOGGER.warn("crc check failed. stored crc: {}, computed crc: {}, segment: {}", crc, computedCrc, segment);
                     return -1;
                 }
             } else {

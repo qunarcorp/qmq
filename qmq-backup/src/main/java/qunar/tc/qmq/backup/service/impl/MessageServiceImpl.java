@@ -49,7 +49,7 @@ import static org.asynchttpclient.Dsl.asyncHttpClient;
  * @since 2019/5/29
  */
 public class MessageServiceImpl implements MessageService, Disposable {
-    private static final Logger LOG = LoggerFactory.getLogger(MessageServiceImpl.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(MessageServiceImpl.class);
 
     private static final String MESSAGE_QUERY_PROTOCOL = "http://";
     private static final String MESSAGE_QUERY_URL = "/api/broker/message";
@@ -81,12 +81,12 @@ public class MessageServiceImpl implements MessageService, Disposable {
                     final MessageQueryResult result = indexStore.findMessages(query);
                     future.complete(result);
                 } catch (Exception e) {
-                    LOG.error("Find messages error.", e);
+                    LOGGER.error("Find messages error.", e);
                     future.completeExceptionally(e);
                 }
             });
         } catch (RejectedExecutionException e) {
-            LOG.error("Find messages reject error.", e);
+            LOGGER.error("Find messages reject error.", e);
             future.completeExceptionally(e);
         }
         return future;
@@ -101,12 +101,12 @@ public class MessageServiceImpl implements MessageService, Disposable {
                     final MessageQueryResult result = deadStore.findMessages(query);
                     future.complete(result);
                 } catch (Exception e) {
-                    LOG.error("Find dead messages error.", e);
+                    LOGGER.error("Find dead messages error.", e);
                     future.completeExceptionally(e);
                 }
             });
         } catch (RejectedExecutionException e) {
-            LOG.error("Find dead messages reject error.", e);
+            LOGGER.error("Find dead messages reject error.", e);
             future.completeExceptionally(e);
         }
         return future;
@@ -130,12 +130,12 @@ public class MessageServiceImpl implements MessageService, Disposable {
                     final BackupMessage message = messages.get(0);
                     future.complete(message);
                 } catch (Exception e) {
-                    LOG.error("Failed to find message details. {} ", query, e);
+                    LOGGER.error("Failed to find message details. {} ", query, e);
                     future.completeExceptionally(e);
                 }
             });
         } catch (RejectedExecutionException e) {
-            LOG.error("Find message reject error.", e);
+            LOGGER.error("Find message reject error.", e);
             future.completeExceptionally(e);
         }
         return future;
@@ -158,12 +158,12 @@ public class MessageServiceImpl implements MessageService, Disposable {
                     }
                     future.complete(messageBytes);
                 } catch (Exception e) {
-                    LOG.error("Failed to find message details. {} ", query, e);
+                    LOGGER.error("Failed to find message details. {} ", query, e);
                     future.completeExceptionally(e);
                 }
             });
         } catch (RejectedExecutionException e) {
-            LOG.error("Find message reject error.", e);
+            LOGGER.error("Find message reject error.", e);
             future.completeExceptionally(e);
         }
         return future;
@@ -188,13 +188,13 @@ public class MessageServiceImpl implements MessageService, Disposable {
 
             return buffer.array();
         } catch (InterruptedException | ExecutionException e) {
-            LOG.error("get message byte with meta failed.", e);
+            LOGGER.error("get message byte with meta failed.", e);
             throw new RuntimeException("get message byte failed.");
         }
     }
 
     private List<BackupMessage> retrieveMessageWithMeta(String brokerGroup, String subject, List<BackupMessageMeta> metas) {
-        LOG.info("retrieve message from {}", brokerGroup);
+        LOGGER.info("retrieve message from {}", brokerGroup);
         final String backupAddress = metaSupplier.resolveServerAddress(brokerGroup);
         if (Strings.isNullOrEmpty(backupAddress)) return Collections.emptyList();
         String url = MESSAGE_QUERY_PROTOCOL + backupAddress + MESSAGE_QUERY_URL;
@@ -216,7 +216,7 @@ public class MessageServiceImpl implements MessageService, Disposable {
                 try {
                     message = HBaseValueDecoder.getMessage(buffer);
                 } catch (Exception e) {
-                    LOG.error("retrieve message failed.", e);
+                    LOGGER.error("retrieve message failed.", e);
                 }
                 if (message != null) {
                     message.setBrokerGroup(brokerGroup);
@@ -226,7 +226,7 @@ public class MessageServiceImpl implements MessageService, Disposable {
 
             return messages;
         } catch (InterruptedException | ExecutionException e) {
-            LOG.error("retrieve message with meta failed.", e);
+            LOGGER.error("retrieve message with meta failed.", e);
             throw new RuntimeException("retrieve message failed.");
         }
     }
@@ -249,7 +249,7 @@ public class MessageServiceImpl implements MessageService, Disposable {
                 future.complete(result);
             });
         } catch (RejectedExecutionException e) {
-            LOG.error("Find records reject error.", e);
+            LOGGER.error("Find records reject error.", e);
             future.completeExceptionally(e);
         }
         return future;
@@ -261,7 +261,7 @@ public class MessageServiceImpl implements MessageService, Disposable {
         try {
             queryExecutorService.awaitTermination(500, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
-            LOG.error("Shutdown queryExecutorService interrupted.");
+            LOGGER.error("Shutdown queryExecutorService interrupted.");
         }
         metaSupplier.destroy();
         try {

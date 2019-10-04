@@ -28,13 +28,13 @@ import java.util.Enumeration;
  * @since 2017/9/1
  */
 public class NetworkUtils {
-    private static final Logger LOG = LoggerFactory.getLogger(NetworkUtils.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(NetworkUtils.class);
 
     public static String getLocalHostname() {
         try {
             return InetAddress.getLocalHost().getHostName();
         } catch (UnknownHostException e) {
-            LOG.error("get local hostname failed. return local ip instead.", e);
+            LOGGER.error("get local hostname failed. return local ip instead.", e);
             return getLocalAddress();
         }
     }
@@ -78,7 +78,7 @@ public class NetworkUtils {
 
             return InetAddress.getLocalHost().getHostAddress();
         } catch (Exception e) {
-            LOG.error("get local address failed", e);
+            LOGGER.error("get local address failed", e);
         }
 
         return null;

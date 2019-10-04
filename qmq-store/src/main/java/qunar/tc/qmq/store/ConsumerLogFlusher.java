@@ -32,7 +32,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * @since 2018/9/12
  */
 public class ConsumerLogFlusher implements FixedExecOrderEventBus.Listener<MessageLogRecord>, AutoCloseable {
-    private static final Logger LOG = LoggerFactory.getLogger(ConsumerLogFlusher.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ConsumerLogFlusher.class);
 
     private final StorageConfig config;
     private final CheckpointManager checkpointManager;
@@ -88,7 +88,7 @@ public class ConsumerLogFlusher implements FixedExecOrderEventBus.Listener<Messa
                 checkpointManager.saveMessageCheckpointSnapshot(snapshot);
             } catch (Exception e) {
                 QMon.consumerLogFlusherFlushFailedCountInc();
-                LOG.error("flush consumer log failed. offset: {}", snapshot.getVersion(), e);
+                LOGGER.error("flush consumer log failed. offset: {}", snapshot.getVersion(), e);
             } finally {
                 QMon.consumerLogFlusherElapsedPerExecute(System.currentTimeMillis() - start);
             }
@@ -97,13 +97,13 @@ public class ConsumerLogFlusher implements FixedExecOrderEventBus.Listener<Messa
 
     @Override
     public void close() {
-        LOG.info("try flush one more time before exit.");
+        LOGGER.info("try flush one more time before exit.");
         submitFlushTask();
         flushExecutor.shutdown();
         try {
             flushExecutor.awaitTermination(1, TimeUnit.MINUTES);
         } catch (InterruptedException e) {
-            LOG.warn("interrupted during closing consumer log flusher.");
+            LOGGER.warn("interrupted during closing consumer log flusher.");
         }
     }
 }

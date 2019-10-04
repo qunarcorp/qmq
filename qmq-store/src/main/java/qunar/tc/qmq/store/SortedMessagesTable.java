@@ -32,7 +32,7 @@ import java.util.Optional;
  * @since 2019-06-10
  */
 public class SortedMessagesTable implements AutoCloseable {
-    private static final Logger LOG = LoggerFactory.getLogger(SortedMessagesTable.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(SortedMessagesTable.class);
 
     // magic::<int> + payloadSize::<int>  + beginOffset::<long> + endOffset::<long>
     private final static int TABLET_HEADER_SIZE = Integer.BYTES * 2 + Long.BYTES * 2;
@@ -201,7 +201,7 @@ public class SortedMessagesTable implements AutoCloseable {
             if (computedCrc == crc) {
                 return new ValidateResult(ValidateStatus.COMPLETE, segment.getFileSize());
             } else {
-                LOG.error("tablet crc check failed. computed crc: {}, stored crc: {}", computedCrc, crc);
+                LOGGER.error("tablet crc check failed. computed crc: {}, stored crc: {}", computedCrc, crc);
                 return new ValidateResult(ValidateStatus.PARTIAL, 0);
             }
         }

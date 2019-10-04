@@ -40,7 +40,7 @@ import static qunar.tc.qmq.backup.config.DefaultBackupConfig.ACQUIRE_BACKUP_META
  * @since 2019-02-26 16:57
  */
 public class SlaveMetaSupplier implements Disposable {
-    private static final Logger LOG = LoggerFactory.getLogger(SlaveMetaSupplier.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(SlaveMetaSupplier.class);
 
     private final String serverMetaAcquiredUrl;
 
@@ -63,7 +63,7 @@ public class SlaveMetaSupplier implements Disposable {
                 }
             }
         } catch (Exception e) {
-            LOG.error("Get server address error.", e);
+            LOGGER.error("Get server address error.", e);
         }
         return null;
     }

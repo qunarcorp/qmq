@@ -30,11 +30,9 @@ import qunar.tc.qmq.batch.Stateful;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.meta.MetaServerLocator;
 import qunar.tc.qmq.metrics.Metrics;
-import qunar.tc.qmq.protocol.MetaInfoResponse;
 import qunar.tc.qmq.protocol.QuerySubjectRequest;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
 
-import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;

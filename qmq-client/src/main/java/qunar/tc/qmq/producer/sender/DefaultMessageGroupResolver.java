@@ -23,7 +23,7 @@ import java.util.Objects;
  */
 public class DefaultMessageGroupResolver implements MessageGroupResolver {
 
-    private BrokerService brokerService;
+    private final BrokerService brokerService;
 
     public DefaultMessageGroupResolver(BrokerService brokerService) {
         this.brokerService = brokerService;
@@ -31,10 +31,10 @@ public class DefaultMessageGroupResolver implements MessageGroupResolver {
 
     @Override
     public MessageGroup resolveGroup(BaseMessage message) {
-        String subject = message.getSubject();
-        String orderKey = message.getOrderKey();
-        ClientType clientType = DelayUtil.isDelayMessage(message) ? ClientType.DELAY_PRODUCER : ClientType.PRODUCER;
-        ProducerAllocation producerAllocation = brokerService.getProducerAllocation(clientType, subject);
+        final String subject = message.getSubject();
+        final String orderKey = message.getOrderKey();
+        final ClientType clientType = DelayUtil.isDelayMessage(message) ? ClientType.DELAY_PRODUCER : ClientType.PRODUCER;
+        final ProducerAllocation producerAllocation = brokerService.getProducerAllocation(clientType, subject);
 
         int logicalPartition;
         if (orderKey == null) {

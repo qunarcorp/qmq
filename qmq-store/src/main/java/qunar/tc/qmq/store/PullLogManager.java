@@ -42,7 +42,7 @@ import static qunar.tc.qmq.store.GroupAndSubject.groupAndSubject;
  * @since 2017/8/3
  */
 public class PullLogManager implements AutoCloseable {
-    private static final Logger LOG = LoggerFactory.getLogger(PullLogManager.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(PullLogManager.class);
 
     private final StorageConfig config;
     private final Table<String, String, PullLog> logs;
@@ -84,7 +84,7 @@ public class PullLogManager implements AutoCloseable {
             executor.shutdown();
             executor.awaitTermination(1, TimeUnit.MINUTES);
         } catch (InterruptedException e) {
-            LOG.warn("interrupted during shutdown executor", e);
+            LOGGER.warn("interrupted during shutdown executor", e);
         }
     }
 
@@ -97,7 +97,7 @@ public class PullLogManager implements AutoCloseable {
                 }
                 final File[] segments = groupAndSubjectDir.listFiles();
                 if (segments == null || segments.length == 0) {
-                    LOG.info("need delete empty pull log dir: {}", groupAndSubjectDir.getAbsolutePath());
+                    LOGGER.info("need delete empty pull log dir: {}", groupAndSubjectDir.getAbsolutePath());
                     continue;
                 }
 

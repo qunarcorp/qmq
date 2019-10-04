@@ -20,7 +20,6 @@ import com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.*;
-import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.consumer.handler.IdempotentCheckerFilter;
 import qunar.tc.qmq.consumer.handler.QTraceFilter;
 import qunar.tc.qmq.consumer.pull.AckHook;
@@ -34,10 +33,9 @@ import java.util.Map;
  * @author yiqun.fan create on 17-8-18.
  */
 public class BaseMessageHandler implements MessageHandler, AckHook {
-
     private static final Logger LOGGER = LoggerFactory.getLogger(BaseMessageHandler.class);
 
-    protected final MessageListener listener;
+    private final MessageListener listener;
     private final List<Filter> filters;
     private final Filter traceFilter;
 

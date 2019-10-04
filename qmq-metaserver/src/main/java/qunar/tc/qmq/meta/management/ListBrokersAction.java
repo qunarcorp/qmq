@@ -30,7 +30,7 @@ import java.util.List;
  * @since 2018-12-03
  */
 public class ListBrokersAction implements MetaManagementAction {
-    private static final Logger LOG = LoggerFactory.getLogger(ListBrokersAction.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ListBrokersAction.class);
 
     private final BrokerStore store;
 
@@ -48,7 +48,7 @@ public class ListBrokersAction implements MetaManagementAction {
                 return ActionResult.ok(store.queryBrokers(brokerGroup));
             }
         } catch (Exception e) {
-            LOG.error("list brokers failed.", e);
+            LOGGER.error("list brokers failed.", e);
             return ActionResult.error("list brokers action failed");
         }
     }

@@ -30,7 +30,7 @@ import java.util.Date;
  * @since 2019/5/29
  */
 public class HBaseIndexStore extends AbstractHBaseMessageStore<MessageQueryResult.MessageMeta> {
-    private DicService dicService;
+    private final DicService dicService;
 
     HBaseIndexStore(byte[] table, byte[] family, byte[][] qualifiers, HBaseClient client, DicService dicService) {
         super(table, family, qualifiers, client);
@@ -38,7 +38,7 @@ public class HBaseIndexStore extends AbstractHBaseMessageStore<MessageQueryResul
     }
 
     @Override
-    protected MessageQueryResult findMessagesInternal(final BackupQuery query) {
+    protected MessageQueryResult<MessageQueryResult.MessageMeta> findMessagesInternal(final BackupQuery query) {
         final String subject = query.getSubject();
         final Date msgCreateTimeBegin = query.getMsgCreateTimeBegin();
         final Date msgCreateTimeEnd = query.getMsgCreateTimeEnd();
@@ -54,17 +54,11 @@ public class HBaseIndexStore extends AbstractHBaseMessageStore<MessageQueryResul
             return EMPTY_RESULT;
         }
 
-        final MessageQueryResult messageQueryResult = new MessageQueryResult();
-
-        final String keyRegexp;
-        final String startKey;
-        final String endKey;
-
-        keyRegexp = BackupMessageKeyRegexpBuilder.build(subjectId, messageId);
-        startKey = BackupMessageKeyRangeBuilder.buildStartKey(start, subjectId, msgCreateTimeEnd);
-        endKey = BackupMessageKeyRangeBuilder.buildEndKey(subjectId, msgCreateTimeBegin);
-        getMessageFromHBase(subject, table, messageQueryResult, keyRegexp, startKey, endKey, len);
-
+        final MessageQueryResult<MessageQueryResult.MessageMeta> messageQueryResult = new MessageQueryResult<>();
+        final String keyRegexp = BackupMessageKeyRegexpBuilder.build(subjectId, messageId);
+        final String startKey = BackupMessageKeyRangeBuilder.buildStartKey(start, subjectId, msgCreateTimeEnd);
+        final String endKey = BackupMessageKeyRangeBuilder.buildEndKey(subjectId, msgCreateTimeBegin);
+        scan(subject, table, messageQueryResult, keyRegexp, startKey, endKey, len);
         return messageQueryResult;
     }
 

@@ -16,7 +16,6 @@
 
 package qunar.tc.qmq.backup.util;
 
-import io.netty.buffer.ByteBuf;
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
 import org.jboss.netty.util.CharsetUtil;
@@ -43,11 +42,11 @@ import static qunar.tc.qmq.backup.store.impl.AbstractHBaseStore.RECORDS;
  */
 public class HBaseValueDecoder {
 
-    public static BackupMessage getMessage(byte[] value) throws Exception {
+    public static BackupMessage getMessage(byte[] value) {
         return getMessage(ByteBuffer.wrap(value));
     }
 
-    public static BackupMessage getMessage(ByteBuffer buffer) throws Exception {
+    public static BackupMessage getMessage(ByteBuffer buffer) {
         long sequence = buffer.getLong();
         // flag
         byte flag = buffer.get();

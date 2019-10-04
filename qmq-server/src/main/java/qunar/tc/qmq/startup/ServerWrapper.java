@@ -57,7 +57,7 @@ import static qunar.tc.qmq.constants.BrokerConstants.*;
  * @since 2017/6/30
  */
 public class ServerWrapper implements Disposable {
-    private static final Logger LOG = LoggerFactory.getLogger(ServerWrapper.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ServerWrapper.class);
 
     private final DynamicConfig config;
     private final List<Disposable> resources;
@@ -86,7 +86,7 @@ public class ServerWrapper implements Disposable {
     }
 
     public void start(boolean autoOnline) {
-        LOG.info("qmq server init started");
+        LOGGER.info("qmq server init started");
         register();
         createStorage();
         startSyncLog();
@@ -97,7 +97,7 @@ public class ServerWrapper implements Disposable {
         addToResources();
         if (autoOnline)
             online();
-        LOG.info("qmq server init done");
+        LOGGER.info("qmq server init done");
     }
 
     public Storage getStorage() {
@@ -149,11 +149,11 @@ public class ServerWrapper implements Disposable {
                     try {
                         return slaveSyncClient.syncCheckpoint();
                     } catch (Exception e) {
-                        LOG.warn("sync checkpoint failed, will retry after 2 seconds", e);
+                        LOGGER.warn("sync checkpoint failed, will retry after 2 seconds", e);
                         try {
                             TimeUnit.SECONDS.sleep(2);
                         } catch (InterruptedException ignore) {
-                            LOG.debug("sync checkpoint interrupted");
+                            LOGGER.debug("sync checkpoint interrupted");
                         }
                     }
                 }
@@ -184,11 +184,11 @@ public class ServerWrapper implements Disposable {
                 return;
             }
 
-            LOG.info("waiting log sync done ...");
+            LOGGER.info("waiting log sync done ...");
             try {
                 TimeUnit.SECONDS.sleep(2);
             } catch (InterruptedException ignore) {
-                LOG.debug("sleep interrupted");
+                LOGGER.debug("sleep interrupted");
             }
         }
     }
@@ -261,14 +261,14 @@ public class ServerWrapper implements Disposable {
             try {
                 sendMessageExecutorService.awaitTermination(5, TimeUnit.SECONDS);
             } catch (InterruptedException e) {
-                LOG.error("Shutdown sendMessageExecutorService interrupted.");
+                LOGGER.error("Shutdown sendMessageExecutorService interrupted.");
             }
         }
         if (consumeManageExecutorService != null) {
             try {
                 consumeManageExecutorService.awaitTermination(5, TimeUnit.SECONDS);
             } catch (InterruptedException e) {
-                LOG.error("Shutdown consumeManageExecutorService interrupted.");
+                LOGGER.error("Shutdown consumeManageExecutorService interrupted.");
             }
         }
         if (resources.isEmpty()) return;
@@ -277,7 +277,7 @@ public class ServerWrapper implements Disposable {
             try {
                 resource.destroy();
             } catch (Throwable e) {
-                LOG.error("destroy resource failed", e);
+                LOGGER.error("destroy resource failed", e);
             }
         }
     }
@@ -287,7 +287,7 @@ public class ServerWrapper implements Disposable {
             try {
                 brokerRegisterService.healthSwitch(false);
             } catch (Exception e) {
-                LOG.error("offline broker failed.", e);
+                LOGGER.error("offline broker failed.", e);
             }
         }
     }

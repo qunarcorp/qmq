@@ -19,7 +19,7 @@ import qunar.tc.qmq.common.JsonUtils;
  */
 public class RemoteEnvRuleGetter implements EnvRuleGetter {
 
-	private static final Logger LOG = LoggerFactory.getLogger(RemoteEnvRuleGetter.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(RemoteEnvRuleGetter.class);
 	private static final ObjectMapper objectMapper = JsonUtils.getMapper();
 	private static final int DEF_RETRY = 3;
 
@@ -39,10 +39,10 @@ public class RemoteEnvRuleGetter implements EnvRuleGetter {
 			try {
 				return reloadRules(rulesUrl);
 			} catch (Exception e) {
-				LOG.error("unknown exception caught.", e);
+				LOGGER.error("unknown exception caught.", e);
 			}
 		}
-		LOG.info("reload env match rules failed after retry {} times. url: {}", retryCount, rulesUrl);
+		LOGGER.info("reload env match rules failed after retry {} times. url: {}", retryCount, rulesUrl);
 		return null;
 	}
 
@@ -53,11 +53,11 @@ public class RemoteEnvRuleGetter implements EnvRuleGetter {
 				return objectMapper.readValue(data, new TypeReference<List<SubEnvIsolationRule>>() {
 				});
 			} catch (Exception e) {
-				LOG.error("Failed to deserialize env isolation rules.", e);
+				LOGGER.error("Failed to deserialize env isolation rules.", e);
 				return null;
 			}
 		} catch (Exception e) {
-			LOG.error("reload env match rules failed. url: {}", rulesUrl, e);
+			LOGGER.error("reload env match rules failed. url: {}", rulesUrl, e);
 			return null;
 		}
 	}

@@ -51,7 +51,7 @@ import java.util.concurrent.LinkedBlockingQueue;
  * @since 2017/8/7
  */
 public class SendMessageWorker {
-    private static final Logger LOG = LoggerFactory.getLogger(SendMessageWorker.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(SendMessageWorker.class);
 
     private final DynamicConfig config;
     private final Invoker invoker;
@@ -151,7 +151,7 @@ public class SendMessageWorker {
     }
 
     private void error(ReceivingMessage message, Throwable e) {
-        LOG.error("save message error", e);
+        LOGGER.error("save message error", e);
         QMon.receivedFailedCountInc(message.getSubject());
         end(message, new ReceiveResult(message.getMessageId(), MessageProducerCode.STORE_ERROR, "store error", -1));
     }
@@ -176,7 +176,7 @@ public class SendMessageWorker {
         try {
             message.done(result);
         } catch (Throwable e) {
-            LOG.error("send response failed {}", message.getMessageId());
+            LOGGER.error("send response failed {}", message.getMessageId());
         } finally {
             QMon.processTime(message.getSubject(), System.currentTimeMillis() - message.getReceivedTime());
         }

@@ -3,7 +3,6 @@ package qunar.tc.qmq.consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.NeedRetryException;
-import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.common.OrderStrategy;
 import qunar.tc.qmq.common.OrderStrategyCache;
 import qunar.tc.qmq.consumer.pull.PulledMessage;
@@ -22,7 +21,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class MessageConsumptionTask {
 
-    private static final Logger logger = LoggerFactory.getLogger(MessageConsumptionTask.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(MessageConsumptionTask.class);
 
     private final QmqTimer createToHandleTimer;
     private final QmqTimer handleTimer;
@@ -68,7 +67,7 @@ public class MessageConsumptionTask {
             }
         } catch (Throwable t) {
             handleFailCounter.inc();
-            logger.error("消息处理失败 {} {}", message.getSubject(), message.getMessageId(), t);
+            LOGGER.error("消息处理失败 {} {}", message.getSubject(), message.getMessageId(), t);
             orderStrategy.onConsumeFailed(message, messageExecutor, t);
         }
     }

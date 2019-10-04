@@ -53,7 +53,7 @@ import static qunar.tc.qmq.backup.util.KeyTools.generateDecimalFormatKey19;
  * @since 2019/5/29
  */
 public class HBaseRecordStore extends HBaseStore implements RecordStore {
-    private static final Logger LOG = LoggerFactory.getLogger(HBaseRecordStore.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(HBaseRecordStore.class);
 
     private static final RecordQueryResult EMPTY_RECORD_RESULT = new RecordQueryResult(Collections.emptyList());
     private static final int CONSUMER_GROUP_INDEX_IN_RETRY_MESSAGE = MESSAGE_SUBJECT_LENGTH + MESSAGE_ID_LENGTH + CREATE_TIME_LENGTH + BROKER_GROUP_LENGTH;
@@ -115,7 +115,7 @@ public class HBaseRecordStore extends HBaseStore implements RecordStore {
                 return new RecordQueryResult.Record(consumerGroup, ActionEnum.OMIT.getCode(), RecordEnum.DEAD_RECORD.getCode(), timestamp, "", sequence);
             });
         } catch (Exception e) {
-            LOG.error("Failed to find dead records.", e);
+            LOGGER.error("Failed to find dead records.", e);
             return Collections.emptyList();
         }
     }
@@ -156,7 +156,7 @@ public class HBaseRecordStore extends HBaseStore implements RecordStore {
             final RecordQueryResult.Record ackRecord = get(table, ackKey, R_FAMILY, B_RECORD_QUALIFIERS, kvs -> getRecord(kvs, type));
             if (ackRecord != null) records.add(ackRecord);
         } catch (Exception e) {
-            LOG.error("find retry records with meta: {} failed.", meta, e);
+            LOGGER.error("find retry records with meta: {} failed.", meta, e);
         }
         return records;
     }
@@ -185,7 +185,7 @@ public class HBaseRecordStore extends HBaseStore implements RecordStore {
             });
             return Lists.newArrayList(Sets.newHashSet(metas));
         } catch (Exception e) {
-            LOG.error("Failed to scan messages meta.", e);
+            LOGGER.error("Failed to scan messages meta.", e);
             return Lists.newArrayList();
         }
     }
@@ -207,7 +207,7 @@ public class HBaseRecordStore extends HBaseStore implements RecordStore {
             final String endKey = BackupMessageKeyRangeBuilder.buildRecordEndKey(subjectId, sequence, brokerGroupId);
             return scan(table, recordRegexp, startKey, endKey, 1000, 0, R_FAMILY, B_RECORD_QUALIFIERS, kvs -> getRecord(kvs, type));
         } catch (Exception e) {
-            LOG.error("Failed to find records.", e);
+            LOGGER.error("Failed to find records.", e);
             return Collections.emptyList();
         }
     }

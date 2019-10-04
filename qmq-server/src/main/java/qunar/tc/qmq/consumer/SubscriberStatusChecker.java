@@ -38,7 +38,7 @@ import java.util.concurrent.*;
  * 7/30/18
  */
 public class SubscriberStatusChecker implements ActorSystem.Processor<Subscriber>, Runnable, Disposable {
-    private static final Logger LOG = LoggerFactory.getLogger(SubscriberStatusChecker.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(SubscriberStatusChecker.class);
 
     private final DynamicConfig config;
     private final Storage storage;
@@ -74,7 +74,7 @@ public class SubscriberStatusChecker implements ActorSystem.Processor<Subscriber
             if (maxPulledMessageSequence == -1) {
                 for (final Map.Entry<String, PullLog> entry : pullLogs.column(groupAndSubject).entrySet()) {
                     final String consumerId = entry.getKey();
-                    LOG.info("remove pull log. subject: {}, group: {}, consumerId: {}", gs.getSubject(), gs.getGroup(), consumerId);
+                    LOGGER.info("remove pull log. subject: {}, group: {}, consumerId: {}", gs.getSubject(), gs.getGroup(), consumerId);
                     storage.destroyPullLog(gs.getSubject(), gs.getGroup(), consumerId);
                 }
             }
@@ -101,7 +101,7 @@ public class SubscriberStatusChecker implements ActorSystem.Processor<Subscriber
     }
 
     public void brokerStatusChanged(final Boolean online) {
-        LOG.info("broker online status changed from {} to {}", this.online, online);
+        LOGGER.info("broker online status changed from {} to {}", this.online, online);
         this.online = online;
     }
 
@@ -110,7 +110,7 @@ public class SubscriberStatusChecker implements ActorSystem.Processor<Subscriber
         try {
             check();
         } catch (Throwable e) {
-            LOG.error("consumer status checker task failed.", e);
+            LOGGER.error("consumer status checker task failed.", e);
         }
     }
 
@@ -220,7 +220,7 @@ public class SubscriberStatusChecker implements ActorSystem.Processor<Subscriber
         try {
             storage.disableLagMonitor(lastSubscriber.getSubject(), lastSubscriber.getGroup());
         } catch (Throwable e) {
-            LOG.error("disable monitor error", e);
+            LOGGER.error("disable monitor error", e);
         }
         // TODO(keli.wang): how to detect group offline if master and slave's subscriber list is different
     }

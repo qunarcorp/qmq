@@ -37,7 +37,7 @@ import java.util.concurrent.CompletableFuture;
  * @since 2017/9/26
  */
 public class BrokerAcquireMetaProcessor implements NettyRequestProcessor {
-    private static final Logger LOG = LoggerFactory.getLogger(BrokerAcquireMetaProcessor.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(BrokerAcquireMetaProcessor.class);
 
     private final BrokerStore store;
 
@@ -53,14 +53,14 @@ public class BrokerAcquireMetaProcessor implements NettyRequestProcessor {
         final int port = request.getPort();
 
         final String brokerAddress = hostname + "/" + port;
-        LOG.info("broker request BROKER_ACQUIRE_META: {}", brokerAddress);
+        LOGGER.info("broker request BROKER_ACQUIRE_META: {}", brokerAddress);
 
         final BrokerAcquireMetaResponse resp = createResponse(hostname, port);
         final Datagram datagram = RemotingBuilder.buildResponseDatagram(CommandCode.SUCCESS, command.getHeader(), out -> {
             BrokerAcquireMetaResponseSerializer.serialize(resp, out);
         });
 
-        LOG.info("assign {} to {}", resp, brokerAddress);
+        LOGGER.info("assign {} to {}", resp, brokerAddress);
         return CompletableFuture.completedFuture(datagram);
     }
 

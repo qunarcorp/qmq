@@ -20,8 +20,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.ConsumeStrategy;
-import qunar.tc.qmq.PullEntry;
-import qunar.tc.qmq.StatusSource;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
@@ -82,14 +80,14 @@ class DefaultPullEntry extends AbstractPullEntry {
         super(consumeParam.getSubject(), consumeParam.getConsumerGroup(), partitionName, brokerGroup, consumerId, consumeStrategy, version, consumeParam.isBroadcast(), consumeParam.isOrdered(), consumptionExpiredTime, pullService, ackService, brokerService, sendMessageBack);
         this.consumeParam = consumeParam;
         this.consumerOnlineStateManager = consumerOnlineStateManager;
+        this.consumeMessageExecutor = consumeMessageExecutor;
+        this.pullStrategy = pullStrategy;
+
         String subject = consumeParam.getSubject();
         String consumerGroup = consumeParam.getConsumerGroup();
-
-        this.consumeMessageExecutor = consumeMessageExecutor;
         this.pullBatchSize = PullSubjectsConfig.get().getPullBatchSize(subject);
         this.pullTimeout = PullSubjectsConfig.get().getPullTimeout(subject);
         this.ackNosendLimit = PullSubjectsConfig.get().getAckNosendLimit(subject);
-        this.pullStrategy = pullStrategy;
 
         String[] values = new String[]{subject, consumerGroup};
         this.pullRunCounter = Metrics.counter("qmq_pull_run_count", SUBJECT_GROUP_ARRAY, values);

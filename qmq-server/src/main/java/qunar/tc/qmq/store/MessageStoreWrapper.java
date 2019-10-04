@@ -36,7 +36,7 @@ import java.util.List;
  * @since 2017/7/10
  */
 public class MessageStoreWrapper {
-    private static final Logger LOG = LoggerFactory.getLogger(MessageStoreWrapper.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(MessageStoreWrapper.class);
 
     private static final int MAX_MEMORY_LIMIT = 100 * 1024 * 1024;
 
@@ -59,7 +59,7 @@ public class MessageStoreWrapper {
             final PutMessageResult putMessageResult = storage.appendMessage(rawMessage);
             final PutMessageStatus status = putMessageResult.getStatus();
             if (status != PutMessageStatus.SUCCESS) {
-                LOG.error("put message error, message:{} {}, status:{}", header.getSubject(), msgId, status.name());
+                LOGGER.error("put message error, message:{} {}, status:{}", header.getSubject(), msgId, status.name());
                 QMon.storeMessageErrorCountInc(header.getSubject());
                 return new ReceiveResult(msgId, MessageProducerCode.STORE_ERROR, status.name(), -1);
             }
@@ -68,7 +68,7 @@ public class MessageStoreWrapper {
             final long endOffsetOfMessage = result.getWroteOffset() + result.getWroteBytes();
             return new ReceiveResult(msgId, MessageProducerCode.SUCCESS, "", endOffsetOfMessage);
         } catch (Throwable e) {
-            LOG.error("put message error, message:{} {}", header.getSubject(), header.getMessageId(), e);
+            LOGGER.error("put message error, message:{} {}", header.getSubject(), header.getMessageId(), e);
             QMon.storeMessageErrorCountInc(header.getSubject());
             return new ReceiveResult(msgId, MessageProducerCode.STORE_ERROR, "", -1);
         } finally {
@@ -85,7 +85,7 @@ public class MessageStoreWrapper {
 
             return findNewExistMessages(pullRequest);
         } catch (Throwable e) {
-            LOG.error("find messages error, consumer: {}", pullRequest, e);
+            LOGGER.error("find messages error, consumer: {}", pullRequest, e);
             QMon.findMessagesErrorCountInc(pullRequest.getPartitionName(), pullRequest.getGroup());
         }
         return PullMessageResult.EMPTY;
@@ -121,7 +121,7 @@ public class MessageStoreWrapper {
 
                     return doPullResultFilter(pullRequest, getMessageResult, consumeQueue);
                 case OFFSET_OVERFLOW:
-                    LOG.warn("get message result not success, consumer:{}, result:{}", pullRequest, getMessageResult);
+                    LOGGER.warn("get message result not success, consumer:{}, result:{}", pullRequest, getMessageResult);
                     QMon.getMessageOverflowCountInc(subject, group);
                 default:
                     consumeQueue.setNextSequence(getMessageResult.getNextBeginSequence());
@@ -282,7 +282,7 @@ public class MessageStoreWrapper {
             return PullMessageResult.EMPTY;
         }
 
-        LOG.warn("consumer need find lost ack messages, pullRequest: {}, consumerSequence: {}", pullRequest, consumerSequence);
+        LOGGER.warn("consumer need find lost ack messages, pullRequest: {}, consumerSequence: {}", pullRequest, consumerSequence);
 
         final int requestNum = pullRequest.getRequestNum();
         final List<Buffer> buffers = new ArrayList<>(requestNum);
@@ -294,7 +294,7 @@ public class MessageStoreWrapper {
                 final long consumerLogSequence = getConsumerLogSequence(pullRequest, seq);
                 //deleted message
                 if (consumerLogSequence < 0) {
-                    LOG.warn("find no consumer log for this pull log sequence, req: {}, pullLogSeq: {}, consumerLogSeq: {}", pullRequest, seq, consumerLogSequence);
+                    LOGGER.warn("find no consumer log for this pull log sequence, req: {}, pullLogSeq: {}, consumerLogSeq: {}", pullRequest, seq, consumerLogSequence);
                     if (firstValidSeq == -1) {
                         continue;
                     } else {
@@ -304,7 +304,7 @@ public class MessageStoreWrapper {
 
                 final GetMessageResult getMessageResult = storage.getMessage(subject, consumerLogSequence);
                 if (getMessageResult.getStatus() != GetMessageStatus.SUCCESS || getMessageResult.getMessageNum() == 0) {
-                    LOG.error("getMessageResult error, consumer:{}, consumerLogSequence:{}, pullLogSequence:{}, getMessageResult:{}", pullRequest, consumerLogSequence, seq, getMessageResult);
+                    LOGGER.error("getMessageResult error, consumer:{}, consumerLogSequence:{}, pullLogSequence:{}, getMessageResult:{}", pullRequest, consumerLogSequence, seq, getMessageResult);
                     QMon.getMessageErrorCountInc(subject, consumerGroup);
                     if (firstValidSeq == -1) {
                         continue;
@@ -336,7 +336,7 @@ public class MessageStoreWrapper {
                 //超过一次读取的内存限制
                 if (totalSize >= MAX_MEMORY_LIMIT) break;
             } catch (Exception e) {
-                LOG.error("error occurs when find messages by pull log offset, request: {}, consumerSequence: {}", pullRequest, consumerSequence, e);
+                LOGGER.error("error occurs when find messages by pull log offset, request: {}, consumerSequence: {}", pullRequest, consumerSequence, e);
                 QMon.getMessageErrorCountInc(subject, consumerGroup);
 
                 if (firstValidSeq != -1) {
@@ -351,13 +351,13 @@ public class MessageStoreWrapper {
                 consumerSequence.setAckSequence(firstValidSeq - 1);
             }
         } else {
-            LOG.error("find lost messages empty, consumer:{}, consumerSequence:{}, pullLogSequence:{}", pullRequest, consumerSequence, pullLogSequenceInServer);
+            LOGGER.error("find lost messages empty, consumer:{}, consumerSequence:{}, pullLogSequence:{}", pullRequest, consumerSequence, pullLogSequenceInServer);
             QMon.findLostMessageEmptyCountInc(subject, consumerGroup);
             firstValidSeq = pullLogSequenceInServer;
             consumerSequence.setAckSequence(pullLogSequenceInServer);
 
             // auto ack all deleted pulled message
-            LOG.info("auto ack deleted pulled message. subject: {}, consumerGroup: {}, consumerId: {}, firstSeq: {}, lastSeq: {}",
+            LOGGER.info("auto ack deleted pulled message. subject: {}, consumerGroup: {}, consumerId: {}, firstSeq: {}, lastSeq: {}",
                     subject, consumerGroup, consumerId, firstLostAckPullLogSeq, firstValidSeq);
             String exclusiveKey = pullRequest.isExclusiveConsume() ? consumerGroup : consumerId;
             consumerSequenceManager.putAction(new RangeAckAction(subject, consumerGroup, exclusiveKey, System.currentTimeMillis(), firstLostAckPullLogSeq, firstValidSeq));
@@ -365,7 +365,7 @@ public class MessageStoreWrapper {
 
         final PullMessageResult result = new PullMessageResult(firstValidSeq, buffers, totalSize, buffers.size());
         QMon.findLostMessageCountInc(subject, consumerGroup, result.getMessageNum());
-        LOG.info("found lost ack messages request: {}, consumerSequence: {}, result: {}", pullRequest, consumerSequence, result);
+        LOGGER.info("found lost ack messages request: {}, consumerSequence: {}, result: {}", pullRequest, consumerSequence, result);
         return result;
     }
 

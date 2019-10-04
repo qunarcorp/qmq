@@ -36,7 +36,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @since 2017/7/3
  */
 public class LogSegment extends ReferenceObject {
-    private static final Logger LOG = LoggerFactory.getLogger(LogSegment.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(LogSegment.class);
 
     private final File file;
     private final int fileSize;
@@ -62,10 +62,10 @@ public class LogSegment extends ReferenceObject {
             mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, 0, fileSize);
             success = true;
         } catch (FileNotFoundException e) {
-            LOG.error("create file channel failed. file: {}", fileName, e);
+            LOGGER.error("create file channel failed. file: {}", fileName, e);
             throw e;
         } catch (IOException e) {
-            LOG.error("map file failed. file: {}", fileName, e);
+            LOGGER.error("map file failed. file: {}", fileName, e);
             throw e;
         } finally {
             if (!success && fileChannel != null) {
@@ -101,7 +101,7 @@ public class LogSegment extends ReferenceObject {
             fileChannel.write(data, currentPos);
             this.wrotePosition.addAndGet(size);
         } catch (Throwable e) {
-            LOG.error("Append data to log segment failed.", e);
+            LOGGER.error("Append data to log segment failed.", e);
             return false;
         }
         return true;
@@ -198,7 +198,7 @@ public class LogSegment extends ReferenceObject {
             fileChannel.close();
             clean(mappedByteBuffer);
         } catch (Exception e) {
-            LOG.error("close file channel failed. file: {}", fileName, e);
+            LOGGER.error("close file channel failed. file: {}", fileName, e);
         }
     }
 

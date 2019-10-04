@@ -41,7 +41,7 @@ import java.util.function.Supplier;
  * yiqun.fan@qunar.com 2018/3/2
  */
 public class CachedOfflineStateManager implements Disposable {
-    private static final Logger log = LoggerFactory.getLogger(CachedOfflineStateManager.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(CachedOfflineStateManager.class);
     private static final long REFRESH_PERIOD_SECONDS = 30L;
     private static final String CLIENT_STATE_KEY_SEPARATOR = "$";
     private static final String CLIENTID_OF_GROUP = "*";
@@ -64,7 +64,7 @@ public class CachedOfflineStateManager implements Disposable {
         refresh();
         scheduledExecutor = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder().setNameFormat("meta-info-offlinestate-refresh-%d").build());
         scheduledExecutor.scheduleAtFixedRate(this::refresh, REFRESH_PERIOD_SECONDS, REFRESH_PERIOD_SECONDS, TimeUnit.SECONDS);
-        log.info("CachedOfflineStateManager started");
+        LOGGER.info("CachedOfflineStateManager started");
     }
 
     private void refresh() {
@@ -86,9 +86,9 @@ public class CachedOfflineStateManager implements Disposable {
             this.updateTime = updateTime;
             this.groupStateMap = groupStateMap;
             this.clientStateMap = clientStateMap;
-            log.info("refreshed onoffline state {}", updateTime);
+            LOGGER.info("refreshed onoffline state {}", updateTime);
         } catch (Exception e) {
-            log.error("refresh OfflineState exception", e);
+            LOGGER.error("refresh OfflineState exception", e);
             REFRESH_ERROR.inc();
         }
     }
@@ -130,6 +130,6 @@ public class CachedOfflineStateManager implements Disposable {
     @Override
     public void destroy() {
         scheduledExecutor.shutdown();
-        log.info("CachedOfflineStateManager destoried");
+        LOGGER.info("CachedOfflineStateManager destoried");
     }
 }

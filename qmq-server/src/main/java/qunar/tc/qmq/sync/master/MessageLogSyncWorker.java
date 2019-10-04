@@ -34,7 +34,7 @@ import java.util.concurrent.Executors;
  * @since 2017/8/19
  */
 class MessageLogSyncWorker extends AbstractLogSyncWorker implements Disposable {
-    private static final Logger LOG = LoggerFactory.getLogger(MessageLogSyncWorker.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(MessageLogSyncWorker.class);
 
     private final Storage storage;
     private final AsyncEventBus messageLogSyncEventBus;
@@ -53,7 +53,7 @@ class MessageLogSyncWorker extends AbstractLogSyncWorker implements Disposable {
         long startSyncOffset = syncRequest.getMessageLogOffset();
         long minMessageOffset = storage.getMinMessageOffset();
         if (startSyncOffset < minMessageOffset) {
-            LOG.info("reset message log sync offset from {} to {}", startSyncOffset, minMessageOffset);
+            LOGGER.info("reset message log sync offset from {} to {}", startSyncOffset, minMessageOffset);
             startSyncOffset = minMessageOffset;
         }
         return storage.getMessageData(startSyncOffset);

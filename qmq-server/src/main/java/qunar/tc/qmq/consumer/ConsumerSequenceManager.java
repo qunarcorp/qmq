@@ -47,7 +47,7 @@ import java.util.concurrent.ConcurrentMap;
  * @since 2017/8/1
  */
 public class ConsumerSequenceManager {
-    private static final Logger LOG = LoggerFactory.getLogger(ConsumerSequenceManager.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ConsumerSequenceManager.class);
 
     private static final long ACTION_LOG_ORIGIN_OFFSET = -1L;
 
@@ -96,7 +96,7 @@ public class ConsumerSequenceManager {
         final ConsumerSequence consumerSequence = getOrCreateConsumerSequence(subject, consumerGroup, consumerId, isExclusiveConsume);
 
         if (consumerLogRange.getEnd() - consumerLogRange.getBegin() + 1 != getMessageResult.getMessageNum()) {
-            LOG.debug("consumer offset range error, subject:{}, consumerGroup:{}, consumerId:{}, isExclusiveConsume:{}, getMessageResult:{}",
+            LOGGER.debug("consumer offset range error, subject:{}, consumerGroup:{}, consumerId:{}, isExclusiveConsume:{}, getMessageResult:{}",
                     subject, consumerGroup, consumerId, isExclusiveConsume, getMessageResult);
             QMon.consumerLogOffsetRangeError(subject, consumerGroup);
         }
@@ -120,7 +120,7 @@ public class ConsumerSequenceManager {
             consumerSequence.setPullSequence(lastPullSequence);
             return new WritePutActionResult(true, firstPullSequence);
         } catch (Exception e) {
-            LOG.error("write action log failed, subject: {}, consumerGroup: {}, consumerId: {}", subject, consumerGroup, consumerId, e);
+            LOGGER.error("write action log failed, subject: {}, consumerGroup: {}, consumerId: {}", subject, consumerGroup, consumerId, e);
             return new WritePutActionResult(false, -1);
         } finally {
             consumerSequence.pullUnlock();
@@ -143,13 +143,13 @@ public class ConsumerSequenceManager {
             //   -----------------------|------------------------------------------------|----------
             // ack已经ack过的消息
             if (lastPullSequence <= confirmedAckSequence) {
-                LOG.warn("receive duplicate ack, ackEntry:{}, consumerSequence:{} ", ackEntry, consumerSequence);
+                LOGGER.warn("receive duplicate ack, ackEntry:{}, consumerSequence:{} ", ackEntry, consumerSequence);
                 QMon.consumerDuplicateAckCountInc(subject, consumerGroup, (int) (confirmedAckSequence - lastPullSequence));
                 return true;
             }
             final long lostAckCount = firstPullSequence - confirmedAckSequence;
             if (lostAckCount <= 0) {
-                LOG.warn("receive some duplicate ack, ackEntry:{}, consumerSequence:{}", ackEntry, consumerSequence);
+                LOGGER.warn("receive some duplicate ack, ackEntry:{}, consumerSequence:{}", ackEntry, consumerSequence);
                 firstPullSequence = confirmedAckSequence + 1;
                 QMon.consumerDuplicateAckCountInc(subject, consumerGroup, (int) (confirmedAckSequence - firstPullSequence));
             } else if (lostAckCount > 1) {
@@ -157,7 +157,7 @@ public class ConsumerSequenceManager {
                 final long lastLostPullSequence = firstPullSequence - 1;
                 //如果是独占消费，put need retry也是没有意义的
                 if (!ackEntry.isExclusiveConsume()) {
-                    LOG.error("lost ack count, ackEntry:{}, consumerSequence:{}", ackEntry, consumerSequence);
+                    LOGGER.error("lost ack count, ackEntry:{}, consumerSequence:{}", ackEntry, consumerSequence);
                     putNeedRetryMessages(subject, consumerGroup, consumerId, firstNotAckedPullSequence, lastLostPullSequence);
                 }
                 firstPullSequence = firstNotAckedPullSequence;
@@ -174,7 +174,7 @@ public class ConsumerSequenceManager {
             return true;
         } catch (Exception e) {
             QMon.putAckActionsErrorCountInc(ackEntry.getSubject(), ackEntry.getGroup());
-            LOG.error("put ack actions error, ackEntry:{}, consumerSequence:{}", ackEntry, consumerSequence, e);
+            LOGGER.error("put ack actions error, ackEntry:{}, consumerSequence:{}", ackEntry, consumerSequence, e);
             return false;
         } finally {
             consumerSequence.ackUnLock();
@@ -192,7 +192,7 @@ public class ConsumerSequenceManager {
             return true;
         }
 
-        LOG.error("put action fail, action:{}", action);
+        LOGGER.error("put action fail, action:{}", action);
         QMon.putActionFailedCountInc(action.subject(), action.group());
         return false;
     }
@@ -229,7 +229,7 @@ public class ConsumerSequenceManager {
         for (long sequence = firstNotAckedSequence; sequence <= lastPullSequence; sequence++) {
             final long consumerLogSequence = storage.getMessageSequenceByPullLog(subject, consumerGroup, consumerId, sequence);
             if (consumerLogSequence < 0) {
-                LOG.warn("find no consumer log offset for this pull log, subject:{}, consumerGroup:{}, consumerId:{}, sequence:{}, consumerLogSequence:{}", subject, consumerGroup, consumerId, sequence, consumerLogSequence);
+                LOGGER.warn("find no consumer log offset for this pull log, subject:{}, consumerGroup:{}, consumerId:{}, sequence:{}, consumerLogSequence:{}", subject, consumerGroup, consumerId, sequence, consumerLogSequence);
                 continue;
             }
 
@@ -254,7 +254,7 @@ public class ConsumerSequenceManager {
 
                 final PutMessageResult putMessageResult = storage.appendMessage(rawMessage);
                 if (putMessageResult.getStatus() != PutMessageStatus.SUCCESS) {
-                    LOG.error("put message error, consumer:{} {} {}, status:{}", subject, consumerGroup, consumerId, putMessageResult.getStatus());
+                    LOGGER.error("put message error, consumer:{} {} {}, status:{}", subject, consumerGroup, consumerId, putMessageResult.getStatus());
                     throw new RuntimeException("put retry message error");
                 }
             }

@@ -3,10 +3,10 @@ package qunar.tc.qmq.common;
 import qunar.tc.qmq.MessageGroup;
 import qunar.tc.qmq.ProduceMessage;
 import qunar.tc.qmq.base.BaseMessage;
-import qunar.tc.qmq.producer.sender.SendMessageExecutor;
 import qunar.tc.qmq.consumer.ConsumeMessageExecutor;
 import qunar.tc.qmq.consumer.pull.PulledMessage;
 import qunar.tc.qmq.producer.sender.MessageGroupResolver;
+import qunar.tc.qmq.producer.sender.SendMessageExecutor;
 import qunar.tc.qmq.producer.sender.SendMessageExecutorManager;
 
 import java.util.Objects;
@@ -16,8 +16,7 @@ import java.util.Objects;
  * @since 2019-09-10
  */
 public class BestTriedOrderStrategy extends AbstractOrderStrategy {
-
-    private MessageGroupResolver messageGroupResolver;
+    private final MessageGroupResolver messageGroupResolver;
 
     public BestTriedOrderStrategy(MessageGroupResolver messageGroupResolver) {
         this.messageGroupResolver = messageGroupResolver;
@@ -25,7 +24,6 @@ public class BestTriedOrderStrategy extends AbstractOrderStrategy {
 
     @Override
     void doOnSendError(ProduceMessage message, SendMessageExecutor currentExecutor, SendMessageExecutorManager sendMessageExecutorManager, Exception e) {
-
         if (message.getTries() >= message.getMaxTries()) {
             currentExecutor.removeMessage(message);
             message.failed();

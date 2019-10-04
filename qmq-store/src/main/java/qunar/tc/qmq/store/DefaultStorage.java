@@ -46,7 +46,7 @@ import java.util.concurrent.TimeUnit;
  * @since 2017/7/4
  */
 public class DefaultStorage implements Storage {
-    private static final Logger LOG = LoggerFactory.getLogger(DefaultStorage.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(DefaultStorage.class);
 
     private static final int DEFAULT_FLUSH_INTERVAL = 500; // ms
 
@@ -135,11 +135,11 @@ public class DefaultStorage implements Storage {
 
     private void blockUntilSMTWriteComplete() {
         while (memTableManager.hasPendingEvicted()) {
-            LOG.info("waiting all smt write complete");
+            LOGGER.info("waiting all smt write complete");
             try {
                 TimeUnit.SECONDS.sleep(1);
             } catch (InterruptedException e) {
-                LOG.debug("sleep interrupted.", e);
+                LOGGER.debug("sleep interrupted.", e);
             }
         }
     }
@@ -178,7 +178,7 @@ public class DefaultStorage implements Storage {
         try {
             closeable.close();
         } catch (Exception ignore) {
-            LOG.debug("close resource failed");
+            LOGGER.debug("close resource failed");
         }
     }
 
@@ -359,7 +359,7 @@ public class DefaultStorage implements Storage {
             return true;
         } else {
             QMon.readMessageReturnNullCountInc(subject);
-            LOG.warn("read message log failed. wrote offset: {}, wrote bytes: {}, header size: {}",
+            LOGGER.warn("read message log failed. wrote offset: {}, wrote bytes: {}, header size: {}",
                     index.getWroteOffset(), index.getWroteBytes(), index.getHeaderSize());
             return false;
         }
@@ -372,7 +372,7 @@ public class DefaultStorage implements Storage {
                 result.addBuffer(getResult.getData());
                 return true;
             case TABLET_ID_INVALID:
-                LOG.error("found invalid tablet id. id: {}", tabletId);
+                LOGGER.error("found invalid tablet id. id: {}", tabletId);
             default:
                 return false;
         }
@@ -458,14 +458,14 @@ public class DefaultStorage implements Storage {
     public void updateConsumeQueue(String subject, String group, int consumeFromWhereCode) {
         final ConsumerLog consumerLog = consumerLogManager.getConsumerLog(subject);
         if (consumerLog == null) {
-            LOG.warn("没有对应的consumerLog, subject:{}", subject);
+            LOGGER.warn("没有对应的consumerLog, subject:{}", subject);
             return;
         }
         final ConsumeFromWhere consumeFromWhere = ConsumeFromWhere.codeOf(consumeFromWhereCode);
         final OffsetBound bound = consumerLog.getOffsetBound();
         switch (consumeFromWhere) {
             case UNKNOWN:
-                LOG.info("UNKNOWN consumeFromWhere code, {}", consumeFromWhereCode);
+                LOGGER.info("UNKNOWN consumeFromWhere code, {}", consumeFromWhereCode);
                 break;
             case EARLIEST:
                 consumeQueueManager.update(subject, group, bound.getMinOffset());
@@ -546,7 +546,7 @@ public class DefaultStorage implements Storage {
         @Override
         public void onEvent(final MessageLogRecord event) {
             if (isFirstEventOfLogSegment(event)) {
-                LOG.info("first event of log segment. event: {}", event);
+                LOGGER.info("first event of log segment. event: {}", event);
                 // TODO(keli.wang): need catch all exception here?
                 consumerLogManager.createOffsetFileFor(event.getBaseOffset(), offsets);
             }
@@ -555,7 +555,7 @@ public class DefaultStorage implements Storage {
 
             final ConsumerLog consumerLog = consumerLogManager.getOrCreateConsumerLog(event.getSubject());
             if (consumerLog.nextSequence() != event.getSequence()) {
-                LOG.error("next sequence not equals to max sequence. subject: {}, received seq: {}, received offset: {}, diff: {}",
+                LOGGER.error("next sequence not equals to max sequence. subject: {}, received seq: {}, received offset: {}, diff: {}",
                         event.getSubject(), event.getSequence(), event.getWroteOffset(), event.getSequence() - consumerLog.nextSequence());
             }
             final boolean success = consumerLog.writeMessageLogIndex(event.getSequence(), event.getWroteOffset(), event.getWroteBytes(), event.getHeaderSize());
@@ -607,14 +607,14 @@ public class DefaultStorage implements Storage {
                     final File file = new File(path, fileName);
                     try {
                         if (!file.delete()) {
-                            LOG.warn("delete offset file failed. file: {}", fileName);
+                            LOGGER.warn("delete offset file failed. file: {}", fileName);
                         }
                     } catch (Exception e) {
-                        LOG.warn("delete offset file failed.. file: {}", fileName, e);
+                        LOGGER.warn("delete offset file failed.. file: {}", fileName, e);
                     }
                 });
             } catch (Throwable e) {
-                LOG.error("log cleaner caught exception.", e);
+                LOGGER.error("log cleaner caught exception.", e);
             }
         }
     }

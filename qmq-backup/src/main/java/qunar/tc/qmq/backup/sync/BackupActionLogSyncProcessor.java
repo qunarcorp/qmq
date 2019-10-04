@@ -17,8 +17,6 @@
 package qunar.tc.qmq.backup.sync;
 
 import io.netty.buffer.ByteBuf;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.backup.base.ActionRecord;
 import qunar.tc.qmq.backup.base.ScheduleFlushable;
 import qunar.tc.qmq.backup.service.BatchBackup;
@@ -38,7 +36,6 @@ import static qunar.tc.qmq.backup.service.impl.ActionSyncLogIterator.BLANK_ACTIO
  * @since 2018-12-06 18:35
  */
 public class BackupActionLogSyncProcessor extends AbstractSyncLogProcessor implements ScheduleFlushable {
-    private static final Logger LOG = LoggerFactory.getLogger(BackupActionLogSyncProcessor.class);
 
     private final PeriodicFlushService flushService;
     private final CheckpointManager checkpointManager;

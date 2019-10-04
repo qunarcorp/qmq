@@ -55,7 +55,7 @@ import java.util.List;
  */
 @SuppressWarnings("all")
 public class ServerWrapper implements Disposable {
-    private static final Logger LOG = LoggerFactory.getLogger(ServerWrapper.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ServerWrapper.class);
 
     private final List<Disposable> resources;
     private final DynamicConfig config;
@@ -131,7 +131,7 @@ public class ServerWrapper implements Disposable {
             try {
                 resources.get(i).destroy();
             } catch (Throwable e) {
-                LOG.error("destroy resource failed", e);
+                LOGGER.error("destroy resource failed", e);
             }
         }
     }

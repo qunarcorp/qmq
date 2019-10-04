@@ -22,7 +22,7 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 public class OrderedConsumerHeartbeatHandler implements HeartbeatHandler {
 
-    private static final Logger logger = LoggerFactory.getLogger(OrderedConsumerHeartbeatHandler.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(OrderedConsumerHeartbeatHandler.class);
 
     private ClientMetaInfoStore clientMetaInfoStore;
     private PartitionAllocationTask partitionAllocationTask;
@@ -74,7 +74,7 @@ public class OrderedConsumerHeartbeatHandler implements HeartbeatHandler {
                     }
                 }
             } catch (Throwable t) {
-                logger.error("心跳处理失败", t);
+                LOGGER.error("心跳处理失败", t);
             }
         }
     }
@@ -83,7 +83,7 @@ public class OrderedConsumerHeartbeatHandler implements HeartbeatHandler {
     @Subscribe
     public void handle(MetaInfoRequest request) {
         if (!this.heartbeatQueue.offer(request)) {
-            logger.error("心跳入队失败 {} {}", request.getSubject(), request.getConsumerGroup());
+            LOGGER.error("心跳入队失败 {} {}", request.getSubject(), request.getConsumerGroup());
         }
     }
 }

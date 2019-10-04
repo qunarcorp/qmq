@@ -30,7 +30,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * @since 2017/7/5
  */
 public class ConsumerLog {
-    private static final Logger LOG = LoggerFactory.getLogger(ConsumerLog.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ConsumerLog.class);
 
     // 8 bytes timestamp + 8 bytes wrote offset + 4 bytes wrote bytes + 2 bytes header size
     private static final int CONSUMER_LOG_UNIT_BYTES = 22;
@@ -186,7 +186,7 @@ public class ConsumerLog {
         if (computedMinSequence < sequence) {
             this.minSequence = sequence;
             QMon.adjustConsumerLogMinOffset(subject);
-            LOG.info("adjust consumer log {} min offset from {} to {}.", subject, computedMinSequence, minSequence);
+            LOGGER.info("adjust consumer log {} min offset from {} to {}.", subject, computedMinSequence, minSequence);
         }
     }
 

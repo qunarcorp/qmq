@@ -35,7 +35,7 @@ import java.util.concurrent.TimeUnit;
  * @since 2018/9/10
  */
 public class SnapshotStore<T> {
-    private static final Logger LOG = LoggerFactory.getLogger(SnapshotStore.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(SnapshotStore.class);
 
     private final String prefix;
     private final StorageConfig config;
@@ -66,7 +66,7 @@ public class SnapshotStore<T> {
         if (!success) {
             throw new RuntimeException("failed create directory " + storePath);
         }
-        LOG.info("create snapshot store directory {} success.", storePath);
+        LOGGER.info("create snapshot store directory {} success.", storePath);
     }
 
     private void loadAllSnapshots() {
@@ -90,9 +90,9 @@ public class SnapshotStore<T> {
             final byte[] data = Files.toByteArray(file);
             final Snapshot<T> snapshot = new Snapshot<>(version, serde.fromBytes(data));
             snapshots.put(version, snapshot);
-            LOG.info("load snapshot file {} success.", file.getAbsolutePath());
+            LOGGER.info("load snapshot file {} success.", file.getAbsolutePath());
         } catch (Exception e) {
-            LOG.error("load snapshot file {} failed.", file.getAbsolutePath(), e);
+            LOGGER.error("load snapshot file {} failed.", file.getAbsolutePath(), e);
         }
     }
 
@@ -115,7 +115,7 @@ public class SnapshotStore<T> {
                 removeOldestSnapshot();
             }
         } catch (Throwable e) {
-            LOG.error("try clean expired snapshot file failed.", e);
+            LOGGER.error("try clean expired snapshot file failed.", e);
         }
     }
 
@@ -124,9 +124,9 @@ public class SnapshotStore<T> {
         final File snapshotFile = getSnapshotFile(firstEntry.getValue());
         final boolean success = snapshotFile.delete();
         if (success) {
-            LOG.debug("delete snapshot file {} success.", snapshotFile.getAbsolutePath());
+            LOGGER.debug("delete snapshot file {} success.", snapshotFile.getAbsolutePath());
         } else {
-            LOG.warn("delete snapshot file {} failed.", snapshotFile.getAbsolutePath());
+            LOGGER.warn("delete snapshot file {} failed.", snapshotFile.getAbsolutePath());
         }
     }
 
@@ -144,13 +144,13 @@ public class SnapshotStore<T> {
         try {
             Files.write(serde.toBytes(snapshot.getData()), tmpFile);
         } catch (IOException e) {
-            LOG.error("write data into tmp snapshot file failed. file: {}", tmpFile, e);
+            LOGGER.error("write data into tmp snapshot file failed. file: {}", tmpFile, e);
             throw new RuntimeException("write snapshot data failed.", e);
         }
 
         final File snapshotFile = getSnapshotFile(snapshot);
         if (!tmpFile.renameTo(snapshotFile)) {
-            LOG.error("Move tmp as snapshot file failed. tmp: {}, snapshot: {}", tmpFile, snapshotFile);
+            LOGGER.error("Move tmp as snapshot file failed. tmp: {}, snapshot: {}", tmpFile, snapshotFile);
             throw new RuntimeException("Move tmp as snapshot file failed.");
         }
 
@@ -172,7 +172,7 @@ public class SnapshotStore<T> {
         try {
             cleanerExecutor.awaitTermination(1, TimeUnit.MINUTES);
         } catch (InterruptedException e) {
-            LOG.warn("interrupted during shutdown cleaner executor with prefix {}", prefix);
+            LOGGER.warn("interrupted during shutdown cleaner executor with prefix {}", prefix);
         }
     }
 }

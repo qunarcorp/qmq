@@ -15,7 +15,7 @@ import java.util.Collection;
  */
 public class MetaInfoResponseProcessor implements MetaServerCommandDecoder.DatagramProcessor {
 
-    private static final Logger logger = LoggerFactory.getLogger(MetaInfoResponseProcessor.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(MetaInfoResponseProcessor.class);
     private final Collection<MetaInfoClient.ResponseSubscriber> responseSubscribers;
 
     public MetaInfoResponseProcessor(Collection<MetaInfoClient.ResponseSubscriber> responseSubscribers) {
@@ -31,7 +31,7 @@ public class MetaInfoResponseProcessor implements MetaServerCommandDecoder.Datag
         if (response != null) {
             notifySubscriber(response);
         } else {
-            logger.warn("request meta info UNKNOWN. code={}", datagram.getHeader().getCode());
+            LOGGER.warn("request meta info UNKNOWN. code={}", datagram.getHeader().getCode());
         }
     }
 
@@ -40,7 +40,7 @@ public class MetaInfoResponseProcessor implements MetaServerCommandDecoder.Datag
             try {
                 subscriber.onSuccess(response);
             } catch (Exception e) {
-                logger.error("notify meta response error", e);
+                LOGGER.error("notify meta response error", e);
             }
         }
     }

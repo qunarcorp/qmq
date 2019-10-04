@@ -12,7 +12,7 @@ import qunar.tc.qmq.producer.tx.spring.SpringTransactionProvider;
 
 public class ProducerTest {
 
-    private static final Logger logger = LoggerFactory.getLogger(ProducerTest.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ProducerTest.class);
     private static DataSource dataSource;
 
     @BeforeClass
@@ -34,12 +34,12 @@ public class ProducerTest {
             provider.sendMessage(message, new MessageSendStateListener() {
                 @Override
                 public void onSuccess(Message message) {
-                    logger.info("send message success {}", message.getMessageId());
+                    LOGGER.info("send message success {}", message.getMessageId());
                 }
 
                 @Override
                 public void onFailed(Message message) {
-                    logger.error("send message fail {}", message.getMessageId());
+                    LOGGER.error("send message fail {}", message.getMessageId());
                 }
             });
         }

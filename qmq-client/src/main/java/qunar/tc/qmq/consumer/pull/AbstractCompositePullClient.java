@@ -15,7 +15,7 @@ import java.util.concurrent.ExecutorService;
  */
 public abstract class AbstractCompositePullClient<T extends PullClient> extends AbstractPullClient implements CompositePullClient<T> {
 
-    private static final Logger logger = LoggerFactory.getLogger(AbstractCompositePullClient.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractCompositePullClient.class);
 
     private List<T> components;
 
@@ -67,7 +67,7 @@ public abstract class AbstractCompositePullClient<T extends PullClient> extends 
         try {
             runnable.run();
         } catch (Throwable t) {
-            logger.error("error ", t);
+            LOGGER.error("error ", t);
         }
     }
 }

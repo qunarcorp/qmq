@@ -20,10 +20,10 @@ import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_GROUP_ARRAY;
  * @since 2019-09-03
  */
 public abstract class AbstractConsumeMessageExecutor implements ConsumeMessageExecutor {
+    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractConsumeMessageExecutor.class);
 
     private static final int MAX_QUEUE_SIZE = 10000;
 
-    private static final Logger logger = LoggerFactory.getLogger(AbstractConsumeMessageExecutor.class);
     private final AtomicBoolean started = new AtomicBoolean(false);
 
     private final QmqTimer createToHandleTimer;
@@ -81,14 +81,14 @@ public abstract class AbstractConsumeMessageExecutor implements ConsumeMessageEx
             try {
                 message = messageQueue.take();
             } catch (InterruptedException e) {
-                logger.error("获取 queue 消息被中断 subject {} group {} {}", subject, consumerGroup, e.getMessage());
+                LOGGER.error("获取 queue 消息被中断 subject {} group {} {}", subject, consumerGroup, e.getMessage());
                 continue;
             }
             try {
                 processMessage(message);
             } catch (Throwable t) {
                 requeueFirst(message);
-                logger.error("消息处理异常 subject {} consumerGroup {} messageId {}", subject, consumerGroup, message.getMessageId(), t);
+                LOGGER.error("消息处理异常 subject {} consumerGroup {} messageId {}", subject, consumerGroup, message.getMessageId(), t);
             }
 
         }
@@ -136,7 +136,7 @@ public abstract class AbstractConsumeMessageExecutor implements ConsumeMessageEx
             messageQueue.putFirst(message);
             return true;
         } catch (InterruptedException e) {
-            logger.error("消息重入 queue 被中断 subject {} group {} id {}", subject, consumerGroup, message.getMessageId(), e);
+            LOGGER.error("消息重入 queue 被中断 subject {} group {} id {}", subject, consumerGroup, message.getMessageId(), e);
             return false;
         }
     }

@@ -35,7 +35,7 @@ import static qunar.tc.qmq.backup.config.DefaultBackupConfig.*;
  * @since 2018/3/21
  */
 public class RocksDBStoreImpl implements RocksDBStore {
-    private static final Logger LOG = LoggerFactory.getLogger(RocksDBStoreImpl.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(RocksDBStoreImpl.class);
 
     static {
         RocksDB.loadLibrary();
@@ -58,9 +58,9 @@ public class RocksDBStoreImpl implements RocksDBStore {
             final Options options = new Options();
             options.setCreateIfMissing(true);
             this.rocksDB = TtlDB.open(options, path, ttl, false);
-            LOG.info("open rocks db success, path:{}, ttl:{}", path, ttl);
+            LOGGER.info("open rocks db success, path:{}, ttl:{}", path, ttl);
         } catch (Exception e) {
-            LOG.error("open rocks db error, path:{}, ttl:{}", path, ttl, e);
+            LOGGER.error("open rocks db error, path:{}, ttl:{}", path, ttl, e);
             throw new RuntimeException(e);
         }
     }
@@ -75,7 +75,7 @@ public class RocksDBStoreImpl implements RocksDBStore {
             }
             rocksDB.put(keyBytes, valueBytes);
         } catch (Exception e) {
-            LOG.error("put rocks db error, key:{}, value:{}", key, value, e);
+            LOGGER.error("put rocks db error, key:{}, value:{}", key, value, e);
         }
     }
 
@@ -93,7 +93,7 @@ public class RocksDBStoreImpl implements RocksDBStore {
             }
             return Optional.of(value);
         } catch (Exception e) {
-            LOG.error("get value from rocks db error, key:{}", key, e);
+            LOGGER.error("get value from rocks db error, key:{}", key, e);
             return Optional.empty();
         }
     }

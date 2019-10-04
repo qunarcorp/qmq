@@ -18,7 +18,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class ConsumerTest {
 
-    private static final Logger logger = LoggerFactory.getLogger(ConsumerTest.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ConsumerTest.class);
     private static final ExecutorService executor = Executors.newFixedThreadPool(3);
 
     @Test
@@ -31,7 +31,7 @@ public class ConsumerTest {
         final ListenerHolder listener = provider.addListener("ordered.qmq.test.1", "consumer_group1", new MessageListener() {
             @Override
             public void onMessage(Message msg) {
-                logger.info("msgId:{}", msg.getMessageId());
+                LOGGER.info("msgId:{}", msg.getMessageId());
             }
         }, executor);
 

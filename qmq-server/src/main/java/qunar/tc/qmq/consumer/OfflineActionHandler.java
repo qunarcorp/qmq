@@ -28,7 +28,7 @@ import qunar.tc.qmq.store.event.FixedExecOrderEventBus;
  * @since 2018/8/21
  */
 public class OfflineActionHandler implements FixedExecOrderEventBus.Listener<ActionEvent> {
-    private static final Logger LOG = LoggerFactory.getLogger(OfflineActionHandler.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(OfflineActionHandler.class);
 
     private final Storage storage;
 
@@ -53,7 +53,7 @@ public class OfflineActionHandler implements FixedExecOrderEventBus.Listener<Act
         final String group = action.group();
         final String consumerId = action.consumerId();
 
-        LOG.info("execute offline task, will remove pull log and checkpoint entry for {}/{}/{}", subject, group, consumerId);
+        LOGGER.info("execute offline task, will remove pull log and checkpoint entry for {}/{}/{}", subject, group, consumerId);
         storage.destroyPullLog(subject, group, consumerId);
     }
 }

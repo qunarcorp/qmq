@@ -26,7 +26,7 @@ import qunar.tc.qmq.monitor.QMon;
  * 7/31/18
  */
 class OfflineTask {
-    private static final Logger LOG = LoggerFactory.getLogger(OfflineTask.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(OfflineTask.class);
 
     private final ConsumerSequenceManager consumerSequenceManager;
     private final Subscriber subscriber;
@@ -41,7 +41,7 @@ class OfflineTask {
     void run() {
         if (cancel) return;
 
-        LOG.info("run offline task for {}/{}/{}.", subscriber.getSubject(), subscriber.getGroup(), subscriber.getConsumerId());
+        LOGGER.info("run offline task for {}/{}/{}.", subscriber.getSubject(), subscriber.getGroup(), subscriber.getConsumerId());
         QMon.offlineTaskExecuteCountInc(subscriber.getSubject(), subscriber.getGroup());
 
         final ConsumerSequence consumerSequence = consumerSequenceManager.getOrCreateConsumerSequence(subscriber.getSubject(), subscriber.getGroup(), subscriber.getConsumerId(), false);
@@ -51,10 +51,10 @@ class OfflineTask {
 
             if (isProcessedComplete(consumerSequence)) {
                 if (unSubscribe()) {
-                    LOG.info("offline task destroyed subscriber for {}/{}/{}", subscriber.getSubject(), subscriber.getGroup(), subscriber.getConsumerId());
+                    LOGGER.info("offline task destroyed subscriber for {}/{}/{}", subscriber.getSubject(), subscriber.getGroup(), subscriber.getConsumerId());
                 }
             } else {
-                LOG.info("offline task skip destroy subscriber for {}/{}/{}", subscriber.getSubject(), subscriber.getGroup(), subscriber.getConsumerId());
+                LOGGER.info("offline task skip destroy subscriber for {}/{}/{}", subscriber.getSubject(), subscriber.getGroup(), subscriber.getConsumerId());
             }
         } finally {
             consumerSequence.unlock();

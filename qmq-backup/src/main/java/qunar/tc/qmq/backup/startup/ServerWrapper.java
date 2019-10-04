@@ -57,7 +57,7 @@ import static qunar.tc.qmq.backup.service.DicService.SIX_DIGIT_FORMAT_PATTERN;
 import static qunar.tc.qmq.constants.BrokerConstants.*;
 
 public class ServerWrapper implements Disposable {
-    private static final Logger LOG = LoggerFactory.getLogger(ServerWrapper.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ServerWrapper.class);
 
     private final BackupConfig config;
     private final BackupConfig deadConfig;
@@ -95,13 +95,13 @@ public class ServerWrapper implements Disposable {
             BrokerRegisterService brokerRegisterService = new BrokerRegisterService(listenPort, metaServerLocator);
             brokerRegisterService.start();
             if (BrokerConfig.getBrokerRole() != BrokerRole.BACKUP) {
-                LOG.error("Config error,({})'s role is not backup.", NetworkUtils.getLocalHostname());
+                LOGGER.error("Config error,({})'s role is not backup.", NetworkUtils.getLocalHostname());
                 throw new IllegalArgumentException("Config error, the role is not backup");
             }
             config.setBrokerGroup(BrokerConfig.getBrokerName());
             register(localConfig, deadLocalConfig, metaInfoService);
         } catch (Exception e) {
-            LOG.error("backup server start up failed.", e);
+            LOGGER.error("backup server start up failed.", e);
             Throwables.propagate(e);
         }
     }
@@ -223,7 +223,7 @@ public class ServerWrapper implements Disposable {
                 Disposable disposable = resources.get(i);
                 if (disposable != null) disposable.destroy();
             } catch (Throwable e) {
-                LOG.error("destroy resource failed", e);
+                LOGGER.error("destroy resource failed", e);
             }
         }
     }

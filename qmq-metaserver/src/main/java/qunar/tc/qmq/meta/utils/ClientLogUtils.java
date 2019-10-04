@@ -30,7 +30,7 @@ import java.util.Map;
  * @since 2018/8/22
  */
 public final class ClientLogUtils {
-    private static final Logger LOG = LoggerFactory.getLogger(ClientLogUtils.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ClientLogUtils.class);
 
     private static final String DEFAULT_SWITCH = "default";
 
@@ -53,9 +53,9 @@ public final class ClientLogUtils {
 
     public static void log(final String subject, final String format, final Object... arguments) {
         if (logSwitchMap.getOrDefault(subject, false)) {
-            LOG.info(format, arguments);
+            LOGGER.info(format, arguments);
         } else if (defaultSwitch) {
-            LOG.info(format, arguments);
+            LOGGER.info(format, arguments);
         }
     }
 }

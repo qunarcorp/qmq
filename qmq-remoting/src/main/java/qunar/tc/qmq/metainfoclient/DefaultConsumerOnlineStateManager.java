@@ -19,14 +19,13 @@ import java.util.Map;
  * @since 2019-08-29
  */
 public class DefaultConsumerOnlineStateManager implements ConsumerOnlineStateManager {
+    private static final Logger LOGGER = LoggerFactory.getLogger(DefaultConsumerOnlineStateManager.class);
 
     private static final DefaultConsumerOnlineStateManager instance = new DefaultConsumerOnlineStateManager();
 
     public static DefaultConsumerOnlineStateManager getInstance() {
         return instance;
     }
-
-    private static final Logger logger = LoggerFactory.getLogger(DefaultConsumerOnlineStateManager.class);
 
     private long lastUpdateTimestamp = -1;
 
@@ -35,7 +34,7 @@ public class DefaultConsumerOnlineStateManager implements ConsumerOnlineStateMan
     private DefaultConsumerOnlineStateManager() {
     }
 
-    private Map<String, SwitchWaiter> stateMap = Maps.newConcurrentMap();
+    private final Map<String, SwitchWaiter> stateMap = Maps.newConcurrentMap();
 
     @Override
     public void onlineHealthCheck() {
@@ -76,13 +75,20 @@ public class DefaultConsumerOnlineStateManager implements ConsumerOnlineStateMan
     }
 
     @Override
-    public SwitchWaiter registerConsumer(String appCode, String subject, String consumerGroup, String clientId, boolean isBroadcast, boolean isOrdered, MetaInfoService metaInfoService, Runnable offlineCallback) {
+    public SwitchWaiter registerConsumer(String appCode,
+                                         String subject,
+                                         String consumerGroup,
+                                         String clientId,
+                                         boolean isBroadcast,
+                                         boolean isOrdered,
+                                         MetaInfoService metaInfoService,
+                                         Runnable offlineCallback) {
         String key = createKey(subject, consumerGroup);
         return stateMap.computeIfAbsent(key, k -> {
             SwitchWaiter switchWaiter = new SwitchWaiter(healthCheckOnline);
             switchWaiter.addListener(isOnline -> {
                 if (isOnline) {
-                    logger.info("Consumer Online, Subject {} ConsumerGroup {}", subject, consumerGroup);
+                    LOGGER.info("Consumer Online, Subject {} ConsumerGroup {}", subject, consumerGroup);
                 } else {
                     // 触发 Consumer 下线清理操作
                     offlineCallback.run();
@@ -123,14 +129,14 @@ public class DefaultConsumerOnlineStateManager implements ConsumerOnlineStateMan
         synchronized (key.intern()) {
             try {
                 if (isStale(response.getTimestamp(), lastUpdateTimestamp)) {
-                    logger.debug("skip response {}", response);
+                    LOGGER.debug("skip response {}", response);
                     return;
                 }
                 lastUpdateTimestamp = response.getTimestamp();
 
                 if (!Strings.isNullOrEmpty(consumerGroup)) {
                     OnOfflineState onOfflineState = response.getOnOfflineState();
-                    logger.debug("消费者状态发生变更 {}/{}:{}", subject, consumerGroup, onOfflineState);
+                    LOGGER.debug("消费者状态发生变更 {}/{}:{}", subject, consumerGroup, onOfflineState);
                     SwitchWaiter switchWaiter = getSwitchWaiter(subject, consumerGroup);
                     if (onOfflineState == OnOfflineState.ONLINE) {
                         switchWaiter.on(StatusSource.OPS);
@@ -139,7 +145,7 @@ public class DefaultConsumerOnlineStateManager implements ConsumerOnlineStateMan
                     }
                 }
             } catch (Exception e) {
-                logger.error("update meta info exception. response={}", response, e);
+                LOGGER.error("update meta info exception. response={}", response, e);
             }
         }
     }

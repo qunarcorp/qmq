@@ -44,7 +44,7 @@ import static qunar.tc.qmq.common.JsonUtils.serialize;
  * @since 2017/8/31
  */
 public class DatabaseStore implements Store {
-    private static final Logger LOG = LoggerFactory.getLogger(DatabaseStore.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(DatabaseStore.class);
 
     private static final String INSERT_SUBJECT_ROUTE_SQL = "INSERT IGNORE INTO subject_route(subject_info, version, broker_group_json, create_time) VALUES(?, ?, ?, ?)";
     private static final String UPDATE_SUBJECT_ROUTE_SQL = "UPDATE subject_route SET broker_group_json = ?, version = version + 1 WHERE subject_info = ? AND version = ?";
@@ -148,7 +148,7 @@ public class DatabaseStore implements Store {
         try {
             return jdbcTemplate.query(FIND_SUBJECT_ROUTE_SQL, SUBJECT_ROUTE_ROW_MAPPER);
         } catch (Exception e) {
-            LOG.error("getAllSubjectRoutes error", e);
+            LOGGER.error("getAllSubjectRoutes error", e);
             return Collections.emptyList();
         }
     }
@@ -158,7 +158,7 @@ public class DatabaseStore implements Store {
         try {
             return jdbcTemplate.query(ALL_SUBJECT_INFO_SQL, SUBJECT_INFO_ROW_MAPPER);
         } catch (Exception e) {
-            LOG.error("getAllSubjectInfo error", e);
+            LOGGER.error("getAllSubjectInfo error", e);
             return Collections.emptyList();
         }
     }
@@ -168,7 +168,7 @@ public class DatabaseStore implements Store {
         try {
             return jdbcTemplate.queryForObject(QUERY_SUBJECT_INFO_SQL, SUBJECT_INFO_ROW_MAPPER, subject);
         } catch (Exception e) {
-            LOG.error("getAllSubjectInfo error", e);
+            LOGGER.error("getAllSubjectInfo error", e);
             return null;
         }
     }

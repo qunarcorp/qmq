@@ -3,7 +3,10 @@ package qunar.tc.qmq.consumer.pull;
 import com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.*;
+import qunar.tc.qmq.CompositePullClient;
+import qunar.tc.qmq.ConsumeStrategy;
+import qunar.tc.qmq.PullClient;
+import qunar.tc.qmq.PullEntry;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.common.EnvProvider;
 import qunar.tc.qmq.consumer.BaseMessageHandler;
@@ -21,15 +24,14 @@ import java.util.concurrent.ExecutorService;
  * @since 2019-09-27
  */
 public class PullEntryManager extends AbstractPullClientManager<PullEntry> {
+    private static final Logger LOGGER = LoggerFactory.getLogger(PullEntryManager.class);
 
-    private static final Logger logger = LoggerFactory.getLogger(PullEntryManager.class);
-
-    private EnvProvider envProvider;
-    private PullService pullService;
-    private AckService ackService;
-    private BrokerService brokerService;
-    private SendMessageBack sendMessageBack;
-    private ExecutorService partitionExecutor;
+    private final EnvProvider envProvider;
+    private final PullService pullService;
+    private final AckService ackService;
+    private final BrokerService brokerService;
+    private final SendMessageBack sendMessageBack;
+    private final ExecutorService partitionExecutor;
 
     public PullEntryManager(
             String clientId,
@@ -96,13 +98,6 @@ public class PullEntryManager extends AbstractPullClientManager<PullEntry> {
     CompositePullClient doCreateCompositePullClient(String subject, String consumerGroup, int version, long consumptionExpiredTime, List<? extends PullClient> clientList, Object registryParam) {
         RegistParam param = (RegistParam) registryParam;
         return new CompositePullEntry(subject, consumerGroup, clientId, version, param.isBroadcast(), param.isOrdered(), consumptionExpiredTime, clientList);
-
-    }
-
-    @Override
-    StatusSource getStatusSource(Object registryParam) {
-        RegistParam param = (RegistParam) registryParam;
-        return param.getActionSrc();
     }
 
     private String configEnvIsolation(String subject, String consumerGroup, RegistParam param) {
@@ -110,7 +105,7 @@ public class PullEntryManager extends AbstractPullClientManager<PullEntry> {
         if (envProvider != null && !Strings.isNullOrEmpty(env = envProvider.env(subject))) {
             String subEnv = envProvider.subEnv(env);
             final String realGroup = toSubEnvIsolationGroup(consumerGroup, env, subEnv);
-            logger.info("enable subenv isolation for {}/{}, rename consumer consumerGroup to {}", subject, consumerGroup, realGroup);
+            LOGGER.info("enable subenv isolation for {}/{}, rename consumer consumerGroup to {}", subject, consumerGroup, realGroup);
 
             param.addFilter(new SubEnvIsolationPullFilter(env, subEnv));
             return realGroup;

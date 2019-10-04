@@ -36,7 +36,7 @@ import java.util.Collections;
  * @since 2019-03-05 14:47
  */
 public abstract class AbstractGetServlet extends HttpServlet {
-    private static final Logger LOG = LoggerFactory.getLogger(AbstractGetServlet.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractGetServlet.class);
 
     final MessageService messageService;
 
@@ -66,7 +66,7 @@ public abstract class AbstractGetServlet extends HttpServlet {
         try {
             resp.getWriter().println(data);
         } catch (IOException e) {
-            LOG.error("An IOException occurred.", e);
+            LOGGER.error("An IOException occurred.", e);
         }
     }
 
@@ -76,7 +76,7 @@ public abstract class AbstractGetServlet extends HttpServlet {
         try {
             return GsonUtils.deSerialize(json, BackupQuery.class);
         } catch (Exception e) {
-            LOG.error("Get backup query error.", e);
+            LOGGER.error("Get backup query error.", e);
             return null;
         }
     }

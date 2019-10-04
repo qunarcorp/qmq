@@ -42,7 +42,7 @@ import java.util.concurrent.TimeUnit;
  * @since 2017/8/30
  */
 public class BrokerRegisterProcessor implements NettyRequestProcessor {
-    private static final Logger LOG = LoggerFactory.getLogger(BrokerRegisterProcessor.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(BrokerRegisterProcessor.class);
 
     private static final long HEARTBEAT_TIMEOUT_MS = 30 * 1000;
 
@@ -68,7 +68,7 @@ public class BrokerRegisterProcessor implements NettyRequestProcessor {
 
         QMon.brokerRegisterCountInc(groupName, requestType);
 
-        LOG.info("broker register request received. request: {}", brokerRequest);
+        LOGGER.info("broker register request received. request: {}", brokerRequest);
 
         if (brokerRole == BrokerRole.SLAVE.getCode()
                 || brokerRole == BrokerRole.DELAY_SLAVE.getCode()
@@ -112,7 +112,7 @@ public class BrokerRegisterProcessor implements NettyRequestProcessor {
             }
         }
 
-        LOG.info("Broker heartbeat response, request:{}", brokerRequest);
+        LOGGER.info("Broker heartbeat response, request:{}", brokerRequest);
         return RemotingBuilder.buildEmptyResponseDatagram(CommandCode.SUCCESS, request.getHeader());
     }
 
@@ -125,7 +125,7 @@ public class BrokerRegisterProcessor implements NettyRequestProcessor {
 
         store.insertOrUpdateBrokerGroup(groupName, kind, brokerAddress, BrokerState.RW);
         cachedMetaInfoManager.refresh();
-        LOG.info("Broker online success, request:{}", brokerRequest);
+        LOGGER.info("Broker online success, request:{}", brokerRequest);
         return RemotingBuilder.buildEmptyResponseDatagram(CommandCode.SUCCESS, request.getHeader());
     }
 
@@ -136,7 +136,7 @@ public class BrokerRegisterProcessor implements NettyRequestProcessor {
 
         store.insertOrUpdateBrokerGroup(groupName, kind, brokerAddress, BrokerState.NRW);
         cachedMetaInfoManager.refresh();
-        LOG.info("broker offline success, request:{}", brokerRequest);
+        LOGGER.info("broker offline success, request:{}", brokerRequest);
         return RemotingBuilder.buildEmptyResponseDatagram(CommandCode.SUCCESS, request.getHeader());
     }
 
@@ -164,7 +164,7 @@ public class BrokerRegisterProcessor implements NettyRequestProcessor {
         @Override
         public void run(Timeout timeout) {
             QMon.brokerDisconnectedCountInc(groupName);
-            LOG.warn("broker group lost connection, groupName:{}", groupName);
+            LOGGER.warn("broker group lost connection, groupName:{}", groupName);
             store.updateBrokerGroup(groupName, BrokerState.NRW);
         }
     }

@@ -32,7 +32,7 @@ import static qunar.tc.qmq.backup.config.DefaultBackupConfig.DEFAULT_FLUSH_INTER
 import static qunar.tc.qmq.backup.config.DefaultBackupConfig.SYNC_OFFSET_FLUSH_INTERVAL_CONFIG_KEY;
 
 public class IndexFileStore implements FileStore {
-    private static final Logger LOG = LoggerFactory.getLogger(IndexFileStore.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(IndexFileStore.class);
 
     private final PeriodicFlushService flushService;
     private final ScheduledExecutorService logCleanerScheduler;
@@ -78,7 +78,7 @@ public class IndexFileStore implements FileStore {
         try {
             logCleanerScheduler.awaitTermination(5, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
-            LOG.error("Shutdown log cleaner scheduler interrupted.", e);
+            LOGGER.error("Shutdown log cleaner scheduler interrupted.", e);
         }
     }
 }

@@ -28,7 +28,7 @@ import qunar.tc.qmq.store.buffer.SegmentBuffer;
  * @since 2017/8/19
  */
 class ActionLogSyncWorker extends AbstractLogSyncWorker {
-    private static final Logger LOG = LoggerFactory.getLogger(ActionLogSyncWorker.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ActionLogSyncWorker.class);
 
     private final Storage storage;
 
@@ -42,7 +42,7 @@ class ActionLogSyncWorker extends AbstractLogSyncWorker {
         long startSyncOffset = syncRequest.getActionLogOffset();
         long minActionLogOffset = storage.getMinActionLogOffset();
         if (startSyncOffset < minActionLogOffset) {
-            LOG.info("reset action log sync offset from {} to {}", startSyncOffset, minActionLogOffset);
+            LOGGER.info("reset action log sync offset from {} to {}", startSyncOffset, minActionLogOffset);
             startSyncOffset = minActionLogOffset;
         }
         return storage.getActionLogData(startSyncOffset);

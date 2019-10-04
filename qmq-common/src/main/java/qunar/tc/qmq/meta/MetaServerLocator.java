@@ -33,7 +33,7 @@ import java.net.URL;
  * @since 2017/9/1
  */
 public class MetaServerLocator {
-    private static final Logger LOG = LoggerFactory.getLogger(MetaServerLocator.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(MetaServerLocator.class);
 
     private final String metaServerEndpoint;
 
@@ -44,7 +44,7 @@ public class MetaServerLocator {
     public Optional<String> queryEndpoint() {
         final String endpoint = request();
         if (endpoint == null || endpoint.length() == 0) {
-            LOG.error("meta server address list is empty!");
+            LOGGER.error("meta server address list is empty!");
             return Optional.absent();
         }
 
@@ -76,9 +76,9 @@ public class MetaServerLocator {
             try {
                 errIn = new InputStreamReader(connection.getErrorStream());
                 String error = CharStreams.toString(errIn);
-                LOG.debug("read error stream {}", error);
+                LOGGER.debug("read error stream {}", error);
             } catch (IOException e1) {
-                LOG.debug("read error stream failed", e1);
+                LOGGER.debug("read error stream failed", e1);
             } finally {
                 closeQuietly(errIn);
             }
@@ -95,7 +95,7 @@ public class MetaServerLocator {
         try {
             closeable.close();
         } catch (Exception e) {
-            LOG.debug("close failed");
+            LOGGER.debug("close failed");
         }
     }
 }

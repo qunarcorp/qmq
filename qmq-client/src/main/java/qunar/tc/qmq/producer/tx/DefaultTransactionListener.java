@@ -32,7 +32,7 @@ import java.util.Stack;
  * 10/29/16
  */
 class DefaultTransactionListener implements TransactionListener {
-    private static final Logger logger = LoggerFactory.getLogger(MessageProducer.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(MessageProducer.class);
 
     private final ThreadLocal<Stack<TransactionMessageHolder>> resource = new ThreadLocal<Stack<TransactionMessageHolder>>() {
         @Override
@@ -74,7 +74,7 @@ class DefaultTransactionListener implements TransactionListener {
             try {
                 msg.send();
             } catch (Throwable t) {
-                logger.error("消息发送失败{}", msg.getMessageId(), t);
+                LOGGER.error("消息发送失败{}", msg.getMessageId(), t);
             }
         }
     }
@@ -84,7 +84,7 @@ class DefaultTransactionListener implements TransactionListener {
         List<ProduceMessage> list = remove();
         for (int i = 0; i < list.size(); ++i) {
             ProduceMessage msg = list.get(i);
-            logger.info("事务提交失败, 消息({})被忽略.subject:{}", msg.getMessageId(), msg.getSubject());
+            LOGGER.info("事务提交失败, 消息({})被忽略.subject:{}", msg.getMessageId(), msg.getSubject());
         }
     }
 

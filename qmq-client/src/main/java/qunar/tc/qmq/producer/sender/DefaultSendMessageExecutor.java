@@ -1,8 +1,6 @@
 package qunar.tc.qmq.producer.sender;
 
 import com.google.common.collect.Lists;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.MessageGroup;
 import qunar.tc.qmq.ProduceMessage;
 
@@ -10,7 +8,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
 
 /**
  * <pre>
@@ -24,15 +21,12 @@ import java.util.concurrent.TimeUnit;
  * @since 2019-08-20
  */
 public class DefaultSendMessageExecutor extends StatefulSendMessageExecutor implements Runnable {
-
-    private static final Logger logger = LoggerFactory.getLogger(DefaultSendMessageExecutor.class);
-
-    private MessageGroup messageGroup;
-    private int batchSize;
-    private LinkedBlockingQueue<ProduceMessage> queue;
-    private MessageSender messageSender;
-    private ExecutorService executor;
-    private SendMessageExecutorManager sendMessageExecutorManager;
+    private final MessageGroup messageGroup;
+    private final int batchSize;
+    private final LinkedBlockingQueue<ProduceMessage> queue;
+    private final MessageSender messageSender;
+    private final ExecutorService executor;
+    private final SendMessageExecutorManager sendMessageExecutorManager;
 
     public DefaultSendMessageExecutor(MessageGroup messageGroup, SendMessageExecutorManager sendMessageExecutorManager, int batchSize, MessageSender messageSender, ExecutorService executor) {
         this.messageGroup = messageGroup;

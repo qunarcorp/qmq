@@ -28,7 +28,7 @@ import qunar.tc.qmq.stats.BrokerStats;
  * @since 2018/7/18
  */
 public class BrokerConnectionEventHandler implements ConnectionEventHandler {
-    private static final Logger LOG = LoggerFactory.getLogger(BrokerConnectionEventHandler.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(BrokerConnectionEventHandler.class);
 
     private final BrokerStats brokerStats = BrokerStats.getInstance();
 
@@ -38,13 +38,13 @@ public class BrokerConnectionEventHandler implements ConnectionEventHandler {
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) {
-        LOG.info("client {} connected", ctx.channel().remoteAddress());
+        LOGGER.info("client {} connected", ctx.channel().remoteAddress());
         brokerStats.getActiveClientConnectionCount().incrementAndGet();
     }
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
-        LOG.info("client {} disconnected", ctx.channel().remoteAddress());
+        LOGGER.info("client {} disconnected", ctx.channel().remoteAddress());
         brokerStats.getActiveClientConnectionCount().decrementAndGet();
     }
 }

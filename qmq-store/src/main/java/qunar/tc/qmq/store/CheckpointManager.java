@@ -38,7 +38,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * @since 2017/8/21
  */
 public class CheckpointManager implements AutoCloseable {
-    private static final Logger LOG = LoggerFactory.getLogger(CheckpointManager.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(CheckpointManager.class);
 
     private final MessageCheckpointSerde messageCheckpointSerde;
     private final ActionCheckpointSerde actionCheckpointSerde;
@@ -97,7 +97,7 @@ public class CheckpointManager implements AutoCloseable {
     private MessageCheckpoint loadMessageCheckpoint() {
         final Snapshot<MessageCheckpoint> snapshot = messageCheckpointStore.latestSnapshot();
         if (snapshot == null) {
-            LOG.info("no message log replay snapshot, return empty state.");
+            LOGGER.info("no message log replay snapshot, return empty state.");
             return new MessageCheckpoint(-1, new HashMap<>());
         } else {
             return snapshot.getData();
@@ -107,7 +107,7 @@ public class CheckpointManager implements AutoCloseable {
     private ActionCheckpoint loadActionCheckpoint() {
         final Snapshot<ActionCheckpoint> snapshot = actionCheckpointStore.latestSnapshot();
         if (snapshot == null) {
-            LOG.info("no action log replay snapshot, return empty state.");
+            LOGGER.info("no action log replay snapshot, return empty state.");
             return new ActionCheckpoint(-1, HashBasedTable.create());
         } else {
             return snapshot.getData();
@@ -117,7 +117,7 @@ public class CheckpointManager implements AutoCloseable {
     private IndexCheckpoint loadIndexCheckpoint() {
         Snapshot<IndexCheckpoint> snapshot = indexCheckpointStore.latestSnapshot();
         if (snapshot == null) {
-            LOG.info("no index checkpoint snapshot,return empty state.");
+            LOGGER.info("no index checkpoint snapshot,return empty state.");
             return new IndexCheckpoint(-1L, -1L);
         }
         return snapshot.getData();
@@ -195,7 +195,7 @@ public class CheckpointManager implements AutoCloseable {
         final long maxSequence = getMaxPulledMessageSequence(subject, consumerGroup);
         if (maxSequence + 1 < action.getFirstMessageSequence()) {
             long num = action.getFirstMessageSequence() - maxSequence;
-            LOG.warn("Maybe lost message. Last message sequence: {}. Current start sequence {} {}:{}", maxSequence, action.getFirstMessageSequence(), subject, consumerGroup);
+            LOGGER.warn("Maybe lost message. Last message sequence: {}. Current start sequence {} {}:{}", maxSequence, action.getFirstMessageSequence(), subject, consumerGroup);
             QMon.maybeLostMessagesCountInc(subject, consumerGroup, num);
         }
         final long lastMessageSequence = action.getLastMessageSequence();
@@ -216,7 +216,7 @@ public class CheckpointManager implements AutoCloseable {
 
         final long maxSequence = getConsumerMaxPullLogSequence(subject, consumerGroup, consumerId);
         if (maxSequence + 1 < action.getFirstSequence()) {
-            LOG.warn("Pull log not continuous. Last pull log sequence: {}. Current start pull log sequence {} {}:{}:{}", maxSequence, action.getFirstSequence(), subject, consumerGroup, consumerId);
+            LOGGER.warn("Pull log not continuous. Last pull log sequence: {}. Current start pull log sequence {} {}:{}:{}", maxSequence, action.getFirstSequence(), subject, consumerGroup, consumerId);
         }
 
         final long lastSequence = action.getLastSequence();
@@ -260,7 +260,7 @@ public class CheckpointManager implements AutoCloseable {
 
             final long maxSequence = getConsumerMaxAckedPullLogSequence(subject, consumerGroup, consumerId);
             if (maxSequence + 1 < action.getFirstSequence()) {
-                LOG.warn("Maybe lost ack. Last acked sequence: {}. Current start acked sequence {} {}:{}:{}", maxSequence, action.getFirstSequence(), subject, consumerGroup, consumerId);
+                LOGGER.warn("Maybe lost ack. Last acked sequence: {}. Current start acked sequence {} {}:{}:{}", maxSequence, action.getFirstSequence(), subject, consumerGroup, consumerId);
             }
 
             final long lastSequence = action.getLastSequence();

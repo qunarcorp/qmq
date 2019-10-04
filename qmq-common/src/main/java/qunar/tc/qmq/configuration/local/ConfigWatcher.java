@@ -30,7 +30,7 @@ import java.util.concurrent.TimeUnit;
  * @since 2018-11-27
  */
 class ConfigWatcher {
-    private static final Logger LOG = LoggerFactory.getLogger(ConfigWatcher.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ConfigWatcher.class);
 
     private final CopyOnWriteArrayList<Watch> watches;
     private final ScheduledExecutorService watcherExecutor;
@@ -56,7 +56,7 @@ class ConfigWatcher {
             try {
                 checkWatch(watch);
             } catch (Exception e) {
-                LOG.error("check config failed. config: {}", watch.getConfig(), e);
+                LOGGER.error("check config failed. config: {}", watch.getConfig(), e);
             }
         }
     }

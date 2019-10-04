@@ -28,7 +28,7 @@ import qunar.tc.qmq.utils.NetworkUtils;
  * @since 2017/8/19
  */
 public final class BrokerConfig {
-    private static final Logger LOG = LoggerFactory.getLogger(BrokerConfig.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(BrokerConfig.class);
 
     private static final BrokerConfig CONFIG = new BrokerConfig();
 
@@ -76,7 +76,7 @@ public final class BrokerConfig {
 
     @Subscribe
     public void updateMeta(final BrokerAcquireMetaResponse response) {
-        LOG.info("Broker meta updated. meta: {}", response);
+        LOGGER.info("Broker meta updated. meta: {}", response);
         if (response.getRole() != BrokerRole.STANDBY) {
             brokerRole = response.getRole();
             brokerName = response.getName();

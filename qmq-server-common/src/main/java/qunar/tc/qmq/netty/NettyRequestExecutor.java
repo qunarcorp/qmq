@@ -36,7 +36,7 @@ import java.util.concurrent.ThreadPoolExecutor;
  * @since 2017/7/3
  */
 class NettyRequestExecutor {
-    private static final Logger LOG = LoggerFactory.getLogger(NettyRequestExecutor.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(NettyRequestExecutor.class);
 
     private final NettyRequestProcessor processor;
     private final ExecutorService executor;
@@ -99,7 +99,7 @@ class NettyRequestExecutor {
                         }));
             }
         } catch (Throwable e) {
-            LOG.error("doExecute request exception, channel:{}, cmd:{}", ctx.channel(), cmd, e);
+            LOGGER.error("doExecute request exception, channel:{}, cmd:{}", ctx.channel(), cmd, e);
             ctx.writeAndFlush(errorResp(CommandCode.BROKER_ERROR, cmd));
         }
     }

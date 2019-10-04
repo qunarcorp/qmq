@@ -29,7 +29,7 @@ import javax.servlet.http.HttpServletRequest;
  * @since 2018/7/30
  */
 public class UnMarkReadonlyBrokerGroupAction implements MetaManagementAction {
-    private static final Logger LOG = LoggerFactory.getLogger(UnMarkReadonlyBrokerGroupAction.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(UnMarkReadonlyBrokerGroupAction.class);
 
     private final ReadonlyBrokerGroupSettingService service;
 
@@ -50,7 +50,7 @@ public class UnMarkReadonlyBrokerGroupAction implements MetaManagementAction {
             service.removeSetting(new ReadonlyBrokerGroupSetting(subject, brokerGroup));
             return ActionResult.ok("success");
         } catch (Exception e) {
-            LOG.error("remove readonly broker group setting failed. subject: {}, brokerGroup: {}", subject, brokerGroup, e);
+            LOGGER.error("remove readonly broker group setting failed. subject: {}, brokerGroup: {}", subject, brokerGroup, e);
             return ActionResult.error(e.getMessage());
         }
     }

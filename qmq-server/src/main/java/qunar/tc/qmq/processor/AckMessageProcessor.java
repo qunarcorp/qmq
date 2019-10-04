@@ -41,7 +41,7 @@ import java.util.concurrent.CompletableFuture;
  * @since 2017/7/27
  */
 public class AckMessageProcessor extends AbstractRequestProcessor {
-    private static final Logger LOG = LoggerFactory.getLogger(AckMessageProcessor.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(AckMessageProcessor.class);
 
     private final AckMessageWorker ackMessageWorker;
     private final SubscriberStatusChecker subscriberStatusChecker;
@@ -100,7 +100,7 @@ public class AckMessageProcessor extends AbstractRequestProcessor {
         if (Strings.isNullOrEmpty(ackRequest.getSubject())
                 || Strings.isNullOrEmpty(ackRequest.getGroup())
                 || Strings.isNullOrEmpty(ackRequest.getConsumerId())) {
-            LOG.warn("receive error param ack request: {}", ackRequest);
+            LOGGER.warn("receive error param ack request: {}", ackRequest);
             return true;
         }
 

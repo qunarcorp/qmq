@@ -43,7 +43,7 @@ import java.util.concurrent.Executors;
  * @since 2017/8/19
  */
 class SyncLogProcessor implements NettyRequestProcessor, Disposable {
-    private static final Logger LOG = LoggerFactory.getLogger(SyncLogProcessor.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(SyncLogProcessor.class);
 
     private final ExecutorService executor;
     private final MessageLogSyncWorker messageLogSyncWorker;
@@ -67,7 +67,7 @@ class SyncLogProcessor implements NettyRequestProcessor, Disposable {
         final int syncType = syncRequest.getSyncType();
         final SyncProcessor processor = processorMap.get(syncType);
         if (processor == null) {
-            LOG.error("unknown sync type {}", syncType);
+            LOGGER.error("unknown sync type {}", syncType);
             final Datagram datagram = RemotingBuilder.buildEmptyResponseDatagram(CommandCode.BROKER_ERROR, request.getHeader());
             return CompletableFuture.completedFuture(datagram);
         }
@@ -114,7 +114,7 @@ class SyncLogProcessor implements NettyRequestProcessor, Disposable {
             try {
                 processor.process(entry);
             } catch (Exception e) {
-                LOG.error("onSuccess sync request error", e);
+                LOGGER.error("onSuccess sync request error", e);
             }
         }
     }

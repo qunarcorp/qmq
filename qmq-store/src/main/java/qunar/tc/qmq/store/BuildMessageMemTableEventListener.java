@@ -29,7 +29,7 @@ import java.util.concurrent.TimeUnit;
  * @since 2019-06-10
  */
 public class BuildMessageMemTableEventListener implements FixedExecOrderEventBus.Listener<MessageLogRecord> {
-    private static final Logger LOG = LoggerFactory.getLogger(BuildMessageMemTableEventListener.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(BuildMessageMemTableEventListener.class);
 
     private final StorageConfig config;
     private final MessageMemTableManager manager;
@@ -48,13 +48,13 @@ public class BuildMessageMemTableEventListener implements FixedExecOrderEventBus
     @Override
     public void onEvent(final MessageLogRecord event) {
         if (CharMatcher.INVISIBLE.matchesAnyOf(event.getSubject())) {
-            LOG.error("hit illegal subject during iterate message log, skip this message. subject: {}, wroteOffset: {}", event.getSubject(), event.getWroteOffset());
+            LOGGER.error("hit illegal subject during iterate message log, skip this message. subject: {}, wroteOffset: {}", event.getSubject(), event.getWroteOffset());
             return;
         }
 
         if (needRolling(event)) {
             final long nextTabletId = smt.getNextTabletId(tabletId);
-            LOG.info("rolling new memtable, nextTabletId: {}, event: {}", nextTabletId, event);
+            LOGGER.info("rolling new memtable, nextTabletId: {}, event: {}", nextTabletId, event);
 
             currentMemTable = manager.rollingNewMemTable(nextTabletId, event.getWroteOffset());
             tabletId = nextTabletId;
@@ -97,7 +97,7 @@ public class BuildMessageMemTableEventListener implements FixedExecOrderEventBus
             try {
                 TimeUnit.MILLISECONDS.sleep(500);
             } catch (InterruptedException ignore) {
-                LOG.error("sleep interrupted");
+                LOGGER.error("sleep interrupted");
             }
         }
     }
