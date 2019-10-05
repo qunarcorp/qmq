@@ -21,13 +21,10 @@ import com.google.common.util.concurrent.AbstractFuture;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
-import qunar.tc.qmq.broker.ClientMetaManager;
 import qunar.tc.qmq.config.PullSubjectsConfig;
 import qunar.tc.qmq.consumer.pull.exception.PullException;
-import qunar.tc.qmq.meta.ConsumerAllocation;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.netty.client.NettyClient;
 import qunar.tc.qmq.netty.client.ResponseFuture;
@@ -58,16 +55,17 @@ class PullService {
     private static final Logger LOGGER = LoggerFactory.getLogger(PullService.class);
 
     private final NettyClient client = NettyClient.getClient();
-    private final ClientMetaManager clientMetaManager;
-
-    public PullService(ClientMetaManager clientMetaManager) {
-        this.clientMetaManager = clientMetaManager;
-    }
 
     PullResult pull(final PullParam pullParam) throws ExecutionException, InterruptedException {
         final PullResultFuture result = new PullResultFuture(pullParam.getBrokerGroup());
         pull(pullParam, result);
         return result.get();
+    }
+
+    PullResultFuture pullAsync(final PullParam pullParam) {
+        final PullResultFuture result = new PullResultFuture(pullParam.getBrokerGroup());
+        pull(pullParam, result);
+        return result;
     }
 
     private void pull(final PullParam pullParam, final PullCallback callback) {
@@ -247,7 +245,7 @@ class PullService {
         }
     }
 
-    private static final class PullResultFuture extends AbstractFuture<PullResult> implements PullCallback {
+    public static final class PullResultFuture extends AbstractFuture<PullResult> implements PullCallback {
         private final BrokerGroupInfo brokerGroup;
 
         PullResultFuture(BrokerGroupInfo brokerGroup) {

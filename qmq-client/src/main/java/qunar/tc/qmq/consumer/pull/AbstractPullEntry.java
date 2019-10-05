@@ -23,13 +23,10 @@ import org.springframework.util.StringUtils;
 import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.PullEntry;
-import qunar.tc.qmq.StatusSource;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
-import qunar.tc.qmq.broker.impl.SwitchWaiter;
 import qunar.tc.qmq.config.PullSubjectsConfig;
-import qunar.tc.qmq.metainfoclient.MetaInfoService;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.QmqCounter;
 import qunar.tc.qmq.protocol.CommandCode;
@@ -54,8 +51,8 @@ abstract class AbstractPullEntry extends AbstractPullClient implements PullEntry
     private final PullService pullService;
     private final AckSendQueue ackSendQueue;
 
-    final BrokerService brokerService;
-    final AckService ackService;
+    private final BrokerService brokerService;
+    private final AckService ackService;
 
     private final AtomicReference<Integer> pullRequestTimeout;
 

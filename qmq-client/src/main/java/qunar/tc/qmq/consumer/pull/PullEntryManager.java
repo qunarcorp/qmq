@@ -89,7 +89,8 @@ public class PullEntryManager extends AbstractPullClientManager<PullEntry> {
                 brokerService,
                 pullStrategy,
                 sendMessageBack,
-                consumerOnlineStateManager);
+                consumerOnlineStateManager,
+                partitionExecutor);
         pullEntry.startPull(partitionExecutor);
         return pullEntry;
     }
