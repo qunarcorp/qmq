@@ -38,19 +38,18 @@ import java.util.concurrent.Executor;
  * @date 2012-12-28
  */
 public class MessageConsumerProvider implements MessageConsumer {
-    private MessageDistributor distributor;
-
-    private final PullConsumerFactory pullConsumerFactory;
-
     private volatile boolean inited = false;
 
-    private ClientIdProvider clientIdProvider;
-    private EnvProvider envProvider;
-    private String metaServer;
-
     private final PullRegister pullRegister;
-    private final ConsumerOnlineStateManager consumerOnlineStateManager = DefaultConsumerOnlineStateManager.getInstance();
+    private final PullConsumerFactory pullConsumerFactory;
+    private final ConsumerOnlineStateManager consumerOnlineStateManager;
+
+    private MessageDistributor distributor;
+    private EnvProvider envProvider;
+
+    private ClientIdProvider clientIdProvider;
     private String appCode;
+    private String metaServer;
 
     private int maxSubjectLen = 100;
     private int maxConsumerGroupLen = 100;
@@ -61,6 +60,7 @@ public class MessageConsumerProvider implements MessageConsumer {
         this.clientIdProvider = ClientIdProviderFactory.createDefault();
         this.pullRegister = new PullRegister();
         this.pullConsumerFactory = new PullConsumerFactory(this.pullRegister);
+        this.consumerOnlineStateManager = DefaultConsumerOnlineStateManager.getInstance();
     }
 
     @PostConstruct
@@ -117,7 +117,6 @@ public class MessageConsumerProvider implements MessageConsumer {
         if (subscribeParam.isBroadcast()) {
             consumerGroup = clientIdProvider.get();
         }
-
 
         return distributor.addListener(subject, consumerGroup, listener, executor, subscribeParam);
     }

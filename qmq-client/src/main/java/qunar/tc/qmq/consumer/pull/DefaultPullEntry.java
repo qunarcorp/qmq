@@ -30,6 +30,7 @@ import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.broker.impl.SwitchWaiter;
+import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.config.PullSubjectsConfig;
 import qunar.tc.qmq.consumer.ConsumeMessageExecutor;
 import qunar.tc.qmq.metainfoclient.ConsumerOnlineStateManager;
@@ -52,24 +53,28 @@ import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_GROUP_ARRAY;
 class DefaultPullEntry extends AbstractPullClient implements PullEntry, Runnable {
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultPullEntry.class);
 
+    private static final ScheduledExecutorService DELAY_SCHEDULER = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("qmq-delay-scheduler"));
+
     private static final long PAUSETIME_OF_CLEAN_LAST_MESSAGE = 200;
     private static final long PAUSETIME_OF_NOAVAILABLE_BROKER = 100;
     private static final long PAUSETIME_OF_NOMESSAGE = 500;
 
     private final ConsumeMessageExecutor consumeMessageExecutor;
+
     private final AtomicReference<Integer> pullBatchSize;
     private final AtomicReference<Integer> pullTimeout;
     private final AtomicReference<Integer> ackNosendLimit;
 
     private final AtomicBoolean isRunning = new AtomicBoolean(true);
+
     private final AtomicBoolean isOnline = new AtomicBoolean(false);
-    private volatile SettableFuture waitOnlineFuture;
+    private SettableFuture waitOnlineFuture;
+
     private final QmqCounter pullRunCounter;
     private final QmqCounter pauseCounter;
+
     private final PullStrategy pullStrategy;
     private final ConsumeParam consumeParam;
-
-    private static final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
 
     private static final int MAX_MESSAGE_RETRY_THRESHOLD = 5;
 
@@ -97,7 +102,8 @@ class DefaultPullEntry extends AbstractPullClient implements PullEntry, Runnable
                      BrokerService brokerService,
                      PullStrategy pullStrategy,
                      SendMessageBack sendMessageBack,
-                     ConsumerOnlineStateManager consumerOnlineStateManager, ExecutorService partitionExecutor) {
+                     ConsumerOnlineStateManager consumerOnlineStateManager,
+                     ExecutorService partitionExecutor) {
         super(consumeParam.getSubject(), consumeParam.getConsumerGroup(), partitionName, brokerGroup, consumerId, consumeStrategy, version, consumeParam.isBroadcast(), consumeParam.isOrdered(), consumptionExpiredTime);
         this.pullService = pullService;
         this.ackService = ackService;
@@ -143,65 +149,63 @@ class DefaultPullEntry extends AbstractPullClient implements PullEntry, Runnable
         executor.submit(this);
     }
 
+    private static final int PREPARE_PULL = 0;
+    private static final int PULL_DONE = 1;
+
     private final AtomicInteger state = new AtomicInteger();
-    private PullParam pullParam;
+    private volatile PullParam pullParam;
     private volatile PullService.PullResultFuture pullFuture;
 
     @Override
     public void run() {
         switch (state.get()) {
-            case 0:
+            case PREPARE_PULL:
                 if (!isRunning.get()) return;
 
-                ListenableFuture future = waitOnline();
-                if (future != null) {
-                    future.addListener(this, partitionExecutor);
-                    break;
-                }
+                if (await(waitOnline())) return;
 
-                future = preparePull();
-                if (future != null) {
-                    future.addListener(this, partitionExecutor);
-                    break;
-                }
+                if (await(preparePull())) return;
 
                 final DoPullParam doPullParam = new DoPullParam();
-                future = resetDoPullParam(doPullParam);
-                if (future != null) {
-                    future.addListener(this, partitionExecutor);
-                    break;
-                }
+                if (await(resetDoPullParam(doPullParam))) return;
 
                 AckSendInfo ackSendInfo = ackSendQueue.getAckSendInfo();
                 pullParam = buildPullParam(consumeParam, doPullParam.brokerGroup, ackSendInfo, pullBatchSize.get(), pullTimeout.get());
                 pullFuture = pullService.pullAsync(pullParam);
-                state.set(1);
+                state.set(PULL_DONE);
                 pullFuture.addListener(this, partitionExecutor);
                 break;
-            case 1:
-                PullResult pullResult = null;
+            case PULL_DONE:
+                final PullParam thisPullParam = pullParam;
+                final BrokerGroupInfo brokerGroup = thisPullParam.getBrokerGroup();
                 try {
-                    pullResult = pullFuture.get();
-                    List<PulledMessage> messages = handlePullResult(pullParam, pullResult, consumeMessageExecutor.getMessageHandler());
-                    pullParam.getBrokerGroup().markSuccess();
+                    PullResult pullResult = pullFuture.get();
+                    List<PulledMessage> messages = handlePullResult(thisPullParam, pullResult, consumeMessageExecutor.getMessageHandler());
+                    brokerGroup.markSuccess();
                     pullStrategy.record(messages.size() > 0);
                     consumeMessageExecutor.consume(messages);
                 } catch (ExecutionException e) {
-                    markFailed(pullParam.getBrokerGroup());
+                    markFailed(brokerGroup);
                     Throwable cause = e.getCause();
                     //超时异常暂时不打印日志了
                     if (!(cause instanceof TimeoutException)) {
-                        LOGGER.error("pull message exception. {}", pullParam, e);
+                        LOGGER.error("pull message exception. {}", thisPullParam, e);
                     }
                 } catch (Exception e) {
-                    markFailed(pullParam.getBrokerGroup());
-                    LOGGER.error("pull message exception. {}", pullParam, e);
+                    markFailed(brokerGroup);
+                    LOGGER.error("pull message exception. {}", thisPullParam, e);
                 } finally {
-                    state.set(0);
+                    state.set(PREPARE_PULL);
                     run();
                 }
                 break;
         }
+    }
+
+    private boolean await(ListenableFuture future) {
+        if (future == null) return false;
+        future.addListener(this, partitionExecutor);
+        return true;
     }
 
     private ListenableFuture waitOnline() {
@@ -216,24 +220,24 @@ class DefaultPullEntry extends AbstractPullClient implements PullEntry, Runnable
     private ListenableFuture preparePull() {
         pullRunCounter.inc();
         if (consumeMessageExecutor.isFull()) {
-            return pause("wait consumer", PAUSETIME_OF_CLEAN_LAST_MESSAGE);
+            return delay("wait consumer", PAUSETIME_OF_CLEAN_LAST_MESSAGE);
         }
 
         if (!pullStrategy.needPull()) {
-            return pause("wait consumer", PAUSETIME_OF_NOMESSAGE);
+            return delay("wait consumer", PAUSETIME_OF_NOMESSAGE);
         }
         return null;
     }
 
     private ListenableFuture resetDoPullParam(DoPullParam param) {
         if (param.ackSendInfo.getToSendNum() > ackNosendLimit.get()) {
-            return pause("wait ack", PAUSETIME_OF_NOAVAILABLE_BROKER);
+            return delay("wait ack", PAUSETIME_OF_NOAVAILABLE_BROKER);
         }
 
         BrokerClusterInfo brokerCluster = getBrokerCluster();
         BrokerGroupInfo brokerGroup = brokerCluster.getGroupByName(getBrokerGroup());
         if (BrokerGroupInfo.isInvalid(brokerGroup)) {
-            return pause("no available broker", PAUSETIME_OF_NOAVAILABLE_BROKER);
+            return delay("no available broker", PAUSETIME_OF_NOAVAILABLE_BROKER);
         }
 
         param.brokerGroup = brokerGroup;
@@ -245,13 +249,13 @@ class DefaultPullEntry extends AbstractPullClient implements PullEntry, Runnable
         return brokerService.getConsumerBrokerCluster(ClientType.CONSUMER, consumeParam.getSubject());
     }
 
-    private ListenableFuture pause(String log, long timeMillis) {
+    private ListenableFuture delay(String log, long timeMillis) {
         final String subject = consumeParam.getSubject();
         final String consumerGroup = consumeParam.getConsumerGroup();
         this.pauseCounter.inc();
         LOGGER.debug("pull pause {} ms, {}. subject={}, consumerGroup={}", timeMillis, log, subject, consumerGroup);
         RunnableSettableFuture future = new RunnableSettableFuture();
-        scheduledExecutorService.schedule(future, timeMillis, TimeUnit.MILLISECONDS);
+        DELAY_SCHEDULER.schedule(future, timeMillis, TimeUnit.MILLISECONDS);
         return future;
     }
 
