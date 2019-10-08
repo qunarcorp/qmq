@@ -131,17 +131,7 @@ class DefaultPullEntry extends AbstractPullClient implements PullEntry, Runnable
         this.pullRunCounter = Metrics.counter("qmq_pull_run_count", SUBJECT_GROUP_ARRAY, values);
         this.pauseCounter = Metrics.counter("qmq_pull_pause_count", SUBJECT_GROUP_ARRAY, values);
 
-        SwitchWaiter switchWaiter = consumerOnlineStateManager.getSwitchWaiter(subject, consumerGroup);
-        isOnline.set(switchWaiter.isOnline());
-        switchWaiter.addListener(isOnline -> {
-            synchronized (this.isOnline) {
-                this.isOnline.set(isOnline);
-                final SettableFuture future = waitOnlineFuture;
-                if (future != null && isOnline) {
-                    future.set(null);
-                }
-            }
-        });
+        subscribeOnlineStateChanged(consumerOnlineStateManager, subject, consumerGroup);
     }
 
     @Override
@@ -211,7 +201,7 @@ class DefaultPullEntry extends AbstractPullClient implements PullEntry, Runnable
     private ListenableFuture waitOnline() {
         synchronized (this.isOnline) {
             if (isOnline.get()) return null;
-            SettableFuture<Object> waitOnlineFuture = SettableFuture.create();
+            SettableFuture waitOnlineFuture = SettableFuture.create();
             this.waitOnlineFuture = waitOnlineFuture;
             return waitOnlineFuture;
         }
@@ -361,6 +351,20 @@ class DefaultPullEntry extends AbstractPullClient implements PullEntry, Runnable
     public void destroy() {
         super.destroy();
         this.ackSendQueue.destroy(TimeUnit.SECONDS.toMillis(5));
+    }
+
+    private void subscribeOnlineStateChanged(ConsumerOnlineStateManager consumerOnlineStateManager, String subject, String consumerGroup) {
+        SwitchWaiter switchWaiter = consumerOnlineStateManager.getSwitchWaiter(subject, consumerGroup);
+        isOnline.set(switchWaiter.isOnline());
+        switchWaiter.addListener(isOnline -> {
+            synchronized (this.isOnline) {
+                this.isOnline.set(isOnline);
+                final SettableFuture future = waitOnlineFuture;
+                if (future != null && isOnline) {
+                    future.set(null);
+                }
+            }
+        });
     }
 
     @Override

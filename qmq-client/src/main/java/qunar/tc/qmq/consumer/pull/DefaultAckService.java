@@ -16,7 +16,6 @@
 
 package qunar.tc.qmq.consumer.pull;
 
-import com.google.common.base.Joiner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ClientType;
@@ -25,7 +24,6 @@ import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.consumer.pull.exception.AckException;
-import qunar.tc.qmq.meta.ConsumerAllocation;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.QmqCounter;
 import qunar.tc.qmq.netty.client.NettyClient;
@@ -214,9 +212,4 @@ class DefaultAckService implements AckService {
         Metrics.counter("qmq_pull_ack_error", SUBJECT_GROUP_ARRAY, new String[]{subject, group}).inc();
     }
 
-    private static final Joiner senderKeyJoiner = Joiner.on("$");
-
-    private static String buildSenderKey(String subject, String consumerGroup, String brokerGroup, String partitionName) {
-        return senderKeyJoiner.join(subject, consumerGroup, brokerGroup, partitionName);
-    }
 }
