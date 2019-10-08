@@ -47,7 +47,7 @@ public class PullSubjectsConfig {
 
     private PullSubjectsConfig() {
         pullBatchSizeConfig = new AtomicIntegerConfig(50, 1, 10000);
-        pullTimeoutConfig = new AtomicIntegerConfig(1000, 1000, Integer.MAX_VALUE);
+        pullTimeoutConfig = new AtomicIntegerConfig(1000, -1, Integer.MAX_VALUE);
         pullRequestTimeoutConfig = new AtomicIntegerConfig(8000, 5000, Integer.MAX_VALUE);
         ackNosendLimit = new AtomicIntegerConfig(100, Integer.MIN_VALUE, Integer.MAX_VALUE);
         maxRetryNum = new AtomicIntegerConfig(32, 0, Integer.MAX_VALUE);
