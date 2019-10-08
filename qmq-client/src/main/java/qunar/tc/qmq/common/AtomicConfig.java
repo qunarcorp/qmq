@@ -31,33 +31,35 @@ import java.util.concurrent.atomic.AtomicReference;
 public abstract class AtomicConfig<T> {
     private static final Logger LOGGER = LoggerFactory.getLogger(AtomicConfig.class);
 
+    private static final String ANY = "*";
+
     private final ConcurrentMap<String, AtomicReference<T>> configMap = new ConcurrentHashMap<>();
 
     public void update(final String configName, final Map<String, String> config) {
-        // update or add config
         for (Map.Entry<String, String> entry : config.entrySet()) {
-            setString(entry.getKey(), entry.getValue());
-            LOGGER.info("set pull config: {}. {}={}", configName, entry.getKey(), entry.getValue());
+            String key = entry.getKey();
+            String value = entry.getValue();
+            Optional<T> v = parse(key, value);
+            if (v.isPresent()) {
+                set(key, v.get());
+            }
+            LOGGER.info("set pull config: {}. {}={}", configName, key, value);
         }
 
-        // no configed
         for (String key : configMap.keySet()) {
             if (!config.containsKey(key)) {
-                AtomicReference<T> valueRef = configMap.get(key);
-                if (valueRef != null) {
-                    T oldValue = valueRef.get();
-                    updateValueOnNoConfiged(key, valueRef);
-                    T newValue = valueRef.get();
-                    LOGGER.info("update no pull config: {}. key={}, oldValue={}, newValue={}", configName, key, oldValue, newValue);
-                }
+                reset(configName, key);
             }
         }
     }
 
-    private void setString(String key, String value) {
-        Optional<T> v = parse(key, value);
-        if (v.isPresent()) {
-            set(key, v.get());
+    private void reset(String configName, String key) {
+        AtomicReference<T> valueRef = configMap.get(key);
+        if (valueRef != null) {
+            T oldValue = valueRef.get();
+            T defaultValue = getDefaultValue();
+            valueRef.set(defaultValue);
+            LOGGER.info("update no pull config: {}. key={}, oldValue={}, newValue={}", configName, key, oldValue, defaultValue);
         }
     }
 
@@ -69,12 +71,18 @@ public abstract class AtomicConfig<T> {
     }
 
     public AtomicReference<T> get(String key, T defaultValue) {
-        AtomicReference<T> tmp = new AtomicReference<>(defaultValue);
-        AtomicReference<T> old = configMap.putIfAbsent(key, tmp);
-        return old != null ? old : tmp;
+        AtomicReference<T> valueRef = configMap.get(key);
+        if (valueRef != null) return valueRef;
+
+        valueRef = configMap.get(ANY);
+        if (valueRef != null) return valueRef;
+
+        valueRef = new AtomicReference<>(defaultValue);
+        AtomicReference<T> old = configMap.putIfAbsent(key, valueRef);
+        return old != null ? old : valueRef;
     }
 
     protected abstract Optional<T> parse(String key, String value);
 
-    protected abstract void updateValueOnNoConfiged(String key, AtomicReference<T> valueRef);
+    protected abstract T getDefaultValue();
 }

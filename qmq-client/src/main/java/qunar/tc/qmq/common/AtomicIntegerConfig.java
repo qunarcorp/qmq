@@ -59,7 +59,7 @@ public class AtomicIntegerConfig extends AtomicConfig<Integer> {
     }
 
     @Override
-    protected void updateValueOnNoConfiged(String key, AtomicReference<Integer> valueRef) {
-        valueRef.set(defaultValue);
+    protected Integer getDefaultValue() {
+        return defaultValue;
     }
 }
