@@ -28,8 +28,9 @@ public class ProducerTest {
         MessageProducerProvider provider = new MessageProducerProvider("producer_test", "http://127.0.0.1:8080/meta/address");
         provider.setTransactionProvider(new SpringTransactionProvider(dataSource));
         provider.init();
-        for (int i = 0; i < 10; i++) {
-            Message message = provider.generateMessage("ordered.qmq.test.1");
+        for (int i = 0; i < 100; i++) {
+            Message message = provider.generateMessage("new.partition.subject");
+            message.setOrderKey("0");
             message.setProperty("mytag", i);
             provider.sendMessage(message, new MessageSendStateListener() {
                 @Override

@@ -63,6 +63,27 @@ public abstract class AbstractCompositePullClient<T extends PullClient> extends 
         }
     }
 
+    @Override
+    public void setVersion(int version) {
+        for (T component : components) {
+            component.setVersion(version);
+        }
+    }
+
+    @Override
+    public void setConsumptionExpiredTime(long timestamp) {
+        for (T component : components) {
+            component.setConsumptionExpiredTime(timestamp);
+        }
+    }
+
+    @Override
+    public void setConsumeStrategy(ConsumeStrategy consumeStrategy) {
+        for (T component : components) {
+            component.setConsumeStrategy(consumeStrategy);
+        }
+    }
+
     private void doIgnoreException(Runnable runnable) {
         try {
             runnable.run();

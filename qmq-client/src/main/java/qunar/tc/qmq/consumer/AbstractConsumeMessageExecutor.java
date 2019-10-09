@@ -20,6 +20,7 @@ import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_GROUP_ARRAY;
  * @since 2019-09-03
  */
 public abstract class AbstractConsumeMessageExecutor implements ConsumeMessageExecutor {
+
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractConsumeMessageExecutor.class);
 
     private static final int MAX_QUEUE_SIZE = 10000;

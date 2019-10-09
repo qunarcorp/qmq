@@ -25,8 +25,9 @@ public class QuerySubjectResponseProcessor implements MetaServerCommandDecoder.D
     @Override
     public void onSuccess(Datagram datagram) {
         ByteBuf buf = datagram.getBody();
+        short version = datagram.getHeader().getVersion();
         Serializer<QuerySubjectResponse> serializer = Serializers.getSerializer(QuerySubjectResponse.class);
-        QuerySubjectResponse response = serializer.deserialize(buf, null);
+        QuerySubjectResponse response = serializer.deserialize(buf, null, version);
         if (response != null) {
             String key = response.getPartitionName();
             MetaInfoClient.QuerySubjectCallback callback = querySubjectCallbacks.get(key);

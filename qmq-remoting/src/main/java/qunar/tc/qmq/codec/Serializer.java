@@ -11,16 +11,18 @@ import java.lang.reflect.Type;
  */
 public interface Serializer<T> {
 
-    void serialize(T t, ByteBuf buf);
+    void serialize(T t, ByteBuf buf, long version);
 
     /**
      * 反序列化
      *
      * @param buf buf
      * @param type T 的类型
+     * @param version 客户端版本
+     *
      * @return T
      */
-    T deserialize(ByteBuf buf, Type type);
+    T deserialize(ByteBuf buf, Type type, long version);
 
     default Serializer getSerializer(Type type) {
         Class clazz;

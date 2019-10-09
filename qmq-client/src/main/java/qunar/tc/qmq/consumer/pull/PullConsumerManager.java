@@ -73,4 +73,10 @@ public class PullConsumerManager extends AbstractPullClientManager<PullConsumer>
                 consumerOnlineStateManager
         );
     }
+
+    @Override
+    StatusSource getStatusSource(Object param) {
+        PullConsumerRegistryParam registryParam = (PullConsumerRegistryParam) param;
+        return registryParam.getStatusSource();
+    }
 }

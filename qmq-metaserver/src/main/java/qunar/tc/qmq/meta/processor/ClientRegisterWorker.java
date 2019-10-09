@@ -58,20 +58,22 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
     private final ActorSystem actorSystem;
     private final Store store;
     private final CachedOfflineStateManager offlineStateManager;
+    private final CachedMetaInfoManager cachedMetaInfoManager;
     private final AllocationService allocationService;
 
     ClientRegisterWorker(final SubjectRouter subjectRouter, final CachedOfflineStateManager offlineStateManager, final Store store, CachedMetaInfoManager cachedMetaInfoManager, AllocationService allocationService) {
         this.subjectRouter = subjectRouter;
+        this.cachedMetaInfoManager = cachedMetaInfoManager;
         this.allocationService = allocationService;
         this.actorSystem = new ActorSystem("qmq_meta");
         this.offlineStateManager = offlineStateManager;
         this.store = store;
 
-        VersionableComponentManager.registerComponent(BrokerFilter.class, Range.closedOpen(Integer.MIN_VALUE, (int) RemotingHeader.VERSION_10), new DefaultBrokerFilter(cachedMetaInfoManager));
-        VersionableComponentManager.registerComponent(BrokerFilter.class, Range.closedOpen((int) RemotingHeader.VERSION_10, Integer.MAX_VALUE), new BrokerFilterV10());
+        VersionableComponentManager.registerComponent(BrokerFilter.class, Range.closedOpen(Integer.MIN_VALUE, (int) RemotingHeader.getOrderedMessageVersion()), new DefaultBrokerFilter(cachedMetaInfoManager));
+        VersionableComponentManager.registerComponent(BrokerFilter.class, Range.closedOpen((int) RemotingHeader.getOrderedMessageVersion(), Integer.MAX_VALUE), new BrokerFilterV10());
 
-        VersionableComponentManager.registerComponent(ResponseBuilder.class, Range.closedOpen(Integer.MIN_VALUE, (int) RemotingHeader.VERSION_10), new DefaultResponseBuilder());
-        VersionableComponentManager.registerComponent(ResponseBuilder.class, Range.closedOpen((int) RemotingHeader.VERSION_10, Integer.MAX_VALUE), new ResponseBuilderV10());
+        VersionableComponentManager.registerComponent(ResponseBuilder.class, Range.closedOpen(Integer.MIN_VALUE, (int) RemotingHeader.getOrderedMessageVersion()), new DefaultResponseBuilder());
+        VersionableComponentManager.registerComponent(ResponseBuilder.class, Range.closedOpen((int) RemotingHeader.getOrderedMessageVersion(), Integer.MAX_VALUE), new ResponseBuilderV10());
     }
 
     void register(ClientRegisterProcessor.ClientRegisterMessage message) {
@@ -137,12 +139,10 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
     private PayloadHolder createPayloadHolder(final ClientRegisterProcessor.ClientRegisterMessage message, final MetaInfoResponse response) {
         RemotingHeader header = message.getHeader();
         short version = header.getVersion();
-        if (version >= RemotingHeader.VERSION_10) {
-            return new MetaInfoResponsePayloadHolderV10(response);
-        } else {
-            return new MetaInfoResponsePayloadHolder(response);
-        }
-
+        return out -> {
+            Serializer<MetaInfoResponse> serializer = Serializers.getSerializer(MetaInfoResponse.class);
+            serializer.serialize(response, out, version);
+        };
     }
 
     private interface ResponseBuilder {
@@ -184,39 +184,6 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
                 return new ConsumerMetaInfoResponse(updateTime, subject, consumerGroup, clientState, clientTypeCode, brokerCluster, consumerAllocation);
             }
             throw new UnsupportedOperationException("客户端类型不匹配");
-        }
-    }
-
-    private static class MetaInfoResponsePayloadHolder implements PayloadHolder {
-
-        private final MetaInfoResponse response;
-
-        MetaInfoResponsePayloadHolder(MetaInfoResponse response) {
-            this.response = response;
-        }
-
-        @Override
-        public void writeBody(ByteBuf out) {
-            Serializer<MetaInfoResponse> serializer = Serializers.getSerializer(MetaInfoResponse.class);
-            serializer.serialize(response, out);
-        }
-
-        public MetaInfoResponse getResponse() {
-            return response;
-        }
-    }
-
-    private static class MetaInfoResponsePayloadHolderV10 extends MetaInfoResponsePayloadHolder implements PayloadHolder {
-
-        MetaInfoResponsePayloadHolderV10(MetaInfoResponse response) {
-            super(response);
-        }
-
-        @Override
-        public void writeBody(ByteBuf out) {
-            MetaInfoResponse response = getResponse();
-            Serializer<MetaInfoResponse> serializer = Serializers.getSerializer(MetaInfoResponse.class);
-            serializer.serialize(response, out);
         }
     }
 

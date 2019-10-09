@@ -28,9 +28,9 @@ public class DefaultMessageSender implements MessageSender {
 
     private static final String SEND_MESSAGE_THROWABLE_COUNTER = "qmq_client_producer_send_message_Throwable";
 
-    private final ConnectionManager connectionManager;
-    private final Executor executor;
-    private final QmqTimer timer;
+    private ConnectionManager connectionManager;
+    private Executor executor;
+    private QmqTimer timer;
 
     public DefaultMessageSender(ConnectionManager connectionManager, Executor executor) {
         this.connectionManager = connectionManager;

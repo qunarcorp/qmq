@@ -28,14 +28,19 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static qunar.tc.qmq.StatusSource.CODE;
+import static qunar.tc.qmq.StatusSource.OPS;
 
 /**
  * @author yiqun.fan create on 17-8-18.
  */
 public class SwitchWaiter {
-    private static final Logger LOGGER = LoggerFactory.getLogger(SwitchWaiter.class);
+
+    public interface Listener {
+        void onStateChange(boolean isOnline);
+    }
 
     private static final int WAIT_TIMEOUT = 60000;
+    private static final Logger LOGGER = LoggerFactory.getLogger(SwitchWaiter.class);
 
     private List<Listener> listeners = Lists.newArrayList();
 
@@ -114,10 +119,5 @@ public class SwitchWaiter {
 
     public void addListener(Listener listener) {
         this.listeners.add(listener);
-    }
-
-    public interface Listener {
-        void onStateChange(boolean isOnline);
-
     }
 }

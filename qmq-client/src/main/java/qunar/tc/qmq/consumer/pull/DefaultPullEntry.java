@@ -148,47 +148,51 @@ class DefaultPullEntry extends AbstractPullClient implements PullEntry, Runnable
 
     @Override
     public void run() {
-        switch (state.get()) {
-            case PREPARE_PULL:
-                if (!isRunning.get()) return;
+        try {
+            switch (state.get()) {
+                case PREPARE_PULL:
+                    if (!isRunning.get()) return;
 
-                if (await(waitOnline())) return;
+                    if (await(waitOnline())) return;
 
-                if (await(preparePull())) return;
+                    if (await(preparePull())) return;
 
-                final DoPullParam doPullParam = new DoPullParam();
-                if (await(resetDoPullParam(doPullParam))) return;
+                    final DoPullParam doPullParam = new DoPullParam();
+                    if (await(resetDoPullParam(doPullParam))) return;
 
-                AckSendInfo ackSendInfo = ackSendQueue.getAckSendInfo();
-                pullParam = buildPullParam(consumeParam, doPullParam.brokerGroup, ackSendInfo, pullBatchSize.get(), pullTimeout.get());
-                pullFuture = pullService.pullAsync(pullParam);
-                state.set(PULL_DONE);
-                pullFuture.addListener(this, partitionExecutor);
-                break;
-            case PULL_DONE:
-                final PullParam thisPullParam = pullParam;
-                final BrokerGroupInfo brokerGroup = thisPullParam.getBrokerGroup();
-                try {
-                    PullResult pullResult = pullFuture.get();
-                    List<PulledMessage> messages = handlePullResult(thisPullParam, pullResult, consumeMessageExecutor.getMessageHandler());
-                    brokerGroup.markSuccess();
-                    pullStrategy.record(messages.size() > 0);
-                    consumeMessageExecutor.consume(messages);
-                } catch (ExecutionException e) {
-                    markFailed(brokerGroup);
-                    Throwable cause = e.getCause();
-                    //超时异常暂时不打印日志了
-                    if (!(cause instanceof TimeoutException)) {
+                    AckSendInfo ackSendInfo = ackSendQueue.getAckSendInfo();
+                    pullParam = buildPullParam(consumeParam, doPullParam.brokerGroup, ackSendInfo, pullBatchSize.get(), pullTimeout.get());
+                    pullFuture = pullService.pullAsync(pullParam);
+                    state.set(PULL_DONE);
+                    pullFuture.addListener(this, partitionExecutor);
+                    break;
+                case PULL_DONE:
+                    final PullParam thisPullParam = pullParam;
+                    final BrokerGroupInfo brokerGroup = thisPullParam.getBrokerGroup();
+                    try {
+                        PullResult pullResult = pullFuture.get();
+                        List<PulledMessage> messages = handlePullResult(thisPullParam, pullResult, consumeMessageExecutor.getMessageHandler());
+                        brokerGroup.markSuccess();
+                        pullStrategy.record(messages.size() > 0);
+                        consumeMessageExecutor.consume(messages);
+                    } catch (ExecutionException e) {
+                        markFailed(brokerGroup);
+                        Throwable cause = e.getCause();
+                        //超时异常暂时不打印日志了
+                        if (!(cause instanceof TimeoutException)) {
+                            LOGGER.error("pull message exception. {}", thisPullParam, e);
+                        }
+                    } catch (Exception e) {
+                        markFailed(brokerGroup);
                         LOGGER.error("pull message exception. {}", thisPullParam, e);
+                    } finally {
+                        state.set(PREPARE_PULL);
+                        run();
                     }
-                } catch (Exception e) {
-                    markFailed(brokerGroup);
-                    LOGGER.error("pull message exception. {}", thisPullParam, e);
-                } finally {
-                    state.set(PREPARE_PULL);
-                    run();
-                }
-                break;
+                    break;
+            }
+        } catch (Throwable t) {
+            LOGGER.error("pull error subject {} consumerGroup {}", getSubject(), getConsumerGroup(), t);
         }
     }
 
@@ -220,7 +224,8 @@ class DefaultPullEntry extends AbstractPullClient implements PullEntry, Runnable
     }
 
     private ListenableFuture resetDoPullParam(DoPullParam param) {
-        if (param.ackSendInfo.getToSendNum() > ackNosendLimit.get()) {
+
+        if (ackSendQueue.getAckSendInfo().getToSendNum() > ackNosendLimit.get()) {
             return delay("wait ack", PAUSETIME_OF_NOAVAILABLE_BROKER);
         }
 
@@ -230,8 +235,8 @@ class DefaultPullEntry extends AbstractPullClient implements PullEntry, Runnable
             return delay("no available broker", PAUSETIME_OF_NOAVAILABLE_BROKER);
         }
 
-        param.brokerGroup = brokerGroup;
         param.ackSendInfo = ackSendQueue.getAckSendInfo();
+        param.brokerGroup = brokerGroup;
         return null;
     }
 

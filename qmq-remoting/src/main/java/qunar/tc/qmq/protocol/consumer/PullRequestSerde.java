@@ -26,8 +26,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static qunar.tc.qmq.protocol.RemotingHeader.VERSION_8;
-import static qunar.tc.qmq.protocol.RemotingHeader.VERSION_9;
+import static qunar.tc.qmq.protocol.RemotingHeader.*;
 
 /**
  * @author keli.wang
@@ -110,7 +109,7 @@ public class PullRequestSerde {
         ConsumeStrategy consumeStrategy = isExclusiveConsume ? ConsumeStrategy.EXCLUSIVE : ConsumeStrategy.SHARED;
 
         final PullRequest request;
-        if (isV10Version(version)) {
+        if (version >= RemotingHeader.getOrderedMessageVersion()) {
             int allocationVersion = in.readInt();
             request = new PullRequestV10(
                     subject,
@@ -142,15 +141,11 @@ public class PullRequestSerde {
 
     }
 
-    private boolean isV10Version(int version) {
-        return version >= RemotingHeader.VERSION_10;
-    }
-
     private List<PullFilter> readFilters(final int version, final ByteBuf in) {
-        if (version < VERSION_8) {
+        if (version < getTagsVersion()) {
             return Collections.emptyList();
         }
-        if (version < VERSION_9) {
+        if (version < getFilterVersion()) {
             final PullFilter filter = readTagPullFilter(in);
             if (filter == null) {
                 return Collections.emptyList();

@@ -15,22 +15,22 @@ import java.util.List;
 public class ListSerializer extends ObjectSerializer<List> {
 
     @Override
-    void doSerialize(List list, ByteBuf buf) {
+    void doSerialize(List list, ByteBuf buf, long version) {
         buf.writeInt(list.size());
         for (Object o : list) {
             Serializer serializer = getSerializer(o.getClass());
-            serializer.serialize(o, buf);
+            serializer.serialize(o, buf, version);
         }
     }
 
     @Override
-    List doDeserialize(ByteBuf buf, Type type) {
+    List doDeserialize(ByteBuf buf, Type type, long version) {
         int size = buf.readInt();
         ArrayList<Object> list = Lists.newArrayListWithCapacity(size);
         Type elementType = ((ParameterizedType) type).getActualTypeArguments()[0];
         Serializer elementSerializer = getSerializer(elementType);
         for (int i = 0; i < size; i++) {
-            list.add(elementSerializer.deserialize(buf, type));
+            list.add(elementSerializer.deserialize(buf, type, version));
         }
         return list;
     }

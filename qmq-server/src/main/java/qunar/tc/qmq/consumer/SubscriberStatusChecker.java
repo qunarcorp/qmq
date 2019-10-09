@@ -24,7 +24,7 @@ import qunar.tc.qmq.concurrent.ActorSystem;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.store.ConsumerGroupProgress;
-import qunar.tc.qmq.store.GroupAndSubject;
+import qunar.tc.qmq.store.GroupAndPartition;
 import qunar.tc.qmq.store.PullLog;
 import qunar.tc.qmq.store.Storage;
 import qunar.tc.qmq.utils.RetryPartitionUtils;
@@ -69,13 +69,13 @@ public class SubscriberStatusChecker implements ActorSystem.Processor<Subscriber
 
         // delete all pull log without max pulled message sequence
         for (final String groupAndSubject : pullLogs.columnKeySet()) {
-            final GroupAndSubject gs = GroupAndSubject.parse(groupAndSubject);
-            final long maxPulledMessageSequence = storage.getMaxPulledMessageSequence(gs.getSubject(), gs.getGroup());
+            final GroupAndPartition gs = GroupAndPartition.parse(groupAndSubject);
+            final long maxPulledMessageSequence = storage.getMaxPulledMessageSequence(gs.getPartitionName(), gs.getGroup());
             if (maxPulledMessageSequence == -1) {
                 for (final Map.Entry<String, PullLog> entry : pullLogs.column(groupAndSubject).entrySet()) {
                     final String consumerId = entry.getKey();
-                    LOGGER.info("remove pull log. subject: {}, group: {}, consumerId: {}", gs.getSubject(), gs.getGroup(), consumerId);
-                    storage.destroyPullLog(gs.getSubject(), gs.getGroup(), consumerId);
+                    LOGGER.info("remove pull log. partitionName: {}, group: {}, consumerId: {}", gs.getPartitionName(), gs.getGroup(), consumerId);
+                    storage.destroyPullLog(gs.getPartitionName(), gs.getGroup(), consumerId);
                 }
             }
         }
@@ -89,7 +89,7 @@ public class SubscriberStatusChecker implements ActorSystem.Processor<Subscriber
             }
 
             progress.getConsumers().values().forEach(consumer -> {
-                final String groupAndSubject = GroupAndSubject.groupAndSubject(consumer.getSubject(), consumer.getGroup());
+                final String groupAndSubject = GroupAndPartition.groupAndPartition(consumer.getSubject(), consumer.getGroup());
                 addSubscriber(groupAndSubject, consumer.getConsumerId());
             });
         });
@@ -123,7 +123,7 @@ public class SubscriberStatusChecker implements ActorSystem.Processor<Subscriber
                     if (subscriber.status() == Subscriber.Status.ONLINE) continue;
 
                     subscriber.reset();
-                    actorSystem.dispatch("status-checker-" + subscriber.getGroup(), subscriber, this);
+                    actorSystem.dispatch("status-checker-" + subscriber.getConsumerGroup(), subscriber, this);
                 }
             }
         }
@@ -144,7 +144,7 @@ public class SubscriberStatusChecker implements ActorSystem.Processor<Subscriber
     }
 
     public Subscriber getSubscriber(String subject, String group, String consumerId) {
-        final String groupAndSubject = GroupAndSubject.groupAndSubject(subject, group);
+        final String groupAndSubject = GroupAndPartition.groupAndPartition(subject, group);
         final ConcurrentMap<String, Subscriber> m = subscribers.get(groupAndSubject);
         if (m == null) {
             return null;
@@ -154,7 +154,7 @@ public class SubscriberStatusChecker implements ActorSystem.Processor<Subscriber
     }
 
     public void addSubscriber(String partitionName, String group, String consumerId) {
-        final String groupAndSubject = GroupAndSubject.groupAndSubject(partitionName, group);
+        final String groupAndSubject = GroupAndPartition.groupAndPartition(partitionName, group);
         addSubscriber(groupAndSubject, consumerId);
     }
 
@@ -182,12 +182,12 @@ public class SubscriberStatusChecker implements ActorSystem.Processor<Subscriber
         return subscriber;
     }
 
-    public void heartbeat(String consumerId, String subject, String group) {
-        final String partitionName = RetryPartitionUtils.getRealPartitionName(subject);
-        final String retryPartition = RetryPartitionUtils.buildRetryPartitionName(partitionName, group);
+    public void heartbeat(String consumerId, String partitionName, String consumerGroup) {
+        final String realPartitionName = RetryPartitionUtils.getRealPartitionName(partitionName);
+        final String retryPartition = RetryPartitionUtils.buildRetryPartitionName(realPartitionName, consumerGroup);
 
-        refreshSubscriber(partitionName, group, consumerId);
-        refreshSubscriber(retryPartition, group, consumerId);
+        refreshSubscriber(realPartitionName, consumerGroup, consumerId);
+        refreshSubscriber(retryPartition, consumerGroup, consumerId);
     }
 
     private void refreshSubscriber(final String subject, final String group, final String consumerId) {
@@ -218,7 +218,7 @@ public class SubscriberStatusChecker implements ActorSystem.Processor<Subscriber
 
     private void handleGroupOffline(final Subscriber lastSubscriber) {
         try {
-            storage.disableLagMonitor(lastSubscriber.getSubject(), lastSubscriber.getGroup());
+            storage.disableLagMonitor(lastSubscriber.getPartitionName(), lastSubscriber.getConsumerGroup());
         } catch (Throwable e) {
             LOGGER.error("disable monitor error", e);
         }

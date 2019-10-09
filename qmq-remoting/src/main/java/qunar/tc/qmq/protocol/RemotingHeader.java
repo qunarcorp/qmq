@@ -20,28 +20,50 @@ package qunar.tc.qmq.protocol;
  * @author yiqun.fan create on 17-7-4.
  */
 public class RemotingHeader {
+
     public static final int DEFAULT_MAGIC_CODE = 0xdec1_0ade;
 
-    public static final short VERSION_4 = 4;
+
+    private static final short VERSION_4 = 4;
     /**
      * add schedule time in message header for delay message
      */
-    public static final short VERSION_7 = 7;
+    private static final short VERSION_7 = 7;
 
     /**
      * add tags field for message header
      */
-    public static final short VERSION_8 = 8;
+    private static final short VERSION_8 = 8;
 
     /**
      * add pull request filters
      */
-    public static final short VERSION_9 = 9;
+    private static final short VERSION_9 = 9;
 
     /**
      * ordered message version
      */
-    public static final short VERSION_10 = 10;
+    private static final short VERSION_10 = 10;
+
+    public static short getScheduleTimeVersion() {
+        return VERSION_7;
+    }
+
+    public static short getTagsVersion() {
+        return VERSION_8;
+    }
+
+    public static short getFilterVersion() {
+        return VERSION_9;
+    }
+
+    public static short getOrderedMessageVersion() {
+        return VERSION_10;
+    }
+
+    public static short getCurrentVersion() {
+        return VERSION_10;
+    }
 
     public static final short MIN_HEADER_SIZE = 18;  // magic code(4) + code(2) + version(2) + opaque(4) + flag(4) + request code(2)
     public static final short HEADER_SIZE_LEN = 2;
@@ -51,7 +73,7 @@ public class RemotingHeader {
 
     private int magicCode = DEFAULT_MAGIC_CODE;
     private short code;
-    private short version = VERSION_8;
+    private short version = getCurrentVersion();
     private int opaque;
     private int flag;
     private short requestCode = CommandCode.PLACEHOLDER;
@@ -103,6 +125,7 @@ public class RemotingHeader {
     public void setRequestCode(short requestCode) {
         this.requestCode = requestCode;
     }
+
 
     @Override
     public String toString() {

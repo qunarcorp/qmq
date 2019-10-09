@@ -33,9 +33,10 @@ import java.util.Map;
  * @author yiqun.fan create on 17-8-18.
  */
 public class BaseMessageHandler implements MessageHandler, AckHook {
+
     private static final Logger LOGGER = LoggerFactory.getLogger(BaseMessageHandler.class);
 
-    private final MessageListener listener;
+    protected final MessageListener listener;
     private final List<Filter> filters;
     private final Filter traceFilter;
 

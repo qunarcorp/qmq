@@ -48,8 +48,9 @@ public class MessageConsumerProvider implements MessageConsumer {
     private EnvProvider envProvider;
 
     private ClientIdProvider clientIdProvider;
-    private String appCode;
     private String metaServer;
+
+    private String appCode;
 
     private int maxSubjectLen = 100;
     private int maxConsumerGroupLen = 100;
@@ -117,6 +118,7 @@ public class MessageConsumerProvider implements MessageConsumer {
         if (subscribeParam.isBroadcast()) {
             consumerGroup = clientIdProvider.get();
         }
+
 
         return distributor.addListener(subject, consumerGroup, listener, executor, subscribeParam);
     }

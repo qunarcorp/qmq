@@ -24,14 +24,14 @@ import qunar.tc.qmq.store.ActionType;
  * @since 2018/8/20
  */
 public class ForeverOfflineAction implements Action {
-    private final String subject;
-    private final String group;
+    private final String partitionName;
+    private final String consumerGroup;
     private final String consumerId;
     private final long timestamp;
 
-    public ForeverOfflineAction(String subject, String group, String consumerId, long timestamp) {
-        this.subject = subject;
-        this.group = group;
+    public ForeverOfflineAction(String partitionName, String consumerGroup, String consumerId, long timestamp) {
+        this.partitionName = partitionName;
+        this.consumerGroup = consumerGroup;
         this.consumerId = consumerId;
         this.timestamp = timestamp;
     }
@@ -43,13 +43,13 @@ public class ForeverOfflineAction implements Action {
     }
 
     @Override
-    public String subject() {
-        return subject;
+    public String partitionName() {
+        return partitionName;
     }
 
     @Override
-    public String group() {
-        return group;
+    public String consumerGroup() {
+        return consumerGroup;
     }
 
     @Override
@@ -65,8 +65,8 @@ public class ForeverOfflineAction implements Action {
     @Override
     public String toString() {
         return "ForeverOfflineAction{" +
-                "subject='" + subject + '\'' +
-                ", group='" + group + '\'' +
+                "partitionName='" + partitionName + '\'' +
+                ", consumerGroup='" + consumerGroup + '\'' +
                 ", consumerId='" + consumerId + '\'' +
                 ", timestamp=" + timestamp +
                 '}';

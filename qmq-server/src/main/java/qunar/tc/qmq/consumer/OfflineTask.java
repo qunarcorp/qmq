@@ -41,20 +41,20 @@ class OfflineTask {
     void run() {
         if (cancel) return;
 
-        LOGGER.info("run offline task for {}/{}/{}.", subscriber.getSubject(), subscriber.getGroup(), subscriber.getConsumerId());
-        QMon.offlineTaskExecuteCountInc(subscriber.getSubject(), subscriber.getGroup());
+        LOGGER.info("run offline task for {}/{}/{}.", subscriber.getPartitionName(), subscriber.getConsumerGroup(), subscriber.getConsumerId());
+        QMon.offlineTaskExecuteCountInc(subscriber.getPartitionName(), subscriber.getConsumerGroup());
 
-        final ConsumerSequence consumerSequence = consumerSequenceManager.getOrCreateConsumerSequence(subscriber.getSubject(), subscriber.getGroup(), subscriber.getConsumerId(), false);
+        final ConsumerSequence consumerSequence = consumerSequenceManager.getOrCreateConsumerSequence(subscriber.getPartitionName(), subscriber.getConsumerGroup(), subscriber.getConsumerId(), false);
         if (!consumerSequence.tryLock()) return;
         try {
             if (cancel) return;
 
             if (isProcessedComplete(consumerSequence)) {
                 if (unSubscribe()) {
-                    LOGGER.info("offline task destroyed subscriber for {}/{}/{}", subscriber.getSubject(), subscriber.getGroup(), subscriber.getConsumerId());
+                    LOGGER.info("offline task destroyed subscriber for {}/{}/{}", subscriber.getPartitionName(), subscriber.getConsumerGroup(), subscriber.getConsumerId());
                 }
             } else {
-                LOGGER.info("offline task skip destroy subscriber for {}/{}/{}", subscriber.getSubject(), subscriber.getGroup(), subscriber.getConsumerId());
+                LOGGER.info("offline task skip destroy subscriber for {}/{}/{}", subscriber.getPartitionName(), subscriber.getConsumerGroup(), subscriber.getConsumerId());
             }
         } finally {
             consumerSequence.unlock();
@@ -69,11 +69,11 @@ class OfflineTask {
 
     private boolean unSubscribe() {
         if (cancel) return false;
-        final boolean success = consumerSequenceManager.putForeverOfflineAction(subscriber.getSubject(), subscriber.getGroup(), subscriber.getConsumerId());
+        final boolean success = consumerSequenceManager.putForeverOfflineAction(subscriber.getPartitionName(), subscriber.getConsumerGroup(), subscriber.getConsumerId());
         if (!success) {
             return false;
         }
-        consumerSequenceManager.remove(subscriber.getSubject(), subscriber.getGroup(), subscriber.getConsumerId());
+        consumerSequenceManager.remove(subscriber.getPartitionName(), subscriber.getConsumerGroup(), subscriber.getConsumerId());
         subscriber.destroy();
         return true;
     }

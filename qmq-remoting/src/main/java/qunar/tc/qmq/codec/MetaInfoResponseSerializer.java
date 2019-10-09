@@ -17,10 +17,10 @@ import java.util.List;
  * @author zhenwei.liu
  * @since 2019-09-09
  */
-class MetaInfoResponseSerializer extends ObjectSerializer<MetaInfoResponse> {
+public class MetaInfoResponseSerializer extends ObjectSerializer<MetaInfoResponse> {
 
     @Override
-    void doSerialize(MetaInfoResponse response, ByteBuf out) {
+    void doSerialize(MetaInfoResponse response, ByteBuf out, long version) {
         out.writeLong(response.getTimestamp());
         PayloadHolderUtils.writeString(response.getSubject(), out);
         PayloadHolderUtils.writeString(response.getConsumerGroup(), out);
@@ -33,11 +33,11 @@ class MetaInfoResponseSerializer extends ObjectSerializer<MetaInfoResponse> {
             ProducerMetaInfoResponse producerResponse = (ProducerMetaInfoResponse) response;
             ProducerAllocation partitionMapping = producerResponse.getProducerAllocation();
             Serializer<ProducerAllocation> serializer = Serializers.getSerializer(ProducerAllocation.class);
-            serializer.serialize(partitionMapping, out);
+            serializer.serialize(partitionMapping, out, version);
         } else if (response instanceof ConsumerMetaInfoResponse) {
             ConsumerMetaInfoResponse consumerResponse = (ConsumerMetaInfoResponse) response;
             Serializer<ConsumerAllocation> serializer = Serializers.getSerializer(ConsumerAllocation.class);
-            serializer.serialize(consumerResponse.getConsumerAllocation(), out);
+            serializer.serialize(consumerResponse.getConsumerAllocation(), out, version);
         }
     }
 
@@ -51,7 +51,7 @@ class MetaInfoResponseSerializer extends ObjectSerializer<MetaInfoResponse> {
     }
 
     @Override
-    MetaInfoResponse doDeserialize(ByteBuf buf, Type type) {
+    MetaInfoResponse doDeserialize(ByteBuf buf, Type type, long version) {
         long timestamp = buf.readLong();
         String subject = PayloadHolderUtils.readString(buf);
         String consumerGroup = PayloadHolderUtils.readString(buf);
@@ -61,7 +61,7 @@ class MetaInfoResponseSerializer extends ObjectSerializer<MetaInfoResponse> {
 
         if (clientTypeCode == ClientType.PRODUCER.getCode() || clientTypeCode == ClientType.DELAY_PRODUCER.getCode()) {
             Serializer<ProducerAllocation> serializer = Serializers.getSerializer(ProducerAllocation.class);
-            ProducerAllocation producerAllocation = serializer.deserialize(buf, null);
+            ProducerAllocation producerAllocation = serializer.deserialize(buf, null, version);
             return new ProducerMetaInfoResponse(
                     timestamp,
                     subject,
@@ -72,7 +72,7 @@ class MetaInfoResponseSerializer extends ObjectSerializer<MetaInfoResponse> {
                     producerAllocation);
         } else if (clientTypeCode == ClientType.CONSUMER.getCode()) {
             Serializer<ConsumerAllocation> serializer = Serializers.getSerializer(ConsumerAllocation.class);
-            ConsumerAllocation consumerAllocation = serializer.deserialize(buf, null);
+            ConsumerAllocation consumerAllocation = serializer.deserialize(buf, null, version);
             return new ConsumerMetaInfoResponse(
                     timestamp,
                     subject,

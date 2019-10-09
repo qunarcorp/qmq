@@ -61,8 +61,8 @@ public class AckMessageProcessor extends AbstractRequestProcessor {
             return CompletableFuture.completedFuture(datagram);
         }
 
-        QMon.ackRequestCountInc(ackRequest.getSubject(), ackRequest.getGroup());
-        subscriberStatusChecker.heartbeat(ackRequest.getConsumerId(), ackRequest.getSubject(), ackRequest.getGroup());
+        QMon.ackRequestCountInc(ackRequest.getPartitionName(), ackRequest.getConsumerGroup());
+        subscriberStatusChecker.heartbeat(ackRequest.getConsumerId(), ackRequest.getPartitionName(), ackRequest.getConsumerGroup());
 
         if (isHeartbeatAck(ackRequest)) {
             final Datagram datagram = RemotingBuilder.buildEmptyResponseDatagram(CommandCode.SUCCESS, command.getHeader());
@@ -76,18 +76,18 @@ public class AckMessageProcessor extends AbstractRequestProcessor {
 
     private AckRequest deserializeAckRequest(RemotingCommand command) {
         ByteBuf input = command.getBody();
-        String subject = PayloadHolderUtils.readString(input);
+        String partitionName = PayloadHolderUtils.readString(input);
         String consumerGroup = PayloadHolderUtils.readString(input);
         String consumerId = PayloadHolderUtils.readString(input);
         long pullStartOffset = input.readLong();
         long pullEndOffset = input.readLong();
         byte isExcludeConsume = AckRequest.UNSET;
-        if (command.getHeader().getVersion() >= RemotingHeader.VERSION_8) {
+        if (command.getHeader().getVersion() >= RemotingHeader.getTagsVersion()) {
             isExcludeConsume = input.readByte();
         }
 
         return new AckRequest(
-                subject,
+                partitionName,
                 consumerGroup,
                 consumerId,
                 pullStartOffset,
@@ -97,8 +97,8 @@ public class AckMessageProcessor extends AbstractRequestProcessor {
     }
 
     private boolean isInvalidRequest(AckRequest ackRequest) {
-        if (Strings.isNullOrEmpty(ackRequest.getSubject())
-                || Strings.isNullOrEmpty(ackRequest.getGroup())
+        if (Strings.isNullOrEmpty(ackRequest.getPartitionName())
+                || Strings.isNullOrEmpty(ackRequest.getConsumerGroup())
                 || Strings.isNullOrEmpty(ackRequest.getConsumerId())) {
             LOGGER.warn("receive error param ack request: {}", ackRequest);
             return true;
@@ -113,12 +113,12 @@ public class AckMessageProcessor extends AbstractRequestProcessor {
 
     private void monitorAckSize(AckRequest ackRequest) {
         final int ackSize = (int) (ackRequest.getPullOffsetLast() - ackRequest.getPullOffsetBegin() + 1);
-        QMon.consumerAckCountInc(ackRequest.getSubject(), ackRequest.getGroup(), ackSize);
+        QMon.consumerAckCountInc(ackRequest.getPartitionName(), ackRequest.getConsumerGroup(), ackSize);
     }
 
     public static class AckEntry {
-        private final String subject;
-        private final String group;
+        private final String partitionName;
+        private final String consumerGroup;
         private final String consumerId;
         private final long firstPullLogOffset;
         private final long lastPullLogOffset;
@@ -129,8 +129,8 @@ public class AckMessageProcessor extends AbstractRequestProcessor {
         private final RemotingHeader requestHeader;
 
         AckEntry(AckRequest ackRequest, ChannelHandlerContext ctx, RemotingHeader requestHeader) {
-            this.subject = ackRequest.getSubject();
-            this.group = ackRequest.getGroup();
+            this.partitionName = ackRequest.getPartitionName();
+            this.consumerGroup = ackRequest.getConsumerGroup();
             this.consumerId = ackRequest.getConsumerId();
             this.firstPullLogOffset = ackRequest.getPullOffsetBegin();
             this.lastPullLogOffset = ackRequest.getPullOffsetLast();
@@ -149,12 +149,12 @@ public class AckMessageProcessor extends AbstractRequestProcessor {
             return lastPullLogOffset;
         }
 
-        public String getSubject() {
-            return subject;
+        public String getPartitionName() {
+            return partitionName;
         }
 
-        public String getGroup() {
-            return group;
+        public String getConsumerGroup() {
+            return consumerGroup;
         }
 
         public String getConsumerId() {
@@ -180,8 +180,8 @@ public class AckMessageProcessor extends AbstractRequestProcessor {
         @Override
         public String toString() {
             return "AckEntry{" +
-                    "subject='" + subject + '\'' +
-                    ", group='" + group + '\'' +
+                    "partitionName='" + partitionName + '\'' +
+                    ", consumerGroup='" + consumerGroup + '\'' +
                     ", consumerId='" + consumerId + '\'' +
                     ", firstPullLogOffset=" + firstPullLogOffset +
                     ", lastPullLogOffset=" + lastPullLogOffset +

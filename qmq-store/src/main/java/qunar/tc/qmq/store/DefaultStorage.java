@@ -193,25 +193,25 @@ public class DefaultStorage implements Storage {
     }
 
     @Override
-    public GetMessageResult getMessage(String subject, long sequence) {
+    public GetMessageResult getMessage(String partitionName, long sequence) {
         final MessageFilter always = entry -> true;
-        return pollMessages(subject, sequence, 1, always, true);
+        return pollMessages(partitionName, sequence, 1, always, true);
     }
 
     @Override
-    public GetMessageResult pollMessages(String subject, long startSequence, int maxMessages) {
+    public GetMessageResult pollMessages(String partitionName, long startSequence, int maxMessages) {
         final MessageFilter always = entry -> true;
-        return pollMessages(subject, startSequence, maxMessages, always);
+        return pollMessages(partitionName, startSequence, maxMessages, always);
     }
 
     @Override
-    public GetMessageResult pollMessages(String subject, long consumerLogSequence, int maxMessages, MessageFilter filter) {
-        return pollMessages(subject, consumerLogSequence, maxMessages, filter, false);
+    public GetMessageResult pollMessages(String partitionName, long consumerLogSequence, int maxMessages, MessageFilter filter) {
+        return pollMessages(partitionName, consumerLogSequence, maxMessages, filter, false);
     }
 
-    private GetMessageResult pollMessages(String subject, long beginSequence, int maxMessages, MessageFilter filter, boolean strictly) {
+    private GetMessageResult pollMessages(String partitionName, long beginSequence, int maxMessages, MessageFilter filter, boolean strictly) {
         if (config.isSMTEnable()) {
-            final GetMessageResult result = pollFromMemTable(subject, beginSequence, maxMessages, filter);
+            final GetMessageResult result = pollFromMemTable(partitionName, beginSequence, maxMessages, filter);
             switch (result.getStatus()) {
                 case SUCCESS:
                     QMon.memtableHitsCountInc(result.getMessageNum());
@@ -223,14 +223,14 @@ public class DefaultStorage implements Storage {
             }
         }
 
-        return pollFromConsumerLog(subject, beginSequence, maxMessages, filter, strictly);
+        return pollFromConsumerLog(partitionName, beginSequence, maxMessages, filter, strictly);
     }
 
-    private GetMessageResult pollFromMemTable(String subject, long beginSequence, int maxMessages, MessageFilter filter) {
+    private GetMessageResult pollFromMemTable(String partitionName, long beginSequence, int maxMessages, MessageFilter filter) {
         final Iterator<MessageMemTable> iter = memTableManager.iterator();
         while (iter.hasNext()) {
             final MessageMemTable table = iter.next();
-            final GetMessageResult result = table.poll(subject, beginSequence, maxMessages, filter);
+            final GetMessageResult result = table.poll(partitionName, beginSequence, maxMessages, filter);
             switch (result.getStatus()) {
                 case SUBJECT_NOT_FOUND:
                 case SEQUENCE_TOO_SMALL:
@@ -246,7 +246,7 @@ public class DefaultStorage implements Storage {
         return result;
     }
 
-    private GetMessageResult pollFromConsumerLog(String subject, long consumerLogSequence, int maxMessages, MessageFilter filter, boolean strictly) {
+    private GetMessageResult pollFromConsumerLog(String partitionName, long consumerLogSequence, int maxMessages, MessageFilter filter, boolean strictly) {
         final GetMessageResult result = new GetMessageResult();
 
         if (maxMessages <= 0) {
@@ -255,7 +255,7 @@ public class DefaultStorage implements Storage {
             return result;
         }
 
-        final ConsumerLog consumerLog = consumerLogManager.getConsumerLog(subject);
+        final ConsumerLog consumerLog = consumerLogManager.getConsumerLog(partitionName);
         if (consumerLog == null) {
             result.setNextBeginSequence(0);
             result.setStatus(GetMessageStatus.SUBJECT_NOT_FOUND);
@@ -320,7 +320,7 @@ public class DefaultStorage implements Storage {
 
                     if (!filter.filter(index::getTimestamp)) break;
 
-                    if (!readFromMessageLog(subject, index, result)) {
+                    if (!readFromMessageLog(partitionName, index, result)) {
                         if (result.getMessageNum() > 0) {
                             break;
                         }

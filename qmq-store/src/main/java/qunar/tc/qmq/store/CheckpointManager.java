@@ -189,39 +189,39 @@ public class CheckpointManager implements AutoCloseable {
     }
 
     private void updateMaxPulledMessageSequence(final PullAction action) {
-        final String subject = action.subject();
-        final String consumerGroup = action.group();
+        final String partitionName = action.partitionName();
+        final String consumerGroup = action.consumerGroup();
 
-        final long maxSequence = getMaxPulledMessageSequence(subject, consumerGroup);
+        final long maxSequence = getMaxPulledMessageSequence(partitionName, consumerGroup);
         if (maxSequence + 1 < action.getFirstMessageSequence()) {
             long num = action.getFirstMessageSequence() - maxSequence;
-            LOGGER.warn("Maybe lost message. Last message sequence: {}. Current start sequence {} {}:{}", maxSequence, action.getFirstMessageSequence(), subject, consumerGroup);
-            QMon.maybeLostMessagesCountInc(subject, consumerGroup, num);
+            LOGGER.warn("Maybe lost message. Last message sequence: {}. Current start sequence {} {}:{}", maxSequence, action.getFirstMessageSequence(), partitionName, consumerGroup);
+            QMon.maybeLostMessagesCountInc(partitionName, consumerGroup, num);
         }
         final long lastMessageSequence = action.getLastMessageSequence();
         if (maxSequence < lastMessageSequence) {
-            updateMaxPulledMessageSequence(subject, consumerGroup, action.isExclusiveConsume(), lastMessageSequence);
+            updateMaxPulledMessageSequence(partitionName, consumerGroup, action.isExclusiveConsume(), lastMessageSequence);
         }
     }
 
-    private void updateMaxPulledMessageSequence(final String subject, final String consumerGroup, final boolean isExclusiveConsume, final long maxSequence) {
-        final ConsumerGroupProgress progress = getOrCreateConsumerGroupProgress(subject, consumerGroup, isExclusiveConsume);
+    private void updateMaxPulledMessageSequence(final String partitionName, final String consumerGroup, final boolean isExclusiveConsume, final long maxSequence) {
+        final ConsumerGroupProgress progress = getOrCreateConsumerGroupProgress(partitionName, consumerGroup, isExclusiveConsume);
         progress.setPull(maxSequence);
     }
 
     private void updateConsumerMaxPullLogSequence(final PullAction action) {
-        final String subject = action.subject();
-        final String consumerGroup = action.group();
+        final String partitionName = action.partitionName();
+        final String consumerGroup = action.consumerGroup();
         final String consumerId = action.consumerId();
 
-        final long maxSequence = getConsumerMaxPullLogSequence(subject, consumerGroup, consumerId);
+        final long maxSequence = getConsumerMaxPullLogSequence(partitionName, consumerGroup, consumerId);
         if (maxSequence + 1 < action.getFirstSequence()) {
-            LOGGER.warn("Pull log not continuous. Last pull log sequence: {}. Current start pull log sequence {} {}:{}:{}", maxSequence, action.getFirstSequence(), subject, consumerGroup, consumerId);
+            LOGGER.warn("Pull log not continuous. Last pull log sequence: {}. Current start pull log sequence {} {}:{}:{}", maxSequence, action.getFirstSequence(), partitionName, consumerGroup, consumerId);
         }
 
         final long lastSequence = action.getLastSequence();
         if (maxSequence < lastSequence) {
-            updateConsumerMaxPullLogSequence(subject, consumerGroup, consumerId, action.isExclusiveConsume(), lastSequence);
+            updateConsumerMaxPullLogSequence(partitionName, consumerGroup, consumerId, action.isExclusiveConsume(), lastSequence);
         }
     }
 
@@ -253,19 +253,19 @@ public class CheckpointManager implements AutoCloseable {
     public void updateActionReplayState(final long offset, final RangeAckAction action) {
         actionCheckpointGuard.lock();
         try {
-            final String subject = action.subject();
-            final String consumerGroup = action.group();
+            final String partitionName = action.partitionName();
+            final String consumerGroup = action.consumerGroup();
             //if exclusive consume, consumerId == consumerGroup
             final String consumerId = action.consumerId();
 
-            final long maxSequence = getConsumerMaxAckedPullLogSequence(subject, consumerGroup, consumerId);
+            final long maxSequence = getConsumerMaxAckedPullLogSequence(partitionName, consumerGroup, consumerId);
             if (maxSequence + 1 < action.getFirstSequence()) {
-                LOGGER.warn("Maybe lost ack. Last acked sequence: {}. Current start acked sequence {} {}:{}:{}", maxSequence, action.getFirstSequence(), subject, consumerGroup, consumerId);
+                LOGGER.warn("Maybe lost ack. Last acked sequence: {}. Current start acked sequence {} {}:{}:{}", maxSequence, action.getFirstSequence(), partitionName, consumerGroup, consumerId);
             }
 
             final long lastSequence = action.getLastSequence();
             if (maxSequence < lastSequence) {
-                updateConsumerMaxAckedPullLogSequence(subject, consumerGroup, consumerId, lastSequence);
+                updateConsumerMaxAckedPullLogSequence(partitionName, consumerGroup, consumerId, lastSequence);
             }
 
             actionCheckpoint.setOffset(offset);
@@ -304,14 +304,14 @@ public class CheckpointManager implements AutoCloseable {
         return consumers.get(consumerId);
     }
 
-    private ConsumerGroupProgress getOrCreateConsumerGroupProgress(final String subject, final String consumerGroup, final boolean isExclusiveConsume) {
+    private ConsumerGroupProgress getOrCreateConsumerGroupProgress(final String partitionName, final String consumerGroup, final boolean isExclusiveConsume) {
         final Table<String, String, ConsumerGroupProgress> progresses = actionCheckpoint.getProgresses();
-        if (!progresses.contains(subject, consumerGroup)) {
-            final ConsumerGroupProgress progress = new ConsumerGroupProgress(subject, consumerGroup, isExclusiveConsume, -1, new HashMap<>());
-            progresses.put(subject, consumerGroup, progress);
+        if (!progresses.contains(partitionName, consumerGroup)) {
+            final ConsumerGroupProgress progress = new ConsumerGroupProgress(partitionName, consumerGroup, isExclusiveConsume, -1, new HashMap<>());
+            progresses.put(partitionName, consumerGroup, progress);
 
         }
-        return progresses.get(subject, consumerGroup);
+        return progresses.get(partitionName, consumerGroup);
     }
 
     void removeConsumerProgress(String subject, String consumerGroup, String consumerId) {

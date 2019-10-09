@@ -108,7 +108,12 @@ public class MetaInfoRequest {
     }
 
     public OnOfflineState getOnlineState() {
-        return OnOfflineState.valueOf(getStringValue(ONLINE_STATE));
+        String state = getStringValue(ONLINE_STATE);
+        if (Strings.isNullOrEmpty(state)) {
+            // 旧版本客户端
+            return OnOfflineState.ONLINE;
+        }
+        return OnOfflineState.valueOf(state);
     }
 
     public void setOnlineState(OnOfflineState state) {

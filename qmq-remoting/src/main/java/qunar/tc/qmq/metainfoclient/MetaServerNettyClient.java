@@ -17,10 +17,7 @@ import qunar.tc.qmq.netty.NettyClientConfig;
 import qunar.tc.qmq.netty.client.AbstractNettyClient;
 import qunar.tc.qmq.netty.client.NettyConnectManageHandler;
 import qunar.tc.qmq.netty.exception.ClientSendException;
-import qunar.tc.qmq.protocol.CommandCode;
-import qunar.tc.qmq.protocol.Datagram;
-import qunar.tc.qmq.protocol.PayloadHolder;
-import qunar.tc.qmq.protocol.QuerySubjectRequest;
+import qunar.tc.qmq.protocol.*;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequestPayloadHolder;
 import qunar.tc.qmq.util.RemotingBuilder;
@@ -140,7 +137,7 @@ public class MetaServerNettyClient extends AbstractNettyClient implements MetaIn
                     CommandCode.QUERY_SUBJECT,
                     out -> {
                         Serializer<QuerySubjectRequest> serializer = Serializers.getSerializer(QuerySubjectRequest.class);
-                        serializer.serialize(request, out);
+                        serializer.serialize(request, out, RemotingHeader.getCurrentVersion());
                     }
             );
         } catch (Exception e) {

@@ -19,6 +19,8 @@ package qunar.tc.qmq.netty;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @author keli.wang
@@ -26,6 +28,9 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
  */
 @ChannelHandler.Sharable
 class ConnectionHandler extends ChannelInboundHandlerAdapter {
+
+    private static final Logger logger = LoggerFactory.getLogger(ConnectionHandler.class);
+
     private final ConnectionEventHandler handler;
 
     ConnectionHandler(final ConnectionEventHandler handler) {

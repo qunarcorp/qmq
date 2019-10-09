@@ -56,7 +56,6 @@ import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_ARRAY;
 class NettyConnection implements Connection {
 
     private final ConfigCenter config;
-
     private final String subject;
     private final ClientType clientType;
     private final NettyClient producerClient;

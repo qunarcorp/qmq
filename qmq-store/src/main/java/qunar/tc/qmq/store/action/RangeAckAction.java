@@ -24,17 +24,18 @@ import qunar.tc.qmq.store.ActionType;
  * @since 2017/8/28
  */
 public class RangeAckAction implements Action {
-    private final String subject;
-    private final String group;
+
+    private final String partitionName;
+    private final String consumerGroup;
     private final String consumerId;
     private final long timestamp;
 
     private final long firstSequence;
     private final long lastSequence;
 
-    public RangeAckAction(String subject, String group, String consumerId, long timestamp, long firstSequence, long lastSequence) {
-        this.subject = subject;
-        this.group = group;
+    public RangeAckAction(String partitionName, String consumerGroup, String consumerId, long timestamp, long firstSequence, long lastSequence) {
+        this.partitionName = partitionName;
+        this.consumerGroup = consumerGroup;
         this.consumerId = consumerId;
         this.timestamp = timestamp;
 
@@ -48,13 +49,13 @@ public class RangeAckAction implements Action {
     }
 
     @Override
-    public String subject() {
-        return subject;
+    public String partitionName() {
+        return partitionName;
     }
 
     @Override
-    public String group() {
-        return group;
+    public String consumerGroup() {
+        return consumerGroup;
     }
 
     @Override
@@ -78,8 +79,8 @@ public class RangeAckAction implements Action {
     @Override
     public String toString() {
         return "RangeAckAction{" +
-                "subject='" + subject + '\'' +
-                ", group='" + group + '\'' +
+                "partitionName='" + partitionName + '\'' +
+                ", consumerGroup='" + consumerGroup + '\'' +
                 ", consumerId='" + consumerId + '\'' +
                 ", firstSequence=" + firstSequence +
                 ", lastSequence=" + lastSequence +

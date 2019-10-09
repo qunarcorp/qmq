@@ -3,6 +3,7 @@ package qunar.tc.qmq.consumer.pull;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import qunar.tc.qmq.*;
+import qunar.tc.qmq.broker.impl.SwitchWaiter;
 import qunar.tc.qmq.meta.ConsumerAllocation;
 import qunar.tc.qmq.metainfoclient.ConsumerOnlineStateManager;
 import qunar.tc.qmq.protocol.consumer.ConsumerMetaInfoResponse;
@@ -43,9 +44,15 @@ public abstract class AbstractPullClientManager<T extends PullClient> implements
         ConsumerAllocation consumerAllocation = response.getConsumerAllocation();
         long consumptionExpiredTime = consumerAllocation.getExpired();
         int version = consumerAllocation.getVersion();
+        ConsumeStrategy consumeStrategy = consumerAllocation.getConsumeStrategy();
 
-        if (oldCompositeClient != null && oldCompositeClient.getVersion() >= version) {
-            return;
+        if (oldCompositeClient != null) {
+            // 刷新超时时间等信息
+            oldCompositeClient.setConsumptionExpiredTime(consumptionExpiredTime);
+            oldCompositeClient.setConsumeStrategy(consumeStrategy);
+            if (oldCompositeClient.getVersion() >= version) {
+                return;
+            }
         }
 
         CompositePullClient newNormalPullClient = createOrUpdatePullClient(subject, consumerGroup, new AlwaysPullStrategy(), consumerAllocation, oldNormalClient, registryParam);
@@ -166,6 +173,8 @@ public abstract class AbstractPullClientManager<T extends PullClient> implements
     abstract T doCreatePullClient(String subject, String consumerGroup, String partitionName, String brokerGroup, ConsumeStrategy consumeStrategy, int version, long consumptionExpiredTime, PullStrategy pullStrategy, Object registryParam);
 
     abstract CompositePullClient doCreateCompositePullClient(String subject, String consumerGroup, int version, long consumptionExpiredTime, List<? extends PullClient> clientList, Object registryParam);
+
+    abstract StatusSource getStatusSource(Object registryParam);
 
     @Override
     public T getPullClient(String subject, String consumerGroup) {

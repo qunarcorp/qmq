@@ -31,8 +31,8 @@ public class ForeverOfflineActionReaderWriter implements ActionReaderWriter {
     public int write(ByteBuffer to, Action action) {
         final int startIndex = to.position();
 
-        PayloadHolderUtils.writeString(action.subject(), to);
-        PayloadHolderUtils.writeString(action.group(), to);
+        PayloadHolderUtils.writeString(action.partitionName(), to);
+        PayloadHolderUtils.writeString(action.consumerGroup(), to);
         PayloadHolderUtils.writeString(action.consumerId(), to);
         to.putLong(action.timestamp());
 
@@ -41,11 +41,11 @@ public class ForeverOfflineActionReaderWriter implements ActionReaderWriter {
 
     @Override
     public Action read(ByteBuffer from) {
-        final String subject = PayloadHolderUtils.readString(from);
-        final String group = PayloadHolderUtils.readString(from);
+        final String partitionName = PayloadHolderUtils.readString(from);
+        final String consumerGroup = PayloadHolderUtils.readString(from);
         final String consumerId = PayloadHolderUtils.readString(from);
 
         final long timestamp = from.getLong();
-        return new ForeverOfflineAction(subject, group, consumerId, timestamp);
+        return new ForeverOfflineAction(partitionName, consumerGroup, consumerId, timestamp);
     }
 }

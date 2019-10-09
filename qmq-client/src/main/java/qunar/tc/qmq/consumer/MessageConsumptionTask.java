@@ -3,6 +3,7 @@ package qunar.tc.qmq.consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.NeedRetryException;
+import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.common.OrderStrategy;
 import qunar.tc.qmq.common.OrderStrategyCache;
 import qunar.tc.qmq.consumer.pull.PulledMessage;

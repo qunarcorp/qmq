@@ -29,7 +29,7 @@
             <dependency>
                 <groupId>com.qunar.qmq</groupId>
                 <artifactId>qmq</artifactId>
-                <version>LATEST</version>
+                <version>${project.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

@@ -35,7 +35,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import static qunar.tc.qmq.store.GroupAndSubject.groupAndSubject;
+import static qunar.tc.qmq.store.GroupAndPartition.groupAndPartition;
 
 /**
  * @author keli.wang
@@ -126,11 +126,11 @@ public class PullLogManager implements AutoCloseable {
 
     private Long getPullLogMaxSequence(final Table<String, String, ConsumerGroupProgress> consumerGroupProgresses,
                                        final String groupAndSubject, final String consumerId) {
-        final GroupAndSubject parsedGroupAndSubject = GroupAndSubject.parse(groupAndSubject);
-        final String subject = parsedGroupAndSubject.getSubject();
-        final String group = parsedGroupAndSubject.getGroup();
+        final GroupAndPartition parsedGroupAndPartition = GroupAndPartition.parse(groupAndSubject);
+        final String partitionName = parsedGroupAndPartition.getPartitionName();
+        final String consumerGroup = parsedGroupAndPartition.getGroup();
 
-        final ConsumerGroupProgress groupProgress = consumerGroupProgresses.get(subject, group);
+        final ConsumerGroupProgress groupProgress = consumerGroupProgresses.get(partitionName, consumerGroup);
         if (groupProgress == null) {
             return null;
         }
@@ -144,7 +144,7 @@ public class PullLogManager implements AutoCloseable {
     }
 
     public PullLog get(final String subject, final String group, final String consumerId) {
-        String groupAndSubject = groupAndSubject(subject, group);
+        String groupAndSubject = groupAndPartition(subject, group);
         final Lock lock = logsGuard.readLock();
         lock.lock();
         try {
@@ -155,7 +155,7 @@ public class PullLogManager implements AutoCloseable {
     }
 
     public PullLog getOrCreate(final String subject, final String group, final String consumerId) {
-        final String groupAndSubject = groupAndSubject(subject, group);
+        final String groupAndSubject = groupAndPartition(subject, group);
         final Lock readLock = logsGuard.readLock();
         readLock.lock();
         try {
@@ -237,7 +237,7 @@ public class PullLogManager implements AutoCloseable {
     }
 
     private void remove(String subject, String group, String consumerId) {
-        String groupAndSubject = groupAndSubject(subject, group);
+        String groupAndSubject = groupAndPartition(subject, group);
         final Lock lock = logsGuard.writeLock();
         lock.lock();
         try {

@@ -224,8 +224,8 @@ public class ActionLog implements Visitable<ActionEvent> {
                     // TODO(keli.wang): 如果我们要校验action是否完全正确，还是得在readerwriter内部进行
                     // 写完action之后得再写一位非0记录，这样才能完全判断记录不是partial的
                     final Action action = payloadType.getReaderWriter().read(buffer);
-                    if (Strings.isNullOrEmpty(action.subject())
-                            || Strings.isNullOrEmpty(action.group())
+                    if (Strings.isNullOrEmpty(action.partitionName())
+                            || Strings.isNullOrEmpty(action.consumerGroup())
                             || Strings.isNullOrEmpty(action.consumerId())
                             || action.timestamp() <= 0) {
                         return -1;

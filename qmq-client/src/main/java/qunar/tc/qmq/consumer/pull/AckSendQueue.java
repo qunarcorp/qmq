@@ -136,7 +136,7 @@ class AckSendQueue implements TimerTask {
         updateLock.lock();
         try {
             if (lastAppendOffset != -1 && lastAppendOffset + 1 != batch.get(0).pullOffset()) {
-                LOGGER.warn("{}/{} append ack entry not continous. last: {}, new: {}", subject, consumerGroup, lastAppendOffset, batch.get(0).pullOffset());
+                LOGGER.warn("{}/{} append ack entry not continous. last: {}, new: {}", partitionName, consumerGroup, lastAppendOffset, batch.get(0).pullOffset());
                 appendErrorCount.inc();
             }
 
@@ -163,8 +163,8 @@ class AckSendQueue implements TimerTask {
         final String partitionName = orderStrategy.isDeadRetry(nextRetryCount, message) ? deadRetryPartitionName : retryPartitionName;
         if (deadRetryPartitionName.equals(partitionName)) {
             deadQueueCount.inc();
-            LOGGER.warn("onSuccess message retry num {} >= {}, and dead retry. subject={}, group={}, msgId={}",
-                    nextRetryCount - 1, message.getMaxRetryNum(), this.subject, consumerGroup, message.getMessageId());
+            LOGGER.warn("onSuccess message retry num {} >= {}, and dead retry. partition={}, group={}, msgId={}",
+                    nextRetryCount - 1, message.getMaxRetryNum(), partitionName, consumerGroup, message.getMessageId());
         }
         message.setPartitionName(partitionName);
         sendMessageBack.sendBackAndCompleteNack(nextRetryCount, message, ackEntry);
@@ -269,16 +269,16 @@ class AckSendQueue implements TimerTask {
     private void doSendAck(final AckSendEntry sendEntry) {
         BrokerGroupInfo brokerGroup = getBrokerGroup();
         if (brokerGroup == null) {
-            LOGGER.debug("lost broker group: {}. subject={}, consumeGroup={}", brokerGroupName, subject, consumerGroup);
+            LOGGER.debug("lost broker group: {}. partition={}, consumeGroup={}", brokerGroupName, partitionName, consumerGroup);
             inSending.set(false);
             return;
         }
 
-        ackService.sendAck(brokerGroup, subject, consumerGroup, consumeStrategy, sendEntry, new AckService.SendAckCallback() {
+        ackService.sendAck(brokerGroup, subject, partitionName, consumerGroup, consumeStrategy, sendEntry, new AckService.SendAckCallback() {
             @Override
             public void success() {
                 if (lastSendOkOffset != -1 && lastSendOkOffset + 1 != sendEntry.getPullOffsetBegin()) {
-                    LOGGER.warn("{}/{} ack send not continous. last={}, send={}", subject, consumerGroup, lastSendOkOffset, sendEntry);
+                    LOGGER.warn("{}/{} ack send not continous. last={}, send={}", partitionName, consumerGroup, lastSendOkOffset, sendEntry);
                     sendErrorCount.inc();
                 }
                 lastSendOkOffset = sendEntry.getPullOffsetLast();
@@ -384,10 +384,10 @@ class AckSendQueue implements TimerTask {
             if (!trySendAck(ACK_TRY_SEND_TIMEOUT_MILLIS)) {
                 final BrokerGroupInfo brokerGroup = getBrokerGroup();
                 if (brokerGroup == null) {
-                    LOGGER.debug("lost broker group: {}. subject={}, consumeGroup={}", brokerGroupName, subject, consumerGroup);
+                    LOGGER.debug("lost broker group: {}. partitionName={}, consumeGroup={}", brokerGroupName, partitionName, consumerGroup);
                     return;
                 }
-                ackService.sendAck(brokerGroup, subject, consumerGroup, consumeStrategy, EMPTY_ACK, EMPTY_ACK_CALLBACK);
+                ackService.sendAck(brokerGroup, subject, partitionName, consumerGroup, consumeStrategy, EMPTY_ACK, EMPTY_ACK_CALLBACK);
             }
         } finally {
             TimerUtil.newTimeout(this, ACK_INTERVAL_SECONDS, TimeUnit.SECONDS);

@@ -18,22 +18,22 @@ public class ConsumerAllocationSerializer extends ObjectSerializer<ConsumerAlloc
     private static final Type subjectLocationListType = Types.newParameterizedType(null, List.class, new Type[]{PartitionProps.class});
 
     @Override
-    void doSerialize(ConsumerAllocation consumerAllocation, ByteBuf buf) {
+    void doSerialize(ConsumerAllocation consumerAllocation, ByteBuf buf, long version) {
         buf.writeInt(consumerAllocation.getVersion());
         buf.writeLong(consumerAllocation.getExpired());
         PayloadHolderUtils.writeString(consumerAllocation.getConsumeStrategy().name(), buf);
         List<PartitionProps> partitionProps = consumerAllocation.getPartitionProps();
         Serializer<List> serializer = getSerializer(List.class);
-        serializer.serialize(partitionProps, buf);
+        serializer.serialize(partitionProps, buf, version);
     }
 
     @Override
-    ConsumerAllocation doDeserialize(ByteBuf buf, Type type) {
+    ConsumerAllocation doDeserialize(ByteBuf buf, Type type, long version) {
         int allocationVersion = buf.readInt();
         long expired = buf.readLong();
         ConsumeStrategy consumeStrategy = ConsumeStrategy.valueOf(PayloadHolderUtils.readString(buf));
         Serializer<List> serializer = getSerializer(List.class);
-        List<PartitionProps> partitionProps = serializer.deserialize(buf, subjectLocationListType);
+        List<PartitionProps> partitionProps = serializer.deserialize(buf, subjectLocationListType, version);
         return new ConsumerAllocation(allocationVersion, partitionProps, expired, consumeStrategy);
     }
 }

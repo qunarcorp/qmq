@@ -13,12 +13,12 @@ import java.lang.reflect.Type;
 public class QuerySubjectRequestSerializer extends ObjectSerializer<QuerySubjectRequest> {
 
     @Override
-    void doSerialize(QuerySubjectRequest request, ByteBuf buf) {
+    void doSerialize(QuerySubjectRequest request, ByteBuf buf, long version) {
         PayloadHolderUtils.writeString(request.getPartitionName(), buf);
     }
 
     @Override
-    QuerySubjectRequest doDeserialize(ByteBuf buf, Type type) {
+    QuerySubjectRequest doDeserialize(ByteBuf buf, Type type, long version) {
         String partitionName = PayloadHolderUtils.readString(buf);
         return new QuerySubjectRequest(partitionName);
     }

@@ -3,10 +3,7 @@ package qunar.tc.qmq.consumer.pull;
 import com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.CompositePullClient;
-import qunar.tc.qmq.ConsumeStrategy;
-import qunar.tc.qmq.PullClient;
-import qunar.tc.qmq.PullEntry;
+import qunar.tc.qmq.*;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.common.EnvProvider;
 import qunar.tc.qmq.consumer.BaseMessageHandler;
@@ -99,6 +96,13 @@ public class PullEntryManager extends AbstractPullClientManager<PullEntry> {
     CompositePullClient doCreateCompositePullClient(String subject, String consumerGroup, int version, long consumptionExpiredTime, List<? extends PullClient> clientList, Object registryParam) {
         RegistParam param = (RegistParam) registryParam;
         return new CompositePullEntry(subject, consumerGroup, clientId, version, param.isBroadcast(), param.isOrdered(), consumptionExpiredTime, clientList);
+
+    }
+
+    @Override
+    StatusSource getStatusSource(Object registryParam) {
+        RegistParam param = (RegistParam) registryParam;
+        return param.getActionSrc();
     }
 
     private String configEnvIsolation(String subject, String consumerGroup, RegistParam param) {

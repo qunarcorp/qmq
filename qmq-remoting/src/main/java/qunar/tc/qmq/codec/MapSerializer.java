@@ -16,7 +16,7 @@ import java.util.Set;
 public class MapSerializer extends ObjectSerializer<Map> {
 
     @Override
-    void doSerialize(Map map, ByteBuf buf) {
+    void doSerialize(Map map, ByteBuf buf, long version) {
         int size = map.size();
         buf.writeInt(size);
         Set<Map.Entry> entrySet = map.entrySet();
@@ -25,13 +25,13 @@ public class MapSerializer extends ObjectSerializer<Map> {
             Object value = entry.getValue();
             Serializer keySerializer = Serializers.getSerializer(key.getClass());
             Serializer valSerializer = Serializers.getSerializer(value.getClass());
-            keySerializer.serialize(key, buf);
-            valSerializer.serialize(value, buf);
+            keySerializer.serialize(key, buf, version);
+            valSerializer.serialize(value, buf, version);
         }
     }
 
     @Override
-    Map doDeserialize(ByteBuf buf, Type type) {
+    Map doDeserialize(ByteBuf buf, Type type, long version) {
         Type[] argTypes = ((ParameterizedType) type).getActualTypeArguments();
         Type keyType = argTypes[0];
         Type valType = argTypes[1];
@@ -40,7 +40,7 @@ public class MapSerializer extends ObjectSerializer<Map> {
         HashMap<Object, Object> result = Maps.newHashMap();
         int size = buf.readInt();
         for (int i = 0; i < size; i++) {
-            result.put(keySerializer.deserialize(buf, keyType), valSerializer.deserialize(buf, valType));
+            result.put(keySerializer.deserialize(buf, keyType, version), valSerializer.deserialize(buf, valType, version));
         }
         return result;
     }

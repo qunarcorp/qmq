@@ -25,8 +25,9 @@ public class MetaInfoResponseProcessor implements MetaServerCommandDecoder.Datag
     @Override
     public void onSuccess(Datagram datagram) {
 
+        short version = datagram.getHeader().getVersion();
         Serializer<MetaInfoResponse> serializer = Serializers.getSerializer(MetaInfoResponse.class);
-        MetaInfoResponse response = serializer.deserialize(datagram.getBody(), null);
+        MetaInfoResponse response = serializer.deserialize(datagram.getBody(), null, version);
 
         if (response != null) {
             notifySubscriber(response);

@@ -19,13 +19,14 @@ import java.util.Map;
  * @since 2019-08-29
  */
 public class DefaultConsumerOnlineStateManager implements ConsumerOnlineStateManager {
-    private static final Logger LOGGER = LoggerFactory.getLogger(DefaultConsumerOnlineStateManager.class);
 
     private static final DefaultConsumerOnlineStateManager instance = new DefaultConsumerOnlineStateManager();
 
     public static DefaultConsumerOnlineStateManager getInstance() {
         return instance;
     }
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(DefaultConsumerOnlineStateManager.class);
 
     private long lastUpdateTimestamp = -1;
 
@@ -34,7 +35,7 @@ public class DefaultConsumerOnlineStateManager implements ConsumerOnlineStateMan
     private DefaultConsumerOnlineStateManager() {
     }
 
-    private final Map<String, SwitchWaiter> stateMap = Maps.newConcurrentMap();
+    private Map<String, SwitchWaiter> stateMap = Maps.newConcurrentMap();
 
     @Override
     public void onlineHealthCheck() {
@@ -75,14 +76,7 @@ public class DefaultConsumerOnlineStateManager implements ConsumerOnlineStateMan
     }
 
     @Override
-    public SwitchWaiter registerConsumer(String appCode,
-                                         String subject,
-                                         String consumerGroup,
-                                         String clientId,
-                                         boolean isBroadcast,
-                                         boolean isOrdered,
-                                         MetaInfoService metaInfoService,
-                                         Runnable offlineCallback) {
+    public SwitchWaiter registerConsumer(String appCode, String subject, String consumerGroup, String clientId, boolean isBroadcast, boolean isOrdered, MetaInfoService metaInfoService, Runnable offlineCallback) {
         String key = createKey(subject, consumerGroup);
         return stateMap.computeIfAbsent(key, k -> {
             SwitchWaiter switchWaiter = new SwitchWaiter(healthCheckOnline);

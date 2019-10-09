@@ -50,7 +50,7 @@ public class NettySender implements Sender {
                 out.writeBytes(record.getRecord());
             }
         });
-        requestDatagram.getHeader().setVersion(RemotingHeader.VERSION_7);
+        requestDatagram.getHeader().setVersion(RemotingHeader.getScheduleTimeVersion());
         return client.sendSync(senderGroup.getBrokerGroupInfo().getMaster(), requestDatagram, 5 * 1000);
     }
 
