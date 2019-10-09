@@ -15,23 +15,23 @@ public class PartitionAllocationSerializer extends ObjectSerializer<PartitionAll
     private Serializer<PartitionAllocation.AllocationDetail> allocationDetailSerializer = Serializers.getSerializer(PartitionAllocation.AllocationDetail.class);
 
     @Override
-    void doSerialize(PartitionAllocation partitionAllocation, ByteBuf buf) {
+    void doSerialize(PartitionAllocation partitionAllocation, ByteBuf buf, long version) {
         PayloadHolderUtils.writeString(partitionAllocation.getSubject(), buf);
         PayloadHolderUtils.writeString(partitionAllocation.getConsumerGroup(), buf);
         buf.writeInt(partitionAllocation.getPartitionSetVersion());
         buf.writeInt(partitionAllocation.getVersion());
         PartitionAllocation.AllocationDetail allocationDetail = partitionAllocation.getAllocationDetail();
-        allocationDetailSerializer.serialize(allocationDetail, buf);
+        allocationDetailSerializer.serialize(allocationDetail, buf, version);
     }
 
     @Override
-    PartitionAllocation doDeserialize(ByteBuf buf, Type type) {
+    PartitionAllocation doDeserialize(ByteBuf buf, Type type, long version) {
         PartitionAllocation partitionAllocation = new PartitionAllocation();
         partitionAllocation.setSubject(PayloadHolderUtils.readString(buf));
         partitionAllocation.setConsumerGroup(PayloadHolderUtils.readString(buf));
         partitionAllocation.setPartitionSetVersion(buf.readInt());
         partitionAllocation.setVersion(buf.readInt());
-        partitionAllocation.setAllocationDetail(allocationDetailSerializer.deserialize(buf, PartitionAllocation.AllocationDetail.class));
+        partitionAllocation.setAllocationDetail(allocationDetailSerializer.deserialize(buf, PartitionAllocation.AllocationDetail.class, version));
         return partitionAllocation;
     }
 }

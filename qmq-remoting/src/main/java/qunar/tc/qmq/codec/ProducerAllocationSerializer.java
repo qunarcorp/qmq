@@ -24,19 +24,19 @@ public class ProducerAllocationSerializer extends ObjectSerializer<ProducerAlloc
     });
 
     @Override
-    void doSerialize(ProducerAllocation producerAllocation, ByteBuf buf) {
+    void doSerialize(ProducerAllocation producerAllocation, ByteBuf buf, long version) {
         PayloadHolderUtils.writeString(producerAllocation.getSubject(), buf);
         buf.writeInt(producerAllocation.getVersion());
         Serializer<RangeMap> rangeMapSerializer = Serializers.getSerializer(RangeMap.class);
-        rangeMapSerializer.serialize(producerAllocation.getLogical2SubjectLocation(), buf);
+        rangeMapSerializer.serialize(producerAllocation.getLogical2SubjectLocation(), buf, version);
     }
 
     @Override
-    ProducerAllocation doDeserialize(ByteBuf buf, Type type) {
+    ProducerAllocation doDeserialize(ByteBuf buf, Type type, long version) {
         String subject = PayloadHolderUtils.readString(buf);
-        int version = buf.readInt();
+        int allocationVersion = buf.readInt();
         Serializer<RangeMap> rangeMapSerializer = Serializers.getSerializer(RangeMap.class);
-        RangeMap logical2SubjectLocation = rangeMapSerializer.deserialize(buf, rangeMapType);
-        return new ProducerAllocation(subject, version, logical2SubjectLocation);
+        RangeMap logical2SubjectLocation = rangeMapSerializer.deserialize(buf, rangeMapType, version);
+        return new ProducerAllocation(subject, allocationVersion, logical2SubjectLocation);
     }
 }

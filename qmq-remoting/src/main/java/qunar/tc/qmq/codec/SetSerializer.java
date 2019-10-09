@@ -15,24 +15,24 @@ import java.util.Set;
 public class SetSerializer extends ObjectSerializer<Set> {
 
     @Override
-    void doSerialize(Set set, ByteBuf buf) {
+    void doSerialize(Set set, ByteBuf buf, long version) {
         int size = set.size();
         buf.writeInt(size);
         for (Object element : set) {
             Serializer serializer = Serializers.getSerializer(element.getClass());
-            serializer.serialize(element, buf);
+            serializer.serialize(element, buf, version);
         }
     }
 
     @Override
-    Set doDeserialize(ByteBuf buf, Type type) {
+    Set doDeserialize(ByteBuf buf, Type type, long version) {
         Type[] argTypes = ((ParameterizedType) type).getActualTypeArguments();
         Type argType = argTypes[0];
         Serializer serializer = getSerializer(argType);
         HashSet<Object> set = Sets.newHashSet();
         int size = buf.readInt();
         for (int i = 0; i < size; i++) {
-            set.add(serializer.deserialize(buf, argType));
+            set.add(serializer.deserialize(buf, argType, version));
         }
         return set;
     }

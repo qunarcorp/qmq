@@ -13,21 +13,21 @@ import java.lang.reflect.Type;
 public class RangeSerializer extends ObjectSerializer<Range> {
 
     @Override
-    void doSerialize(Range range, ByteBuf buf) {
+    void doSerialize(Range range, ByteBuf buf, long version) {
         Comparable lowerEndpoint = range.lowerEndpoint();
         Comparable upperEndpoint = range.upperEndpoint();
         Serializer serializer = getSerializer(lowerEndpoint.getClass());
-        serializer.serialize(lowerEndpoint, buf);
-        serializer.serialize(upperEndpoint, buf);
+        serializer.serialize(lowerEndpoint, buf, version);
+        serializer.serialize(upperEndpoint, buf, version);
     }
 
     @Override
-    Range doDeserialize(ByteBuf buf, Type type) {
+    Range doDeserialize(ByteBuf buf, Type type, long version) {
         Type[] argTypes = ((ParameterizedType) type).getActualTypeArguments();
         Type rangeType = argTypes[0];
         Serializer rangeSerializer = getSerializer(rangeType);
-        Comparable lowerBound = (Comparable) rangeSerializer.deserialize(buf, rangeType);
-        Comparable upperBound = (Comparable) rangeSerializer.deserialize(buf, rangeType);
+        Comparable lowerBound = (Comparable) rangeSerializer.deserialize(buf, rangeType, version);
+        Comparable upperBound = (Comparable) rangeSerializer.deserialize(buf, rangeType, version);
         return Range.closedOpen(lowerBound, upperBound);
     }
 }

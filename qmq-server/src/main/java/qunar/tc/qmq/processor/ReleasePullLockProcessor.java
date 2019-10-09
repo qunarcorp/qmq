@@ -8,6 +8,7 @@ import qunar.tc.qmq.order.ExclusiveMessageLockManager;
 import qunar.tc.qmq.protocol.CommandCode;
 import qunar.tc.qmq.protocol.Datagram;
 import qunar.tc.qmq.protocol.RemotingCommand;
+import qunar.tc.qmq.protocol.RemotingHeader;
 import qunar.tc.qmq.protocol.consumer.ReleasePullLockRequest;
 import qunar.tc.qmq.util.RemotingBuilder;
 
@@ -29,7 +30,7 @@ public class ReleasePullLockProcessor extends AbstractRequestProcessor {
     public CompletableFuture<Datagram> processRequest(ChannelHandlerContext ctx, RemotingCommand command) {
         ByteBuf buf = command.getBody();
         Serializer<ReleasePullLockRequest> serializer = Serializers.getSerializer(ReleasePullLockRequest.class);
-        ReleasePullLockRequest request = serializer.deserialize(buf, null);
+        ReleasePullLockRequest request = serializer.deserialize(buf, null, RemotingHeader.getOrderedMessageVersion());
         boolean result = lockManager.releaseLock(request.getPartitionName(), request.getConsumerGroup(), request.getClientId());
         Datagram datagram = RemotingBuilder.buildResponseDatagram(CommandCode.SUCCESS, command.getHeader(), out -> out.writeBoolean(result));
         return CompletableFuture.completedFuture(datagram);

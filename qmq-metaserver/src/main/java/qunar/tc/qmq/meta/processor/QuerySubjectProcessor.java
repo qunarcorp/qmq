@@ -8,7 +8,6 @@ import qunar.tc.qmq.meta.order.PartitionNameResolver;
 import qunar.tc.qmq.netty.NettyRequestProcessor;
 import qunar.tc.qmq.protocol.*;
 import qunar.tc.qmq.util.RemotingBuilder;
-import qunar.tc.qmq.utils.PayloadHolderUtils;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -27,18 +26,20 @@ public class QuerySubjectProcessor implements NettyRequestProcessor {
     @Override
     public CompletableFuture<Datagram> processRequest(ChannelHandlerContext ctx, RemotingCommand command) {
         ByteBuf buf = command.getBody();
+        RemotingHeader header = command.getHeader();
+        short version = header.getVersion();
         Serializer<QuerySubjectRequest> requestSerializer = Serializers.getSerializer(QuerySubjectRequest.class);
-        QuerySubjectRequest request = requestSerializer.deserialize(buf, null);
+        QuerySubjectRequest request = requestSerializer.deserialize(buf, null, version);
         String partitionName = request.getPartitionName();
 
-        Datagram datagram = RemotingBuilder.buildResponseDatagram(CommandCode.SUCCESS, command.getHeader(), out -> {
+        Datagram datagram = RemotingBuilder.buildResponseDatagram(CommandCode.SUCCESS, header, out -> {
             String subject = partitionNameResolver.getSubject(partitionName);
             QuerySubjectResponse response = null;
             if (subject != null) {
                 response = new QuerySubjectResponse(subject, partitionName);
             }
             Serializer<QuerySubjectResponse> serializer = Serializers.getSerializer(QuerySubjectResponse.class);
-            serializer.serialize(response, out);
+            serializer.serialize(response, out, version);
         });
 
         return CompletableFuture.completedFuture(datagram);

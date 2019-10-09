@@ -19,7 +19,7 @@ public class RangeMapSerializer extends ObjectSerializer<RangeMap> {
 
 
     @Override
-    void doSerialize(RangeMap rangeMap, ByteBuf buf) {
+    void doSerialize(RangeMap rangeMap, ByteBuf buf, long version) {
         Map<Range<? extends Comparable>, Object> map = rangeMap.asMapOfRanges();
         buf.writeInt(map.size());
         Serializer<Range> rangeSerializer = Serializers.getSerializer(Range.class);
@@ -28,13 +28,13 @@ public class RangeMapSerializer extends ObjectSerializer<RangeMap> {
             Object value = entry.getValue();
 
             Serializer valSerializer = Serializers.getSerializer(value.getClass());
-            rangeSerializer.serialize(range, buf);
-            valSerializer.serialize(value, buf);
+            rangeSerializer.serialize(range, buf, version);
+            valSerializer.serialize(value, buf, version);
         }
     }
 
     @Override
-    RangeMap doDeserialize(ByteBuf buf, Type type) {
+    RangeMap doDeserialize(ByteBuf buf, Type type, long version) {
         Type[] argTypes = ((ParameterizedType) type).getActualTypeArguments();
         Type keyType = argTypes[0];
         Type valType = argTypes[1];
@@ -43,8 +43,8 @@ public class RangeMapSerializer extends ObjectSerializer<RangeMap> {
         Serializer valSerializer = getSerializer(valType);
         Serializer<Range> rangeSerializer = Serializers.getSerializer(Range.class);
         for (int i = 0; i < size; i++) {
-            Range range = rangeSerializer.deserialize(buf, keyType);
-            Object value = valSerializer.deserialize(buf, valType);
+            Range range = rangeSerializer.deserialize(buf, keyType, version);
+            Object value = valSerializer.deserialize(buf, valType, version);
             rangeMap.put(range, value);
         }
         return rangeMap;

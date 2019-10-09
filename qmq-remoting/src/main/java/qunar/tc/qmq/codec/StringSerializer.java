@@ -13,12 +13,12 @@ import java.lang.reflect.Type;
 public class StringSerializer extends ObjectSerializer<String> {
 
     @Override
-    void doSerialize(String s, ByteBuf buf) {
+    void doSerialize(String s, ByteBuf buf, long version) {
         PayloadHolderUtils.writeString(s, buf);
     }
 
     @Override
-    String doDeserialize(ByteBuf buf, Type type) {
+    String doDeserialize(ByteBuf buf, Type type, long version) {
         return PayloadHolderUtils.readString(buf);
     }
 }

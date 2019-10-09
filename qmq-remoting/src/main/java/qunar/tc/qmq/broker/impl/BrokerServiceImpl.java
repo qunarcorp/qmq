@@ -45,6 +45,7 @@ import qunar.tc.qmq.netty.exception.ClientSendException;
 import qunar.tc.qmq.protocol.CommandCode;
 import qunar.tc.qmq.protocol.MetaInfoResponse;
 import qunar.tc.qmq.protocol.PayloadHolder;
+import qunar.tc.qmq.protocol.RemotingHeader;
 import qunar.tc.qmq.protocol.consumer.ReleasePullLockRequest;
 import qunar.tc.qmq.protocol.producer.ProducerMetaInfoResponse;
 import qunar.tc.qmq.util.RemotingBuilder;
@@ -225,7 +226,7 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
                 @Override
                 public void writeBody(ByteBuf out) {
                     Serializer<ReleasePullLockRequest> serializer = Serializers.getSerializer(ReleasePullLockRequest.class);
-                    serializer.serialize(request, out);
+                    serializer.serialize(request, out, RemotingHeader.getCurrentVersion());
                 }
             }), 3000);
         } catch (ClientSendException e) {
