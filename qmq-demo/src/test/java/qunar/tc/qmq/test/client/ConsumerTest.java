@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ListenerHolder;
 import qunar.tc.qmq.Message;
 import qunar.tc.qmq.MessageListener;
+import qunar.tc.qmq.SubscribeParam;
 import qunar.tc.qmq.consumer.MessageConsumerProvider;
 
 import java.util.concurrent.ExecutorService;
@@ -28,12 +29,15 @@ public class ConsumerTest {
         provider.setAppCode("consumer_test");
         provider.init();
 
-        final ListenerHolder listener = provider.addListener("ordered.qmq.test.1", "consumer_group1", new MessageListener() {
+        SubscribeParam param = new SubscribeParam.SubscribeParamBuilder()
+                .setOrdered(true)
+                .create();
+        final ListenerHolder listener = provider.addListener("old.partition.subject", "test_consumer_group", new MessageListener() {
             @Override
             public void onMessage(Message msg) {
                 logger.info("msgId:{}", msg.getMessageId());
             }
-        }, executor);
+        }, executor, param);
 
         provider.online();
         System.in.read();

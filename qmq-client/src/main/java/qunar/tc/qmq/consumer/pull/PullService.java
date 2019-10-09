@@ -16,18 +16,17 @@
 
 package qunar.tc.qmq.consumer.pull;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.AbstractFuture;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.ClientMetaManager;
 import qunar.tc.qmq.config.PullSubjectsConfig;
 import qunar.tc.qmq.consumer.pull.exception.PullException;
-import qunar.tc.qmq.meta.ConsumerAllocation;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.netty.client.NettyClient;
 import qunar.tc.qmq.netty.client.ResponseFuture;
@@ -210,7 +209,10 @@ class PullService {
         }
 
         private void resolveRealMessageSubject(BaseMessage message) {
-            message.setSubject(message.getStringProperty(BaseMessage.keys.qmq_subject));
+            String newSubject = message.getStringProperty(BaseMessage.keys.qmq_subject);
+            if (!Strings.isNullOrEmpty(newSubject)) {
+                message.setSubject(newSubject);
+            }
         }
 
         private void readTags(ByteBuf input, BaseMessage message, byte flag) {

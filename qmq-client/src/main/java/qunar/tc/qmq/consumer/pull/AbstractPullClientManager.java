@@ -44,9 +44,15 @@ public abstract class AbstractPullClientManager<T extends PullClient> implements
         ConsumerAllocation consumerAllocation = response.getConsumerAllocation();
         long consumptionExpiredTime = consumerAllocation.getExpired();
         int version = consumerAllocation.getVersion();
+        ConsumeStrategy consumeStrategy = consumerAllocation.getConsumeStrategy();
 
-        if (oldCompositeClient != null && oldCompositeClient.getVersion() >= version) {
-            return;
+        if (oldCompositeClient != null) {
+            // 刷新超时时间等信息
+            oldCompositeClient.setConsumptionExpiredTime(consumptionExpiredTime);
+            oldCompositeClient.setConsumeStrategy(consumeStrategy);
+            if (oldCompositeClient.getVersion() >= version) {
+                return;
+            }
         }
 
         CompositePullClient newNormalPullClient = createOrUpdatePullClient(subject, consumerGroup, new AlwaysPullStrategy(), consumerAllocation, oldNormalClient, registryParam);
@@ -60,7 +66,6 @@ public abstract class AbstractPullClientManager<T extends PullClient> implements
             clientMap.put(clientKey, (T) finalClient);
         } else {
             oldCompositeClient.setComponents(newComponents);
-            finalClient = oldCompositeClient;
         }
     }
 
