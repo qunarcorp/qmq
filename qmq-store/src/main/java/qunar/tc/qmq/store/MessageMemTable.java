@@ -34,7 +34,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * @since 2019-06-10
  */
 public class MessageMemTable implements Iterable<MessageMemTable.Entry>, AutoCloseable {
-    private static final Logger LOG = LoggerFactory.getLogger(MessageMemTable.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(MessageMemTable.class);
 
     // write extra sequence before each message
     private static final int OVERHEAD_BYTES = Long.BYTES;
@@ -209,7 +209,7 @@ public class MessageMemTable implements Iterable<MessageMemTable.Entry>, AutoClo
             final Long firstSequence = firstSequences.get(subject);
             if (firstSequence != null) {
                 if (sequence < firstSequence) {
-                    LOG.error("sequence reverted. subject: {}, firstSequence: {}, sequence: {}", subject, firstSequence, sequence);
+                    LOGGER.error("sequence reverted. subject: {}, firstSequence: {}, sequence: {}", subject, firstSequence, sequence);
                     return new Result<>(AddResultStatus.SUCCESS, null);
                 }
                 final int index = (int) (sequence - firstSequence);

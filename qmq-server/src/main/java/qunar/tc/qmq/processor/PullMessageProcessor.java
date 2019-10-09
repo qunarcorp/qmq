@@ -67,7 +67,7 @@ import static qunar.tc.qmq.util.RemotingBuilder.buildResponseHeader;
  * @since 2017/7/4
  */
 public class PullMessageProcessor extends AbstractRequestProcessor implements FixedExecOrderEventBus.Listener<ConsumerLogWroteEvent> {
-    private static final Logger LOG = LoggerFactory.getLogger(PullMessageProcessor.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(PullMessageProcessor.class);
 
     private static final int DEFAULT_NETWORK_TIMEOUT = 5000;
     private static final int DEFAULT_MAX_LOAD_TIME = 2500;
@@ -147,7 +147,7 @@ public class PullMessageProcessor extends AbstractRequestProcessor implements Fi
                 || Strings.isNullOrEmpty(consumerId)
                 || hasIllegalPart(subject, group, consumerId)) {
             QMon.pullParamErrorCountInc(subject, group);
-            LOG.warn("receive pull request param error, request: {}", pullRequest);
+            LOGGER.warn("receive pull request param error, request: {}", pullRequest);
             return false;
         }
 

@@ -49,7 +49,7 @@ import java.util.concurrent.*;
  * 3/14/19
  */
 public class QueryMessageServlet extends HttpServlet {
-    private static final Logger LOG = LoggerFactory.getLogger(QueryMessageServlet.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(QueryMessageServlet.class);
 
     private static final Gson serializer = new GsonBuilder().setLongSerializationPolicy(LongSerializationPolicy.STRING).create();
 
@@ -77,7 +77,7 @@ public class QueryMessageServlet extends HttpServlet {
         final ServletResponse response = context.getResponse();
         final CompletableFuture<Boolean> future = query(query, response);
         future.exceptionally(throwable -> {
-            LOG.error("Failed to query messages. {}", query, throwable);
+            LOGGER.error("Failed to query messages. {}", query, throwable);
             return true;
         }).thenAccept(aBoolean -> context.complete());
     }
@@ -86,7 +86,7 @@ public class QueryMessageServlet extends HttpServlet {
         try {
             return serializer.fromJson(json, RemoteMessageQuery.class);
         } catch (JsonSyntaxException e) {
-            LOG.error("Deserialize query json error.", e);
+            LOGGER.error("Deserialize query json error.", e);
             return null;
         }
     }

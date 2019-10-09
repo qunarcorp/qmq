@@ -25,7 +25,6 @@ import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.consumer.pull.exception.AckException;
-import qunar.tc.qmq.meta.ConsumerAllocation;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.QmqCounter;
 import qunar.tc.qmq.netty.client.NettyClient;
@@ -138,15 +137,16 @@ class DefaultAckService implements AckService {
         GET_PULL_OFFSET_ERROR.inc();
     }
 
-    public void sendAck(BrokerGroupInfo brokerGroup, String subject, String consumerGroup, ConsumeStrategy consumeStrategy, AckSendEntry ack, SendAckCallback callback) {
-        AckRequest request = buildAckRequest(subject, consumerGroup, consumeStrategy, ack);
+    @Override
+    public void sendAck(BrokerGroupInfo brokerGroup, String subject, String partitionName, String consumerGroup, ConsumeStrategy consumeStrategy, AckSendEntry ack, SendAckCallback callback) {
+        AckRequest request = buildAckRequest(partitionName, consumerGroup, consumeStrategy, ack);
         Datagram datagram = RemotingBuilder.buildRequestDatagram(CommandCode.ACK_REQUEST, new AckRequestPayloadHolder(request));
-        sendRequest(brokerGroup, subject, consumerGroup, request, datagram, callback);
+        sendRequest(brokerGroup, partitionName, consumerGroup, request, datagram, callback);
     }
 
-    private AckRequest buildAckRequest(String subject, String consumerGroup, ConsumeStrategy consumeStrategy, AckSendEntry ack) {
+    private AckRequest buildAckRequest(String partitionName, String consumerGroup, ConsumeStrategy consumeStrategy, AckSendEntry ack) {
         return new AckRequest(
-                subject,
+                partitionName,
                 consumerGroup,
                 clientId,
                 ack.getPullOffsetBegin(),
@@ -157,7 +157,7 @@ class DefaultAckService implements AckService {
 
     private void sendRequest(BrokerGroupInfo brokerGroup, String subject, String consumerGroup, AckRequest request, Datagram datagram, SendAckCallback callback) {
         try {
-            client.sendAsync(brokerGroup.getMaster(), datagram, ACK_REQUEST_TIMEOUT_MILLIS, new AckResponseCallback(request, callback, brokerService));
+            client.sendAsync(brokerGroup.getMaster(), datagram, ACK_REQUEST_TIMEOUT_MILLIS, new AckResponseCallback(subject, request, callback, brokerService));
         } catch (ClientSendException e) {
             ClientSendException.SendErrorCode errorCode = e.getSendErrorCode();
             monitorAckError(subject, consumerGroup, errorCode.ordinal());
@@ -173,11 +173,13 @@ class DefaultAckService implements AckService {
     }
 
     private static final class AckResponseCallback implements ResponseFuture.Callback {
+        private final String subject;
         private final AckRequest request;
         private final SendAckCallback sendAckCallback;
         private final BrokerService brokerService;
 
-        AckResponseCallback(AckRequest request, SendAckCallback sendAckCallback, BrokerService brokerService) {
+        AckResponseCallback(String subject, AckRequest request, SendAckCallback sendAckCallback, BrokerService brokerService) {
+            this.subject = subject;
             this.request = request;
             this.sendAckCallback = sendAckCallback;
             this.brokerService = brokerService;
@@ -185,33 +187,33 @@ class DefaultAckService implements AckService {
 
         @Override
         public void processResponse(ResponseFuture responseFuture) {
-            monitorAckTime(request.getSubject(), request.getGroup(), responseFuture.getRequestCostTime());
+            monitorAckTime(request.getPartitionName(), request.getConsumerGroup(), responseFuture.getRequestCostTime());
 
             Datagram response = responseFuture.getResponse();
             if (!responseFuture.isSendOk() || response == null) {
-                monitorAckError(request.getSubject(), request.getGroup(), -1);
+                monitorAckError(request.getPartitionName(), request.getConsumerGroup(), -1);
                 sendAckCallback.fail(new AckException("send fail"));
-                this.brokerService.refresh(ClientType.CONSUMER, request.getSubject(), request.getGroup());
+                this.brokerService.refresh(ClientType.CONSUMER, request.getPartitionName(), request.getConsumerGroup());
                 return;
             }
             final short responseCode = response.getHeader().getCode();
             if (responseCode == CommandCode.SUCCESS) {
                 sendAckCallback.success();
             } else {
-                monitorAckError(request.getSubject(), request.getGroup(), 100 + responseCode);
-                this.brokerService.refresh(ClientType.CONSUMER, request.getSubject(), request.getGroup());
+                monitorAckError(request.getPartitionName(), request.getConsumerGroup(), 100 + responseCode);
+                this.brokerService.refresh(ClientType.CONSUMER, subject, request.getConsumerGroup());
                 sendAckCallback.fail(new AckException("responseCode: " + responseCode));
             }
         }
     }
 
-    private static void monitorAckTime(String subject, String group, long time) {
-        Metrics.timer("qmq_pull_ack_timer", SUBJECT_GROUP_ARRAY, new String[]{subject, group}).update(time, TimeUnit.MILLISECONDS);
+    private static void monitorAckTime(String partitionName, String consumerGroup, long time) {
+        Metrics.timer("qmq_pull_ack_timer", SUBJECT_GROUP_ARRAY, new String[]{partitionName, consumerGroup}).update(time, TimeUnit.MILLISECONDS);
     }
 
-    private static void monitorAckError(String subject, String group, int errorCode) {
-        LOGGER.error("ack error. subject={}, group={}, errorCode={}", subject, group, errorCode);
-        Metrics.counter("qmq_pull_ack_error", SUBJECT_GROUP_ARRAY, new String[]{subject, group}).inc();
+    private static void monitorAckError(String partitionName, String consumerGroup, int errorCode) {
+        LOGGER.error("ack error. partition={}, group={}, errorCode={}", partitionName, consumerGroup, errorCode);
+        Metrics.counter("qmq_pull_ack_error", SUBJECT_GROUP_ARRAY, new String[]{partitionName, consumerGroup}).inc();
     }
 
     private static final Joiner senderKeyJoiner = Joiner.on("$");

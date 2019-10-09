@@ -30,7 +30,7 @@ import javax.transaction.Transactional;
 
 @Service
 public class OrderService {
-    private static final Logger LOG = LoggerFactory.getLogger(OrderService.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(OrderService.class);
 
     @Resource
     private MessageProducer producer;
@@ -46,12 +46,12 @@ public class OrderService {
         producer.sendMessage(message, new MessageSendStateListener() {
             @Override
             public void onSuccess(Message message) {
-                LOG.info("send message success: {}", message.getMessageId());
+                LOGGER.info("send message success: {}", message.getMessageId());
             }
 
             @Override
             public void onFailed(Message message) {
-                LOG.error("send message failed: {}", message.getMessageId());
+                LOGGER.error("send message failed: {}", message.getMessageId());
             }
         });
 

@@ -31,7 +31,7 @@ import java.util.Optional;
  * @since 2018-12-03
  */
 public class ReplaceBrokerAction implements MetaManagementAction {
-    private static final Logger LOG = LoggerFactory.getLogger(ReplaceBrokerAction.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ReplaceBrokerAction.class);
 
     private static final int RETRY_REPLACE_COUNT = 20;
 
@@ -75,7 +75,7 @@ public class ReplaceBrokerAction implements MetaManagementAction {
 
             return ActionResult.error("replace broker failed. retry count: " + RETRY_REPLACE_COUNT);
         } catch (Exception e) {
-            LOG.error("replace broker failed.", e);
+            LOGGER.error("replace broker failed.", e);
             return ActionResult.error("replace broker action failed, caused by: " + e.getMessage());
         }
     }

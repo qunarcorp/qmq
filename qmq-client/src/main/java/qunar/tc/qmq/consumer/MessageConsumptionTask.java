@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class MessageConsumptionTask {
 
-    private static final Logger logger = LoggerFactory.getLogger(MessageConsumptionTask.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(MessageConsumptionTask.class);
 
     private final QmqTimer createToHandleTimer;
     private final QmqTimer handleTimer;
@@ -68,7 +68,7 @@ public class MessageConsumptionTask {
             }
         } catch (Throwable t) {
             handleFailCounter.inc();
-            logger.error("消息处理失败 {} {}", message.getSubject(), message.getMessageId(), t);
+            LOGGER.error("消息处理失败 {} {}", message.getSubject(), message.getMessageId(), t);
             orderStrategy.onConsumeFailed(message, messageExecutor, t);
         }
     }

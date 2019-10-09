@@ -35,7 +35,7 @@ import java.util.concurrent.CompletableFuture;
  * @since 2017/11/22
  */
 public class ConsumerManageProcessor extends AbstractRequestProcessor {
-    private static final Logger LOG = LoggerFactory.getLogger(ConsumerManageProcessor.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ConsumerManageProcessor.class);
 
     private final Storage store;
 
@@ -46,7 +46,7 @@ public class ConsumerManageProcessor extends AbstractRequestProcessor {
     @Override
     public CompletableFuture<Datagram> processRequest(ChannelHandlerContext ctx, RemotingCommand command) {
         final ConsumeManageRequest request = deserialize(command.getBody());
-        LOG.info("receive consumer manager request:{}", request);
+        LOGGER.info("receive consumer manager request:{}", request);
 
         if (!checkRequest(request)) {
             final Datagram datagram = RemotingBuilder.buildEmptyResponseDatagram(CommandCode.PARAM_ERROR, command.getHeader());

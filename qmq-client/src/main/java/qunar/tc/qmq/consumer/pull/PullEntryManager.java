@@ -21,15 +21,14 @@ import java.util.concurrent.ExecutorService;
  * @since 2019-09-27
  */
 public class PullEntryManager extends AbstractPullClientManager<PullEntry> {
+    private static final Logger LOGGER = LoggerFactory.getLogger(PullEntryManager.class);
 
-    private static final Logger logger = LoggerFactory.getLogger(PullEntryManager.class);
-
-    private EnvProvider envProvider;
-    private PullService pullService;
-    private AckService ackService;
-    private BrokerService brokerService;
-    private SendMessageBack sendMessageBack;
-    private ExecutorService partitionExecutor;
+    private final EnvProvider envProvider;
+    private final PullService pullService;
+    private final AckService ackService;
+    private final BrokerService brokerService;
+    private final SendMessageBack sendMessageBack;
+    private final ExecutorService partitionExecutor;
 
     public PullEntryManager(
             String clientId,
@@ -87,7 +86,8 @@ public class PullEntryManager extends AbstractPullClientManager<PullEntry> {
                 brokerService,
                 pullStrategy,
                 sendMessageBack,
-                consumerOnlineStateManager);
+                consumerOnlineStateManager,
+                partitionExecutor);
         pullEntry.startPull(partitionExecutor);
         return pullEntry;
     }
@@ -110,7 +110,7 @@ public class PullEntryManager extends AbstractPullClientManager<PullEntry> {
         if (envProvider != null && !Strings.isNullOrEmpty(env = envProvider.env(subject))) {
             String subEnv = envProvider.subEnv(env);
             final String realGroup = toSubEnvIsolationGroup(consumerGroup, env, subEnv);
-            logger.info("enable subenv isolation for {}/{}, rename consumer consumerGroup to {}", subject, consumerGroup, realGroup);
+            LOGGER.info("enable subenv isolation for {}/{}, rename consumer consumerGroup to {}", subject, consumerGroup, realGroup);
 
             param.addFilter(new SubEnvIsolationPullFilter(env, subEnv));
             return realGroup;

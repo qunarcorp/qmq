@@ -31,7 +31,7 @@ import static qunar.tc.qmq.common.PartitionConstants.EXCLUSIVE_CONSUMER_LOCK_LEA
  */
 public class DefaultPartitionService implements PartitionService {
 
-    private static final Logger logger = LoggerFactory.getLogger(DefaultPartitionService.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(DefaultPartitionService.class);
 
     private PartitionNameResolver partitionNameResolver = new DefaultPartitionNameResolver();
     private Store store = new DatabaseStore();
@@ -109,12 +109,12 @@ public class DefaultPartitionService implements PartitionService {
                                 partitionSetStore.save(partitionSet);
                                 return true;
                             } else {
-                                logger.warn("subject {} 创建分区失败, subject router 更新失败", subject);
+                                LOGGER.warn("subject {} 创建分区失败, subject router 更新失败", subject);
                                 return false;
                             }
                         } catch (DuplicateKeyException e) {
                             // 并发问题, 忽略
-                            logger.warn("subject {} 创建分区信息重复", subject);
+                            LOGGER.warn("subject {} 创建分区信息重复", subject);
                             return false;
                         }
                     });

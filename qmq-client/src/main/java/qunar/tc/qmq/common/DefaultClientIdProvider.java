@@ -30,7 +30,7 @@ import java.util.UUID;
  * 4/2/18
  */
 class DefaultClientIdProvider implements ClientIdProvider {
-    private static final Logger LOG = LoggerFactory.getLogger(ClientIdProvider.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ClientIdProvider.class);
 
     @Override
     public String get() {
@@ -46,7 +46,7 @@ class DefaultClientIdProvider implements ClientIdProvider {
         try {
             return Hashing.md5().hashString(location, Charsets.UTF_8).toString();
         } catch (Exception e) {
-            LOG.error("compute md5sum for jar package location failed.", e);
+            LOGGER.error("compute md5sum for jar package location failed.", e);
         }
 
         return UUID.randomUUID().toString();
@@ -56,7 +56,7 @@ class DefaultClientIdProvider implements ClientIdProvider {
         try {
             return ClientIdProvider.class.getProtectionDomain().getCodeSource().getLocation().getPath();
         } catch (Exception e) {
-            LOG.warn("get jar package location failed.", e);
+            LOGGER.warn("get jar package location failed.", e);
         }
 
         return "";

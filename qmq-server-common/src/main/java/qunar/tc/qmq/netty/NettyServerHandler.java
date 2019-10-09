@@ -36,7 +36,7 @@ import java.util.concurrent.ExecutorService;
  */
 @ChannelHandler.Sharable
 public class NettyServerHandler extends SimpleChannelInboundHandler<RemotingCommand> {
-    private static final Logger LOG = LoggerFactory.getLogger(NettyServerHandler.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(NettyServerHandler.class);
 
     private final Map<Short, NettyRequestExecutor> commands = Maps.newHashMap();
 
@@ -72,7 +72,7 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<RemotingComm
         final NettyRequestExecutor executor = commands.get(cmd.getHeader().getCode());
         if (executor == null) {
             cmd.release();
-            LOG.error("unknown command code, code: {}", cmd.getHeader().getCode());
+            LOGGER.error("unknown command code, code: {}", cmd.getHeader().getCode());
             Datagram response = RemotingBuilder.buildEmptyResponseDatagram(CommandCode.UNKNOWN_CODE, cmd.getHeader());
             ctx.writeAndFlush(response);
         } else {

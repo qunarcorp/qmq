@@ -94,7 +94,7 @@ public class PullRegister implements ConsumerRegister {
 
         BrokerService brokerService = new BrokerServiceImpl(appCode, clientId, metaInfoService);
         OrderStrategyCache.initOrderStrategy(new DefaultMessageGroupResolver(brokerService));
-        PullService pullService = new PullService(brokerService);
+        PullService pullService = new PullService();
         SendMessageBack sendMessageBack = new SendMessageBackImpl(brokerService);
         AckService ackService = new DefaultAckService(brokerService, sendMessageBack);
 

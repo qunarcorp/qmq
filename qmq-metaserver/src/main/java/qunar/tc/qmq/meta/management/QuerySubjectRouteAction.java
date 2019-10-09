@@ -30,7 +30,7 @@ import javax.servlet.http.HttpServletRequest;
  * @since 2018/8/15
  */
 public class QuerySubjectRouteAction implements MetaManagementAction {
-    private static final Logger LOG = LoggerFactory.getLogger(QuerySubjectRouteAction.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(QuerySubjectRouteAction.class);
 
     private final Store store;
 
@@ -52,7 +52,7 @@ public class QuerySubjectRouteAction implements MetaManagementAction {
             final SubjectRoute route = store.selectSubjectRoute(subject);
             return ActionResult.ok(route);
         } catch (Exception e) {
-            LOG.error("query subject route failed. subject: {}", subject, e);
+            LOGGER.error("query subject route failed. subject: {}", subject, e);
             return ActionResult.error(e.getMessage());
         }
     }

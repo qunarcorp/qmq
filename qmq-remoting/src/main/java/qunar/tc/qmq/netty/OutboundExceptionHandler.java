@@ -11,7 +11,7 @@ import org.slf4j.LoggerFactory;
 @ChannelHandler.Sharable
 public class OutboundExceptionHandler extends ChannelOutboundHandlerAdapter {
 
-    private static final Logger logger = LoggerFactory.getLogger(OutboundExceptionHandler.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(OutboundExceptionHandler.class);
 
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
@@ -27,7 +27,7 @@ public class OutboundExceptionHandler extends ChannelOutboundHandlerAdapter {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        logger.error("exception caught", cause);
+        LOGGER.error("exception caught", cause);
         super.exceptionCaught(ctx, cause);
     }
 }

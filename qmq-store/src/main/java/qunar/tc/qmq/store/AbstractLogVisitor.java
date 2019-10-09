@@ -23,7 +23,7 @@ import qunar.tc.qmq.store.buffer.SegmentBuffer;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public abstract class AbstractLogVisitor<Record> implements LogVisitor<Record>, AutoCloseable {
-    private static final Logger LOG = LoggerFactory.getLogger(AbstractLogVisitor.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractLogVisitor.class);
 
     private final LogSegment currentSegment;
     private final SegmentBuffer currentBuffer;
@@ -39,7 +39,7 @@ public abstract class AbstractLogVisitor<Record> implements LogVisitor<Record>, 
 
     private long initialOffset(final LogManager logManager, final long originStart) {
         if (originStart < logManager.getMinOffset()) {
-            LOG.error("initial log visitor offset less than min offset. start: {}, min: {}", originStart, logManager.getMinOffset());
+            LOGGER.error("initial log visitor offset less than min offset. start: {}, min: {}", originStart, logManager.getMinOffset());
             return logManager.getMinOffset();
         }
         return originStart;

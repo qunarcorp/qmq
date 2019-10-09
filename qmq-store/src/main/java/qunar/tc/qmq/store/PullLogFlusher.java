@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * @since 2018/9/12
  */
 public class PullLogFlusher implements FixedExecOrderEventBus.Listener<ActionEvent>, AutoCloseable {
-    private static final Logger LOG = LoggerFactory.getLogger(PullLogFlusher.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(PullLogFlusher.class);
 
     private final StorageConfig config;
     private final CheckpointManager checkpointManager;
@@ -89,7 +89,7 @@ public class PullLogFlusher implements FixedExecOrderEventBus.Listener<ActionEve
                 checkpointManager.saveActionCheckpointSnapshot(snapshot);
             } catch (Exception e) {
                 QMon.pullLogFlusherFlushFailedCountInc();
-                LOG.error("flush pull log failed.", e);
+                LOGGER.error("flush pull log failed.", e);
             } finally {
                 QMon.pullLogFlusherElapsedPerExecute(System.currentTimeMillis() - start);
             }
@@ -98,13 +98,13 @@ public class PullLogFlusher implements FixedExecOrderEventBus.Listener<ActionEve
 
     @Override
     public void close() {
-        LOG.info("try flush one more time before exit.");
+        LOGGER.info("try flush one more time before exit.");
         submitFlushTask();
         flushExecutor.shutdown();
         try {
             flushExecutor.awaitTermination(1, TimeUnit.MINUTES);
         } catch (InterruptedException e) {
-            LOG.warn("interrupted during closing pull log flusher.");
+            LOGGER.warn("interrupted during closing pull log flusher.");
         }
     }
 }

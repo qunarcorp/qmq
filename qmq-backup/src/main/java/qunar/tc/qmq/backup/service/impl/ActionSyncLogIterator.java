@@ -35,12 +35,12 @@ public class ActionSyncLogIterator implements SyncLogIterator<Action, ByteBuf> {
         }
 
         @Override
-        public String subject() {
+        public String partitionName() {
             throw new QmqBackupException("Blank Action");
         }
 
         @Override
-        public String group() {
+        public String consumerGroup() {
             throw new QmqBackupException("Blank Action");
         }
 

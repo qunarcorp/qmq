@@ -55,8 +55,7 @@ import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_ARRAY;
  */
 class NettyConnection implements Connection {
 
-    private ConfigCenter config = ConfigCenter.getInstance();
-
+    private final ConfigCenter config;
     private final String subject;
     private final ClientType clientType;
     private final NettyClient producerClient;
@@ -65,10 +64,11 @@ class NettyConnection implements Connection {
     private final QmqCounter sendMessageCountMetrics;
     private final QmqTimer sendMessageTimerMetrics;
 
-    private BrokerGroupInfo brokerGroup;
+    private final BrokerGroupInfo brokerGroup;
 
     NettyConnection(String subject, ClientType clientType, NettyClient client,
                     BrokerService brokerService, BrokerGroupInfo brokerGroup) {
+        this.config = ConfigCenter.getInstance();
         this.subject = subject;
         this.clientType = clientType;
         this.producerClient = client;

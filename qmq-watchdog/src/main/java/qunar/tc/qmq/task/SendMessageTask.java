@@ -48,7 +48,7 @@ import java.util.concurrent.TimeUnit;
  * 用于check业务数据库里是否有未发送的消息 每个业务数据库对应一个
  */
 class SendMessageTask implements Callable<Void> {
-    private static final Logger LOG = LoggerFactory.getLogger(SendMessageTask.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(SendMessageTask.class);
 
     private static final int BROKER_BUSY = -1;
     private static final int VALID_ERROR = -2;
@@ -87,7 +87,7 @@ class SendMessageTask implements Callable<Void> {
 
     @Override
     public Void call() {
-        LOG.info("{} start...", dataSourceInfo.getUrl());
+        LOGGER.info("{} start...", dataSourceInfo.getUrl());
         stop = false;
         String name = Thread.currentThread().getName();
         try {
@@ -107,7 +107,7 @@ class SendMessageTask implements Callable<Void> {
         } finally {
             stop = true;
             Thread.currentThread().setName(name);
-            LOG.info("{} finish", dataSourceInfo.getUrl());
+            LOGGER.info("{} finish", dataSourceInfo.getUrl());
         }
         return null;
     }
@@ -115,7 +115,7 @@ class SendMessageTask implements Callable<Void> {
     private boolean timeout(long begin) {
         boolean isTimeout = (System.currentTimeMillis() - begin) > timeout;
         if (isTimeout) {
-            LOG.error("onSuccess db {} timeout", dataSourceInfo.getUrl());
+            LOGGER.error("onSuccess db {} timeout", dataSourceInfo.getUrl());
         }
         return isTimeout;
     }
@@ -131,7 +131,7 @@ class SendMessageTask implements Callable<Void> {
             }
 
             if (errorMessage.error >= MAX_RETRIES) {
-                LOG.error("retry too many times: {}", errorMessage.id);
+                LOGGER.error("retry too many times: {}", errorMessage.id);
                 error(errorMessage.id, VALID_ERROR);
                 continue;
             }
@@ -141,7 +141,7 @@ class SendMessageTask implements Callable<Void> {
             try {
                 if (Strings.isNullOrEmpty(content)) {
                     error(messageId, VALID_ERROR);
-                    LOG.warn("message content is empty:messageId={}", messageId);
+                    LOGGER.warn("message content is empty:messageId={}", messageId);
                     continue;
                 }
 
@@ -149,31 +149,31 @@ class SendMessageTask implements Callable<Void> {
                     message = serializer.fromJson(content, BaseMessage.class);
                 } catch (Exception e) {
                     error(messageId, VALID_ERROR);
-                    LOG.warn("message deserialize fail:messageId={},content={}", messageId, content, e);
+                    LOGGER.warn("message deserialize fail:messageId={},content={}", messageId, content, e);
                     continue;
                 }
                 if (message == null) {
                     error(messageId, VALID_ERROR);
-                    LOG.warn("message deserialize fail:messageId={},content={}", messageId, content);
+                    LOGGER.warn("message deserialize fail:messageId={},content={}", messageId, content);
                     continue;
                 }
 
                 if (!validate(message)) {
                     error(messageId, VALID_ERROR);
-                    LOG.warn("message registry is empty:subject={}, messageId={}", message.getSubject(), messageId);
+                    LOGGER.warn("message registry is empty:subject={}, messageId={}", message.getSubject(), messageId);
                     continue;
                 }
                 message.setProperty("qmq_sequence", messageId);
                 validMessages.add(message);
             } catch (Exception e) {
                 Qmon.taskSendMsgErrorCountInc(message == null ? "UNKONWN" : message.getSubject(), dataSourceInfo.getUrl());
-                LOG.error("execute send task error, message content is \n{} \ndb: {}", content, dataSourceInfo.getUrl(), e);
+                LOGGER.error("execute send task error, message content is \n{} \ndb: {}", content, dataSourceInfo.getUrl(), e);
             }
         }
         try {
             sendMessages(validMessages);
         } catch (Exception e) {
-            LOG.error("send new qmq messages error. datasource: {}", dataSourceInfo.getUrl(), e);
+            LOGGER.error("send new qmq messages error. datasource: {}", dataSourceInfo.getUrl(), e);
         }
     }
 
@@ -192,13 +192,13 @@ class SendMessageTask implements Callable<Void> {
 
                     @Override
                     public void onFailed(Message message) {
-                        LOG.warn("send message failed {}", message.getMessageId());
+                        LOGGER.warn("send message failed {}", message.getMessageId());
                         Qmon.sendNewqmqMesssagesFailedCountInc(message.getSubject(), dataSourceInfo.getUrl());
                         latch.countDown();
                     }
                 });
             } catch (Exception e) {
-                LOG.error("send message failed", e);
+                LOGGER.error("send message failed", e);
                 Qmon.sendNewqmqMesssagesFailedCountInc(message.getSubject(), dataSourceInfo.getUrl());
                 error(message.getLongProperty("qmq_sequence"), BROKER_BUSY);
             }
@@ -227,13 +227,13 @@ class SendMessageTask implements Callable<Void> {
     private void error(long messageId, int state) {
         if (state == VALID_ERROR) {
             Qmon.invalidMsgCountInc(dataSourceInfo.getUrl());
-            LOG.error("invalid message, db: {}", dataSourceInfo.getUrl());
+            LOGGER.error("invalid message, db: {}", dataSourceInfo.getUrl());
         }
         messageClientStore.updateError(dataSource, messageId, state);
     }
 
     private void logRemainMsg(List<MsgQueue> errorMessages) {
-        LOG.warn("There are remain msg: {} in client database url is {}", errorMessages.size(), dataSourceInfo.getUrl());
+        LOGGER.warn("There are remain msg: {} in client database url is {}", errorMessages.size(), dataSourceInfo.getUrl());
         Qmon.noSendMsgCountInc(dataSourceInfo.getUrl(), errorMessages.size());
     }
 

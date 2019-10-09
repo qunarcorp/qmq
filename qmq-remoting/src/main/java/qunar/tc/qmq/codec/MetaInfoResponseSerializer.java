@@ -1,8 +1,6 @@
 package qunar.tc.qmq.codec;
 
 import io.netty.buffer.ByteBuf;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.base.OnOfflineState;
 import qunar.tc.qmq.meta.*;

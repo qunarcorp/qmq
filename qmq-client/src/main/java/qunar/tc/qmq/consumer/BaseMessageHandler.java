@@ -20,7 +20,6 @@ import com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.*;
-import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.consumer.handler.IdempotentCheckerFilter;
 import qunar.tc.qmq.consumer.handler.QTraceFilter;
 import qunar.tc.qmq.consumer.pull.AckHook;

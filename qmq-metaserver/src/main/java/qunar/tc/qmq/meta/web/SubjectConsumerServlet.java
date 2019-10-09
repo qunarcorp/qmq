@@ -37,7 +37,7 @@ import java.util.List;
  * @since 2017/12/5
  */
 public class SubjectConsumerServlet extends HttpServlet {
-    private static final Logger LOG = LoggerFactory.getLogger(SubjectConsumerServlet.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(SubjectConsumerServlet.class);
 
     private static final ObjectMapper MAPPER = JsonUtils.getMapper();
 
@@ -60,7 +60,7 @@ public class SubjectConsumerServlet extends HttpServlet {
             resp.getWriter().println(MAPPER.writeValueAsString(new JsonResult<>(ResultStatus.OK, "成功", consumers)));
             return;
         } catch (Exception e) {
-            LOG.error("Failed get subject consumers. subject: {}", subject, e);
+            LOGGER.error("Failed get subject consumers. subject: {}", subject, e);
         }
 
         resp.getWriter().println(MAPPER.writeValueAsString(new JsonResult<Boolean>(ResultStatus.SYSTEM_ERROR, "未知错误", null)));

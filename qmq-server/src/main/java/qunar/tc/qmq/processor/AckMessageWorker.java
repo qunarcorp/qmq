@@ -37,7 +37,7 @@ class AckMessageWorker implements ActorSystem.Processor<AckMessageProcessor.AckE
     }
 
     void ack(AckMessageProcessor.AckEntry entry) {
-        actorSystem.dispatch("ack-" + entry.getGroup(), entry, this);
+        actorSystem.dispatch("ack-" + entry.getConsumerGroup(), entry, this);
     }
 
     @Override
@@ -50,7 +50,7 @@ class AckMessageWorker implements ActorSystem.Processor<AckMessageProcessor.AckE
         } catch (Exception e) {
             response = RemotingBuilder.buildEmptyResponseDatagram(CommandCode.BROKER_ERROR, ackEntry.getRequestHeader());
         } finally {
-            QMon.ackProcessTime(ackEntry.getSubject(), ackEntry.getGroup(), System.currentTimeMillis() - ackEntry.getAckBegin());
+            QMon.ackProcessTime(ackEntry.getPartitionName(), ackEntry.getConsumerGroup(), System.currentTimeMillis() - ackEntry.getAckBegin());
             ackEntry.getCtx().writeAndFlush(response);
         }
         return true;

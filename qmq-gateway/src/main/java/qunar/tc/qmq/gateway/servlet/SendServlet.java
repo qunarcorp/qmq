@@ -42,7 +42,7 @@ import java.util.Map;
  * 1/16/18
  */
 public class SendServlet extends HttpServlet {
-    private static final Logger logger = LoggerFactory.getLogger(SendServlet.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(SendServlet.class);
 
     private MessageProducerProvider producer;
 
@@ -153,7 +153,7 @@ public class SendServlet extends HttpServlet {
             MAPPER.writeValue(resp.getWriter(), result);
             resp.flushBuffer();
         } catch (Exception e) {
-            logger.error("return message error");
+            LOGGER.error("return message error");
         }
     }
 
@@ -166,7 +166,7 @@ public class SendServlet extends HttpServlet {
             response.setContentType("application/json");
             MAPPER.writeValue(response.getWriter(), result);
         } catch (Exception e) {
-            logger.error("return message error {} - {}", message.getSubject(), message.getMessageId());
+            LOGGER.error("return message error {} - {}", message.getSubject(), message.getMessageId());
         } finally {
             asyncContext.complete();
         }
@@ -181,7 +181,7 @@ public class SendServlet extends HttpServlet {
             response.setContentType("application/json");
             MAPPER.writeValue(response.getWriter(), result);
         } catch (Exception e) {
-            logger.error("return message error {} - {}", message.getSubject(), message.getMessageId());
+            LOGGER.error("return message error {} - {}", message.getSubject(), message.getMessageId());
         } finally {
             asyncContext.complete();
         }

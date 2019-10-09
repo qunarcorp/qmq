@@ -40,7 +40,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @since 2019-06-10
  */
 public class MessageMemTableManager implements AutoCloseable {
-    private static final Logger LOG = LoggerFactory.getLogger(MessageMemTableManager.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(MessageMemTableManager.class);
 
     private final StorageConfig config;
     private final int tableCapacity;
@@ -75,7 +75,7 @@ public class MessageMemTableManager implements AutoCloseable {
             try {
                 evict();
             } catch (Throwable e) {
-                LOG.error("evict failed.", e);
+                LOGGER.error("evict failed.", e);
             }
         }
     }
@@ -86,12 +86,12 @@ public class MessageMemTableManager implements AutoCloseable {
                 try {
                     final Stopwatch stopwatch = Stopwatch.createStarted();
                     if (!evictedCallback.onEvicted(table)) {
-                        LOG.error("evict memtable failed, will retry. table: {}", table);
+                        LOGGER.error("evict memtable failed, will retry. table: {}", table);
                         continue;
                     }
                     stopwatch.stop();
                     final long elapsed = stopwatch.elapsed(TimeUnit.MILLISECONDS);
-                    LOG.info("evicted memtable success. table: {}, elapsed: {}ms", table, elapsed);
+                    LOGGER.info("evicted memtable success. table: {}, elapsed: {}ms", table, elapsed);
 
                     while (currentActive.size() > config.getMaxReservedMemTable()) {
                         final MessageMemTable active = currentActive.peekFirst();
@@ -108,7 +108,7 @@ public class MessageMemTableManager implements AutoCloseable {
                     notEvictedCount.decrementAndGet();
                     return;
                 } catch (Throwable e) {
-                    LOG.error("evict memtable failed, will retry. table: {}", table, e);
+                    LOGGER.error("evict memtable failed, will retry. table: {}", table, e);
                 }
             }
         });
@@ -119,7 +119,7 @@ public class MessageMemTableManager implements AutoCloseable {
             final MessageMemTable table = pendingEvicted.poll(1, TimeUnit.SECONDS);
             return Optional.ofNullable(table);
         } catch (InterruptedException e) {
-            LOG.warn("poll pending evicted memtable interrupted.", e);
+            LOGGER.warn("poll pending evicted memtable interrupted.", e);
             return Optional.empty();
         }
     }

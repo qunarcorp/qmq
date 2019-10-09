@@ -33,7 +33,7 @@ import java.util.concurrent.TimeUnit;
  * @author yiqun.fan create on 17-10-31.
  */
 public class DbDicService implements DicService {
-    private static final Logger LOG = LoggerFactory.getLogger(DbDicService.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(DbDicService.class);
     private static final int MAX_SIZE = 1000000;
 
     private final DicStore dicStore;
@@ -75,7 +75,7 @@ public class DbDicService implements DicService {
             } catch (DuplicateKeyException e2) {
                 id = dicStore.getId(name);
             } catch (Exception e3) {
-                LOG.error("insert name error: {}", name, e3);
+                LOGGER.error("insert name error: {}", name, e3);
                 throw new RuntimeException("insert name error: " + name, e3);
             }
         }

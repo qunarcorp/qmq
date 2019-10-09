@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * @since 2018/7/18
  */
 public class DefaultConnectionEventHandler implements ConnectionEventHandler {
-    private static final Logger LOG = LoggerFactory.getLogger(ConnectionHandler.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ConnectionHandler.class);
 
     private final String name;
     private final AtomicLong counter = new AtomicLong(0);
@@ -40,14 +40,14 @@ public class DefaultConnectionEventHandler implements ConnectionEventHandler {
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) {
-        LOG.info("[name: {}] client {} connected", name, ctx.channel().remoteAddress());
+        LOGGER.info("[name: {}] client {} connected", name, ctx.channel().remoteAddress());
         counter.incrementAndGet();
 
     }
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
-        LOG.info("[name: {}] client {} disconnected", name, ctx.channel().remoteAddress());
+        LOGGER.info("[name: {}] client {} disconnected", name, ctx.channel().remoteAddress());
         counter.decrementAndGet();
     }
 }

@@ -58,7 +58,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class MessageProducerProvider implements MessageProducer {
 
-    private static final Logger logger = LoggerFactory.getLogger(MessageProducerProvider.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(MessageProducerProvider.class);
 
     private static final int _32K = (32 * 1024) / 4;
 
@@ -217,7 +217,7 @@ public class MessageProducerProvider implements MessageProducer {
             if (value.length() > _32K) {
                 TraceUtil.recordEvent("big_message");
                 String msg = entry.getKey() + "的value长度超过32K，请使用Message.setLargeString方法设置，并且使用Message.getLargeString方法获取";
-                logger.error(msg, new RuntimeException());
+                LOGGER.error(msg, new RuntimeException());
             }
         }
     }

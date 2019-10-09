@@ -16,7 +16,7 @@
 
 package qunar.tc.qmq.consumer;
 
-import qunar.tc.qmq.store.GroupAndSubject;
+import qunar.tc.qmq.store.GroupAndPartition;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -35,8 +35,8 @@ class Subscriber {
     private final SubscriberStatusChecker checker;
     private final String name;
 
-    private final String subject;
-    private final String group;
+    private final String partitionName;
+    private final String consumerGroup;
     private final String consumerId;
 
     private RetryTask retryTask;
@@ -49,9 +49,9 @@ class Subscriber {
         this.checker = checker;
         this.name = name;
 
-        final GroupAndSubject groupAndSubject = GroupAndSubject.parse(name);
-        this.group = groupAndSubject.getGroup();
-        this.subject = groupAndSubject.getSubject();
+        final GroupAndPartition groupAndPartition = GroupAndPartition.parse(name);
+        this.consumerGroup = groupAndPartition.getGroup();
+        this.partitionName = groupAndPartition.getPartitionName();
         this.consumerId = consumerId;
 
         this.lastUpdate = System.currentTimeMillis();
@@ -61,12 +61,12 @@ class Subscriber {
         return name;
     }
 
-    public String getSubject() {
-        return subject;
+    public String getPartitionName() {
+        return partitionName;
     }
 
-    public String getGroup() {
-        return group;
+    public String getConsumerGroup() {
+        return consumerGroup;
     }
 
     public String getConsumerId() {

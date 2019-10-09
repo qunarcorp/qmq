@@ -41,7 +41,7 @@ public interface Storage extends Disposable {
 
     SegmentBuffer getMessageData(final long wroteOffset);
 
-    GetMessageResult getMessage(String subject, long sequence);
+    GetMessageResult getMessage(String partitionName, long sequence);
 
     GetMessageResult pollMessages(String subject, long startSequence, int maxMessages);
 
@@ -59,7 +59,7 @@ public interface Storage extends Disposable {
 
     PutMessageResult putAction(final Action action);
 
-    List<PutMessageResult> putPullLogs(final String subject, final String group, final String consumerId, final List<PullLogMessage> messages);
+    List<PutMessageResult> putPullLogs(final String partitionName, final String consumerGroup, final String consumerId, final List<PullLogMessage> messages);
 
     CheckpointManager getCheckpointManager();
 
@@ -89,7 +89,7 @@ public interface Storage extends Disposable {
 
     MessageLogRecordVisitor newMessageLogVisitor(final long startOffset);
 
-    void disableLagMonitor(String subject, String group);
+    void disableLagMonitor(String partitionName, String group);
 
     Table<String, String, PullLog> allPullLogs();
 

@@ -20,6 +20,7 @@ public class ExclusiveConsumeMessageExecutor extends AbstractConsumeMessageExecu
         try {
             if (System.currentTimeMillis() > getConsumptionExpiredTime()) {
                 // 没有权限, 停一会再看
+                requeueFirst(message);
                 Thread.sleep(10);
                 return;
             }

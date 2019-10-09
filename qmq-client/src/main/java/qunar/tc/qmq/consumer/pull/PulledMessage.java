@@ -35,7 +35,7 @@ import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_ARRAY;
  */
 public class PulledMessage extends ConsumeMessage {
 
-    private static final Logger logger = LoggerFactory.getLogger(PulledMessage.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(PulledMessage.class);
 
     private transient final AckEntry ackEntry;
     private transient final AckHook ackHook;
@@ -102,7 +102,7 @@ public class PulledMessage extends ConsumeMessage {
             ack(throwable);
         } catch (Exception e) {
             scope.span().log("ack_failed");
-            logger.error("ack exception.", e);
+            LOGGER.error("ack exception.", e);
             Metrics.counter("qmq_pull_ackError", SUBJECT_ARRAY, new String[]{message.getSubject()}).inc();
         } finally {
             if (scope != null) {

@@ -30,8 +30,8 @@ import qunar.tc.qmq.backup.util.BackupMessageKeyRegexpBuilder;
  * @author xufeng.deng dennisdxf@gmail.com
  * @since 2019/5/29
  */
-public class HBaseDeadMessageStore extends AbstractHBaseMessageStore implements MessageStore {
-    private DicService dicService;
+public class HBaseDeadMessageStore extends AbstractHBaseMessageStore<MessageQueryResult.MessageMeta> implements MessageStore {
+    private final DicService dicService;
 
     HBaseDeadMessageStore(byte[] table, byte[] family, byte[][] qualifiers, HBaseClient client, DicService dicService) {
         super(table, family, qualifiers, client);
@@ -39,7 +39,7 @@ public class HBaseDeadMessageStore extends AbstractHBaseMessageStore implements 
     }
 
     @Override
-    protected MessageQueryResult findMessagesInternal(BackupQuery query) {
+    protected MessageQueryResult<MessageQueryResult.MessageMeta> findMessagesInternal(BackupQuery query) {
         final String subject = query.getSubject();
         final Date msgCreateTimeBegin = query.getMsgCreateTimeBegin();
         final Date msgCreateTimeEnd = query.getMsgCreateTimeEnd();
@@ -54,8 +54,8 @@ public class HBaseDeadMessageStore extends AbstractHBaseMessageStore implements 
         final String startKey = BackupMessageKeyRangeBuilder.buildDeadStartKey(start, subjectId, consumerGroupId, msgCreateTimeEnd);
         final String endKey = BackupMessageKeyRangeBuilder.buildDeadEndKey(subjectId, consumerGroupId, msgCreateTimeBegin);
 
-        final MessageQueryResult messageQueryResult = new MessageQueryResult();
-        getMessageFromHBase(subject, table, messageQueryResult, keyRegexp, startKey, endKey, len);
+        final MessageQueryResult<MessageQueryResult.MessageMeta> messageQueryResult = new MessageQueryResult<>();
+        scan(subject, table, messageQueryResult, keyRegexp, startKey, endKey, len);
         return messageQueryResult;
     }
 }

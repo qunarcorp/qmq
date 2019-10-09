@@ -34,7 +34,7 @@ import java.util.function.Predicate;
  * @since 2017/7/3
  */
 public class LogManager {
-    private static final Logger LOG = LoggerFactory.getLogger(LogManager.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(LogManager.class);
 
     private final File logDir;
     private final int fileSize;
@@ -56,11 +56,11 @@ public class LogManager {
     // ensure dir ok
     private void createAndValidateLogDir() {
         if (!logDir.exists()) {
-            LOG.info("Log directory {} not found, try create it.", logDir.getAbsoluteFile());
+            LOGGER.info("Log directory {} not found, try create it.", logDir.getAbsoluteFile());
             try {
                 Files.createDirectories(logDir.toPath());
             } catch (InvalidPathException e) {
-                LOG.error("log directory char array: {}", Arrays.toString(logDir.getAbsolutePath().toCharArray()));
+                LOGGER.error("log directory char array: {}", Arrays.toString(logDir.getAbsolutePath().toCharArray()));
                 throw new RuntimeException("Failed to create log directory " + logDir.getAbsolutePath(), e);
             } catch (Exception e) {
                 throw new RuntimeException("Failed to create log directory " + logDir.getAbsolutePath(), e);
@@ -73,7 +73,7 @@ public class LogManager {
     }
 
     private void loadLogs() {
-        LOG.info("Loading logs.");
+        LOGGER.info("Loading logs.");
         try {
             final File[] files = logDir.listFiles();
             if (files == null) return;
@@ -86,13 +86,13 @@ public class LogManager {
                     final LogSegment segment = new LogSegment(file, fileSize);
                     segment.setWrotePosition(fileSize);
                     segments.put(segment.getBaseOffset(), segment);
-                    LOG.info("Load {} success.", file.getAbsolutePath());
+                    LOGGER.info("Load {} success.", file.getAbsolutePath());
                 } catch (IOException e) {
-                    LOG.error("Load {} failed.", file.getAbsolutePath());
+                    LOGGER.error("Load {} failed.", file.getAbsolutePath());
                 }
             }
         } finally {
-            LOG.info("Load logs done.");
+            LOGGER.info("Load logs done.");
         }
     }
 
@@ -101,7 +101,7 @@ public class LogManager {
             return;
         }
 
-        LOG.info("Recovering logs.");
+        LOGGER.info("Recovering logs.");
         final List<Long> baseOffsets = new ArrayList<>(segments.navigableKeySet());
         final int offsetCount = baseOffsets.size();
         long offset = -1;
@@ -126,14 +126,14 @@ public class LogManager {
         final LogSegment segment = locateSegment(offset);
         if (segment != null && maxOffset != offset) {
             segment.setWrotePosition(relativeOffset);
-            LOG.info("recover wrote offset to {}:{}", segment, segment.getWrotePosition());
+            LOGGER.info("recover wrote offset to {}:{}", segment, segment.getWrotePosition());
             if (segment.getBaseOffset() != latestSegment.getBaseOffset()) {
-                LOG.info("will remove all segment after max wrote position. current base offset: {}, max base offset: {}",
+                LOGGER.info("will remove all segment after max wrote position. current base offset: {}, max base offset: {}",
                         segment.getBaseOffset(), latestSegment.getBaseOffset());
                 deleteSegmentsAfterOffset(offset);
             }
         }
-        LOG.info("Recover done.");
+        LOGGER.info("Recover done.");
     }
 
     public LogSegment locateSegment(final long offset) {
@@ -182,10 +182,10 @@ public class LogManager {
         try {
             final LogSegment segment = new LogSegment(nextSegmentFile, fileSize);
             segments.put(baseOffset, segment);
-            LOG.info("alloc new segment file {}", segment);
+            LOGGER.info("alloc new segment file {}", segment);
             return segment;
         } catch (IOException e) {
-            LOG.error("Failed create new segment file. file: {}", nextSegmentFile.getAbsolutePath());
+            LOGGER.error("Failed create new segment file. file: {}", nextSegmentFile.getAbsolutePath());
         }
         return null;
     }
@@ -214,7 +214,7 @@ public class LogManager {
             return allocSegment(baseOffset);
         }
 
-        LOG.warn("All segments are too old, need to delete all segment now. Current base offset: {}, expect base offset: {}",
+        LOGGER.warn("All segments are too old, need to delete all segment now. Current base offset: {}, expect base offset: {}",
                 latestSegment().getBaseOffset(), baseOffset);
         deleteAllSegments();
 
@@ -318,9 +318,9 @@ public class LogManager {
                 if (deleteSegment(entry.getKey(), segment)) {
                     count = count - 1;
                     executeHook(afterDeleted, segment);
-                    LOG.info("remove expired segment success. segment: {}", segment);
+                    LOGGER.info("remove expired segment success. segment: {}", segment);
                 } else {
-                    LOG.warn("remove expired segment failed. segment: {}", segment);
+                    LOGGER.warn("remove expired segment failed. segment: {}", segment);
                     return;
                 }
             }
@@ -352,15 +352,15 @@ public class LogManager {
     public boolean clean(Long key) {
         LogSegment segment = segments.get(key);
         if (null == segment) {
-            LOG.error("clean message segment log error,segment:{} is null", key);
+            LOGGER.error("clean message segment log error,segment:{} is null", key);
             return false;
         }
 
         if (deleteSegment(key, segment)) {
-            LOG.info("remove expired segment success. segment: {}", segment);
+            LOGGER.info("remove expired segment success. segment: {}", segment);
             return true;
         } else {
-            LOG.warn("remove expired segment failed. segment: {}", segment);
+            LOGGER.warn("remove expired segment failed. segment: {}", segment);
             return false;
         }
     }

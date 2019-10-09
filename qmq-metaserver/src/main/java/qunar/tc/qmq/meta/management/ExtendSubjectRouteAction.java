@@ -36,7 +36,7 @@ import java.util.Set;
  * 7/24/18
  */
 public class ExtendSubjectRouteAction implements MetaManagementAction {
-    private static final Logger LOG = LoggerFactory.getLogger(ExtendSubjectRouteAction.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ExtendSubjectRouteAction.class);
 
     private final Store store;
     private final CachedMetaInfoManager cache;
@@ -77,7 +77,7 @@ public class ExtendSubjectRouteAction implements MetaManagementAction {
 
                 final int affectedRows = store.updateSubjectRoute(subject, route.getVersion(), new ArrayList<>(newBrokers));
                 if (affectedRows == 1) {
-                    LOG.info("update subject route: {} from {} to {}", subject, brokerGroups, newBrokers);
+                    LOGGER.info("update subject route: {} from {} to {}", subject, brokerGroups, newBrokers);
                     updated++;
                 }
             }

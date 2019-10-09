@@ -11,11 +11,11 @@ import org.slf4j.LoggerFactory;
 @ChannelHandler.Sharable
 public class InboundExceptionHandler extends ChannelInboundHandlerAdapter {
 
-    private static final Logger logger = LoggerFactory.getLogger(InboundExceptionHandler.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(InboundExceptionHandler.class);
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        logger.error("exception caught", cause);
+        LOGGER.error("exception caught", cause);
         super.exceptionCaught(ctx, cause);
     }
 }

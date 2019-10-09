@@ -28,7 +28,7 @@ import qunar.tc.qmq.meta.store.ReadonlyBrokerGroupSettingStore;
  * @since 2018/7/30
  */
 public class ReadonlyBrokerGroupSettingService {
-    private static final Logger LOG = LoggerFactory.getLogger(ReadonlyBrokerGroupSettingService.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ReadonlyBrokerGroupSettingService.class);
 
     private final ReadonlyBrokerGroupSettingStore store;
 
@@ -40,7 +40,7 @@ public class ReadonlyBrokerGroupSettingService {
         try {
             store.insert(setting);
         } catch (DuplicateKeyException e) {
-            LOG.info("duplicate readonly broker group setting. setting: {}", setting);
+            LOGGER.info("duplicate readonly broker group setting. setting: {}", setting);
         } catch (DataAccessException e) {
             throw new RuntimeException("database failed during save readonly broker group setting", e);
         }
@@ -48,6 +48,6 @@ public class ReadonlyBrokerGroupSettingService {
 
     public void removeSetting(final ReadonlyBrokerGroupSetting setting) {
         final int affectedRows = store.delete(setting);
-        LOG.info("remove readonly broker group setting. setting: {}, affectedRows: {}", setting, affectedRows);
+        LOGGER.info("remove readonly broker group setting. setting: {}, affectedRows: {}", setting, affectedRows);
     }
 }

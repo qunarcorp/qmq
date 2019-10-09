@@ -32,8 +32,8 @@ public class RangeAckActionReaderWriter implements ActionReaderWriter {
         final int startIndex = to.position();
 
         final RangeAckAction rangeAck = (RangeAckAction) action;
-        PayloadHolderUtils.writeString(rangeAck.subject(), to);
-        PayloadHolderUtils.writeString(rangeAck.group(), to);
+        PayloadHolderUtils.writeString(rangeAck.partitionName(), to);
+        PayloadHolderUtils.writeString(rangeAck.consumerGroup(), to);
         PayloadHolderUtils.writeString(rangeAck.consumerId(), to);
         to.putLong(action.timestamp());
         to.putLong(rangeAck.getFirstSequence());
@@ -43,13 +43,13 @@ public class RangeAckActionReaderWriter implements ActionReaderWriter {
 
     @Override
     public RangeAckAction read(final ByteBuffer from) {
-        final String subject = PayloadHolderUtils.readString(from);
-        final String group = PayloadHolderUtils.readString(from);
+        final String partitionName = PayloadHolderUtils.readString(from);
+        final String consumerGroup = PayloadHolderUtils.readString(from);
         final String consumerId = PayloadHolderUtils.readString(from);
         final long timestamp = from.getLong();
         final long firstSequence = from.getLong();
         final long lastSequence = from.getLong();
 
-        return new RangeAckAction(subject, group, consumerId, timestamp, firstSequence, lastSequence);
+        return new RangeAckAction(partitionName, consumerGroup, consumerId, timestamp, firstSequence, lastSequence);
     }
 }

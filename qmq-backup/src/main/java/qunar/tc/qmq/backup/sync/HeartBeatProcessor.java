@@ -33,7 +33,7 @@ import static qunar.tc.qmq.constants.BrokerConstants.DEFAULT_HEARTBEAT_SLEEP_TIM
  * @since 2018-12-10 18:34
  */
 public class HeartBeatProcessor implements SyncLogProcessor {
-    private static final Logger LOG = LoggerFactory.getLogger(HeartBeatProcessor.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(HeartBeatProcessor.class);
     private final long sleepTimeoutMs;
     private final CheckpointManager offsetManager;
 
@@ -47,7 +47,7 @@ public class HeartBeatProcessor implements SyncLogProcessor {
         try {
             TimeUnit.MILLISECONDS.sleep(sleepTimeoutMs);
         } catch (InterruptedException e) {
-            LOG.error("heart beat sleep error", e);
+            LOGGER.error("heart beat sleep error", e);
         }
     }
 

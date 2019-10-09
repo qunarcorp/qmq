@@ -26,7 +26,7 @@ import qunar.tc.qmq.monitor.QMon;
  * 7/31/18
  */
 class OfflineTask {
-    private static final Logger LOG = LoggerFactory.getLogger(OfflineTask.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(OfflineTask.class);
 
     private final ConsumerSequenceManager consumerSequenceManager;
     private final Subscriber subscriber;
@@ -41,20 +41,20 @@ class OfflineTask {
     void run() {
         if (cancel) return;
 
-        LOG.info("run offline task for {}/{}/{}.", subscriber.getSubject(), subscriber.getGroup(), subscriber.getConsumerId());
-        QMon.offlineTaskExecuteCountInc(subscriber.getSubject(), subscriber.getGroup());
+        LOGGER.info("run offline task for {}/{}/{}.", subscriber.getPartitionName(), subscriber.getConsumerGroup(), subscriber.getConsumerId());
+        QMon.offlineTaskExecuteCountInc(subscriber.getPartitionName(), subscriber.getConsumerGroup());
 
-        final ConsumerSequence consumerSequence = consumerSequenceManager.getOrCreateConsumerSequence(subscriber.getSubject(), subscriber.getGroup(), subscriber.getConsumerId(), false);
+        final ConsumerSequence consumerSequence = consumerSequenceManager.getOrCreateConsumerSequence(subscriber.getPartitionName(), subscriber.getConsumerGroup(), subscriber.getConsumerId(), false);
         if (!consumerSequence.tryLock()) return;
         try {
             if (cancel) return;
 
             if (isProcessedComplete(consumerSequence)) {
                 if (unSubscribe()) {
-                    LOG.info("offline task destroyed subscriber for {}/{}/{}", subscriber.getSubject(), subscriber.getGroup(), subscriber.getConsumerId());
+                    LOGGER.info("offline task destroyed subscriber for {}/{}/{}", subscriber.getPartitionName(), subscriber.getConsumerGroup(), subscriber.getConsumerId());
                 }
             } else {
-                LOG.info("offline task skip destroy subscriber for {}/{}/{}", subscriber.getSubject(), subscriber.getGroup(), subscriber.getConsumerId());
+                LOGGER.info("offline task skip destroy subscriber for {}/{}/{}", subscriber.getPartitionName(), subscriber.getConsumerGroup(), subscriber.getConsumerId());
             }
         } finally {
             consumerSequence.unlock();
@@ -69,11 +69,11 @@ class OfflineTask {
 
     private boolean unSubscribe() {
         if (cancel) return false;
-        final boolean success = consumerSequenceManager.putForeverOfflineAction(subscriber.getSubject(), subscriber.getGroup(), subscriber.getConsumerId());
+        final boolean success = consumerSequenceManager.putForeverOfflineAction(subscriber.getPartitionName(), subscriber.getConsumerGroup(), subscriber.getConsumerId());
         if (!success) {
             return false;
         }
-        consumerSequenceManager.remove(subscriber.getSubject(), subscriber.getGroup(), subscriber.getConsumerId());
+        consumerSequenceManager.remove(subscriber.getPartitionName(), subscriber.getConsumerGroup(), subscriber.getConsumerId());
         subscriber.destroy();
         return true;
     }

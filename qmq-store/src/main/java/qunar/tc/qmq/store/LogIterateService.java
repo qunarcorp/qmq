@@ -29,7 +29,7 @@ import java.util.concurrent.atomic.LongAdder;
  * @since 2019-06-18
  */
 public class LogIterateService<T> implements AutoCloseable {
-    private static final Logger LOG = LoggerFactory.getLogger(LogIterateService.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(LogIterateService.class);
 
     private final String name;
     private final long dispatcherPauseMills;
@@ -68,15 +68,15 @@ public class LogIterateService<T> implements AutoCloseable {
     }
 
     public void blockUntilReplayDone() {
-        LOG.info("replay log initial lag: {}; min: {}, max: {}, from: {}",
+        LOGGER.info("replay log initial lag: {}; min: {}, max: {}, from: {}",
                 replayLogLag(), visitable.getMinOffset(), visitable.getMaxOffset(), iterateFrom.longValue());
 
         while (replayLogLag() > 0) {
-            LOG.info("waiting replay log ...");
+            LOGGER.info("waiting replay log ...");
             try {
                 TimeUnit.SECONDS.sleep(1);
             } catch (InterruptedException e) {
-                LOG.warn("block until replay done interrupted", e);
+                LOGGER.warn("block until replay done interrupted", e);
             }
         }
     }
@@ -91,7 +91,7 @@ public class LogIterateService<T> implements AutoCloseable {
         try {
             dispatcherThread.join();
         } catch (InterruptedException e) {
-            LOG.error("log dispatcher thread interrupted", e);
+            LOGGER.error("log dispatcher thread interrupted", e);
         }
     }
 
@@ -103,7 +103,7 @@ public class LogIterateService<T> implements AutoCloseable {
                     processLog();
                 } catch (Throwable e) {
                     QMon.replayLogFailedCountInc(name + "Failed");
-                    LOG.error("replay log failed, will retry.", e);
+                    LOGGER.error("replay log failed, will retry.", e);
                 }
             }
         }
@@ -112,7 +112,7 @@ public class LogIterateService<T> implements AutoCloseable {
             final long startOffset = iterateFrom.longValue();
             try (AbstractLogVisitor<T> visitor = visitable.newVisitor(startOffset)) {
                 if (startOffset != visitor.getStartOffset()) {
-                    LOG.info("reset iterate from offset from {} to {}", startOffset, visitor.getStartOffset());
+                    LOGGER.info("reset iterate from offset from {} to {}", startOffset, visitor.getStartOffset());
                     iterateFrom.reset();
                     iterateFrom.add(visitor.getStartOffset());
                 }
@@ -133,7 +133,7 @@ public class LogIterateService<T> implements AutoCloseable {
             try {
                 TimeUnit.MILLISECONDS.sleep(dispatcherPauseMills);
             } catch (InterruptedException e) {
-                LOG.warn("log dispatcher sleep interrupted");
+                LOGGER.warn("log dispatcher sleep interrupted");
             }
         }
     }

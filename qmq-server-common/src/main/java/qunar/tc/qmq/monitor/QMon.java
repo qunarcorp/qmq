@@ -123,16 +123,16 @@ public final class QMon {
         subjectAndGroupCountInc("getMessageOverflowCount", subject, group);
     }
 
-    public static void consumerAckCountInc(String subject, String group, int size) {
-        subjectAndGroupCountInc("consumerAckCount", new String[]{subject, group}, size);
+    public static void consumerAckCountInc(String partitionName, String group, int size) {
+        subjectAndGroupCountInc("consumerAckCount", new String[]{partitionName, group}, size);
     }
 
-    public static void consumerLostAckCountInc(String subject, String group, int lostAckCount) {
-        subjectAndGroupCountInc("consumerLostAckCount", new String[]{subject, group}, lostAckCount);
+    public static void consumerLostAckCountInc(String partitionName, String group, int lostAckCount) {
+        subjectAndGroupCountInc("consumerLostAckCount", new String[]{partitionName, group}, lostAckCount);
     }
 
-    public static void consumerDuplicateAckCountInc(String subject, String group, int duplicateAckCount) {
-        subjectAndGroupCountInc("consumerDuplicateAckCount", new String[]{subject, group}, duplicateAckCount);
+    public static void consumerDuplicateAckCountInc(String partitionName, String group, int duplicateAckCount) {
+        subjectAndGroupCountInc("consumerDuplicateAckCount", new String[]{partitionName, group}, duplicateAckCount);
     }
 
     public static void consumerAckTimeoutErrorCountInc(String consumerId, int num) {
@@ -167,8 +167,8 @@ public final class QMon {
         Metrics.timer("pullProcessTime", SUBJECT_GROUP_ARRAY, new String[]{subject, group}).update(elapsed, TimeUnit.MILLISECONDS);
     }
 
-    public static void putActionFailedCountInc(String subject, String group) {
-        subjectAndGroupCountInc("putActionFailedCount", subject, group);
+    public static void putActionFailedCountInc(String partitionName, String consumerGroup) {
+        subjectAndGroupCountInc("putActionFailedCount", partitionName, consumerGroup);
     }
 
     public static void findLostMessageCountInc(String subject, String group, int messageNum) {
@@ -184,9 +184,9 @@ public final class QMon {
         Metrics.meter("pullRequestEx", SUBJECT_GROUP_ARRAY, new String[]{partitionName, group}).mark();
     }
 
-    public static void ackRequestCountInc(String subject, String group) {
-        subjectAndGroupCountInc("ackRequestCount", subject, group);
-        Metrics.meter("ackRequestEx", SUBJECT_GROUP_ARRAY, new String[]{subject, group}).mark();
+    public static void ackRequestCountInc(String partitionName, String group) {
+        subjectAndGroupCountInc("ackRequestCount", partitionName, group);
+        Metrics.meter("ackRequestEx", SUBJECT_GROUP_ARRAY, new String[]{partitionName, group}).mark();
     }
 
     public static void pullParamErrorCountInc(String partitionName, String group) {
@@ -245,16 +245,16 @@ public final class QMon {
         Metrics.counter("logSegmentTotalRefCount", NONE, NONE).dec();
     }
 
-    public static void maybeLostMessagesCountInc(String subject, String group, long num) {
-        subjectAndGroupCountInc("maybeLostMessages", new String[]{subject, group}, num);
+    public static void maybeLostMessagesCountInc(String partitionName, String consumerGroup, long num) {
+        subjectAndGroupCountInc("maybeLostMessages", new String[]{partitionName, consumerGroup}, num);
     }
 
-    public static void retryTaskExecuteCountInc(String subject, String group) {
-        subjectAndGroupCountInc("consumerStatusCheckerRetryTaskExecute", subject, group);
+    public static void retryTaskExecuteCountInc(String partitionName, String consumerGroup) {
+        subjectAndGroupCountInc("consumerStatusCheckerRetryTaskExecute", partitionName, consumerGroup);
     }
 
-    public static void offlineTaskExecuteCountInc(String subject, String group) {
-        subjectAndGroupCountInc("consumerStatusCheckerOfflineTaskExecute", subject, group);
+    public static void offlineTaskExecuteCountInc(String partitionName, String consumerGroup) {
+        subjectAndGroupCountInc("consumerStatusCheckerOfflineTaskExecute", partitionName, consumerGroup);
     }
 
     public static void brokerReceivedInvalidMessageCountInc() {

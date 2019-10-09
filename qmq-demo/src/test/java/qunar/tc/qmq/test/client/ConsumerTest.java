@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class ConsumerTest {
 
-    private static final Logger logger = LoggerFactory.getLogger(ConsumerTest.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ConsumerTest.class);
     private static final ExecutorService executor = Executors.newFixedThreadPool(3);
 
     @Test
@@ -32,10 +32,10 @@ public class ConsumerTest {
         SubscribeParam param = new SubscribeParam.SubscribeParamBuilder()
                 .setOrdered(true)
                 .create();
-        final ListenerHolder listener = provider.addListener("old.partition.subject", "test_consumer_group", new MessageListener() {
+        final ListenerHolder listener = provider.addListener("new.partition.subject", "test_consumer_group", new MessageListener() {
             @Override
             public void onMessage(Message msg) {
-                logger.info("msgId:{}", msg.getMessageId());
+                LOGGER.info("msgId:{}", msg.getMessageId());
             }
         }, executor, param);
 

@@ -30,7 +30,7 @@ import static qunar.tc.qmq.store.ActionLog.*;
  * @since 2017/8/21
  */
 public class ActionLogVisitor extends AbstractLogVisitor<ActionEvent> {
-    private static final Logger LOG = LoggerFactory.getLogger(ActionLogVisitor.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ActionLogVisitor.class);
 
     private static final int MIN_RECORD_BYTES = 5; // 4 bytes magic + 1 byte record type
 
@@ -78,7 +78,7 @@ public class ActionLogVisitor extends AbstractLogVisitor<ActionEvent> {
 
                 return LogVisitorRecord.data(new ActionEvent(getStartOffset() + visitedBufferSize(), action));
             } catch (Exception e) {
-                LOG.error("fail read action log", e);
+                LOGGER.error("fail read action log", e);
                 return LogVisitorRecord.noMore();
             }
         } else {

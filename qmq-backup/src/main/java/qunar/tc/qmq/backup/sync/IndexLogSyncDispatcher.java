@@ -26,7 +26,7 @@ import qunar.tc.qmq.sync.SyncType;
 import java.util.concurrent.TimeUnit;
 
 public class IndexLogSyncDispatcher implements LogSyncDispatcher {
-    private static final Logger LOG = LoggerFactory.getLogger(IndexLogSyncDispatcher.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(IndexLogSyncDispatcher.class);
 
     private final IndexLog log;
 
@@ -40,7 +40,7 @@ public class IndexLogSyncDispatcher implements LogSyncDispatcher {
         try {
             log.appendData(startOffset, body);
         } catch (Exception e) {
-            LOG.error("index log dispatch failed.", e);
+            LOGGER.error("index log dispatch failed.", e);
             Metrics.counter("indexDispatchError").inc();
         } finally {
             Metrics.timer("indexLogDispatcher").update(System.currentTimeMillis() - currentTime, TimeUnit.MILLISECONDS);

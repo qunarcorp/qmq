@@ -45,7 +45,7 @@ import java.util.concurrent.TimeUnit;
  * @since 2017/8/21
  */
 abstract class AbstractLogSyncWorker implements SyncProcessor {
-    private static final Logger LOG = LoggerFactory.getLogger(AbstractLogSyncWorker.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractLogSyncWorker.class);
 
     private static final int SYNC_HEADER_LEN = 4 /*size*/ + 8 /*startOffset*/;
 
@@ -137,12 +137,12 @@ abstract class AbstractLogSyncWorker implements SyncProcessor {
 
         if (currentSegment != null) {
             final boolean release = currentSegment.release();
-            LOG.info("release segment lock for {} while sync log, release result: {}", currentSegment, release);
+            LOGGER.info("release segment lock for {} while sync log, release result: {}", currentSegment, release);
             currentSegment = null;
         }
 
         final boolean retain = segment.retain();
-        LOG.info("acquire segment lock for {} while sync log, retain result: {}", segment, retain);
+        LOGGER.info("acquire segment lock for {} while sync log, retain result: {}", segment, retain);
         if (retain) {
             currentSegment = segment;
         }
@@ -177,7 +177,7 @@ abstract class AbstractLogSyncWorker implements SyncProcessor {
             try {
                 processor.processTimeout(entry);
             } catch (Exception e) {
-                LOG.error("onSuccess sync request error", e);
+                LOGGER.error("onSuccess sync request error", e);
             }
         }
     }

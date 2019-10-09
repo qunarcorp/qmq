@@ -12,7 +12,7 @@ import qunar.tc.qmq.producer.tx.spring.SpringTransactionProvider;
 
 public class ProducerTest {
 
-    private static final Logger logger = LoggerFactory.getLogger(ProducerTest.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ProducerTest.class);
     private static DataSource dataSource;
 
     @BeforeClass
@@ -28,18 +28,19 @@ public class ProducerTest {
         MessageProducerProvider provider = new MessageProducerProvider("producer_test", "http://127.0.0.1:8080/meta/address");
         provider.setTransactionProvider(new SpringTransactionProvider(dataSource));
         provider.init();
-        for (int i = 0; i < 10; i++) {
-            Message message = provider.generateMessage("ordered.qmq.test.1");
+        for (int i = 0; i < 100; i++) {
+            Message message = provider.generateMessage("new.partition.subject");
+            message.setOrderKey("0");
             message.setProperty("mytag", i);
             provider.sendMessage(message, new MessageSendStateListener() {
                 @Override
                 public void onSuccess(Message message) {
-                    logger.info("send message success {}", message.getMessageId());
+                    LOGGER.info("send message success {}", message.getMessageId());
                 }
 
                 @Override
                 public void onFailed(Message message) {
-                    logger.error("send message fail {}", message.getMessageId());
+                    LOGGER.error("send message fail {}", message.getMessageId());
                 }
             });
         }

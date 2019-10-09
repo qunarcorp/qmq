@@ -29,7 +29,7 @@ import qunar.tc.qmq.utils.PayloadHolderUtils;
 import java.nio.ByteBuffer;
 
 public class MessageIndexSyncWorker extends AbstractLogSyncWorker {
-    private static final Logger LOG = LoggerFactory.getLogger(MessageIndexSyncWorker.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(MessageIndexSyncWorker.class);
 
     private static final int MAX_SYNC_NUM = 5000;
 
@@ -50,7 +50,7 @@ public class MessageIndexSyncWorker extends AbstractLogSyncWorker {
         long minMessageOffset = storage.getMinMessageOffset();
         if (startSyncOffset < minMessageOffset) {
             startSyncOffset = minMessageOffset;
-            LOG.info("reset message log sync offset from {} to {}", originalOffset, startSyncOffset);
+            LOGGER.info("reset message log sync offset from {} to {}", originalOffset, startSyncOffset);
         }
 
         try (MessageLogRecordVisitor visitor = storage.newMessageLogVisitor(startSyncOffset)) {

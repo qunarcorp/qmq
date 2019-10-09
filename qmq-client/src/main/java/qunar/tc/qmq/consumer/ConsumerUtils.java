@@ -11,12 +11,12 @@ import qunar.tc.qmq.base.BaseMessage;
  */
 public class ConsumerUtils {
 
-    private static final Logger logger = LoggerFactory.getLogger(ConsumerUtils.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ConsumerUtils.class);
 
     public static void printError(BaseMessage message, Throwable e) {
         if (e == null) return;
         if (e instanceof NeedRetryException) return;
-        logger.error("message onSuccess error. subject={}, msgId={}, times={}, maxRetryNum={}",
+        LOGGER.error("message onSuccess error. subject={}, msgId={}, times={}, maxRetryNum={}",
                 message.getSubject(), message.getMessageId(), message.times(), message.getMaxRetryNum(), e);
     }
 }

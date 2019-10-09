@@ -36,8 +36,8 @@ public class PullActionReaderWriter implements ActionReaderWriter {
         final int startIndex = to.position();
 
         final PullAction pull = (PullAction) action;
-        PayloadHolderUtils.writeString(pull.subject(), to);
-        PayloadHolderUtils.writeString(pull.group(), to);
+        PayloadHolderUtils.writeString(pull.partitionName(), to);
+        PayloadHolderUtils.writeString(pull.consumerGroup(), to);
         PayloadHolderUtils.writeString(pull.consumerId(), to);
 
         to.putLong(action.timestamp());

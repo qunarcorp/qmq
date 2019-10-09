@@ -5,7 +5,7 @@
 
     <groupId>com.qunar.qmq</groupId>
     <artifactId>qmq-parent</artifactId>
-    <version>1.1.11</version>
+    <version>1.1.12-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>qmq</name>
@@ -75,7 +75,7 @@
         <module>qmq-dist</module>
         <module>qmq-watchdog</module>
         <module>qmq-gateway</module>
-        <module>qmq-demo</module>
+        <!--<module>qmq-demo</module>-->
     </modules>
 
     <properties>

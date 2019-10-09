@@ -29,7 +29,7 @@ import java.util.List;
  * @since 2018-12-03 10:31
  */
 public class ScheduleFlushManager implements ScheduleFlushable {
-    private static final Logger LOG = LoggerFactory.getLogger(ScheduleFlushManager.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ScheduleFlushManager.class);
 
     private List<ScheduleFlushable> flushables = Lists.newArrayList();
 
@@ -52,13 +52,13 @@ public class ScheduleFlushManager implements ScheduleFlushable {
         try {
             this.flush();
         } catch (Exception e) {
-            LOG.error("schedule flush before close failed.", e);
+            LOGGER.error("schedule flush before close failed.", e);
         }
         flushables.forEach(flushable -> {
             try {
                 flushable.destroy();
             } catch (Exception e) {
-                LOG.error("close {} failed.", flushable);
+                LOGGER.error("close {} failed.", flushable);
             }
         });
     }

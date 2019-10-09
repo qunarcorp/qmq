@@ -44,7 +44,7 @@ import static qunar.tc.qmq.protocol.QMQSerializer.deserializeMessageHeader;
  * @since 2017/7/4
  */
 public class SendMessageProcessor extends AbstractRequestProcessor {
-    private static final Logger LOG = LoggerFactory.getLogger(SendMessageProcessor.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(SendMessageProcessor.class);
 
     private final SendMessageWorker sendMessageWorker;
 
@@ -58,7 +58,7 @@ public class SendMessageProcessor extends AbstractRequestProcessor {
         try {
             messages = deserializeRawMessages(command);
         } catch (Exception e) {
-            LOG.error("received invalid message. channel: {}", ctx.channel(), e);
+            LOGGER.error("received invalid message. channel: {}", ctx.channel(), e);
             QMon.brokerReceivedInvalidMessageCountInc();
 
             final Datagram response = RemotingBuilder.buildEmptyResponseDatagram(CommandCode.BROKER_ERROR, command.getHeader());

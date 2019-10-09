@@ -57,16 +57,17 @@ class PullService {
     private static final Logger LOGGER = LoggerFactory.getLogger(PullService.class);
 
     private final NettyClient client = NettyClient.getClient();
-    private final ClientMetaManager clientMetaManager;
-
-    public PullService(ClientMetaManager clientMetaManager) {
-        this.clientMetaManager = clientMetaManager;
-    }
 
     PullResult pull(final PullParam pullParam) throws ExecutionException, InterruptedException {
         final PullResultFuture result = new PullResultFuture(pullParam.getBrokerGroup());
         pull(pullParam, result);
         return result.get();
+    }
+
+    PullResultFuture pullAsync(final PullParam pullParam) {
+        final PullResultFuture result = new PullResultFuture(pullParam.getBrokerGroup());
+        pull(pullParam, result);
+        return result;
     }
 
     private void pull(final PullParam pullParam, final PullCallback callback) {
@@ -249,7 +250,7 @@ class PullService {
         }
     }
 
-    private static final class PullResultFuture extends AbstractFuture<PullResult> implements PullCallback {
+    public static final class PullResultFuture extends AbstractFuture<PullResult> implements PullCallback {
         private final BrokerGroupInfo brokerGroup;
 
         PullResultFuture(BrokerGroupInfo brokerGroup) {

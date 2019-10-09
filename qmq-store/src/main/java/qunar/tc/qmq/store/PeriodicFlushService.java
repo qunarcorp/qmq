@@ -30,7 +30,7 @@ import java.util.concurrent.TimeUnit;
  * @since 2017/7/7
  */
 public class PeriodicFlushService implements AutoCloseable {
-    private static final Logger LOG = LoggerFactory.getLogger(PeriodicFlushService.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(PeriodicFlushService.class);
 
     private final String name;
     private final FlushProvider flushProvider;
@@ -57,10 +57,10 @@ public class PeriodicFlushService implements AutoCloseable {
             if (future != null) {
                 future.cancel(false);
             }
-            LOG.info("will flush one more time for {} before shutdown flush service.", name);
+            LOGGER.info("will flush one more time for {} before shutdown flush service.", name);
             flushProvider.flush();
         } catch (Exception e) {
-            LOG.error("shutdown flush service for {} failed.", name, e);
+            LOGGER.error("shutdown flush service for {} failed.", name, e);
         }
     }
 
@@ -76,7 +76,7 @@ public class PeriodicFlushService implements AutoCloseable {
             try {
                 flushProvider.flush();
             } catch (Throwable e) {
-                LOG.error("flushProvider {} flush failed.", name, e);
+                LOGGER.error("flushProvider {} flush failed.", name, e);
             }
         }
     }

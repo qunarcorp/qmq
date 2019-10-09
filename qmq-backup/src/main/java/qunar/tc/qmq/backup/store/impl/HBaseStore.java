@@ -29,7 +29,7 @@ import java.util.Collections;
 import java.util.List;
 
 public class HBaseStore extends AbstractHBaseStore {
-    private static final Logger LOG = LoggerFactory.getLogger(HBaseStore.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(HBaseStore.class);
 
     private volatile boolean isClosed = false;
     private final HBaseClient client;
@@ -62,7 +62,7 @@ public class HBaseStore extends AbstractHBaseStore {
     protected <T, V> List<T> scan(byte[] table, String keyRegexp, String startKey, String stopKey, int maxNumRows, int maxVersions, byte[] family, byte[][] qualifiers, RowExtractor<T> rowExtractor) throws Exception {
         Scanner scanner = null;
         try {
-            LOG.info("***************[scan] table:{},qualifiers:{},keyRegexp: {}, startKey: {}, stopKey: {}, maxNumRows: {}", new String(table, CharsetUtil.UTF_8), Arrays.toString(getStringArrays(qualifiers)),
+            LOGGER.info("***************[scan] table:{},qualifiers:{},keyRegexp: {}, startKey: {}, stopKey: {}, maxNumRows: {}", new String(table, CharsetUtil.UTF_8), Arrays.toString(getStringArrays(qualifiers)),
                     keyRegexp, startKey, stopKey, maxNumRows);
             scanner = client.newScanner(table);
             if (!Strings.isNullOrEmpty(keyRegexp)) {
@@ -108,7 +108,7 @@ public class HBaseStore extends AbstractHBaseStore {
 
     @Override
     protected <T> T get(byte[] table, byte[] key, byte[] family, byte[][] qualifiers, RowExtractor<T> rowExtractor) throws Exception {
-        LOG.info("****************[get] table:{},key:{},family:{},qualifiers:{}", new String(table, CharsetUtil.UTF_8), new String(key, CharsetUtil.UTF_8), new String(family, CharsetUtil.UTF_8),
+        LOGGER.info("****************[get] table:{},key:{},family:{},qualifiers:{}", new String(table, CharsetUtil.UTF_8), new String(key, CharsetUtil.UTF_8), new String(family, CharsetUtil.UTF_8),
                 Arrays.toString(getStringArrays(qualifiers)));
         GetRequest request = new GetRequest(table, key).family(family).qualifiers(qualifiers);
         ArrayList<KeyValue> row = client.get(request).join();

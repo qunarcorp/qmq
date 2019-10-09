@@ -17,9 +17,9 @@ import java.util.stream.Collectors;
  */
 public abstract class AbstractPullClientManager<T extends PullClient> implements PullClientManager<T> {
 
-    private Map<String, T> clientMap = Maps.newConcurrentMap();
-    protected String clientId;
-    protected ConsumerOnlineStateManager consumerOnlineStateManager;
+    private final Map<String, T> clientMap = Maps.newConcurrentMap();
+    protected final String clientId;
+    protected final ConsumerOnlineStateManager consumerOnlineStateManager;
 
     public AbstractPullClientManager(String clientId, ConsumerOnlineStateManager consumerOnlineStateManager) {
         this.clientId = clientId;

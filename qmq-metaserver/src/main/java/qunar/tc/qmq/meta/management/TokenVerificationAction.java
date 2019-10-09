@@ -29,7 +29,7 @@ import javax.servlet.http.HttpServletRequest;
  * @since 2017/10/23
  */
 public class TokenVerificationAction implements MetaManagementAction {
-    private static final Logger LOG = LoggerFactory.getLogger(TokenVerificationAction.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(TokenVerificationAction.class);
 
     private static final String TOKEN_HEADER = "X-Api-Token";
 
@@ -53,7 +53,7 @@ public class TokenVerificationAction implements MetaManagementAction {
             return ActionResult.error("没有提供合法的 Api Token");
         }
 
-        LOG.info("{} passed token verification.", validApiTokens.get(token));
+        LOGGER.info("{} passed token verification.", validApiTokens.get(token));
         return action.handleAction(req);
     }
 }

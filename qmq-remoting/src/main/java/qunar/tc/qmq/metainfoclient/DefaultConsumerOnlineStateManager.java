@@ -26,7 +26,7 @@ public class DefaultConsumerOnlineStateManager implements ConsumerOnlineStateMan
         return instance;
     }
 
-    private static final Logger logger = LoggerFactory.getLogger(DefaultConsumerOnlineStateManager.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(DefaultConsumerOnlineStateManager.class);
 
     private long lastUpdateTimestamp = -1;
 
@@ -82,7 +82,7 @@ public class DefaultConsumerOnlineStateManager implements ConsumerOnlineStateMan
             SwitchWaiter switchWaiter = new SwitchWaiter(healthCheckOnline);
             switchWaiter.addListener(isOnline -> {
                 if (isOnline) {
-                    logger.info("Consumer Online, Subject {} ConsumerGroup {}", subject, consumerGroup);
+                    LOGGER.info("Consumer Online, Subject {} ConsumerGroup {}", subject, consumerGroup);
                 } else {
                     // 触发 Consumer 下线清理操作
                     offlineCallback.run();
@@ -123,14 +123,14 @@ public class DefaultConsumerOnlineStateManager implements ConsumerOnlineStateMan
         synchronized (key.intern()) {
             try {
                 if (isStale(response.getTimestamp(), lastUpdateTimestamp)) {
-                    logger.debug("skip response {}", response);
+                    LOGGER.debug("skip response {}", response);
                     return;
                 }
                 lastUpdateTimestamp = response.getTimestamp();
 
                 if (!Strings.isNullOrEmpty(consumerGroup)) {
                     OnOfflineState onOfflineState = response.getOnOfflineState();
-                    logger.debug("消费者状态发生变更 {}/{}:{}", subject, consumerGroup, onOfflineState);
+                    LOGGER.debug("消费者状态发生变更 {}/{}:{}", subject, consumerGroup, onOfflineState);
                     SwitchWaiter switchWaiter = getSwitchWaiter(subject, consumerGroup);
                     if (onOfflineState == OnOfflineState.ONLINE) {
                         switchWaiter.on(StatusSource.OPS);
@@ -139,7 +139,7 @@ public class DefaultConsumerOnlineStateManager implements ConsumerOnlineStateMan
                     }
                 }
             } catch (Exception e) {
-                logger.error("update meta info exception. response={}", response, e);
+                LOGGER.error("update meta info exception. response={}", response, e);
             }
         }
     }

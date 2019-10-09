@@ -38,7 +38,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 class TaskManager {
-    private static final Logger LOG = LoggerFactory.getLogger(TaskManager.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(TaskManager.class);
 
     private final ListeningExecutorService sendMessageExecutor = MoreExecutors.listeningDecorator(Executors.newCachedThreadPool(new NamedThreadFactory("send-message-task", true)));
     private final long sendMessageTaskExecuteTimeout;
@@ -94,13 +94,13 @@ class TaskManager {
             refreshAllTasks();
         } catch (Throwable e) {
             Qmon.initSendMessageTasksFailCountInc();
-            LOG.error("execute initDatasource error", e);
+            LOGGER.error("execute initDatasource error", e);
         }
     }
 
     private void refreshAllTasks() {
         final List<DataSourceInfoModel> dataSources = dataSourceConfigStore.findDataSourceInfos(DataSourceInfoStatus.ONLINE, namespace);
-        LOG.info("need onSuccess db: {}", dataSources.size());
+        LOGGER.info("need onSuccess db: {}", dataSources.size());
         if (dataSources.isEmpty())
             return;
 
@@ -117,7 +117,7 @@ class TaskManager {
                 initTask(dataSource);
             }
         } catch (Exception e) {
-            LOG.error("sync db to tasks error", e);
+            LOGGER.error("sync db to tasks error", e);
         }
     }
 
@@ -131,7 +131,7 @@ class TaskManager {
                 final SendMessageTask task = new SendMessageTask(dataSource, databaseDriverMapping, messageClientStore, serializer, sendMessageTaskExecuteTimeout, producer);
                 sendMessageTasks.put(key, task);
             } catch (Exception e) {
-                LOG.error("create task failed", e);
+                LOGGER.error("create task failed", e);
             }
         }
     }
@@ -165,7 +165,7 @@ class TaskManager {
             if (tasks.size() == 0) {
                 return;
             }
-            LOG.info("send message task start total={}", tasks.size());
+            LOGGER.info("send message task start total={}", tasks.size());
 
             final CountDownLatch latch = new CountDownLatch(tasks.size());
             final AtomicInteger failCount = new AtomicInteger();
@@ -174,10 +174,10 @@ class TaskManager {
             }
 
             latch.await();
-            LOG.info("send message task end total={}, fail={}", tasks.size(), failCount.intValue());
+            LOGGER.info("send message task end total={}, fail={}", tasks.size(), failCount.intValue());
         } catch (Throwable t) {
             Qmon.sendMessageTaskInvokeFailCountInc();
-            LOG.error("execute send message task error", t);
+            LOGGER.error("execute send message task error", t);
         }
     }
 
@@ -186,12 +186,12 @@ class TaskManager {
         ListenableFuture<Void> future = sendMessageExecutor.submit(task);
         Futures.addCallback(future, new FutureCallback<Void>() {
             public void onSuccess(Void result) {
-                LOG.info("send message task {} suc", key);
+                LOGGER.info("send message task {} suc", key);
                 latch.countDown();
             }
 
             public void onFailure(Throwable t) {
-                LOG.error("send message task {} fail", key, t);
+                LOGGER.error("send message task {} fail", key, t);
                 failCount.incrementAndGet();
                 latch.countDown();
 

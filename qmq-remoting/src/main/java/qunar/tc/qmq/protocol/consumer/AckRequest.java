@@ -21,28 +21,28 @@ package qunar.tc.qmq.protocol.consumer;
  */
 public class AckRequest {
     public static final byte UNSET = -1;
-    private String subject;
-    private String group;
+    private String partitionName;
+    private String consumerGroup;
     private String consumerId;
     private long pullOffsetBegin;
     private long pullOffsetLast;
     private byte isExclusiveConsume = UNSET;
 
-    public AckRequest(String subject, String group, String consumerId, long pullOffsetBegin, long pullOffsetLast, byte isExclusiveConsume) {
-        this.subject = subject;
-        this.group = group;
+    public AckRequest(String partitionName, String consumerGroup, String consumerId, long pullOffsetBegin, long pullOffsetLast, byte isExclusiveConsume) {
+        this.partitionName = partitionName;
+        this.consumerGroup = consumerGroup;
         this.consumerId = consumerId;
         this.pullOffsetBegin = pullOffsetBegin;
         this.pullOffsetLast = pullOffsetLast;
         this.isExclusiveConsume = isExclusiveConsume;
     }
 
-    public String getSubject() {
-        return subject;
+    public String getPartitionName() {
+        return partitionName;
     }
 
-    public String getGroup() {
-        return group;
+    public String getConsumerGroup() {
+        return consumerGroup;
     }
 
     public String getConsumerId() {

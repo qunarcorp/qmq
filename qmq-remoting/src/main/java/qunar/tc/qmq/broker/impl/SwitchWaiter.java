@@ -40,7 +40,7 @@ public class SwitchWaiter {
     }
 
     private static final int WAIT_TIMEOUT = 60000;
-    private static final Logger logger = LoggerFactory.getLogger(SwitchWaiter.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(SwitchWaiter.class);
 
     private List<Listener> listeners = Lists.newArrayList();
 
@@ -85,7 +85,7 @@ public class SwitchWaiter {
                     try {
                         listener.onStateChange(currentOnlineState);
                     } catch (Throwable t) {
-                        logger.error("上下线回调失败 old state {} new state {}", oldOnlineState, currentOnlineState, t);
+                        LOGGER.error("上下线回调失败 old state {} new state {}", oldOnlineState, currentOnlineState, t);
                     }
                 }
             }

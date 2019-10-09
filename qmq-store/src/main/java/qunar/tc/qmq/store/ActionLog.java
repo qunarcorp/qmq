@@ -31,7 +31,7 @@ import java.nio.ByteBuffer;
  * @since 2017/8/20
  */
 public class ActionLog implements Visitable<ActionEvent> {
-    private static final Logger LOG = LoggerFactory.getLogger(ActionLog.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ActionLog.class);
 
     public static final int PER_SEGMENT_FILE_SIZE = 100 * 1024 * 1024;
     public static final int MIN_RECORD_BYTES = 5; // 4 bytes magic + 1 byte record type
@@ -224,15 +224,15 @@ public class ActionLog implements Visitable<ActionEvent> {
                     // TODO(keli.wang): 如果我们要校验action是否完全正确，还是得在readerwriter内部进行
                     // 写完action之后得再写一位非0记录，这样才能完全判断记录不是partial的
                     final Action action = payloadType.getReaderWriter().read(buffer);
-                    if (Strings.isNullOrEmpty(action.subject())
-                            || Strings.isNullOrEmpty(action.group())
+                    if (Strings.isNullOrEmpty(action.partitionName())
+                            || Strings.isNullOrEmpty(action.consumerGroup())
                             || Strings.isNullOrEmpty(action.consumerId())
                             || action.timestamp() <= 0) {
                         return -1;
                     }
                     return payloadSize + 10;
                 } catch (Exception e) {
-                    LOG.error("fail read action log", e);
+                    LOGGER.error("fail read action log", e);
                     return -1;
                 }
             } else {

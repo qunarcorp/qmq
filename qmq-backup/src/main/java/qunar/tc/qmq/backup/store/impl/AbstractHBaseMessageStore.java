@@ -17,7 +17,6 @@
 package qunar.tc.qmq.backup.store.impl;
 
 import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
 import org.jboss.netty.util.CharsetUtil;
@@ -44,43 +43,55 @@ import static qunar.tc.qmq.backup.util.HBaseValueDecoder.getMessageMeta;
  * @since 2019/5/29
  */
 public abstract class AbstractHBaseMessageStore<T> extends HBaseStore implements MessageStore {
-    private static final Logger LOG = LoggerFactory.getLogger(AbstractHBaseMessageStore.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractHBaseMessageStore.class);
 
-    protected final MessageQueryResult<T> EMPTY_RESULT = new MessageQueryResult<T>();
+    final MessageQueryResult<T> EMPTY_RESULT = new MessageQueryResult<T>();
 
     AbstractHBaseMessageStore(byte[] table, byte[] family, byte[][] qualifiers, HBaseClient client) {
         super(table, family, qualifiers, client);
     }
 
-    void getMessageFromHBase(final String subject, final byte[] table, final MessageQueryResult messageQueryResult, final String keyRegexp, final String startKey, final String endKey
-            , final int maxResults) {
-        List<BackupMessageMeta> metas;
+    @Override
+    public MessageQueryResult<T> findMessages(BackupQuery query) {
+        if (isInvalidate(query)) return EMPTY_RESULT;
+        makeUp(query);
+        return findMessagesInternal(query);
+    }
+
+    protected abstract MessageQueryResult<T> findMessagesInternal(BackupQuery query);
+
+    void scan(final String subject,
+              final byte[] table,
+              final MessageQueryResult<T> messageQueryResult,
+              final String keyRegexp,
+              final String startKey,
+              final String endKey,
+              final int maxResults) {
+        List<T> result;
         try {
-            metas = scan(table, keyRegexp, startKey, endKey, maxResults + 1, 0, B_FAMILY, B_MESSAGE_QUALIFIERS, kvs -> {
+            result = scan(table, keyRegexp, startKey, endKey, maxResults + 1, 0, B_FAMILY, B_MESSAGE_QUALIFIERS, kvs -> {
                 KeyValueList<KeyValue> kvl = new KeyValueListImpl(kvs);
                 messageQueryResult.setNext(new String(kvl.getKey(), CharsetUtil.UTF_8));
                 byte[] value = kvl.getValue(CONTENT);
-                BackupMessageMeta meta = getMessageMeta(value);
-                if (meta == null) {
+                T item = (T)getItem(subject, value);
+                if (item == null) {
                     Metrics.counter("message.content.missing").inc();
-                    LOG.info("Message content missing");
+                    LOGGER.info("Message content missing");
                 }
-                return meta;
+                return item;
             });
         } catch (Exception e) {
-            LOG.error("Failed to get messages from hbase.", e);
+            LOGGER.error("Failed to get messages from hbase.", e);
             messageQueryResult.setList(Collections.emptyList());
             return;
         }
-        int size = metas.size();
-        LOG.info("Found {} metas from HBase.", size);
-        slim(metas, messageQueryResult, maxResults);
-
-        List<MessageQueryResult.MessageMeta> messages = getMessagesWithMeta(subject, metas);
-        messageQueryResult.setList(messages);
+        int size = result.size();
+        LOGGER.info("Found {} metas from HBase.", size);
+        slim(result, messageQueryResult, maxResults);
+        messageQueryResult.setList(result);
     }
 
-    protected <T> void slim(final List<T> messageRowKeys, final MessageQueryResult messageQueryResult, final int maxResults) {
+    private  <T> void slim(final List<T> messageRowKeys, final MessageQueryResult messageQueryResult, final int maxResults) {
         int size = messageRowKeys.size();
         if (maxResults > 0) {
             if (size <= maxResults) {
@@ -92,17 +103,12 @@ public abstract class AbstractHBaseMessageStore<T> extends HBaseStore implements
         }
     }
 
-    private List<MessageQueryResult.MessageMeta> getMessagesWithMeta(final String subject, final List<BackupMessageMeta> metaList) {
-        final List<MessageQueryResult.MessageMeta> messages = Lists.newArrayListWithCapacity(metaList.size());
-        for (BackupMessageMeta meta : metaList) {
-            final String brokerGroup = meta.getBrokerGroup();
-            final long sequence = meta.getSequence();
-            final String messageId = meta.getMessageId();
-            final MessageQueryResult.MessageMeta message = new MessageQueryResult.MessageMeta(subject, messageId, sequence, meta.getCreateTime(), brokerGroup);
-            messages.add(message);
-        }
-
-        return messages;
+    protected T getItem(String subject, byte[] value) {
+        BackupMessageMeta meta = getMessageMeta(value);
+        final String brokerGroup = meta.getBrokerGroup();
+        final long sequence = meta.getSequence();
+        final String messageId = meta.getMessageId();
+        return (T)new MessageQueryResult.MessageMeta(subject, messageId, sequence, meta.getCreateTime(), brokerGroup);
     }
 
     private void makeUp(final BackupQuery query) {
@@ -122,13 +128,4 @@ public abstract class AbstractHBaseMessageStore<T> extends HBaseStore implements
     private boolean isInvalidate(final BackupQuery query) {
         return query == null || Strings.isNullOrEmpty(query.getSubject());
     }
-
-    @Override
-    public MessageQueryResult<T> findMessages(BackupQuery query) {
-        if (isInvalidate(query)) return EMPTY_RESULT;
-        makeUp(query);
-        return findMessagesInternal(query);
-    }
-
-    protected abstract MessageQueryResult<T> findMessagesInternal(BackupQuery query);
 }

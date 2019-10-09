@@ -32,7 +32,7 @@ import java.util.concurrent.TimeUnit;
  * @since 2017/8/18
  */
 public class MasterSlaveSyncManager implements Disposable {
-    private static final Logger LOG = LoggerFactory.getLogger(MasterSlaveSyncManager.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(MasterSlaveSyncManager.class);
 
     private final SlaveSyncClient slaveSyncClient;
     private final Map<SyncType, SlaveSyncTask> slaveSyncTasks;
@@ -58,7 +58,7 @@ public class MasterSlaveSyncManager implements Disposable {
             try {
                 task.shutdown();
             } catch (Exception e) {
-                LOG.error("disposable destroy failed", e);
+                LOGGER.error("disposable destroy failed", e);
             }
         }
     }
@@ -82,7 +82,7 @@ public class MasterSlaveSyncManager implements Disposable {
                     doSync();
                 } catch (Throwable e) {
                     QMon.syncTaskSyncFailedCountInc(BrokerConfig.getBrokerName());
-                    LOG.error("[{}] sync data from master failed, will retry after 2 seconds.", processorName, e);
+                    LOGGER.error("[{}] sync data from master failed, will retry after 2 seconds.", processorName, e);
 
                     silentSleep(2);
                 } finally {
@@ -107,7 +107,7 @@ public class MasterSlaveSyncManager implements Disposable {
             try {
                 TimeUnit.SECONDS.sleep(timeoutInSeconds);
             } catch (InterruptedException ignore) {
-                LOG.debug("sleep interrupted");
+                LOGGER.debug("sleep interrupted");
             }
         }
 

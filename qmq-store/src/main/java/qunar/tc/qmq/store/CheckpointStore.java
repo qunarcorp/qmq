@@ -29,7 +29,7 @@ import java.io.IOException;
  * @since 2017/7/7
  */
 public class CheckpointStore<T> {
-    private static final Logger LOG = LoggerFactory.getLogger(CheckpointStore.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(CheckpointStore.class);
 
     private final String storePath;
     private final String filename;
@@ -53,7 +53,7 @@ public class CheckpointStore<T> {
         if (!success) {
             throw new RuntimeException("Failed create path " + storePath);
         }
-        LOG.info("Create checkpoint store {} success.", storePath);
+        LOGGER.info("Create checkpoint store {} success.", storePath);
     }
 
     public T loadCheckpoint() {
@@ -61,7 +61,7 @@ public class CheckpointStore<T> {
         final File backupFile = backupFile();
 
         if (!checkpointFile.exists() && !backupFile.exists()) {
-            LOG.warn("Checkpoint file and backup file does not exist, return null for now");
+            LOGGER.warn("Checkpoint file and backup file does not exist, return null for now");
             return null;
         }
 
@@ -72,13 +72,13 @@ public class CheckpointStore<T> {
             }
             return serde.fromBytes(data);
         } catch (IOException e) {
-            LOG.error("Load checkpoint file failed. Try load backup checkpoint file instead.", e);
+            LOGGER.error("Load checkpoint file failed. Try load backup checkpoint file instead.", e);
         }
 
         try {
             return serde.fromBytes(Files.toByteArray(backupFile));
         } catch (IOException e) {
-            LOG.error("Load backup checkpoint file failed.", e);
+            LOGGER.error("Load backup checkpoint file failed.", e);
         }
 
         throw new RuntimeException("Load checkpoint failed. filename=" + filename);
@@ -96,7 +96,7 @@ public class CheckpointStore<T> {
         try {
             Files.write(data, tmp);
         } catch (IOException e) {
-            LOG.error("write data into tmp checkpoint file failed. file={}", tmp, e);
+            LOGGER.error("write data into tmp checkpoint file failed. file={}", tmp, e);
             throw new RuntimeException("write checkpoint data failed.", e);
         }
 
@@ -105,21 +105,21 @@ public class CheckpointStore<T> {
             final File backupFile = backupFile();
 
             if (backupFile.exists() && !backupFile.delete()) {
-                LOG.error("Delete backup file failed.backup: {}", backupFile);
+                LOGGER.error("Delete backup file failed.backup: {}", backupFile);
             }
 
             if (!checkpointFile.renameTo(backupFile)) {
-                LOG.error("Backup current checkpoint file failed. checkpoint:{}, backup: {}", checkpointFile, backupFile);
+                LOGGER.error("Backup current checkpoint file failed. checkpoint:{}, backup: {}", checkpointFile, backupFile);
                 throw new RuntimeException("Backup current checkpoint file failed");
             }
 
             if (checkpointFile.exists() && !checkpointFile.delete()) {
-                LOG.error("Delete checkpoint file failed.backup: {}", backupFile);
+                LOGGER.error("Delete checkpoint file failed.backup: {}", backupFile);
             }
         }
 
         if (!tmp.renameTo(checkpointFile)) {
-            LOG.error("Move tmp as checkpoint file failed. tmp:{}, checkpoint: {}", tmp, checkpointFile);
+            LOGGER.error("Move tmp as checkpoint file failed. tmp:{}, checkpoint: {}", tmp, checkpointFile);
             throw new RuntimeException("Move tmp as checkpoint file failed.");
         }
     }

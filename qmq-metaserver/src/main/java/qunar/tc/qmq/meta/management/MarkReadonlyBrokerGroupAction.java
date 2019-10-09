@@ -29,7 +29,7 @@ import javax.servlet.http.HttpServletRequest;
  * @since 2018/7/30
  */
 public class MarkReadonlyBrokerGroupAction implements MetaManagementAction {
-    private static final Logger LOG = LoggerFactory.getLogger(MarkReadonlyBrokerGroupAction.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(MarkReadonlyBrokerGroupAction.class);
 
     private final ReadonlyBrokerGroupSettingService service;
 
@@ -50,7 +50,7 @@ public class MarkReadonlyBrokerGroupAction implements MetaManagementAction {
             service.addSetting(new ReadonlyBrokerGroupSetting(subject, brokerGroup));
             return ActionResult.ok("success");
         } catch (Exception e) {
-            LOG.error("add readonly broker group setting failed. subject: {}, brokerGroup: {}", subject, brokerGroup, e);
+            LOGGER.error("add readonly broker group setting failed. subject: {}, brokerGroup: {}", subject, brokerGroup, e);
             return ActionResult.error(e.getMessage());
         }
     }

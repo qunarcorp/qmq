@@ -26,7 +26,7 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 
 public class RemoteHelper {
-    private static final Logger LOG = LoggerFactory.getLogger(RemoteHelper.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(RemoteHelper.class);
 
     public static String parseChannelRemoteAddress(final Channel channel) {
         if (channel == null) {
@@ -68,7 +68,7 @@ public class RemoteHelper {
             @Override
             public void operationComplete(ChannelFuture future) {
                 if (enableLog) {
-                    LOG.info("close channel result: {}. isClosed={}", remoteAddr, future.isSuccess());
+                    LOGGER.info("close channel result: {}. isClosed={}", remoteAddr, future.isSuccess());
                 }
             }
         });

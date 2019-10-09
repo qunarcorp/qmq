@@ -162,13 +162,13 @@ public class RecordBatchBackup extends AbstractBatchBackup<ActionRecord> {
     private void onAckAction(ActionRecord record, List<BackupMessage> batch) {
         final RangeAckAction ackAction = (RangeAckAction) record.getAction();
         final String prefix = getActionPrefix(ackAction);
-        String partitionName = ackAction.subject();
+        String partitionName = ackAction.partitionName();
         String subject = metaInfoService.getSubject(partitionName);
         for (long ackLogOffset = ackAction.getFirstSequence(); ackLogOffset <= ackAction.getLastSequence(); ackLogOffset++) {
-            monitorAckAction(subject, ackAction.group());
+            monitorAckAction(subject, ackAction.consumerGroup());
             final Optional<String> consumerLogSequenceOptional = rocksDBStore.get(prefix + "$" + ackLogOffset);
             if (!consumerLogSequenceOptional.isPresent()) {
-                monitorMissConsumerLogSeq(subject, ackAction.group());
+                monitorMissConsumerLogSeq(subject, ackAction.consumerGroup());
                 continue;
             }
             long consumerLogSequence = Long.parseLong(consumerLogSequenceOptional.get());
@@ -185,10 +185,10 @@ public class RecordBatchBackup extends AbstractBatchBackup<ActionRecord> {
     }
 
     private void createBackupMessagesForPullAction(final PullAction pullAction, final List<BackupMessage> batch) {
-        String partitionName = pullAction.subject();
+        String partitionName = pullAction.partitionName();
         final String subject = metaInfoService.getSubject(partitionName);
         for (long pullLogOffset = pullAction.getFirstSequence(); pullLogOffset <= pullAction.getLastSequence(); pullLogOffset++) {
-            monitorPullAction(subject, pullAction.group());
+            monitorPullAction(subject, pullAction.consumerGroup());
             final Long consumerLogSequence = getConsumerLogSequence(pullAction, pullLogOffset);
             final BackupMessage message = generateBaseMessage(pullAction, consumerLogSequence);
             message.setAction(ActionEnum.PULL.getCode());
@@ -211,10 +211,10 @@ public class RecordBatchBackup extends AbstractBatchBackup<ActionRecord> {
 
     private BackupMessage generateBaseMessage(Action action, long sequence) {
         final BackupMessage message = new BackupMessage();
-        String partitionName = action.subject();
+        String partitionName = action.partitionName();
         String subject = metaInfoService.getSubject(partitionName);
         message.setSubject(subject);
-        message.setConsumerGroup(action.group());
+        message.setConsumerGroup(action.consumerGroup());
         message.setConsumerId(action.consumerId());
         message.setTimestamp(action.timestamp());
         message.setSequence(sequence);
@@ -222,20 +222,20 @@ public class RecordBatchBackup extends AbstractBatchBackup<ActionRecord> {
     }
 
     private String getActionPrefix(final Action action) {
-        return action.subject() + "$" + action.group() + "$" + action.consumerId();
+        return action.partitionName() + "$" + action.consumerGroup() + "$" + action.consumerId();
     }
 
     private void retry(ActionRecord record) {
         final String type = record.getAction().getClass().getSimpleName();
         final int retryNum = record.getRetryNum();
-        final String subject = record.getAction().subject();
+        final String partitionName = record.getAction().partitionName();
 
         if (retryNum < config.getInt(RECORD_BACKUP_RETRY_NUM_CONFIG_KEY, DEFAULT_RETRY_NUM)) {
-            monitorStoreRetry(subject, type);
+            monitorStoreRetry(partitionName, type);
             record.setRetryNum(retryNum + 1);
             add(record, null);
         } else {
-            monitorStoreDiscard(subject, type);
+            monitorStoreDiscard(partitionName, type);
         }
     }
 
@@ -259,12 +259,12 @@ public class RecordBatchBackup extends AbstractBatchBackup<ActionRecord> {
         Metrics.counter("on_ack_action", SUBJECT_GROUP_ARRAY, new String[]{subject, group}).inc();
     }
 
-    private static void monitorStoreDiscard(String subject, String type) {
-        Metrics.counter("action_backup_store_discard", SUBJECT_TYPE_ARRAY, new String[]{subject, type}).inc();
+    private static void monitorStoreDiscard(String partitionName, String type) {
+        Metrics.counter("action_backup_store_discard", SUBJECT_TYPE_ARRAY, new String[]{partitionName, type}).inc();
     }
 
-    private static void monitorStoreRetry(String subject, String type) {
-        Metrics.counter("action_backup_store_retry", SUBJECT_TYPE_ARRAY, new String[]{subject, type}).inc();
+    private static void monitorStoreRetry(String partitionName, String type) {
+        Metrics.counter("action_backup_store_retry", SUBJECT_TYPE_ARRAY, new String[]{partitionName, type}).inc();
     }
 
     @Override

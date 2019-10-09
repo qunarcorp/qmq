@@ -37,7 +37,7 @@ import java.util.concurrent.CompletableFuture;
  * @since 2019-03-05 15:45
  */
 public class MessageRecordsServlet extends HttpServlet {
-    private static final Logger LOG = LoggerFactory.getLogger(MessageRecordsServlet.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(MessageRecordsServlet.class);
 
     private static final RecordQueryResult EMPTY_RECORD_QUERY_RESULT = new RecordQueryResult(Collections.emptyList());
 
@@ -74,7 +74,7 @@ public class MessageRecordsServlet extends HttpServlet {
         try {
             resp.getWriter().println(data);
         } catch (IOException e) {
-            LOG.error("An IOException occurred.", e);
+            LOGGER.error("An IOException occurred.", e);
         }
     }
 
@@ -83,7 +83,7 @@ public class MessageRecordsServlet extends HttpServlet {
             final String recordQueryStr = req.getParameter("recordQuery");
             return GsonUtils.deSerialize(recordQueryStr, RecordQuery.class);
         } catch (Exception e) {
-            LOG.error("Get record query failed.", e);
+            LOGGER.error("Get record query failed.", e);
             return null;
         }
     }

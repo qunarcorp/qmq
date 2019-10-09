@@ -54,8 +54,8 @@ abstract class AbstractPullEntry extends AbstractPullClient implements PullEntry
     private final PullService pullService;
     private final AckSendQueue ackSendQueue;
 
-    final BrokerService brokerService;
-    final AckService ackService;
+    private final BrokerService brokerService;
+    private final AckService ackService;
 
     private final AtomicReference<Integer> pullRequestTimeout;
 

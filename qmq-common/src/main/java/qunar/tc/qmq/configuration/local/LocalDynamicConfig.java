@@ -33,7 +33,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * @since 2018-11-23
  */
 public class LocalDynamicConfig implements DynamicConfig {
-    private static final Logger LOG = LoggerFactory.getLogger(LocalDynamicConfig.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(LocalDynamicConfig.class);
 
     private final String name;
     private final CopyOnWriteArrayList<Listener> listeners;
@@ -105,7 +105,7 @@ public class LocalDynamicConfig implements DynamicConfig {
 
             config = Collections.unmodifiableMap(map);
         } catch (IOException e) {
-            LOG.error("load local config failed. config: {}", file.getAbsolutePath(), e);
+            LOGGER.error("load local config failed. config: {}", file.getAbsolutePath(), e);
         }
     }
 
@@ -135,7 +135,7 @@ public class LocalDynamicConfig implements DynamicConfig {
         try {
             listener.onLoad(this);
         } catch (Throwable e) {
-            LOG.error("trigger config listener failed. config: {}", name, e);
+            LOGGER.error("trigger config listener failed. config: {}", name, e);
         }
     }
 
