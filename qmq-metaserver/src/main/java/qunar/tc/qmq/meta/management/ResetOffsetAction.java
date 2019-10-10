@@ -63,7 +63,7 @@ public class ResetOffsetAction implements MetaManagementAction {
             return ActionResult.error("action must 1 or 2, LATEST=1, EARLIEST=2");
         }
 
-        PartitionSet partitionSet = cachedMetaInfoManager.getPartitionSet(subject);
+        PartitionSet partitionSet = cachedMetaInfoManager.getLatestPartitionSet(subject);
         List<Partition> partitionList = Lists.newArrayList();
         for (Integer partitionId : partitionSet.getPhysicalPartitions()) {
             Partition partition = cachedMetaInfoManager.getPartition(subject, partitionId);

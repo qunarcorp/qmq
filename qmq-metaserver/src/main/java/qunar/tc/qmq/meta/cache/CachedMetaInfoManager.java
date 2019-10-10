@@ -1,9 +1,10 @@
 package qunar.tc.qmq.meta.cache;
 
-import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.PartitionAllocation;
 import qunar.tc.qmq.common.Disposable;
-import qunar.tc.qmq.meta.*;
+import qunar.tc.qmq.meta.BrokerGroup;
+import qunar.tc.qmq.meta.Partition;
+import qunar.tc.qmq.meta.PartitionSet;
 import qunar.tc.qmq.meta.model.SubjectInfo;
 
 import java.util.List;
@@ -19,7 +20,7 @@ public interface CachedMetaInfoManager extends Disposable {
 
     SubjectInfo getSubjectInfo(String subject);
 
-    List<String> getConsumerGroups(String subject);
+    List<String> getBrokerGroups(String subject);
 
     List<String> getAllBrokerGroupNamesByTag(String tag);
 
@@ -29,7 +30,9 @@ public interface CachedMetaInfoManager extends Disposable {
 
     List<BrokerGroup> getDelayNewGroups();
 
-    PartitionSet getPartitionSet(String subject);
+    PartitionSet getLatestPartitionSet(String subject);
+
+    List<PartitionSet> getPartitionSets(String subject);
 
     Partition getPartition(String subject, int partitionId);
 

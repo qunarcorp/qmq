@@ -16,5 +16,5 @@ public interface AllocationService {
 
     ProducerAllocation getProducerAllocation(ClientType clientType, String subject, List<BrokerGroup> defaultBrokerGroups);
 
-    ConsumerAllocation getConsumerAllocation(String subject, String consumerGroup, String clientId, ConsumeStrategy consumeStrategy, List<BrokerGroup> brokerGroups);
+    ConsumerAllocation getConsumerAllocation(String subject, String consumerGroup, String clientId, long authExpireTime, ConsumeStrategy consumeStrategy, List<BrokerGroup> brokerGroups);
 }

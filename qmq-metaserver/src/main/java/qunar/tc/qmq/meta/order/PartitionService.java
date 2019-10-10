@@ -14,16 +14,20 @@ import java.util.List;
 public interface PartitionService {
 
     /**
-     * 注册新的顺序消息主题
+     * 更新分区信息, 包含如下功能:
+     * 1. 关闭旧分区
+     * 2. 生化新分区
      *
      * @param subject              主题
      * @param physicalPartitionNum 物理分区数量
      */
-    boolean registerOrderedMessage(String subject, int physicalPartitionNum);
+    boolean updatePartitions(String subject, int physicalPartitionNum, List<String> brokerGroups);
 
     PartitionSet getLatestPartitionSet(String subject);
 
     List<PartitionSet> getLatestPartitionSets();
+
+    List<PartitionSet> getAllPartitionSets();
 
     List<Partition> getAllPartitions();
 
@@ -55,4 +59,5 @@ public interface PartitionService {
     List<ClientMetaInfo> getOnlineExclusiveConsumers();
 
     List<ClientMetaInfo> getOnlineExclusiveConsumers(String subject, String consumerGroup);
+
 }

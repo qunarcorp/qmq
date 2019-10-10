@@ -17,4 +17,6 @@ public interface PartitionSetStore {
     PartitionSet getLatest(String subject);
 
     List<PartitionSet> getLatest();
+
+    List<PartitionSet> getAll();
 }

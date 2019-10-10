@@ -2,6 +2,13 @@ package qunar.tc.qmq.meta.store.impl;
 
 import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.IntStream;
 import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -10,12 +17,6 @@ import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
 import qunar.tc.qmq.meta.Partition;
 import qunar.tc.qmq.meta.store.PartitionStore;
 
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-
 /**
  * @author zhenwei.liu
  * @since 2019-08-22
@@ -23,17 +24,22 @@ import java.util.Map;
 public class PartitionStoreImpl implements PartitionStore {
 
     private static final String SAVE_PARTITION_SQL = "insert into partitions " +
-            "(subject, partition_name, partition_id, logical_partition_lower_bound, logical_partition_upper_bound, broker_group, rw_status) " +
+            "(subject, partition_name, partition_id, logical_partition_lower_bound, logical_partition_upper_bound, broker_group, rw_status) "
+            +
             "values (?, ?, ?, ?, ?, ?, ?)";
 
+    private static final String UPDATE_PARTITION_STATE_SQL = "update partitions set rw_status = :rw_status where subject = :subject and partition_id in (:ids)";
+
     private static final String SELECT_BY_IDS =
-            "select subject, partition_name, partition_id, logical_partition_lower_bound, logical_partition_upper_bound, broker_group, rw_status  " +
+            "select subject, partition_name, partition_id, logical_partition_lower_bound, logical_partition_upper_bound, broker_group, rw_status  "
+                    +
                     "from partitions" +
-                    "where subject = :subject and physical_partition in (:ids)";
+                    "where subject = :subject and partition_id in (:ids)";
 
 
     private static final String SELECT_ALL =
-            "select subject, partition_name, partition_id, logical_partition_lower_bound, logical_partition_upper_bound, broker_group, rw_status " +
+            "select subject, partition_name, partition_id, logical_partition_lower_bound, logical_partition_upper_bound, broker_group, rw_status "
+                    +
                     "from partitions";
 
     private static final RowMapper<Partition> partitionRowMapper = (resultSet, i) -> {
@@ -73,7 +79,7 @@ public class PartitionStoreImpl implements PartitionStore {
 
     @Override
     public int save(List<Partition> partitions) {
-        return template.update(SAVE_PARTITION_SQL,
+        int[] result = template.batchUpdate(SAVE_PARTITION_SQL,
                 new BatchPreparedStatementSetter() {
                     @Override
                     public void setValues(PreparedStatement ps, int i) throws SQLException {
@@ -92,6 +98,16 @@ public class PartitionStoreImpl implements PartitionStore {
                         return partitions.size();
                     }
                 });
+        return IntStream.of(result).sum();
+    }
+
+    @Override
+    public void updatePartitionsByIds(String subject, Set<Integer> partitionIds, Partition.Status status) {
+        Map<String, Object> param = Maps.newHashMap();
+        param.put("rw_status", status.name());
+        param.put("subject", subject);
+        param.put("ids", partitionIds);
+        parameterTemplate.update(UPDATE_PARTITION_STATE_SQL, param);
     }
 
     @Override

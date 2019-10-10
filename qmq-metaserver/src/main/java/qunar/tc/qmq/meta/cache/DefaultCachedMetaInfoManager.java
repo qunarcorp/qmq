@@ -22,6 +22,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.SetMultimap;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.PartitionAllocation;
@@ -86,7 +87,9 @@ public class DefaultCachedMetaInfoManager implements Disposable, CachedMetaInfoM
     /**
      * subject -> partitionSet
      */
-    private volatile Map<String, PartitionSet> subject2PartitionSet = new HashMap<>();
+    private volatile Map<String, PartitionSet> latestPartitionSets = new HashMap<>();
+
+    private volatile Map<String, List<PartitionSet>> allPartitionSets = new ConcurrentHashMap<>();
 
     /**
      * subject+id -> partition
@@ -104,7 +107,15 @@ public class DefaultCachedMetaInfoManager implements Disposable, CachedMetaInfoM
     private volatile SetMultimap<String, String> readonlyBrokerGroupSettings = HashMultimap.create();
 
     public DefaultCachedMetaInfoManager(DynamicConfig config, Store store, ReadonlyBrokerGroupSettingStore readonlyBrokerGroupSettingStore, PartitionService partitionService) {
-        this.refreshPeriodSeconds = config.getLong("refresh.period.seconds", DEFAULT_REFRESH_PERIOD_SECONDS);
+        this(store, readonlyBrokerGroupSettingStore, partitionService, config.getLong("refresh.period.seconds", DEFAULT_REFRESH_PERIOD_SECONDS));
+    }
+
+    public DefaultCachedMetaInfoManager(Store store, ReadonlyBrokerGroupSettingStore readonlyBrokerGroupSettingStore, PartitionService partitionService) {
+        this(store, readonlyBrokerGroupSettingStore, partitionService, DEFAULT_REFRESH_PERIOD_SECONDS);
+    }
+
+    private DefaultCachedMetaInfoManager(Store store, ReadonlyBrokerGroupSettingStore readonlyBrokerGroupSettingStore, PartitionService partitionService, long refreshPeriodSeconds) {
+        this.refreshPeriodSeconds = refreshPeriodSeconds;
         this.store = store;
         this.readonlyBrokerGroupSettingStore = readonlyBrokerGroupSettingStore;
         this.partitionService = partitionService;
@@ -122,7 +133,7 @@ public class DefaultCachedMetaInfoManager implements Disposable, CachedMetaInfoM
     }
 
     @Override
-    public List<String> getConsumerGroups(String subject) {
+    public List<String> getBrokerGroups(String subject) {
         final List<String> groups = cachedSubjectGroups.get(subject);
         if (groups == null) {
             return ImmutableList.of();
@@ -155,8 +166,13 @@ public class DefaultCachedMetaInfoManager implements Disposable, CachedMetaInfoM
     }
 
     @Override
-    public PartitionSet getPartitionSet(String subject) {
-        return subject2PartitionSet.get(createPartitionSetKey(subject));
+    public PartitionSet getLatestPartitionSet(String subject) {
+        return latestPartitionSets.get(createPartitionSetKey(subject));
+    }
+
+    @Override
+    public List<PartitionSet> getPartitionSets(String subject) {
+        return allPartitionSets.get(createPartitionSetKey(subject));
     }
 
     @Override
@@ -198,7 +214,14 @@ public class DefaultCachedMetaInfoManager implements Disposable, CachedMetaInfoM
     private void refreshPartitions() {
         this.subjectPid2Partition = partitionService.getAllPartitions().stream().collect(
                 Collectors.toMap(p -> createPartitionKey(p.getSubject(), p.getPartitionId()), p -> p));
-        this.subject2PartitionSet = partitionService.getLatestPartitionSets().stream().collect(
+        List<PartitionSet> allPartitionSets = partitionService.getAllPartitionSets();
+        for (PartitionSet ps : allPartitionSets) {
+            String subject = ps.getSubject();
+            String key = createPartitionSetKey(subject);
+            List<PartitionSet> partitionSets = this.allPartitionSets.computeIfAbsent(key, k -> Lists.newArrayList());
+            partitionSets.add(ps);
+        }
+        this.latestPartitionSets = partitionService.getLatestPartitionSets().stream().collect(
                 Collectors.toMap(p -> createPartitionSetKey(p.getSubject()), p -> p));
     }
 

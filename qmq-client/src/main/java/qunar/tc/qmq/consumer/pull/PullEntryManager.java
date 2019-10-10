@@ -77,7 +77,7 @@ public class PullEntryManager extends AbstractPullClientManager<PullEntry> {
                 consumeParam,
                 partitionName,
                 brokerGroup,
-                clientId,
+                getClientId(),
                 consumeStrategy,
                 version,
                 consumptionExpiredTime,
@@ -86,7 +86,7 @@ public class PullEntryManager extends AbstractPullClientManager<PullEntry> {
                 brokerService,
                 pullStrategy,
                 sendMessageBack,
-                consumerOnlineStateManager,
+                getConsumerOnlineStateManager(),
                 partitionExecutor);
         pullEntry.startPull(partitionExecutor);
         return pullEntry;
@@ -95,7 +95,7 @@ public class PullEntryManager extends AbstractPullClientManager<PullEntry> {
     @Override
     CompositePullClient doCreateCompositePullClient(String subject, String consumerGroup, int version, long consumptionExpiredTime, List<? extends PullClient> clientList, Object registryParam) {
         RegistParam param = (RegistParam) registryParam;
-        return new CompositePullEntry(subject, consumerGroup, clientId, version, param.isBroadcast(), param.isOrdered(), consumptionExpiredTime, clientList);
+        return new CompositePullEntry(subject, consumerGroup, getClientId(), version, param.isBroadcast(), param.isOrdered(), consumptionExpiredTime, clientList);
 
     }
 

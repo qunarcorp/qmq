@@ -25,11 +25,13 @@ public class ProducerTest {
 
     @Test
     public void testBatchSendMessages() throws Exception {
-        MessageProducerProvider provider = new MessageProducerProvider("producer_test", "http://127.0.0.1:8080/meta/address");
+        MessageProducerProvider provider = new MessageProducerProvider();
+        provider.setAppCode("producer_test");
+        provider.setMetaServer("http://127.0.0.1:8080/meta/address");
         provider.setTransactionProvider(new SpringTransactionProvider(dataSource));
         provider.init();
         for (int i = 0; i < 100; i++) {
-            Message message = provider.generateMessage("new.partition.subject");
+            Message message = provider.generateMessage("alloc.partition.subject");
             message.setOrderKey("0");
             message.setProperty("mytag", i);
             provider.sendMessage(message, new MessageSendStateListener() {

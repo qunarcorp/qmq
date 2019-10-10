@@ -1,8 +1,11 @@
 package qunar.tc.qmq.consumer;
 
 import qunar.tc.qmq.ConsumeStrategy;
+import qunar.tc.qmq.common.OrderStrategy;
+import qunar.tc.qmq.common.OrderStrategyCache;
 import qunar.tc.qmq.consumer.pull.PulledMessage;
 
+import java.util.Objects;
 import java.util.concurrent.Executor;
 
 /**
@@ -18,7 +21,9 @@ public class ExclusiveConsumeMessageExecutor extends AbstractConsumeMessageExecu
     @Override
     void processMessage(PulledMessage message) {
         try {
-            if (System.currentTimeMillis() > getConsumptionExpiredTime()) {
+            String subject = message.getSubject();
+            OrderStrategy strategy = OrderStrategyCache.getStrategy(subject);
+            if (Objects.equals(strategy.name(), OrderStrategy.STRICT) && System.currentTimeMillis() > getConsumptionExpiredTime()) {
                 // 没有权限, 停一会再看
                 requeueFirst(message);
                 Thread.sleep(10);

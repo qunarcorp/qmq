@@ -83,12 +83,20 @@ public class MessageProducerProvider implements MessageProducer {
     /**
      * 自动路由机房
      */
-    public MessageProducerProvider(String appCode, String metaServer) {
-        this.appCode = appCode;
-        this.metaServer = metaServer;
+    public MessageProducerProvider() {
         this.idGenerator = new TimestampAndHostIdGenerator();
         this.clientIdProvider = ClientIdProviderFactory.createDefault();
         this.tracer = GlobalTracer.get();
+    }
+
+    public MessageProducerProvider setAppCode(String appCode) {
+        this.appCode = appCode;
+        return this;
+    }
+
+    public MessageProducerProvider setMetaServer(String metaServer) {
+        this.metaServer = metaServer;
+        return this;
     }
 
     @PostConstruct

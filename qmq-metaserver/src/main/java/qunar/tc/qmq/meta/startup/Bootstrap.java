@@ -20,7 +20,6 @@ import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.configuration.DynamicConfigLoader;
-import qunar.tc.qmq.meta.event.OrderedConsumerHeartbeatHandler;
 import qunar.tc.qmq.meta.web.*;
 
 /**
@@ -48,7 +47,7 @@ public class Bootstrap {
         context.addServlet(SubjectConsumerServlet.class, "/subject/consumers");
         context.addServlet(OnOfflineServlet.class, "/onoffline");
         context.addServlet(SlaveServerAddressSupplierServlet.class, "/slave/meta");
-        context.addServlet(OrderedMessageManagementServlet.class, "/orderedMessage/new");
+        context.addServlet(PartitionManagementServlet.class, "/partition/manage");
 
         // TODO(keli.wang): allow set port use env
         int port = config.getInt("meta.server.discover.port", 8080);

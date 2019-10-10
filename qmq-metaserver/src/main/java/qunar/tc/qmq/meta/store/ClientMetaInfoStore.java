@@ -30,7 +30,9 @@ import java.util.List;
  */
 public interface ClientMetaInfoStore {
 
-    List<ClientMetaInfo> queryConsumer(final String subject);
+    List<ClientMetaInfo> queryConsumer(String subject);
+
+    ClientMetaInfo queryConsumer(String subject, String clientId);
 
     /**
      * 获取在指定时间之后更新过的 client

@@ -29,10 +29,20 @@ public class DefaultSubjectRouter implements SubjectRouter {
     private final Store store;
     private int minBrokerGroupNum = MIN_BROKER_GROUP_NUM;
 
+    public DefaultSubjectRouter(CachedMetaInfoManager cachedMetaInfoManager, Store store) {
+        this(MIN_BROKER_GROUP_NUM, cachedMetaInfoManager, store);
+    }
+
     public DefaultSubjectRouter(DynamicConfig config, CachedMetaInfoManager cachedMetaInfoManager, Store store) {
         this.cachedMetaInfoManager = cachedMetaInfoManager;
         this.store = store;
         config.addListener(conf -> minBrokerGroupNum = conf.getInt("min.group.num", MIN_BROKER_GROUP_NUM));
+    }
+
+    public DefaultSubjectRouter(int minBrokerGroupNum, CachedMetaInfoManager cachedMetaInfoManager, Store store) {
+        this.cachedMetaInfoManager = cachedMetaInfoManager;
+        this.store = store;
+        this.minBrokerGroupNum = minBrokerGroupNum;
     }
 
     @Override
@@ -45,7 +55,7 @@ public class DefaultSubjectRouter implements SubjectRouter {
         SubjectInfo subjectInfo = getOrCreateSubjectInfo(subject);
 
         //query assigned brokers
-        final List<String> assignedBrokers = cachedMetaInfoManager.getConsumerGroups(subject);
+        final List<String> assignedBrokers = cachedMetaInfoManager.getBrokerGroups(subject);
 
         List<String> newAssignedBrokers;
         if (assignedBrokers == null || assignedBrokers.size() == 0) {

@@ -4,6 +4,7 @@ import qunar.tc.qmq.meta.Partition;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 
 /**
  * @author zhenwei.liu
@@ -15,7 +16,10 @@ public interface PartitionStore {
 
     int save(List<Partition> partitions);
 
+    void updatePartitionsByIds(String subject, Set<Integer> partitionIds, Partition.Status status);
+
     List<Partition> getAll();
 
     List<Partition> getByPartitionIds(String subject, Collection<Integer> partitionIds);
+
 }

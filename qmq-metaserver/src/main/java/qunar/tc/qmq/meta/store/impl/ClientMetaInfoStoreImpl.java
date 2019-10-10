@@ -16,6 +16,10 @@
 
 package qunar.tc.qmq.meta.store.impl;
 
+import com.google.common.base.Strings;
+import java.util.Date;
+import java.util.List;
+import org.springframework.dao.support.DataAccessUtils;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import qunar.tc.qmq.ClientType;
@@ -25,9 +29,6 @@ import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
 import qunar.tc.qmq.meta.model.ClientMetaInfo;
 import qunar.tc.qmq.meta.store.ClientMetaInfoStore;
 
-import java.util.Date;
-import java.util.List;
-
 /**
  * @author keli.wang
  * @since 2017/12/5
@@ -35,7 +36,9 @@ import java.util.List;
 public class ClientMetaInfoStoreImpl implements ClientMetaInfoStore {
 
     private static final String QUERY_CONSUMER_SQL = "SELECT subject_info, consume_strategy, online_status, client_type, consumer_group, client_id, app_code, room FROM client_meta_info WHERE subject_info=? AND client_type=?";
+    private static final String QUERY_CONSUMER_BY_SUBJECT_CLIENT_SQL = "SELECT subject_info, consume_strategy, online_status, client_type, consumer_group, client_id, app_code, room FROM client_meta_info WHERE subject_info=? AND client_id = ? AND client_type=?";
     private static final String QUERY_CLIENT_AFTER_DATE_SQL = "SELECT subject_info, consume_strategy, online_status, client_type, consumer_group, client_id, app_code, room from client_meta_info where client_type=? and online_status = ? and update_time > ?";
+    private static final String QUERY_CLIENT_AFTER_DATE_BY_SUBJECT_AND_CGROUP_SQL = "SELECT subject_info, consume_strategy, online_status, client_type, consumer_group, client_id, app_code, room from client_meta_info where subject_info = ? and consumer_group = ? and client_type=? and online_status = ? and update_time > ?";
     private static final String UPDATE_CLIENT_STATE_SQL = "update client_meta_info set update_time = now(), online_status = ?, consume_strategy = ? where subject_info = ? and client_type = ? and consumer_group = ? and client_id = ?";
 
     private final JdbcTemplate jdbcTemplate = JdbcTemplateHolder.getOrCreate();
@@ -44,7 +47,11 @@ public class ClientMetaInfoStoreImpl implements ClientMetaInfoStore {
         String subject = rs.getString("subject_info");
         int clientType = rs.getInt("client_type");
         String consumerGroup = rs.getString("consumer_group");
-        ConsumeStrategy consumeStrategy = ConsumeStrategy.valueOf(rs.getString("consume_strategy"));
+        String consumeStrategyName = rs.getString("consume_strategy");
+        ConsumeStrategy consumeStrategy = null;
+        if (!Strings.isNullOrEmpty(consumeStrategyName)) {
+            consumeStrategy = ConsumeStrategy.valueOf(consumeStrategyName);
+        }
         String clientId = rs.getString("client_id");
         String appCode = rs.getString("app_code");
         String room = rs.getString("room");
@@ -67,20 +74,33 @@ public class ClientMetaInfoStoreImpl implements ClientMetaInfoStore {
     }
 
     @Override
-    public List<ClientMetaInfo> queryClientsUpdateAfterDate(ClientType clientType, OnOfflineState onlineStatus, Date updateDate) {
-        return jdbcTemplate.query(QUERY_CLIENT_AFTER_DATE_SQL, clientMetaInfoRowMapper, clientType.getCode(), onlineStatus.name(), updateDate);
+    public ClientMetaInfo queryConsumer(String subject, String clientId) {
+        return DataAccessUtils.singleResult(
+                jdbcTemplate.query(QUERY_CONSUMER_BY_SUBJECT_CLIENT_SQL, clientMetaInfoRowMapper, subject, clientId,
+                        ClientType.CONSUMER.getCode())
+        );
     }
 
     @Override
-    public List<ClientMetaInfo> queryClientsUpdateAfterDate(String subject, String consumerGroup, ClientType clientType, OnOfflineState onlineStatus, Date updateDate) {
-        return jdbcTemplate.query(QUERY_CLIENT_AFTER_DATE_SQL, clientMetaInfoRowMapper, subject, consumerGroup, clientType.getCode(), onlineStatus.name(), updateDate);
+    public List<ClientMetaInfo> queryClientsUpdateAfterDate(ClientType clientType, OnOfflineState onlineStatus,
+            Date updateDate) {
+        return jdbcTemplate
+                .query(QUERY_CLIENT_AFTER_DATE_SQL, clientMetaInfoRowMapper, clientType.getCode(), onlineStatus.name(),
+                        updateDate);
+    }
+
+    @Override
+    public List<ClientMetaInfo> queryClientsUpdateAfterDate(String subject, String consumerGroup, ClientType clientType,
+            OnOfflineState onlineStatus, Date updateDate) {
+        return jdbcTemplate.query(QUERY_CLIENT_AFTER_DATE_BY_SUBJECT_AND_CGROUP_SQL, clientMetaInfoRowMapper, subject,
+                consumerGroup, clientType.getCode(), onlineStatus.name(), updateDate);
     }
 
     @Override
     public int updateClientOnlineState(ClientMetaInfo clientMetaInfo, ConsumeStrategy consumeStrategy) {
         return jdbcTemplate.update(UPDATE_CLIENT_STATE_SQL,
                 clientMetaInfo.getOnlineStatus().name(),
-                consumeStrategy,
+                consumeStrategy.name(),
                 clientMetaInfo.getSubject(),
                 clientMetaInfo.getClientTypeCode(),
                 defaultEmpty(clientMetaInfo.getConsumerGroup()),

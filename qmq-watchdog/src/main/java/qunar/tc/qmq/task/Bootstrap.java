@@ -51,7 +51,12 @@ public class Bootstrap {
     }
 
     private static MessageProducer createMessageProducer(DynamicConfig config) {
-        return new MessageProducerProvider(config.getString("appCode"), config.getString("meta.server.endpoint"));
+        String appCode = config.getString("appCode");
+        String metaServer = config.getString("meta.server.endpoint");
+        MessageProducerProvider messageProducerProvider = new MessageProducerProvider();
+        messageProducerProvider.setAppCode(appCode);
+        messageProducerProvider.setMetaServer(metaServer);
+        return messageProducerProvider;
     }
 
     private static DatabaseDriverMapping initDriverMapping() {

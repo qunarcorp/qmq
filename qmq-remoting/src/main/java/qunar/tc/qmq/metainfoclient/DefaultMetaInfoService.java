@@ -16,11 +16,18 @@
 
 package qunar.tc.qmq.metainfoclient;
 
+import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_GROUP_ARRAY;
+
 import com.google.common.base.Preconditions;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.util.concurrent.SettableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ClientType;
@@ -30,18 +37,9 @@ import qunar.tc.qmq.batch.Stateful;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.meta.MetaServerLocator;
 import qunar.tc.qmq.metrics.Metrics;
-import qunar.tc.qmq.protocol.MetaInfoResponse;
 import qunar.tc.qmq.protocol.QuerySubjectRequest;
+import qunar.tc.qmq.protocol.consumer.ConsumerMetaInfoResponse;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
-
-import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
-
-import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_GROUP_ARRAY;
 
 /**
  * @author yiqun.fan create on 17-8-31.
@@ -108,8 +106,7 @@ public class DefaultMetaInfoService implements MetaInfoService {
             .build(new CacheLoader<String, SettableFuture<String>>() {
                 @Override
                 public SettableFuture<String> load(String partitionName) throws Exception {
-                    SettableFuture<String> future = SettableFuture.create();
-                    return future;
+                    return SettableFuture.create();
                 }
             });
 
@@ -136,15 +133,25 @@ public class DefaultMetaInfoService implements MetaInfoService {
             int clientTypeCode = response.getClientTypeCode();
             String subject = response.getSubject();
             String consumerGroup = response.getConsumerGroup();
-            String key = createMetaInfoRequestKey(clientTypeCode, subject, consumerGroup);
-            MetaInfoRequestWrapper rw = metaInfoRequests.get(key);
+            String requestKey = createMetaInfoRequestKey(clientTypeCode, subject, consumerGroup);
+            MetaInfoRequestWrapper rw = metaInfoRequests.get(requestKey);
             rw.reset();
+
+            // 更新 metaInfoRequest 的 ConsumeStrategy
+            if (clientTypeCode == ClientType.CONSUMER.getCode()) {
+                MetaInfoRequest request = rw.getRequest();
+                ConsumerMetaInfoResponse cresponse = (ConsumerMetaInfoResponse) response;
+                request.setConsumeStrategy(cresponse.getConsumerAllocation().getConsumeStrategy());
+            }
         });
     }
 
     public void init() {
-        this.metaInfoRequestExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("qmq-client-heartbeat-%s"));
-        this.metaInfoRequestExecutor.scheduleAtFixedRate(() -> scheduleRequest(metaInfoRequests), 0, REFRESH_INTERVAL_SECONDS, TimeUnit.SECONDS);
+        this.metaInfoRequestExecutor = Executors
+                .newSingleThreadScheduledExecutor(new NamedThreadFactory("qmq-client-heartbeat-%s"));
+        this.metaInfoRequestExecutor
+                .scheduleAtFixedRate(() -> scheduleRequest(metaInfoRequests), 0, REFRESH_INTERVAL_SECONDS,
+                        TimeUnit.SECONDS);
     }
 
     public void registerResponseSubscriber(MetaInfoClient.ResponseSubscriber subscriber) {
@@ -166,13 +173,17 @@ public class DefaultMetaInfoService implements MetaInfoService {
         String subject = request.getSubject();
         String consumerGroup = request.getConsumerGroup();
         try {
-            Metrics.counter("qmq_pull_metainfo_request_count", SUBJECT_GROUP_ARRAY, new String[]{subject, consumerGroup}).inc();
-            ClientRequestType requestType = requestWrapper.hasOnline ? ClientRequestType.HEARTBEAT : ClientRequestType.ONLINE;
+            Metrics.counter("qmq_pull_metainfo_request_count", SUBJECT_GROUP_ARRAY,
+                    new String[]{subject, consumerGroup}).inc();
+            ClientRequestType requestType =
+                    requestWrapper.hasOnline ? ClientRequestType.HEARTBEAT : ClientRequestType.ONLINE;
             request.setRequestType(requestType.getCode());
             triggerHeartbeat(request.getClientTypeCode(), request.getSubject(), request.getConsumerGroup());
         } catch (Exception e) {
-            LOGGER.debug("request meta info exception. {} {} {}", ClientType.of(request.getClientTypeCode()), subject, consumerGroup, e);
-            Metrics.counter("qmq_pull_metainfo_request_fail", SUBJECT_GROUP_ARRAY, new String[]{subject, consumerGroup}).inc();
+            LOGGER.debug("request meta info exception. {} {} {}", ClientType.of(request.getClientTypeCode()), subject,
+                    consumerGroup, e);
+            Metrics.counter("qmq_pull_metainfo_request_fail", SUBJECT_GROUP_ARRAY, new String[]{subject, consumerGroup})
+                    .inc();
         }
     }
 
@@ -185,7 +196,8 @@ public class DefaultMetaInfoService implements MetaInfoService {
     }
 
     @Override
-    public void registerHeartbeat(String appCode, int clientTypeCode, String subject, String consumerGroup, boolean isBroadcast, boolean isOrdered) {
+    public void registerHeartbeat(String appCode, int clientTypeCode, String subject, String consumerGroup,
+            boolean isBroadcast, boolean isOrdered) {
         String key = createMetaInfoRequestKey(clientTypeCode, subject, consumerGroup);
         MetaInfoRequestWrapper requestWrapper = metaInfoRequests.computeIfAbsent(key, k -> {
             MetaInfoRequest request = new MetaInfoRequest(

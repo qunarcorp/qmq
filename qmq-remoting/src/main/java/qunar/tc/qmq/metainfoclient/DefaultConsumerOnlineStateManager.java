@@ -9,6 +9,7 @@ import qunar.tc.qmq.StatusSource;
 import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.base.OnOfflineState;
 import qunar.tc.qmq.broker.impl.SwitchWaiter;
+import qunar.tc.qmq.broker.impl.SwitchWaiter.Listener;
 import qunar.tc.qmq.protocol.MetaInfoResponse;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
 
@@ -76,33 +77,19 @@ public class DefaultConsumerOnlineStateManager implements ConsumerOnlineStateMan
     }
 
     @Override
-    public SwitchWaiter registerConsumer(String appCode, String subject, String consumerGroup, String clientId, boolean isBroadcast, boolean isOrdered, MetaInfoService metaInfoService, Runnable offlineCallback) {
+    public void addOnlineStateListener(String subject, String consumerGroup, Listener listener) {
         String key = createKey(subject, consumerGroup);
-        return stateMap.computeIfAbsent(key, k -> {
-            SwitchWaiter switchWaiter = new SwitchWaiter(healthCheckOnline);
-            switchWaiter.addListener(isOnline -> {
-                if (isOnline) {
-                    LOGGER.info("Consumer Online, Subject {} ConsumerGroup {}", subject, consumerGroup);
-                } else {
-                    // 触发 Consumer 下线清理操作
-                    offlineCallback.run();
-                }
+        SwitchWaiter switchWaiter = stateMap.get(key);
+        if (switchWaiter == null) {
+            throw new IllegalStateException(String.format("SwitchWaiter 不存在 %s %s", subject, consumerGroup));
+        }
+        switchWaiter.addListener(listener);
+    }
 
-                // 上下线主动触发心跳
-                MetaInfoRequest request = new MetaInfoRequest(
-                        subject,
-                        consumerGroup,
-                        ClientType.CONSUMER.getCode(),
-                        appCode,
-                        clientId,
-                        ClientRequestType.SWITCH_STATE,
-                        isBroadcast,
-                        isOrdered
-                );
-                metaInfoService.sendRequest(request);
-            });
-            return switchWaiter;
-        });
+    @Override
+    public SwitchWaiter registerConsumer(String subject, String consumerGroup) {
+        String key = createKey(subject, consumerGroup);
+        return stateMap.computeIfAbsent(key, k -> new SwitchWaiter(healthCheckOnline));
     }
 
     @Override

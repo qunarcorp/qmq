@@ -43,7 +43,7 @@ public class PullConsumerManager extends AbstractPullClientManager<PullConsumer>
                 consumerGroup,
                 partitionName,
                 brokerGroup,
-                clientId,
+                getClientId(),
                 consumeStrategy,
                 version,
                 consumptionExpiredTime,
@@ -53,7 +53,7 @@ public class PullConsumerManager extends AbstractPullClientManager<PullConsumer>
                 ackService,
                 brokerService,
                 sendMessageBack,
-                consumerOnlineStateManager);
+                getConsumerOnlineStateManager());
         pullConsumer.startPull(partitionExecutor);
         return pullConsumer;
     }
@@ -64,13 +64,13 @@ public class PullConsumerManager extends AbstractPullClientManager<PullConsumer>
         return new CompositePullConsumer<>(
                 subject,
                 consumerGroup,
-                clientId,
+                getClientId(),
                 version,
                 registryParam.isBroadcast(),
                 registryParam.isOrdered(),
                 consumptionExpiredTime,
                 (List<? extends PullConsumer>) clientList,
-                consumerOnlineStateManager
+                getConsumerOnlineStateManager()
         );
     }
 

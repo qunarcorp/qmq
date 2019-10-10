@@ -35,6 +35,8 @@ public class PartitionSetStoreImpl implements PartitionSetStore {
                     "left join partition_set p2 " +
                     "on p1.subject = p2.subject and p1.version < p2.version " +
                     "where p2.version is NULL";
+    private static final String GET_ALL_SQL =
+            "select subject, physical_partitions, version from partition_set";
 
     private static final String PARTITION_DELIMITER = ",";
     private static final Joiner commaJoiner = Joiner.on(PARTITION_DELIMITER);
@@ -75,5 +77,10 @@ public class PartitionSetStoreImpl implements PartitionSetStore {
     @Override
     public List<PartitionSet> getLatest() {
         return template.query(GET_LATEST_SQL, partitionSetRowMapper);
+    }
+
+    @Override
+    public List<PartitionSet> getAll() {
+        return template.query(GET_ALL_SQL, partitionSetRowMapper);
     }
 }

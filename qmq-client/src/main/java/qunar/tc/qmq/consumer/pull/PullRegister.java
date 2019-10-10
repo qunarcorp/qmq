@@ -16,11 +16,22 @@
 
 package qunar.tc.qmq.consumer.pull;
 
+import static qunar.tc.qmq.StatusSource.CODE;
+import static qunar.tc.qmq.StatusSource.HEALTHCHECKER;
+
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.SettableFuture;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.PullConsumer;
 import qunar.tc.qmq.PullEntry;
+import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.broker.impl.BrokerServiceImpl;
 import qunar.tc.qmq.broker.impl.SwitchWaiter;
@@ -37,21 +48,24 @@ import qunar.tc.qmq.metainfoclient.MetaInfoClient;
 import qunar.tc.qmq.producer.sender.DefaultMessageGroupResolver;
 import qunar.tc.qmq.protocol.MetaInfoResponse;
 import qunar.tc.qmq.protocol.consumer.ConsumerMetaInfoResponse;
-
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-
-import static qunar.tc.qmq.StatusSource.CODE;
-import static qunar.tc.qmq.StatusSource.HEALTHCHECKER;
+import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
 
 /**
  * @author yiqun.fan create on 17-8-17.
  */
 public class PullRegister implements ConsumerRegister {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(PullRegister.class);
+
     private abstract class PullClientUpdater implements MetaInfoClient.ResponseSubscriber {
+
+        private String subject;
+        private String consumerGroup;
+
+        public PullClientUpdater(String subject, String consumerGroup) {
+            this.subject = subject;
+            this.consumerGroup = consumerGroup;
+        }
 
         @Override
         public void onSuccess(MetaInfoResponse response) {
@@ -59,7 +73,12 @@ public class PullRegister implements ConsumerRegister {
                 return;
             }
 
-            updateClient((ConsumerMetaInfoResponse) response);
+            String respSubject = response.getSubject();
+            String respConsumerGroup = response.getConsumerGroup();
+
+            if (Objects.equals(respSubject, subject) || Objects.equals(respConsumerGroup, consumerGroup)) {
+                updateClient((ConsumerMetaInfoResponse) response);
+            }
         }
 
         abstract void updateClient(ConsumerMetaInfoResponse response);
@@ -126,28 +145,87 @@ public class PullRegister implements ConsumerRegister {
     public Future<PullEntry> registerPullEntry(String subject, String consumerGroup, RegistParam param) {
         checkDuplicatedConsumer(subject, consumerGroup);
         SettableFuture<PullEntry> future = SettableFuture.create();
-        consumerOnlineStateManager.registerConsumer(appCode, subject, consumerGroup, clientId, param.isBroadcast(), param.isOrdered(), metaInfoService, () -> {
-            PullEntry pullClient = pullEntryManager.getPullClient(subject, consumerGroup);
-            pullClient.offline();
+        boolean isOrdered = param.isOrdered();
+        boolean isBroadcast = param.isBroadcast();
+        consumerOnlineStateManager.registerConsumer(subject, consumerGroup);
+        consumerOnlineStateManager.addOnlineStateListener(subject, consumerGroup, (isOnline) -> {
+            final PullEntry pullClient = pullEntryManager.getPullClient(subject, consumerGroup);
+            if (pullClient == null) {
+                return;
+            }
+            if (isOnline) {
+                LOGGER.info("consumer offline, subject {} consumerGroup {} broadcast {} ordered {} clientId {}",
+                        subject, consumerGroup, isBroadcast, isOrdered, clientId);
+            } else {
+                // 触发 Consumer 下线清理操作
+                LOGGER.info("consumer offline, Subject {} ConsumerGroup {} Broadcast {} ordered {} clientId {}",
+                        subject, consumerGroup, isBroadcast, isOrdered, clientId);
+                pullClient.offline();
+            }
+
+            // 上下线主动触发心跳
+            MetaInfoRequest request = new MetaInfoRequest(
+                    subject,
+                    consumerGroup,
+                    ClientType.CONSUMER.getCode(),
+                    appCode,
+                    clientId,
+                    ClientRequestType.SWITCH_STATE,
+                    isBroadcast,
+                    isOrdered
+            );
+            request.setConsumeStrategy(pullClient.getConsumeStrategy());
+            metaInfoService.sendRequest(request);
         });
-        metaInfoService.registerHeartbeat(appCode, ClientType.CONSUMER.getCode(), subject, consumerGroup, param.isBroadcast(), param.isOrdered());
-        metaInfoService.registerResponseSubscriber(new PullClientUpdater() {
+        metaInfoService.registerHeartbeat(appCode, ClientType.CONSUMER.getCode(), subject, consumerGroup,
+                isBroadcast,
+                isOrdered);
+        metaInfoService.registerResponseSubscriber(new PullClientUpdater(subject, consumerGroup) {
+
             @Override
             void updateClient(ConsumerMetaInfoResponse response) {
                 pullEntryManager.updateClient(response, param);
-                future.set(pullEntryManager.getPullClient(subject, consumerGroup));
+                final PullEntry pullClient = pullEntryManager.getPullClient(subject, consumerGroup);
+                future.set(pullClient);
             }
         });
         return future;
     }
 
     @Override
-    public Future<PullConsumer> registerPullConsumer(String subject, String consumerGroup, boolean isBroadcast, boolean isOrdered) {
+    public Future<PullConsumer> registerPullConsumer(String subject, String consumerGroup, boolean isBroadcast,
+            boolean isOrdered) {
         checkDuplicatedConsumer(subject, consumerGroup);
         SettableFuture<PullConsumer> future = SettableFuture.create();
-        consumerOnlineStateManager.registerConsumer(appCode, subject, consumerGroup, clientId, isBroadcast, isOrdered, metaInfoService, () -> {
+        consumerOnlineStateManager.registerConsumer(subject, consumerGroup);
+        consumerOnlineStateManager.addOnlineStateListener(subject, consumerGroup, (isOnline) -> {
             PullConsumer pullClient = pullConsumerManager.getPullClient(subject, consumerGroup);
-            pullClient.offline();
+            if (pullClient == null) {
+                return;
+            }
+            if (isOnline) {
+                LOGGER.info("consumer offline, subject {} consumerGroup {} broadcast {} ordered {} clientId {}",
+                        subject, consumerGroup, isBroadcast, isOrdered, clientId);
+            } else {
+                // 触发 Consumer 下线清理操作
+                LOGGER.info("consumer offline, Subject {} ConsumerGroup {} Broadcast {} ordered {} clientId {}",
+                        subject, consumerGroup, isBroadcast, isOrdered, clientId);
+                pullClient.offline();
+            }
+
+            // 上下线主动触发心跳
+            MetaInfoRequest request = new MetaInfoRequest(
+                    subject,
+                    consumerGroup,
+                    ClientType.CONSUMER.getCode(),
+                    appCode,
+                    clientId,
+                    ClientRequestType.SWITCH_STATE,
+                    isBroadcast,
+                    isOrdered
+            );
+            request.setConsumeStrategy(pullClient.getConsumeStrategy());
+            metaInfoService.sendRequest(request);
         });
         metaInfoService.registerHeartbeat(
                 appCode,
@@ -157,10 +235,11 @@ public class PullRegister implements ConsumerRegister {
                 isBroadcast,
                 isOrdered
         );
-        metaInfoService.registerResponseSubscriber(new PullClientUpdater() {
+        metaInfoService.registerResponseSubscriber(new PullClientUpdater(subject, consumerGroup) {
             @Override
             void updateClient(ConsumerMetaInfoResponse response) {
-                pullConsumerManager.updateClient(response, new PullConsumerRegistryParam(isBroadcast, isOrdered, HEALTHCHECKER));
+                pullConsumerManager
+                        .updateClient(response, new PullConsumerRegistryParam(isBroadcast, isOrdered, HEALTHCHECKER));
                 future.set(pullConsumerManager.getPullClient(subject, consumerGroup));
             }
         });

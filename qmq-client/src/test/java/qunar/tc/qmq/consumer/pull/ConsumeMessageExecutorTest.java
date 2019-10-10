@@ -61,8 +61,7 @@ public class ConsumeMessageExecutorTest {
 
     @Test
     public void testConsumeMessage() throws Exception {
-        boolean consume = exclusiveExecutor.consume(getPulledMessages(10));
-        assertTrue(consume);
+        exclusiveExecutor.consume(getPulledMessages(10));
     }
 
     @Test

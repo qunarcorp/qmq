@@ -2,6 +2,7 @@ package qunar.tc.qmq.metainfoclient;
 
 import qunar.tc.qmq.StatusSource;
 import qunar.tc.qmq.broker.impl.SwitchWaiter;
+import qunar.tc.qmq.broker.impl.SwitchWaiter.Listener;
 
 /**
  * @author zhenwei.liu
@@ -19,7 +20,9 @@ public interface ConsumerOnlineStateManager extends MetaInfoClient.ResponseSubsc
 
     boolean isOnline(String subject, String consumerGroup);
 
-    SwitchWaiter registerConsumer(String appCode, String subject, String consumerGroup, String clientId, boolean isBroadcast, boolean isOrdered, MetaInfoService metaInfoService, Runnable offlineCallback);
+    void addOnlineStateListener(String subject, String consumerGroup, Listener listener);
+
+    SwitchWaiter registerConsumer(String subject, String consumerGroup);
 
     SwitchWaiter getSwitchWaiter(String subject, String consumerGroup);
 }

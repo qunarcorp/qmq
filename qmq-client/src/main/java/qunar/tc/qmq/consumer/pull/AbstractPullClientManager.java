@@ -18,8 +18,8 @@ import java.util.stream.Collectors;
 public abstract class AbstractPullClientManager<T extends PullClient> implements PullClientManager<T> {
 
     private final Map<String, T> clientMap = Maps.newConcurrentMap();
-    protected final String clientId;
-    protected final ConsumerOnlineStateManager consumerOnlineStateManager;
+    private final String clientId;
+    private final ConsumerOnlineStateManager consumerOnlineStateManager;
 
     public AbstractPullClientManager(String clientId, ConsumerOnlineStateManager consumerOnlineStateManager) {
         this.clientId = clientId;
@@ -189,5 +189,13 @@ public abstract class AbstractPullClientManager<T extends PullClient> implements
 
     private String getClientKey(String subject, String consumerGroup) {
         return subject + ":" + consumerGroup;
+    }
+
+    public String getClientId() {
+        return clientId;
+    }
+
+    public ConsumerOnlineStateManager getConsumerOnlineStateManager() {
+        return consumerOnlineStateManager;
     }
 }

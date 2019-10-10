@@ -3,7 +3,11 @@ package qunar.tc.qmq.meta.order;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeMap;
+import com.google.common.collect.Sets;
+import com.google.common.collect.Sets.SetView;
 import com.google.common.collect.TreeRangeMap;
+import java.util.stream.Collectors;
+import org.springframework.util.CollectionUtils;
 import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.PartitionAllocation;
@@ -31,7 +35,7 @@ public class DefaultAllocationService implements AllocationService {
 
     @Override
     public ProducerAllocation getProducerAllocation(ClientType clientType, String subject, List<BrokerGroup> defaultBrokerGroups) {
-        PartitionSet partitionSet = cachedMetaInfoManager.getPartitionSet(subject);
+        PartitionSet partitionSet = cachedMetaInfoManager.getLatestPartitionSet(subject);
         if (partitionSet == null || Objects.equals(clientType, ClientType.DELAY_PRODUCER)) {
             return getDefaultProducerAllocation(subject, defaultBrokerGroups);
         } else {
@@ -65,7 +69,7 @@ public class DefaultAllocationService implements AllocationService {
     }
 
     @Override
-    public ConsumerAllocation getConsumerAllocation(String subject, String consumerGroup, String clientId, ConsumeStrategy consumeStrategy, List<BrokerGroup> brokerGroups) {
+    public ConsumerAllocation getConsumerAllocation(String subject, String consumerGroup, String clientId, long authExpireTime, ConsumeStrategy consumeStrategy, List<BrokerGroup> brokerGroups) {
         PartitionAllocation partitionAllocation = cachedMetaInfoManager.getPartitionAllocation(subject, consumerGroup);
         if (partitionAllocation != null) {
             int version = partitionAllocation.getVersion();
@@ -75,21 +79,34 @@ public class DefaultAllocationService implements AllocationService {
                 // 说明还未给该 client 分配, 应该返回空列表
                 partitionProps = Collections.emptySet();
             }
-            return new ConsumerAllocation(version, Lists.newArrayList(partitionProps), expiredTimestamp(), consumeStrategy);
+
+            // 将旧的分区合并到所有 consumer 的分区分配列表
+            Set<Integer> latestPartitionIds = partitionProps.stream().map(PartitionProps::getPartitionId).collect(Collectors.toSet());
+            List<PartitionSet> allPartitionSets = cachedMetaInfoManager.getPartitionSets(subject);
+            Set<PartitionProps> mergedPartitionProps = Sets.newHashSet();
+            mergedPartitionProps.addAll(partitionProps);
+            for (PartitionSet oldPartitionSet : allPartitionSets) {
+                Set<Integer> pps = oldPartitionSet.getPhysicalPartitions();
+                SetView<Integer> sharedPartitionIds = Sets.difference(pps, latestPartitionIds);
+                if (!CollectionUtils.isEmpty(sharedPartitionIds)) {
+                    for (Integer sharedPartitionId : sharedPartitionIds) {
+                        Partition partition = cachedMetaInfoManager.getPartition(subject, sharedPartitionId);
+                        mergedPartitionProps.add(new PartitionProps(partition.getPartitionId(), partition.getPartitionName(), partition.getBrokerGroup()));
+                    }
+                }
+            }
+
+            return new ConsumerAllocation(version, Lists.newArrayList(mergedPartitionProps), authExpireTime, consumeStrategy);
         } else {
-            return getDefaultConsumerAllocation(subject, consumeStrategy, brokerGroups);
+            return getDefaultConsumerAllocation(subject, authExpireTime, consumeStrategy, brokerGroups);
         }
     }
 
-    private ConsumerAllocation getDefaultConsumerAllocation(String subject, ConsumeStrategy consumeStrategy, List<BrokerGroup> brokerGroups) {
+    private ConsumerAllocation getDefaultConsumerAllocation(String subject, long authExpireTime, ConsumeStrategy consumeStrategy, List<BrokerGroup> brokerGroups) {
         List<PartitionProps> partitionProps = Lists.newArrayList();
         for (BrokerGroup brokerGroup : brokerGroups) {
             partitionProps.add(new PartitionProps(PartitionConstants.EMPTY_PARTITION_ID, subject, brokerGroup.getGroupName()));
         }
-        return new ConsumerAllocation(EMPTY_VERSION, partitionProps, expiredTimestamp(), consumeStrategy);
-    }
-
-    private long expiredTimestamp() {
-        return System.currentTimeMillis() + EXCLUSIVE_CONSUMER_LOCK_LEASE_MILLS;
+        return new ConsumerAllocation(EMPTY_VERSION, partitionProps, authExpireTime, consumeStrategy);
     }
 }

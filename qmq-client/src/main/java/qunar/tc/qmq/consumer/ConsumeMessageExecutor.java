@@ -23,7 +23,7 @@ public interface ConsumeMessageExecutor {
 
     void setConsumptionExpiredTime(long timestamp);
 
-    boolean consume(List<PulledMessage> messages);
+    void consume(List<PulledMessage> messages);
 
     MessageHandler getMessageHandler();
 

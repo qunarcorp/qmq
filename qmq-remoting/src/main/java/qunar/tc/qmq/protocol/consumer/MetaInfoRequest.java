@@ -18,6 +18,7 @@ package qunar.tc.qmq.protocol.consumer;
 
 import com.google.common.base.Strings;
 import qunar.tc.qmq.ClientType;
+import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.base.OnOfflineState;
 
@@ -38,6 +39,7 @@ public class MetaInfoRequest {
     private static final String ONLINE_STATE = "onlineState";
     private static final String IS_ORDERED = "isOrdered";
     private static final String IS_BROADCAST = "isBroadcast";
+    private static final String CONSUME_STRATEGY = "consumeStrategy";
 
     private final Map<String, String> attrs;
 
@@ -107,6 +109,19 @@ public class MetaInfoRequest {
         setIntValue(REQUEST_TYPE, typeCode);
     }
 
+    public ConsumeStrategy getConsumeStrategy() {
+        String name = getStringValue(CONSUME_STRATEGY);
+        if (Strings.isNullOrEmpty(name)) {
+            return null;
+        } else {
+            return ConsumeStrategy.valueOf(name);
+        }
+    }
+
+    public void setConsumeStrategy(ConsumeStrategy consumeStrategy) {
+        setStringValue(CONSUME_STRATEGY, consumeStrategy.name());
+    }
+
     public OnOfflineState getOnlineState() {
         String state = getStringValue(ONLINE_STATE);
         if (Strings.isNullOrEmpty(state)) {
@@ -147,6 +162,7 @@ public class MetaInfoRequest {
     private String getStringValue(String attrName) {
         return Strings.nullToEmpty(attrs.get(attrName));
     }
+
 
     @Override
     public String toString() {

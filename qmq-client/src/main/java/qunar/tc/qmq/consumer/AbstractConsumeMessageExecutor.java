@@ -98,11 +98,12 @@ public abstract class AbstractConsumeMessageExecutor implements ConsumeMessageEx
     abstract void processMessage(PulledMessage message);
 
     @Override
-    public boolean consume(List<PulledMessage> messages) {
+    public void consume(List<PulledMessage> messages) {
         for (PulledMessage message : messages) {
+            // 无界队列不会入队失败
             messageQueue.offer(message);
+            LOGGER.info("进入执行队列 {}:{}", message.getSubject(), message.getMessageId());
         }
-        return true;
     }
 
     @Override

@@ -21,13 +21,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import qunar.tc.qmq.common.Disposable;
 import qunar.tc.qmq.configuration.DynamicConfig;
-import qunar.tc.qmq.event.EventDispatcher;
 import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
 import qunar.tc.qmq.meta.cache.BrokerMetaManager;
 import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 import qunar.tc.qmq.meta.cache.CachedOfflineStateManager;
 import qunar.tc.qmq.meta.cache.DefaultCachedMetaInfoManager;
-import qunar.tc.qmq.meta.event.OrderedConsumerHeartbeatHandler;
 import qunar.tc.qmq.meta.management.*;
 import qunar.tc.qmq.meta.order.*;
 import qunar.tc.qmq.meta.processor.BrokerAcquireMetaProcessor;
@@ -75,16 +73,30 @@ public class ServerWrapper implements Disposable {
         brokerMetaManager.init(brokerStore);
 
         final ReadonlyBrokerGroupSettingStore readonlyBrokerGroupSettingStore = new ReadonlyBrokerGroupSettingStoreImpl(jdbcTemplate);
-        DefaultPartitionService paritionService = DefaultPartitionService.getInstance();
-        final CachedMetaInfoManager cachedMetaInfoManager = new DefaultCachedMetaInfoManager(config, store, readonlyBrokerGroupSettingStore, paritionService);
+        final DefaultPartitionNameResolver partitionNameResolver = new DefaultPartitionNameResolver();
+        final PartitionStoreImpl partitionStore = new PartitionStoreImpl();
+        final PartitionSetStoreImpl partitionSetStore = new PartitionSetStoreImpl();
+        final PartitionAllocationStoreImpl partitionAllocationStore = new PartitionAllocationStoreImpl();
+        final AveragePartitionAllocator partitionAllocator = new AveragePartitionAllocator();
+        final DefaultPartitionService partitionService = new DefaultPartitionService(
+                partitionNameResolver,
+                store,
+                clientMetaInfoStore,
+                partitionStore,
+                partitionSetStore,
+                partitionAllocationStore,
+                partitionAllocator,
+                JdbcTemplateHolder.getTransactionTemplate()
+        );
+        final CachedMetaInfoManager cachedMetaInfoManager = new DefaultCachedMetaInfoManager(config, store, readonlyBrokerGroupSettingStore, partitionService);
         AllocationService allocationService = new DefaultAllocationService(cachedMetaInfoManager);
 
         final SubjectRouter subjectRouter = new DefaultSubjectRouter(config, cachedMetaInfoManager, store);
-        final ClientRegisterProcessor clientRegisterProcessor = new ClientRegisterProcessor(subjectRouter, CachedOfflineStateManager.SUPPLIER.get(), store, cachedMetaInfoManager, allocationService);
+        final DefaultPartitionReallocator partitionReallocator = new DefaultPartitionReallocator(partitionService, cachedMetaInfoManager);
+        final ClientRegisterProcessor clientRegisterProcessor = new ClientRegisterProcessor(subjectRouter, CachedOfflineStateManager.SUPPLIER.get(), store, clientMetaInfoStore, cachedMetaInfoManager, allocationService, partitionReallocator);
         final BrokerRegisterProcessor brokerRegisterProcessor = new BrokerRegisterProcessor(config, cachedMetaInfoManager, store);
         final BrokerAcquireMetaProcessor brokerAcquireMetaProcessor = new BrokerAcquireMetaProcessor(new BrokerStoreImpl(jdbcTemplate));
         final ReadonlyBrokerGroupSettingService readonlyBrokerGroupSettingService = new ReadonlyBrokerGroupSettingService(readonlyBrokerGroupSettingStore);
-        DefaultPartitionNameResolver partitionNameResolver = new DefaultPartitionNameResolver();
         QuerySubjectProcessor querySubjectProcessor = new QuerySubjectProcessor(partitionNameResolver);
 
         final NettyServer metaNettyServer = new NettyServer("meta", Runtime.getRuntime().availableProcessors(), metaServerPort, new DefaultConnectionEventHandler("meta"));
@@ -115,12 +127,8 @@ public class ServerWrapper implements Disposable {
         resources.add(brokerMetaManager);
         resources.add(metaNettyServer);
 
-        DefaultPartitionService partitionService = DefaultPartitionService.getInstance();
-        PartitionAllocationTask partitionAllocationTask = new PartitionAllocationTask(partitionService, cachedMetaInfoManager);
+        PartitionAllocationTask partitionAllocationTask = new PartitionAllocationTask(partitionService, partitionReallocator);
         partitionAllocationTask.start();
-
-        OrderedConsumerHeartbeatHandler orderedConsumerHeartbeatHandler = new OrderedConsumerHeartbeatHandler(clientMetaInfoStore, partitionAllocationTask);
-        EventDispatcher.register(orderedConsumerHeartbeatHandler);
     }
 
     @Override
