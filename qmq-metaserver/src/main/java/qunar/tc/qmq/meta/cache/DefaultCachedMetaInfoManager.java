@@ -20,9 +20,19 @@ import com.google.common.base.Strings;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.SetMultimap;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.PartitionAllocation;
@@ -39,17 +49,12 @@ import qunar.tc.qmq.meta.order.PartitionService;
 import qunar.tc.qmq.meta.store.ReadonlyBrokerGroupSettingStore;
 import qunar.tc.qmq.meta.store.Store;
 
-import java.util.*;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-
 /**
  * @author yunfeng.yang
  * @since 2017/8/30
  */
 public class DefaultCachedMetaInfoManager implements Disposable, CachedMetaInfoManager {
+
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultCachedMetaInfoManager.class);
 
     private static final ScheduledExecutorService SCHEDULE_POOL = Executors.newSingleThreadScheduledExecutor(
@@ -106,15 +111,19 @@ public class DefaultCachedMetaInfoManager implements Disposable, CachedMetaInfoM
      */
     private volatile SetMultimap<String, String> readonlyBrokerGroupSettings = HashMultimap.create();
 
-    public DefaultCachedMetaInfoManager(DynamicConfig config, Store store, ReadonlyBrokerGroupSettingStore readonlyBrokerGroupSettingStore, PartitionService partitionService) {
-        this(store, readonlyBrokerGroupSettingStore, partitionService, config.getLong("refresh.period.seconds", DEFAULT_REFRESH_PERIOD_SECONDS));
+    public DefaultCachedMetaInfoManager(DynamicConfig config, Store store,
+            ReadonlyBrokerGroupSettingStore readonlyBrokerGroupSettingStore, PartitionService partitionService) {
+        this(store, readonlyBrokerGroupSettingStore, partitionService,
+                config.getLong("refresh.period.seconds", DEFAULT_REFRESH_PERIOD_SECONDS));
     }
 
-    public DefaultCachedMetaInfoManager(Store store, ReadonlyBrokerGroupSettingStore readonlyBrokerGroupSettingStore, PartitionService partitionService) {
+    public DefaultCachedMetaInfoManager(Store store, ReadonlyBrokerGroupSettingStore readonlyBrokerGroupSettingStore,
+            PartitionService partitionService) {
         this(store, readonlyBrokerGroupSettingStore, partitionService, DEFAULT_REFRESH_PERIOD_SECONDS);
     }
 
-    private DefaultCachedMetaInfoManager(Store store, ReadonlyBrokerGroupSettingStore readonlyBrokerGroupSettingStore, PartitionService partitionService, long refreshPeriodSeconds) {
+    private DefaultCachedMetaInfoManager(Store store, ReadonlyBrokerGroupSettingStore readonlyBrokerGroupSettingStore,
+            PartitionService partitionService, long refreshPeriodSeconds) {
         this.refreshPeriodSeconds = refreshPeriodSeconds;
         this.store = store;
         this.readonlyBrokerGroupSettingStore = readonlyBrokerGroupSettingStore;
@@ -129,7 +138,8 @@ public class DefaultCachedMetaInfoManager implements Disposable, CachedMetaInfoM
     }
 
     private void initRefreshTask() {
-        SCHEDULE_POOL.scheduleAtFixedRate(this::doRefresh, refreshPeriodSeconds, refreshPeriodSeconds, TimeUnit.SECONDS);
+        SCHEDULE_POOL
+                .scheduleAtFixedRate(this::doRefresh, refreshPeriodSeconds, refreshPeriodSeconds, TimeUnit.SECONDS);
     }
 
     @Override
@@ -203,7 +213,8 @@ public class DefaultCachedMetaInfoManager implements Disposable, CachedMetaInfoM
     private void refreshReadonlyBrokerGroupSettings() {
         final HashMultimap<String, String> map = HashMultimap.create();
 
-        final List<ReadonlyBrokerGroupSetting> settings = readonlyBrokerGroupSettingStore.allReadonlyBrokerGroupSettings();
+        final List<ReadonlyBrokerGroupSetting> settings = readonlyBrokerGroupSettingStore
+                .allReadonlyBrokerGroupSettings();
         for (final ReadonlyBrokerGroupSetting setting : settings) {
             map.put(setting.getBrokerGroup(), setting.getSubject());
         }
@@ -215,19 +226,23 @@ public class DefaultCachedMetaInfoManager implements Disposable, CachedMetaInfoM
         this.subjectPid2Partition = partitionService.getAllPartitions().stream().collect(
                 Collectors.toMap(p -> createPartitionKey(p.getSubject(), p.getPartitionId()), p -> p));
         List<PartitionSet> allPartitionSets = partitionService.getAllPartitionSets();
+        Map<String, List<PartitionSet>> newAllPartitionSets = Maps.newConcurrentMap();
         for (PartitionSet ps : allPartitionSets) {
             String subject = ps.getSubject();
             String key = createPartitionSetKey(subject);
-            List<PartitionSet> partitionSets = this.allPartitionSets.computeIfAbsent(key, k -> Lists.newArrayList());
+            List<PartitionSet> partitionSets = newAllPartitionSets.computeIfAbsent(key, k -> Lists.newArrayList());
             partitionSets.add(ps);
         }
+        this.allPartitionSets = newAllPartitionSets;
         this.latestPartitionSets = partitionService.getLatestPartitionSets().stream().collect(
                 Collectors.toMap(p -> createPartitionSetKey(p.getSubject()), p -> p));
     }
 
     private void refreshPartitionAllocations() {
-        this.subjectConsumerGroup2partitionAllocation = partitionService.getLatestPartitionAllocations().stream().collect(
-                Collectors.toMap(pa -> createPartitionAllocationKey(pa.getSubject(), pa.getConsumerGroup()), pa -> pa));
+        this.subjectConsumerGroup2partitionAllocation = partitionService.getLatestPartitionAllocations().stream()
+                .collect(
+                        Collectors.toMap(pa -> createPartitionAllocationKey(pa.getSubject(), pa.getConsumerGroup()),
+                                pa -> pa));
     }
 
     private String createPartitionSetKey(String subject) {
@@ -286,7 +301,9 @@ public class DefaultCachedMetaInfoManager implements Disposable, CachedMetaInfoM
 
         for (BrokerGroup brokerGroup : allBrokerGroups) {
             String name = brokerGroup.getGroupName();
-            if (Strings.isNullOrEmpty(name)) continue;
+            if (Strings.isNullOrEmpty(name)) {
+                continue;
+            }
 
             if (brokerGroup.getKind() == BrokerGroupKind.DELAY) {
                 delayNewGroups.put(name, brokerGroup);

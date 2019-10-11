@@ -8,7 +8,7 @@ import qunar.tc.qmq.broker.impl.SwitchWaiter.Listener;
  * @author zhenwei.liu
  * @since 2019-08-29
  */
-public interface ConsumerOnlineStateManager extends MetaInfoClient.ResponseSubscriber {
+public interface ConsumerOnlineStateManager {
 
     void onlineHealthCheck();
 

@@ -25,7 +25,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.ConsumeStrategy;
+import qunar.tc.qmq.StatusSource;
 import qunar.tc.qmq.Versionable;
+import qunar.tc.qmq.base.OnOfflineState;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
@@ -190,8 +192,11 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
     public BrokerClusterInfo getBrokerCluster(ClientType clientType, String subject, String consumerGroup, boolean isBroadcast, boolean isOrdered) {
         // 这个key上加group不兼容MetaInfoResponse
         String key = buildBrokerClusterKey(clientType, subject);
-        Future<BrokerClusterInfo> future = clusterMap.computeIfAbsent(key, k -> SettableFuture.create());
-        registerHeartbeat(clientType, subject, consumerGroup, isBroadcast, isOrdered);
+        Future<BrokerClusterInfo> future = clusterMap.computeIfAbsent(key, k -> {
+            SettableFuture<BrokerClusterInfo> f = SettableFuture.create();
+            registerHeartbeat(clientType, subject, consumerGroup, isBroadcast, isOrdered);
+            return f;
+        });
         try {
             return future.get();
         } catch (Throwable t) {
@@ -270,10 +275,6 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
         }
     }
 
-    private String createConsumerAllocationKey(String subject, String group, String clientId) {
-        return subject + ":" + group + ":" + clientId;
-    }
-
     private String createProducerPartitionMappingKey(ClientType clientType, String subject) {
         return clientType.name() + ":" + subject;
     }
@@ -342,4 +343,5 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
                 isOrdered
         );
     }
+
 }

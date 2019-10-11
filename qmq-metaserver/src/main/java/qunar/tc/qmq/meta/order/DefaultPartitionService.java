@@ -1,30 +1,33 @@
 package qunar.tc.qmq.meta.order;
 
+import static qunar.tc.qmq.common.PartitionConstants.EXCLUSIVE_CONSUMER_LOCK_LEASE_MILLS;
+
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.util.CollectionUtils;
 import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.PartitionAllocation;
 import qunar.tc.qmq.base.OnOfflineState;
 import qunar.tc.qmq.common.PartitionConstants;
-import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
-import qunar.tc.qmq.meta.BrokerGroup;
-import qunar.tc.qmq.meta.BrokerGroupKind;
 import qunar.tc.qmq.meta.Partition;
 import qunar.tc.qmq.meta.PartitionSet;
-import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 import qunar.tc.qmq.meta.model.ClientMetaInfo;
-import qunar.tc.qmq.meta.model.SubjectRoute;
-import qunar.tc.qmq.meta.store.*;
-import qunar.tc.qmq.meta.store.impl.*;
-
-import java.util.*;
-import java.util.stream.Collectors;
-
-import static qunar.tc.qmq.common.PartitionConstants.EXCLUSIVE_CONSUMER_LOCK_LEASE_MILLS;
+import qunar.tc.qmq.meta.store.ClientMetaInfoStore;
+import qunar.tc.qmq.meta.store.PartitionAllocationStore;
+import qunar.tc.qmq.meta.store.PartitionSetStore;
+import qunar.tc.qmq.meta.store.PartitionStore;
+import qunar.tc.qmq.meta.store.Store;
 
 /**
  * @author zhenwei.liu
@@ -66,23 +69,31 @@ public class DefaultPartitionService implements PartitionService {
     }
 
     @Override
-    public boolean updatePartitions(String subject, int physicalPartitionNum, List<String> brokerGroups) {
-        PartitionSet oldPartitionSet = partitionSetStore.getLatest(subject);
-        return insertNewPartitions(subject, physicalPartitionNum, oldPartitionSet, brokerGroups);
-    }
+    public boolean updatePartitions(String subject, int newPartitionNum, List<String> brokerGroups) {
+        List<PartitionSet> oldPartitionSets = partitionSetStore.getAll(subject);
 
-    private boolean insertNewPartitions(String subject, int newPartitionNum, PartitionSet oldPartitionSet, List<String> brokerGroups) {
         int logicalPartitionNum = PartitionConstants.DEFAULT_LOGICAL_PARTITION_NUM;
         int defaultPhysicalPartitionNum = PartitionConstants.DEFAULT_PHYSICAL_PARTITION_NUM;
         newPartitionNum = newPartitionNum <= 0 ? defaultPhysicalPartitionNum : newPartitionNum;
 
         // 初始化 physical/logical partition 列表
-        int startPartitionId = oldPartitionSet == null ? 0 : Collections.max(oldPartitionSet.getPhysicalPartitions()) + 1;
+        int startPartitionId;
+        int currentVersion;
+        if (CollectionUtils.isEmpty(oldPartitionSets)) {
+            startPartitionId = 0;
+            currentVersion = 0;
+        } else {
+            PartitionSet latestPartitionSet = oldPartitionSets.get(oldPartitionSets.size() - 1);
+            startPartitionId = Collections.max(latestPartitionSet.getPhysicalPartitions()) + 1;
+            currentVersion = latestPartitionSet.getVersion() + 1;
+        }
+
         List<Integer> physicalPartitionList = createIntList(startPartitionId, newPartitionNum);
         List<Integer> logicalPartitionList = createIntList(0, logicalPartitionNum);
 
         // logical => physical mapping
-        Map<Integer, List<Integer>> physical2LogicalPartitionMap = rangeMapper.map(physicalPartitionList, logicalPartitionList);
+        Map<Integer, List<Integer>> physical2LogicalPartitionMap = rangeMapper
+                .map(physicalPartitionList, logicalPartitionList);
 
         // physical => brokerGroup mapping
         Map<Integer, String> physical2BrokerGroupMap = itemMapper.map(physicalPartitionList, brokerGroups);
@@ -108,31 +119,21 @@ public class DefaultPartitionService implements PartitionService {
 
         PartitionSet partitionSet = new PartitionSet();
         partitionSet.setSubject(subject);
-        partitionSet.setVersion(0);
-        partitionSet.setPhysicalPartitions(partitions.stream().map(Partition::getPartitionId).collect(Collectors.toSet()));
+        partitionSet.setVersion(currentVersion);
+        partitionSet
+                .setPhysicalPartitions(partitions.stream().map(Partition::getPartitionId).collect(Collectors.toSet()));
 
         return transactionTemplate.execute(transactionStatus -> {
-            // TODO(zhenwei.liu) 分区扩容还需要测试
-            try {
-                if (oldPartitionSet != null) {
-                    // 关闭旧分区
+            if (!CollectionUtils.isEmpty(oldPartitionSets)) {
+                // 关闭旧分区
+                for (PartitionSet oldPartitionSet : oldPartitionSets) {
                     Set<Integer> oldPartitions = oldPartitionSet.getPhysicalPartitions();
                     partitionStore.updatePartitionsByIds(subject, oldPartitions, Partition.Status.NRW);
                 }
-                SubjectRoute oldRoute = store.selectSubjectRoute(subject);
-                if (store.updateSubjectRoute(subject, oldRoute.getVersion(), brokerGroups) > 0) {
-                    partitionStore.save(partitions);
-                    partitionSetStore.save(partitionSet);
-                    return true;
-                } else {
-                    LOGGER.warn("subject {} 创建分区失败, subject router 更新失败", subject);
-                    return false;
-                }
-            } catch (DuplicateKeyException e) {
-                // 并发问题, 忽略
-                LOGGER.warn("subject {} 创建分区信息重复", subject);
-                return false;
             }
+            partitionStore.save(partitions);
+            partitionSetStore.save(partitionSet);
+            return true;
         });
     }
 
@@ -162,10 +163,12 @@ public class DefaultPartitionService implements PartitionService {
     }
 
     @Override
-    public PartitionAllocation allocatePartitions(PartitionSet partitionSet, List<String> onlineConsumerList, String consumerGroup) {
+    public PartitionAllocation allocatePartitions(PartitionSet partitionSet, List<String> onlineConsumerList,
+            String consumerGroup) {
         String subject = partitionSet.getSubject();
         List<Partition> partitions = partitionStore.getByPartitionIds(subject, partitionSet.getPhysicalPartitions());
-        Map<Integer, Partition> partitionMap = partitions.stream().collect(Collectors.toMap(Partition::getPartitionId, p -> p));
+        Map<Integer, Partition> partitionMap = partitions.stream()
+                .collect(Collectors.toMap(Partition::getPartitionId, p -> p));
         return partitionAllocator.allocate(partitionSet, partitionMap, onlineConsumerList, consumerGroup);
     }
 
@@ -186,18 +189,21 @@ public class DefaultPartitionService implements PartitionService {
     @Override
     public List<ClientMetaInfo> getOnlineExclusiveConsumers() {
         Date updateTime = new Date(System.currentTimeMillis() - EXCLUSIVE_CONSUMER_LOCK_LEASE_MILLS);
-        return clientMetaInfoStore.queryClientsUpdateAfterDate(ClientType.CONSUMER, OnOfflineState.ONLINE, updateTime);
+        return clientMetaInfoStore
+                .queryClientsUpdateAfterDate(ClientType.CONSUMER, OnOfflineState.ONLINE, updateTime);
     }
 
     @Override
     public List<ClientMetaInfo> getOnlineExclusiveConsumers(String subject, String consumerGroup) {
         Date updateTime = new Date(System.currentTimeMillis() - EXCLUSIVE_CONSUMER_LOCK_LEASE_MILLS);
-        return clientMetaInfoStore.queryClientsUpdateAfterDate(subject, consumerGroup, ClientType.CONSUMER, OnOfflineState.ONLINE, updateTime);
+        return clientMetaInfoStore
+                .queryClientsUpdateAfterDate(subject, consumerGroup, ClientType.CONSUMER, OnOfflineState.ONLINE,
+                        updateTime);
     }
 
-    private List<Integer> createIntList(int startInt, int endIntIncluded) {
+    private List<Integer> createIntList(int startInt, int size) {
         ArrayList<Integer> intList = Lists.newArrayList();
-        for (int i = startInt; i < endIntIncluded; i++) {
+        for (int i = startInt; i < startInt + size; i++) {
             intList.add(i);
         }
         return intList;

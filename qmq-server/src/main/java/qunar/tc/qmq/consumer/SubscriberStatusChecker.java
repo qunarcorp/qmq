@@ -182,7 +182,7 @@ public class SubscriberStatusChecker implements ActorSystem.Processor<Subscriber
         return subscriber;
     }
 
-    public void heartbeat(String consumerId, String partitionName, String consumerGroup) {
+    public void heartbeat(String partitionName, String consumerGroup, String consumerId) {
         final String realPartitionName = RetryPartitionUtils.getRealPartitionName(partitionName);
         final String retryPartition = RetryPartitionUtils.buildRetryPartitionName(realPartitionName, consumerGroup);
 

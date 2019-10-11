@@ -1,5 +1,7 @@
 package qunar.tc.qmq.consumer.pull;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.PullClient;
 import qunar.tc.qmq.StatusSource;
@@ -10,6 +12,8 @@ import qunar.tc.qmq.broker.BrokerService;
  * @since 2019-09-09
  */
 public abstract class AbstractPullClient implements PullClient {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractPullClient.class);
 
     private String subject;
     private String consumerGroup;
@@ -113,6 +117,7 @@ public abstract class AbstractPullClient implements PullClient {
 
     @Override
     public void destroy() {
+        LOGGER.info("关闭 Consumer {} {} {}", getSubject(), getPartitionName(), getConsumerGroup());
         offline();
         stopPull();
     }

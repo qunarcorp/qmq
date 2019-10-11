@@ -37,7 +37,8 @@ public class PartitionSetStoreImpl implements PartitionSetStore {
                     "where p2.version is NULL";
     private static final String GET_ALL_SQL =
             "select subject, physical_partitions, version from partition_set";
-
+    private static final String GET_ALL_BY_SUBJECT_SQL =
+            "select subject, physical_partitions, version from partition_set where subject = ? order by id";
     private static final String PARTITION_DELIMITER = ",";
     private static final Joiner commaJoiner = Joiner.on(PARTITION_DELIMITER);
     private static final Splitter commaSplitter = Splitter.on(PARTITION_DELIMITER);
@@ -82,5 +83,10 @@ public class PartitionSetStoreImpl implements PartitionSetStore {
     @Override
     public List<PartitionSet> getAll() {
         return template.query(GET_ALL_SQL, partitionSetRowMapper);
+    }
+
+    @Override
+    public List<PartitionSet> getAll(String subject) {
+        return template.query(GET_ALL_BY_SUBJECT_SQL, partitionSetRowMapper, subject);
     }
 }

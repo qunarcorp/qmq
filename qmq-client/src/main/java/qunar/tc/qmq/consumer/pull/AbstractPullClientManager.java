@@ -2,14 +2,22 @@ package qunar.tc.qmq.consumer.pull;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import qunar.tc.qmq.*;
-import qunar.tc.qmq.broker.impl.SwitchWaiter;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.CompositePullClient;
+import qunar.tc.qmq.ConsumeStrategy;
+import qunar.tc.qmq.PartitionProps;
+import qunar.tc.qmq.PullClient;
+import qunar.tc.qmq.StatusSource;
 import qunar.tc.qmq.meta.ConsumerAllocation;
 import qunar.tc.qmq.metainfoclient.ConsumerOnlineStateManager;
 import qunar.tc.qmq.protocol.consumer.ConsumerMetaInfoResponse;
-
-import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * @author zhenwei.liu
@@ -38,8 +46,10 @@ public abstract class AbstractPullClientManager<T extends PullClient> implements
         // oldEntry 包含 subject/retry-subject 两个 pullEntry
         // 这两个 PullEntry 又分别包含多个 Partition
         CompositePullClient oldCompositeClient = (CompositePullClient) clientMap.get(clientKey);
-        CompositePullClient oldNormalClient = oldCompositeClient == null ? null : (CompositePullClient) oldCompositeClient.getComponents().get(0);
-        CompositePullClient oldRetryClient = oldCompositeClient == null ? null : (CompositePullClient) oldCompositeClient.getComponents().get(1);
+        CompositePullClient oldNormalClient =
+                oldCompositeClient == null ? null : (CompositePullClient) oldCompositeClient.getComponents().get(0);
+        CompositePullClient oldRetryClient =
+                oldCompositeClient == null ? null : (CompositePullClient) oldCompositeClient.getComponents().get(1);
 
         ConsumerAllocation consumerAllocation = response.getConsumerAllocation();
         long consumptionExpiredTime = consumerAllocation.getExpired();
@@ -55,14 +65,17 @@ public abstract class AbstractPullClientManager<T extends PullClient> implements
             }
         }
 
-        CompositePullClient newNormalPullClient = createOrUpdatePullClient(subject, consumerGroup, new AlwaysPullStrategy(), consumerAllocation, oldNormalClient, registryParam);
+        CompositePullClient newNormalPullClient = createOrUpdatePullClient(subject, consumerGroup,
+                new AlwaysPullStrategy(), consumerAllocation, oldNormalClient, registryParam);
         ConsumerAllocation retryConsumerAllocation = consumerAllocation.getRetryConsumerAllocation(consumerGroup);
-        CompositePullClient newRetryPullClient = createOrUpdatePullClient(subject, consumerGroup, new WeightPullStrategy(), retryConsumerAllocation, oldRetryClient, registryParam);
+        CompositePullClient newRetryPullClient = createOrUpdatePullClient(subject, consumerGroup,
+                new WeightPullStrategy(), retryConsumerAllocation, oldRetryClient, registryParam);
 
         CompositePullClient finalClient;
         ArrayList<CompositePullClient> newComponents = Lists.newArrayList(newNormalPullClient, newRetryPullClient);
         if (oldCompositeClient == null) {
-            finalClient = doCreateCompositePullClient(subject, consumerGroup, version, consumptionExpiredTime, newComponents, registryParam);
+            finalClient = doCreateCompositePullClient(subject, consumerGroup, consumeStrategy, version, consumptionExpiredTime,
+                    newComponents, registryParam);
             clientMap.put(clientKey, (T) finalClient);
         } else {
             oldCompositeClient.setComponents(newComponents);
@@ -99,10 +112,11 @@ public abstract class AbstractPullClientManager<T extends PullClient> implements
         for (PartitionProps partitionProp : partitionProps) {
             String partitionName = partitionProp.getPartitionName();
             String brokerGroup = partitionProp.getBrokerGroup();
-            PullClient newDefaultClient = doCreatePullClient(subject, consumerGroup, partitionName, brokerGroup, consumeStrategy, version, expired, pullStrategy, registryParam);
+            PullClient newDefaultClient = doCreatePullClient(subject, consumerGroup, partitionName, brokerGroup,
+                    consumeStrategy, version, expired, pullStrategy, registryParam);
             clientList.add(newDefaultClient);
         }
-        return doCreateCompositePullClient(subject, consumerGroup, version, expired, clientList, registryParam);
+        return doCreateCompositePullClient(subject, consumerGroup, consumeStrategy, version, expired, clientList, registryParam);
     }
 
     private CompositePullClient updatePullClient(
@@ -129,7 +143,8 @@ public abstract class AbstractPullClientManager<T extends PullClient> implements
             Set<String> newPartitionNames = newPartitionProps.stream()
                     .map(PartitionProps::getPartitionName)
                     .collect(Collectors.toSet());
-            Set<String> oldPartitionNames = oldPullClients.stream().map(PullClient::getPartitionName).collect(Collectors.toSet());
+            Set<String> oldPartitionNames = oldPullClients.stream().map(PullClient::getPartitionName)
+                    .collect(Collectors.toSet());
 
             for (T oldPullClient : oldPullClients) {
                 String oldPartitionName = oldPullClient.getPartitionName();
@@ -149,7 +164,8 @@ public abstract class AbstractPullClientManager<T extends PullClient> implements
                 String partitionName = partitionProps.getPartitionName();
                 String brokerGroup = partitionProps.getBrokerGroup();
                 if (!oldPartitionNames.contains(partitionName)) {
-                    T newPullClient = doCreatePullClient(subject, consumerGroup, partitionName, brokerGroup, newConsumeStrategy, newVersion, expired, pullStrategy, registryParam);
+                    T newPullClient = doCreatePullClient(subject, consumerGroup, partitionName, brokerGroup,
+                            newConsumeStrategy, newVersion, expired, pullStrategy, registryParam);
                     newPullClients.add(newPullClient);
                 }
             }
@@ -163,16 +179,21 @@ public abstract class AbstractPullClientManager<T extends PullClient> implements
             ArrayList<T> entries = Lists.newArrayList();
             entries.addAll(reusePullClients);
             entries.addAll(newPullClients);
-            return doCreateCompositePullClient(subject, consumerGroup, newVersion, expired, entries, registryParam);
+            return doCreateCompositePullClient(subject, consumerGroup, newConsumeStrategy, newVersion, expired, entries,
+                    registryParam);
         } else {
             // 当前版本比 response 中的高
             return oldClient;
         }
     }
 
-    abstract T doCreatePullClient(String subject, String consumerGroup, String partitionName, String brokerGroup, ConsumeStrategy consumeStrategy, int version, long consumptionExpiredTime, PullStrategy pullStrategy, Object registryParam);
+    abstract T doCreatePullClient(String subject, String consumerGroup, String partitionName, String brokerGroup,
+            ConsumeStrategy consumeStrategy, int version, long consumptionExpiredTime, PullStrategy pullStrategy,
+            Object registryParam);
 
-    abstract CompositePullClient doCreateCompositePullClient(String subject, String consumerGroup, int version, long consumptionExpiredTime, List<? extends PullClient> clientList, Object registryParam);
+    abstract CompositePullClient doCreateCompositePullClient(String subject, String consumerGroup,
+            ConsumeStrategy consumeStrategy, int version, long consumptionExpiredTime,
+            List<? extends PullClient> clientList, Object registryParam);
 
     abstract StatusSource getStatusSource(Object registryParam);
 

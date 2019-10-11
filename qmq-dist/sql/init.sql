@@ -159,6 +159,7 @@ CREATE TABLE `partition_allocation` (
   `allocation_detail` varchar(16384) COLLATE utf8_bin NOT NULL COMMENT '该 consumerGroup 下所有 client 分配的物理分区, JSON',
   `partition_set_version` int(11) NOT NULL COMMENT '扩容/缩容版本号, 该版本只有扩容缩容会变更',
   `version` int(11) NOT NULL COMMENT '本次分配的版本号, 用于做分配乐观锁',
+  `update_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uniq_subject_consumer_group` (`subject`, `consumer_group`)
+  UNIQUE KEY `uniq_subject_consumer_group` (`subject`,`consumer_group`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='分区分配详情';

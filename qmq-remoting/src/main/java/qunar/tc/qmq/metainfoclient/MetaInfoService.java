@@ -1,6 +1,7 @@
 package qunar.tc.qmq.metainfoclient;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import io.netty.channel.ChannelFuture;
 import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.meta.Partition;
@@ -26,7 +27,7 @@ public interface MetaInfoService {
      */
     void registerHeartbeat(String appCode, int clientTypeCode, String subject, String consumerGroup, boolean isBroadcast, boolean isOrdered);
 
-    void sendRequest(MetaInfoRequest request);
+    ChannelFuture sendRequest(MetaInfoRequest request);
 
     String getSubject(String partitionName);
 

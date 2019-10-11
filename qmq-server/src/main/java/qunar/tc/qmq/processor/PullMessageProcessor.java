@@ -118,7 +118,7 @@ public class PullMessageProcessor extends AbstractRequestProcessor implements Fi
         final String group = pullRequest.getGroup();
         final String consumerId = pullRequest.getConsumerId();
         subscriberStatusChecker.addSubscriber(partitionName, group, consumerId);
-        subscriberStatusChecker.heartbeat(consumerId, partitionName, group);
+        subscriberStatusChecker.heartbeat(partitionName, group, consumerId);
     }
 
     private boolean checkAndRepairPullRequest(PullRequest pullRequest) {

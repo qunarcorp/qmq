@@ -12,10 +12,28 @@ public class PartitionProps {
     private String partitionName;
     private String brokerGroup;
 
+    public PartitionProps() {
+    }
+
     public PartitionProps(int partitionId, String partitionName, String brokerGroup) {
         this.partitionId = partitionId;
         this.partitionName = partitionName;
         this.brokerGroup = brokerGroup;
+    }
+
+    public PartitionProps setPartitionId(int partitionId) {
+        this.partitionId = partitionId;
+        return this;
+    }
+
+    public PartitionProps setPartitionName(String partitionName) {
+        this.partitionName = partitionName;
+        return this;
+    }
+
+    public PartitionProps setBrokerGroup(String brokerGroup) {
+        this.brokerGroup = brokerGroup;
+        return this;
     }
 
     public int getPartitionId() {
@@ -43,5 +61,14 @@ public class PartitionProps {
     @Override
     public int hashCode() {
         return Objects.hash(partitionId, partitionName, brokerGroup);
+    }
+
+    @Override
+    public String toString() {
+        return "[" +
+                "partitionId=" + partitionId +
+                ", partitionName='" + partitionName + '\'' +
+                ", brokerGroup='" + brokerGroup + '\'' +
+                ']';
     }
 }

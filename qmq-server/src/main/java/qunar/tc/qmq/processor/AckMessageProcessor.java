@@ -62,7 +62,7 @@ public class AckMessageProcessor extends AbstractRequestProcessor {
         }
 
         QMon.ackRequestCountInc(ackRequest.getPartitionName(), ackRequest.getConsumerGroup());
-        subscriberStatusChecker.heartbeat(ackRequest.getConsumerId(), ackRequest.getPartitionName(), ackRequest.getConsumerGroup());
+        subscriberStatusChecker.heartbeat(ackRequest.getPartitionName(), ackRequest.getConsumerGroup(), ackRequest.getConsumerId());
 
         if (isHeartbeatAck(ackRequest)) {
             final Datagram datagram = RemotingBuilder.buildEmptyResponseDatagram(CommandCode.SUCCESS, command.getHeader());

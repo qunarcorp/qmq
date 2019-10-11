@@ -16,6 +16,7 @@
 
 package qunar.tc.qmq.metainfoclient;
 
+import io.netty.channel.ChannelFuture;
 import qunar.tc.qmq.protocol.MetaInfoResponse;
 import qunar.tc.qmq.protocol.QuerySubjectRequest;
 import qunar.tc.qmq.protocol.QuerySubjectResponse;
@@ -26,7 +27,7 @@ import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
  */
 public interface MetaInfoClient {
 
-    void sendMetaInfoRequest(MetaInfoRequest request);
+    ChannelFuture sendMetaInfoRequest(MetaInfoRequest request);
 
     /**
      * 使用 partitionName 查询 subject

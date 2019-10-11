@@ -2,6 +2,7 @@ package qunar.tc.qmq.metainfoclient;
 
 import com.google.common.base.Optional;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.timeout.IdleStateHandler;
@@ -101,14 +102,14 @@ public class MetaServerNettyClient extends AbstractNettyClient implements MetaIn
         return metaServer;
     }
 
-    private void sendRequest(short commandCode, PayloadHolder payloadHolder) throws MetaServerNotFoundException, ClientSendException {
+    private ChannelFuture sendRequest(short commandCode, PayloadHolder payloadHolder) throws MetaServerNotFoundException, ClientSendException {
         String metaServer = queryMetaServerAddress();
         if (metaServer == null) {
             throw new MetaServerNotFoundException();
         }
         final Channel channel = getOrCreateChannel(metaServer);
         final Datagram datagram = RemotingBuilder.buildRequestDatagram(commandCode, payloadHolder);
-        channel.writeAndFlush(datagram);
+        return channel.writeAndFlush(datagram);
     }
 
     private String queryMetaServerAddressWithRetry() {
@@ -121,11 +122,12 @@ public class MetaServerNettyClient extends AbstractNettyClient implements MetaIn
     }
 
     @Override
-    public void sendMetaInfoRequest(MetaInfoRequest request) {
+    public ChannelFuture sendMetaInfoRequest(MetaInfoRequest request) {
         try {
-            sendRequest(CommandCode.CLIENT_REGISTER, new MetaInfoRequestPayloadHolder(request));
+            return sendRequest(CommandCode.CLIENT_REGISTER, new MetaInfoRequestPayloadHolder(request));
         } catch (Exception e) {
-            LOGGER.debug("request meta info exception. {}", request, e);
+            LOGGER.warn("request meta info exception. {}", request, e);
+            return null;
         }
     }
 

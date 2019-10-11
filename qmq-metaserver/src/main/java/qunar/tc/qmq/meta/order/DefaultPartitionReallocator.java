@@ -45,8 +45,10 @@ public class DefaultPartitionReallocator implements PartitionReallocator {
             PartitionAllocation.AllocationDetail allocationDetail = allocation.getAllocationDetail();
             Set<String> allocationClientIds = allocationDetail.getClientId2PartitionProps().keySet();
 
-            if (!Objects.equals(allocationClientIds, groupOnlineConsumerIds)) {
-                // 如果当前在线列表与当前分配情况发生变更, 触发重分配
+            PartitionSet latestPartitionSet = cachedMetaInfoManager.getLatestPartitionSet(subject);
+
+            if (!Objects.equals(allocationClientIds, groupOnlineConsumerIds) || latestPartitionSet.getVersion() > allocation.getPartitionSetVersion()) {
+                // 如果当前在线列表与当前分配情况发生变更, 或 partitionSet 扩容缩容, 触发重分配
                 reallocate(subject, consumerGroup, Lists.newArrayList(groupOnlineConsumerIds), allocation.getVersion());
             }
         } else {

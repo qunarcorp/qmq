@@ -24,6 +24,7 @@ public class DefaultExclusiveMessageLockManager implements ExclusiveMessageLockM
                 .build();
     }
 
+    // TODO(zhenwei.liu) 需要在 broker 心跳时刷新 lock 时间
     @Override
     public boolean acquireLock(String partitionName, String consumerGroup, String clientId) {
         String lockKey = createLockKey(partitionName, consumerGroup);
