@@ -63,8 +63,7 @@ public class ExclusiveMessageReader extends MessageReader {
                     }
                     confirmExpiredMessages(subject, consumerGroup, pullLogSequenceInConsumer, actualSequence, result);
                     if (noPullFilter(pullRequest)) {
-                        long begin = actualSequence + 1;
-                        return new PullMessageResult(begin, result.getBuffers(), result.getBufferTotalSize(), result.getMessageNum());
+                        return new PullMessageResult(actualSequence, result.getBuffers(), result.getBufferTotalSize(), result.getMessageNum());
                     }
 
                     return doPullResultFilter(pullRequest, result);
@@ -101,7 +100,7 @@ public class ExclusiveMessageReader extends MessageReader {
         List<GetMessageResult> filterResult = filter(pullRequest, getMessageResult);
         List<PullMessageResult> retList = new ArrayList<>();
         for (GetMessageResult result : filterResult) {
-            long begin = result.getConsumerLogRange().getEnd() - result.getMessageNum() + 1;
+            long begin = result.getNextBeginSequence() - result.getMessageNum();
             retList.add(new PullMessageResult(begin, result.getBuffers(), result.getBufferTotalSize(), result.getMessageNum()));
         }
         if (retList.isEmpty()) return PullMessageResult.FILTER_EMPTY;
