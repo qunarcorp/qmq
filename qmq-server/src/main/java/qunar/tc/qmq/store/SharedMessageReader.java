@@ -15,6 +15,10 @@ import qunar.tc.qmq.store.buffer.Buffer;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * 用于共享模式的读取
+ * 共享模式即多个consumer可以同时消费同一个partition上的消息，所以共享模式需要给每个consumer分别维护拉取状态
+ */
 public class SharedMessageReader extends MessageReader {
     private static final Logger LOGGER = LoggerFactory.getLogger(SharedMessageReader.class);
 

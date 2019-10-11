@@ -13,6 +13,11 @@ import qunar.tc.qmq.utils.RetryPartitionUtils;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * 用于独占模式的读取
+ * 独占模式即某个时刻，一个consumer独占的消费一个partition上的消息
+ * 独占模式的特点就是不需要为consumer维护拉取状态了，所以对于一个consumerGroup维护一个状态即可，所以也就不需要pull log了
+ */
 public class ExclusiveMessageReader extends MessageReader {
     private static final Logger LOGGER = LoggerFactory.getLogger(ExclusiveMessageReader.class);
 
@@ -40,27 +45,22 @@ public class ExclusiveMessageReader extends MessageReader {
 
         final long start = System.currentTimeMillis();
         try {
-            GetMessageResult getMessageResult = pollMessages(subject, pullLogSequenceInConsumer, pullRequest.getRequestNum());
-            switch (getMessageResult.getStatus()) {
+            GetMessageResult result = pollMessages(subject, pullLogSequenceInConsumer, pullRequest.getRequestNum());
+            switch (result.getStatus()) {
                 case SUCCESS:
-                    long actualSequence = getMessageResult.getNextBeginSequence() - getMessageResult.getBuffers().size();
-                    long delta = actualSequence - pullLogSequenceInConsumer;
-                    if (delta > 0) {
-                        QMon.expiredMessagesCountInc(subject, consumerGroup, delta);
-                        LOGGER.error("next sequence skipped. subject: {}, group: {}, nextSequence: {}, result: {}", subject, consumerGroup, pullLogSequenceInConsumer, getMessageResult);
-                    }
-                    if (getMessageResult.getMessageNum() == 0) {
+                    long actualSequence = result.getNextBeginSequence() - result.getMessageNum();
+                    if (result.getMessageNum() == 0) {
                         return PullMessageResult.EMPTY;
                     }
-
+                    confirmExpiredMessages(subject, consumerGroup, pullLogSequenceInConsumer, actualSequence, result);
                     if (noPullFilter(pullRequest)) {
-                        long begin = getMessageResult.getConsumerLogRange().getEnd() - getMessageResult.getMessageNum() + 1;
-                        return new PullMessageResult(begin, getMessageResult.getBuffers(), getMessageResult.getBufferTotalSize(), getMessageResult.getMessageNum());
+                        long begin = actualSequence + 1;
+                        return new PullMessageResult(begin, result.getBuffers(), result.getBufferTotalSize(), result.getMessageNum());
                     }
 
-                    return doPullResultFilter(pullRequest, getMessageResult);
+                    return doPullResultFilter(pullRequest, result);
                 case OFFSET_OVERFLOW:
-                    LOGGER.warn("get message result not success, consumer:{}, result:{}", pullRequest, getMessageResult);
+                    LOGGER.warn("get message result not success, consumer:{}, result:{}", pullRequest, result);
                     QMon.getMessageOverflowCountInc(subject, consumerGroup);
                 default:
                     return PullMessageResult.EMPTY;
@@ -92,10 +92,28 @@ public class ExclusiveMessageReader extends MessageReader {
         List<GetMessageResult> filterResult = filter(pullRequest, getMessageResult);
         List<PullMessageResult> retList = new ArrayList<>();
         for (GetMessageResult result : filterResult) {
-            long begin = result.getConsumerLogRange().getEnd() - getMessageResult.getMessageNum() + 1;
+            long begin = result.getConsumerLogRange().getEnd() - result.getMessageNum() + 1;
             retList.add(new PullMessageResult(begin, result.getBuffers(), result.getBufferTotalSize(), result.getMessageNum()));
         }
         if (retList.isEmpty()) return PullMessageResult.FILTER_EMPTY;
         return merge(retList);
+    }
+
+    /**
+     * requestSequence是期望开始拉取的位置，而actualSequence是从Storage拉取出的消息实际的开始位置，如果actualSequence比requestSequence大
+     * 那么只能说明，这段消息已经过期被删除了，导致无法拉取到。
+     *
+     * @param subject         消息主题
+     * @param consumerGroup   消费组
+     * @param requestSequence 期望开始拉取的位置
+     * @param actualSequence  实际开始拉取的位置
+     * @param result          拉取到的消息集合
+     */
+    private void confirmExpiredMessages(String subject, String consumerGroup, long requestSequence, long actualSequence, GetMessageResult result) {
+        long delta = actualSequence - requestSequence;
+        if (delta > 0) {
+            QMon.expiredMessagesCountInc(subject, consumerGroup, delta);
+            LOGGER.error("next sequence skipped. subject: {}, group: {}, nextSequence: {}, result: {}", subject, consumerGroup, requestSequence, result);
+        }
     }
 }
