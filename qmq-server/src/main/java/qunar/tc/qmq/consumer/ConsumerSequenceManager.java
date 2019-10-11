@@ -87,17 +87,24 @@ public class ConsumerSequenceManager {
 
     }
 
+    /**
+     * 只有共享模式消费才需要记录pull log了
+     * @param subject 消息主题(实际应该是partition name)
+     * @param consumerGroup 消费者分组
+     * @param consumerId 消费者唯一id
+     * @param getMessageResult 从Storage里查出来的消息
+     * @return
+     */
     public WritePutActionResult putPullActions(final String subject,
                                                final String consumerGroup,
                                                final String consumerId,
-                                               final boolean isExclusiveConsume,
                                                final GetMessageResult getMessageResult) {
         final OffsetRange consumerLogRange = getMessageResult.getConsumerLogRange();
-        final ConsumerSequence consumerSequence = getOrCreateConsumerSequence(subject, consumerGroup, consumerId, isExclusiveConsume);
+        final ConsumerSequence consumerSequence = getOrCreateConsumerSequence(subject, consumerGroup, consumerId, false);
 
         if (consumerLogRange.getEnd() - consumerLogRange.getBegin() + 1 != getMessageResult.getMessageNum()) {
             LOGGER.debug("consumer offset range error, subject:{}, consumerGroup:{}, consumerId:{}, isExclusiveConsume:{}, getMessageResult:{}",
-                    subject, consumerGroup, consumerId, isExclusiveConsume, getMessageResult);
+                    subject, consumerGroup, consumerId, false, getMessageResult);
             QMon.consumerLogOffsetRangeError(subject, consumerGroup);
         }
         consumerSequence.pullLock();
@@ -106,11 +113,11 @@ public class ConsumerSequenceManager {
             final long firstConsumerLogSequence = consumerLogRange.getEnd() - getMessageResult.getMessageNum() + 1;
             final long lastConsumerLogSequence = consumerLogRange.getEnd();
 
-            final long firstPullSequence = isExclusiveConsume ? firstConsumerLogSequence : consumerSequence.getPullSequence() + 1;
-            final long lastPullSequence = isExclusiveConsume ? lastConsumerLogSequence : consumerSequence.getPullSequence() + getMessageResult.getMessageNum();
+            final long firstPullSequence = consumerSequence.getPullSequence() + 1;
+            final long lastPullSequence = consumerSequence.getPullSequence() + getMessageResult.getMessageNum();
 
             final Action action = new PullAction(subject, consumerGroup, consumerId,
-                    System.currentTimeMillis(), isExclusiveConsume,
+                    System.currentTimeMillis(), false,
                     firstPullSequence, lastPullSequence,
                     firstConsumerLogSequence, lastConsumerLogSequence);
 

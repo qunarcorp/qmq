@@ -67,7 +67,7 @@ public class SharedMessageReader extends MessageReader {
                     }
 
                     if (noPullFilter(pullRequest)) {
-                        final WritePutActionResult writeResult = consumerSequenceManager.putPullActions(subject, consumerGroup, consumerId, false, getMessageResult);
+                        final WritePutActionResult writeResult = consumerSequenceManager.putPullActions(subject, consumerGroup, consumerId, getMessageResult);
                         if (writeResult.isSuccess()) {
                             consumeQueue.setNextSequence(getMessageResult.getNextBeginSequence());
                             return new PullMessageResult(writeResult.getPullLogOffset(), getMessageResult.getBuffers(), getMessageResult.getBufferTotalSize(), getMessageResult.getMessageNum());
@@ -118,7 +118,7 @@ public class SharedMessageReader extends MessageReader {
     private boolean putAction(GetMessageResult range, ConsumeQueue consumeQueue,
                               String subject, String consumerGroup, String consumerId,
                               List<PullMessageResult> retList) {
-        final WritePutActionResult writeResult = consumerSequenceManager.putPullActions(subject, consumerGroup, consumerId, false, range);
+        final WritePutActionResult writeResult = consumerSequenceManager.putPullActions(subject, consumerGroup, consumerId, range);
         if (writeResult.isSuccess()) {
             consumeQueue.setNextSequence(range.getNextBeginSequence());
             retList.add(new PullMessageResult(writeResult.getPullLogOffset(), range.getBuffers(), range.getBufferTotalSize(), range.getMessageNum()));
