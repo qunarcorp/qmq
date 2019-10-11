@@ -7,6 +7,7 @@ import qunar.tc.qmq.base.PullMessageResult;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.consumer.ConsumerSequenceManager;
 import qunar.tc.qmq.monitor.QMon;
+import qunar.tc.qmq.order.ExclusiveMessageLockManager;
 import qunar.tc.qmq.protocol.consumer.PullRequest;
 import qunar.tc.qmq.utils.RetryPartitionUtils;
 
@@ -23,18 +24,26 @@ public class ExclusiveMessageReader extends MessageReader {
 
     private final Storage storage;
     private final ConsumerSequenceManager consumerSequenceManager;
+    private final ExclusiveMessageLockManager lockManager;
 
-    public ExclusiveMessageReader(Storage storage, ConsumerSequenceManager consumerSequenceManager, DynamicConfig config) {
+    public ExclusiveMessageReader(Storage storage, ConsumerSequenceManager consumerSequenceManager, ExclusiveMessageLockManager lockManager, DynamicConfig config) {
         super(config);
         this.storage = storage;
         this.consumerSequenceManager = consumerSequenceManager;
+        this.lockManager = lockManager;
     }
 
     @Override
     public PullMessageResult findMessages(PullRequest pullRequest) {
-        final String subject = pullRequest.getPartitionName();
-        final String consumerGroup = pullRequest.getGroup();
+        String subject = pullRequest.getPartitionName();
+        String consumerGroup = pullRequest.getGroup();
         String consumerId = pullRequest.getConsumerId();
+
+        if (!lockManager.acquireLock(subject, consumerGroup, consumerId)) {
+            // 获取锁失败
+            return PullMessageResult.REJECT;
+        }
+
         final ConsumerSequence consumerSequence = consumerSequenceManager.getOrCreateConsumerSequence(subject, consumerGroup, consumerId, true);
 
         final long ackSequence = consumerSequence.getAckSequence();
@@ -67,7 +76,7 @@ public class ExclusiveMessageReader extends MessageReader {
             }
         } catch (Throwable e) {
             LOGGER.error("find messages error, consumer: {}", pullRequest, e);
-            QMon.findMessagesErrorCountInc(pullRequest.getPartitionName(), pullRequest.getGroup());
+            QMon.findMessagesErrorCountInc(subject, consumerGroup);
         } finally {
             QMon.findNewExistMessageTime(subject, consumerGroup, System.currentTimeMillis() - start);
         }

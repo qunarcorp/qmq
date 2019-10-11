@@ -20,7 +20,7 @@ import java.util.concurrent.CompletableFuture;
  */
 public class ReleasePullLockProcessor extends AbstractRequestProcessor {
 
-    private ExclusiveMessageLockManager lockManager;
+    private final ExclusiveMessageLockManager lockManager;
 
     public ReleasePullLockProcessor(ExclusiveMessageLockManager lockManager) {
         this.lockManager = lockManager;

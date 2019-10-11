@@ -194,10 +194,11 @@ public class ServerWrapper implements Disposable {
     }
 
     private void initStorage() {
+        this.exclusiveMessageLockManager = new DefaultExclusiveMessageLockManager(PartitionConstants.EXCLUSIVE_CONSUMER_LOCK_LEASE_MILLS, TimeUnit.MILLISECONDS);
         this.consumerSequenceManager = new ConsumerSequenceManager(storage);
         this.subscriberStatusChecker = new SubscriberStatusChecker(config, storage, consumerSequenceManager);
         this.subscriberStatusChecker.init();
-        this.messageStoreWrapper = new MessageStoreWrapper(config, storage, consumerSequenceManager);
+        this.messageStoreWrapper = new MessageStoreWrapper(config, storage, consumerSequenceManager, exclusiveMessageLockManager);
         final OfflineActionHandler handler = new OfflineActionHandler(storage);
         this.storage.registerActionEventListener(handler);
         this.storage.start();
@@ -220,8 +221,7 @@ public class ServerWrapper implements Disposable {
 
     private void startServerHandlers() {
         final ActorSystem actorSystem = new ActorSystem("qmq");
-        this.exclusiveMessageLockManager = new DefaultExclusiveMessageLockManager(PartitionConstants.EXCLUSIVE_CONSUMER_LOCK_LEASE_MILLS, TimeUnit.MILLISECONDS);
-        final PullMessageProcessor pullMessageProcessor = new PullMessageProcessor(config, actorSystem, messageStoreWrapper, subscriberStatusChecker, exclusiveMessageLockManager);
+        final PullMessageProcessor pullMessageProcessor = new PullMessageProcessor(config, actorSystem, messageStoreWrapper, subscriberStatusChecker);
         this.storage.registerEventListener(ConsumerLogWroteEvent.class, pullMessageProcessor);
         final SendMessageProcessor sendMessageProcessor = new SendMessageProcessor(sendMessageWorker);
         final AckMessageProcessor ackMessageProcessor = new AckMessageProcessor(actorSystem, consumerSequenceManager, subscriberStatusChecker);

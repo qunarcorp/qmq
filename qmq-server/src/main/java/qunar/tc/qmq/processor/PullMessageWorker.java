@@ -68,6 +68,7 @@ class PullMessageWorker implements ActorSystem.Processor<PullMessageProcessor.Pu
         final PullMessageResult pullMessageResult = store.findMessages(entry.pullRequest);
 
         if (pullMessageResult == PullMessageResult.FILTER_EMPTY ||
+                pullMessageResult.isReject() ||
                 pullMessageResult.getMessageNum() > 0
                 || entry.isPullOnce()
                 || entry.isTimeout()) {

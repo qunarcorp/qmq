@@ -16,6 +16,7 @@
 
 package qunar.tc.qmq.base;
 
+import qunar.tc.qmq.protocol.CommandCode;
 import qunar.tc.qmq.store.buffer.Buffer;
 
 import java.util.ArrayList;
@@ -26,6 +27,7 @@ import java.util.List;
  * @since 2017/10/30
  */
 public class PullMessageResult {
+    private final int status;
     private final long pullLogOffset;
     private final List<Buffer> buffers;
     private int bufferTotalSize;
@@ -33,12 +35,22 @@ public class PullMessageResult {
 
     public static final PullMessageResult EMPTY = new PullMessageResult(-1, new ArrayList<>(), 0, 0);
     public static final PullMessageResult FILTER_EMPTY = new PullMessageResult(-1, new ArrayList<>(), 0, 0);
+    public static final PullMessageResult REJECT = new PullMessageResult(CommandCode.BROKER_REJECT, -1, new ArrayList<>(), 0, 0);
 
     public PullMessageResult(long pullLogOffset, List<Buffer> buffers, int bufferTotalSize, int messageNum) {
+        this(CommandCode.SUCCESS, pullLogOffset, buffers, bufferTotalSize, messageNum);
+    }
+
+    public PullMessageResult(int status, long pullLogOffset, List<Buffer> buffers, int bufferTotalSize, int messageNum) {
+        this.status = status;
         this.pullLogOffset = pullLogOffset;
         this.buffers = buffers;
         this.bufferTotalSize = bufferTotalSize;
         this.messageNum = messageNum;
+    }
+
+    public boolean isReject() {
+        return status == CommandCode.BROKER_REJECT;
     }
 
     public long getPullLogOffset() {

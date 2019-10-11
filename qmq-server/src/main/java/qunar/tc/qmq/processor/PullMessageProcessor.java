@@ -34,7 +34,6 @@ import qunar.tc.qmq.concurrent.ActorSystem;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.consumer.SubscriberStatusChecker;
 import qunar.tc.qmq.monitor.QMon;
-import qunar.tc.qmq.order.ExclusiveMessageLockManager;
 import qunar.tc.qmq.protocol.CommandCode;
 import qunar.tc.qmq.protocol.Datagram;
 import qunar.tc.qmq.protocol.RemotingCommand;
@@ -80,17 +79,14 @@ public class PullMessageProcessor extends AbstractRequestProcessor implements Fi
     private final SubscriberStatusChecker subscriberStatusChecker;
     private final PullMessageWorker pullMessageWorker;
     private final PullRequestSerde pullRequestSerde;
-    private final ExclusiveMessageLockManager exclusiveMessageLockManager;
 
     public PullMessageProcessor(final DynamicConfig config,
                                 final ActorSystem actorSystem,
                                 final MessageStoreWrapper messageStoreWrapper,
-                                final SubscriberStatusChecker subscriberStatusChecker,
-                                final ExclusiveMessageLockManager exclusiveMessageLockManager) {
+                                final SubscriberStatusChecker subscriberStatusChecker) {
         this.config = config;
         this.actorSystem = actorSystem;
         this.subscriberStatusChecker = subscriberStatusChecker;
-        this.exclusiveMessageLockManager = exclusiveMessageLockManager;
         this.pullMessageWorker = new PullMessageWorker(messageStoreWrapper, actorSystem);
         this.pullRequestSerde = new PullRequestSerde();
         this.timer.start();
@@ -105,18 +101,6 @@ public class PullMessageProcessor extends AbstractRequestProcessor implements Fi
 
         if (!checkAndRepairPullRequest(pullRequest)) {
             return CompletableFuture.completedFuture(crateEmptyResult(command));
-        }
-
-        if (pullRequest.isExclusiveConsume()) {
-            String partitionName = pullRequest.getPartitionName();
-            String group = pullRequest.getGroup();
-            String consumerId = pullRequest.getConsumerId();
-            if (!exclusiveMessageLockManager.acquireLock(partitionName, group, consumerId)) {
-                // 获取锁失败
-                CompletableFuture<Datagram> future = new CompletableFuture<>();
-                future.completeExceptionally(new UnsupportedOperationException(String.format("acquire lock failed %s %s", partitionName, group)));
-                return future;
-            }
         }
 
         subscribe(pullRequest);
@@ -329,6 +313,10 @@ public class PullMessageProcessor extends AbstractRequestProcessor implements Fi
         }
 
         void processMessageResult(PullMessageResult pullMessageResult) {
+            if (pullMessageResult.isReject()) {
+                ctx.writeAndFlush(RemotingBuilder.buildEmptyResponseDatagram(CommandCode.BROKER_REJECT, requestHeader));
+                return;
+            }
             if (pullMessageResult.getMessageNum() <= 0) {
                 processNoMessageResult();
                 return;
