@@ -66,7 +66,7 @@ public final class BrokerMetaManager implements Disposable {
         this.brokerStore = brokerStore;
         this.httpPortMapConfig = DynamicConfigLoader.load("broker-http-port-map.properties", false);
         refresh();
-        scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder().setNameFormat("broker-meta-refresh-%d").build());
+        scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder().setNameFormat("broker-meta-refreshMetaInfo-%d").build());
         scheduledExecutorService.scheduleAtFixedRate(this::refresh, DEFAULT_REFRESH_PERIOD_SECONDS, DEFAULT_REFRESH_PERIOD_SECONDS, TimeUnit.SECONDS);
     }
 

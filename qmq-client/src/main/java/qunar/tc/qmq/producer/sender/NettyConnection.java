@@ -80,7 +80,7 @@ class NettyConnection implements Connection {
     }
 
     public void init() {
-        brokerService.refresh(clientType, subject);
+        brokerService.refreshMetaInfo(clientType, subject);
     }
 
     @Override
@@ -178,7 +178,7 @@ class NettyConnection implements Connection {
         if (target != null) {
             target.setAvailable(false);
         }
-        this.brokerService.refresh(ClientType.PRODUCER, subject);
+        this.brokerService.refreshMetaInfo(ClientType.PRODUCER, subject);
     }
 
     private Map<String, MessageException> process(BrokerGroupInfo target, Datagram response) {

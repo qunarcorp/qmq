@@ -267,7 +267,7 @@ public class WheelTickManager implements Switchable, HashedWheelTimer.Processor 
             scheduleTime = index.getScheduleTime();
             timer.newTimeout(index, scheduleTime - now, TimeUnit.MILLISECONDS);
         } catch (Throwable e) {
-            LOGGER.error("wheel refresh error, scheduleTime:{}, delay:{}", scheduleTime, scheduleTime - now);
+            LOGGER.error("wheel refreshMetaInfo error, scheduleTime:{}, delay:{}", scheduleTime, scheduleTime - now);
             throw Throwables.propagate(e);
         }
     }

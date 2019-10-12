@@ -140,15 +140,15 @@ public abstract class AbstractPullClientManager<T extends PullClient> implements
             // 更新
             Collection<PartitionProps> newPartitionProps = consumerAllocation.getPartitionProps();
             List<T> oldPullClients = oldClient.getComponents();
-            Set<String> newPartitionNames = newPartitionProps.stream()
-                    .map(PartitionProps::getPartitionName)
+            Set<String> newPartitionKeys = newPartitionProps.stream()
+                    .map(this::createPartitionKey)
                     .collect(Collectors.toSet());
-            Set<String> oldPartitionNames = oldPullClients.stream().map(PullClient::getPartitionName)
+            Set<String> oldPartitionKeys = oldPullClients.stream().map(this::createPartitionKey)
                     .collect(Collectors.toSet());
 
             for (T oldPullClient : oldPullClients) {
-                String oldPartitionName = oldPullClient.getPartitionName();
-                if (newPartitionNames.contains(oldPartitionName)) {
+                String oldPartitionKey = createPartitionKey(oldPullClient);
+                if (newPartitionKeys.contains(oldPartitionKey)) {
                     // 获取可复用 entry
                     oldPullClient.setVersion(newVersion);
                     oldPullClient.setConsumeStrategy(newConsumeStrategy);
@@ -161,9 +161,10 @@ public abstract class AbstractPullClientManager<T extends PullClient> implements
             }
 
             for (PartitionProps partitionProps : newPartitionProps) {
-                String partitionName = partitionProps.getPartitionName();
-                String brokerGroup = partitionProps.getBrokerGroup();
-                if (!oldPartitionNames.contains(partitionName)) {
+                String partitionKey = createPartitionKey(partitionProps);
+                if (!oldPartitionKeys.contains(partitionKey)) {
+                    String partitionName = partitionProps.getPartitionName();
+                    String brokerGroup = partitionProps.getBrokerGroup();
                     T newPullClient = doCreatePullClient(subject, consumerGroup, partitionName, brokerGroup,
                             newConsumeStrategy, newVersion, expired, pullStrategy, registryParam);
                     newPullClients.add(newPullClient);
@@ -196,6 +197,18 @@ public abstract class AbstractPullClientManager<T extends PullClient> implements
             List<? extends PullClient> clientList, Object registryParam);
 
     abstract StatusSource getStatusSource(Object registryParam);
+
+    private String createPartitionKey(PartitionProps pp) {
+        return createPartitionKey(pp.getBrokerGroup(), pp.getPartitionName());
+    }
+
+    private String createPartitionKey(PullClient pc) {
+        return createPartitionKey(pc.getBrokerGroup(), pc.getPartitionName());
+    }
+
+    private String createPartitionKey(String brokerGroup, String partitionName) {
+        return brokerGroup + ":" + partitionName;
+    }
 
     @Override
     public T getPullClient(String subject, String consumerGroup) {

@@ -30,9 +30,9 @@ public interface BrokerService extends ClientMetaManager {
 
     BrokerClusterInfo getBrokerCluster(ClientType clientType, String subject, String group, boolean isBroadcast, boolean isOrdered);
 
-    void refresh(ClientType clientType, String subject);
+    void refreshMetaInfo(ClientType clientType, String subject);
 
-    void refresh(ClientType clientType, String subject, String consumerGroup);
+    void refreshMetaInfo(ClientType clientType, String subject, String consumerGroup);
 
     void releaseLock(String subject, String consumerGroup, String partitionName, String brokerGroupName, ConsumeStrategy consumeStrategy);
 

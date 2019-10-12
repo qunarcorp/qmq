@@ -7,7 +7,7 @@ import qunar.tc.qmq.base.PullMessageResult;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.consumer.ConsumerSequenceManager;
 import qunar.tc.qmq.monitor.QMon;
-import qunar.tc.qmq.order.ExclusiveMessageLockManager;
+import qunar.tc.qmq.order.ExclusiveConsumerLockManager;
 import qunar.tc.qmq.protocol.consumer.PullRequest;
 import qunar.tc.qmq.utils.RetryPartitionUtils;
 
@@ -24,9 +24,9 @@ public class ExclusiveMessageReader extends MessageReader {
 
     private final Storage storage;
     private final ConsumerSequenceManager consumerSequenceManager;
-    private final ExclusiveMessageLockManager lockManager;
+    private final ExclusiveConsumerLockManager lockManager;
 
-    public ExclusiveMessageReader(Storage storage, ConsumerSequenceManager consumerSequenceManager, ExclusiveMessageLockManager lockManager, DynamicConfig config) {
+    public ExclusiveMessageReader(Storage storage, ConsumerSequenceManager consumerSequenceManager, ExclusiveConsumerLockManager lockManager, DynamicConfig config) {
         super(config);
         this.storage = storage;
         this.consumerSequenceManager = consumerSequenceManager;

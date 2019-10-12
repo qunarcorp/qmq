@@ -33,7 +33,7 @@ public class ConsumerTest {
         SubscribeParam param = new SubscribeParam.SubscribeParamBuilder()
                 .setOrdered(true)
                 .create();
-        final ListenerHolder listener = provider.addListener("alloc.partition.subject", "test_consumer_group", new MessageListener() {
+        final ListenerHolder listener = provider.addListener("alloc.partition.subject10", "test_consumer_group", new MessageListener() {
             @Override
             public void onMessage(Message msg) {
                 LOGGER.info("msgId:{}", msg.getMessageId());

@@ -25,11 +25,11 @@ public class PartitionAllocationTask {
     );
 
     private PartitionService partitionService;
-    private PartitionReallocator partitionReallocator;
+    private ConsumerPartitionAllocator consumerPartitionAllocator;
 
-    public PartitionAllocationTask(PartitionService partitionService, PartitionReallocator partitionReallocator) {
+    public PartitionAllocationTask(PartitionService partitionService, ConsumerPartitionAllocator consumerPartitionAllocator) {
         this.partitionService = partitionService;
-        this.partitionReallocator = partitionReallocator;
+        this.consumerPartitionAllocator = consumerPartitionAllocator;
     }
 
     public void start() {
@@ -59,7 +59,7 @@ public class PartitionAllocationTask {
             List<ClientMetaInfo> groupOnlineConsumers = entry.getValue();
             String subject = groupOnlineConsumers.get(0).getSubject();
             String consumerGroup = groupOnlineConsumers.get(0).getConsumerGroup();
-            partitionReallocator.reallocate(subject, consumerGroup, groupOnlineConsumers);
+            consumerPartitionAllocator.reallocate(subject, consumerGroup, groupOnlineConsumers);
         }
     }
 }

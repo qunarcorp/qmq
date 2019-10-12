@@ -39,32 +39,50 @@ public class DefaultAllocationService implements AllocationService {
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultAllocationService.class);
 
     private CachedMetaInfoManager cachedMetaInfoManager;
+    private ConsumerPartitionAllocator consumerPartitionAllocator;
+    private PartitionService partitionService;
+    private PartitionNameResolver partitionNameResolver;
 
-    public DefaultAllocationService(CachedMetaInfoManager cachedMetaInfoManager) {
+    public DefaultAllocationService(CachedMetaInfoManager cachedMetaInfoManager,
+            ConsumerPartitionAllocator consumerPartitionAllocator, PartitionService partitionService) {
         this.cachedMetaInfoManager = cachedMetaInfoManager;
+        this.consumerPartitionAllocator = consumerPartitionAllocator;
+        this.partitionService = partitionService;
+        this.partitionNameResolver = new OldPartitionNameResolver();
     }
 
     @Override
     public ProducerAllocation getProducerAllocation(ClientType clientType, String subject,
-            List<BrokerGroup> defaultBrokerGroups) {
+            List<BrokerGroup> brokerGroups) {
         PartitionSet partitionSet = cachedMetaInfoManager.getLatestPartitionSet(subject);
-        if (partitionSet == null || Objects.equals(clientType, ClientType.DELAY_PRODUCER)) {
-            return getDefaultProducerAllocation(subject, defaultBrokerGroups);
-        } else {
-            Set<Integer> partitionIds = partitionSet.getPhysicalPartitions();
-            int version = partitionSet.getVersion();
-            RangeMap<Integer, PartitionProps> rangeMap = TreeRangeMap.create();
-            for (Integer partitionId : partitionIds) {
-                Partition partition = cachedMetaInfoManager.getPartition(subject, partitionId);
-                if (partition != null) {
-                    rangeMap.put(partition.getLogicalPartition(),
-                            new PartitionProps(partitionId, partition.getPartitionName(), partition.getBrokerGroup()));
-                } else {
-                    LOGGER.warn("无法找到 Partition subject {} id {}", subject, partitionId);
-                }
+
+        if (partitionSet == null) {
+            if (Objects.equals(clientType, ClientType.DELAY_PRODUCER)) {
+                return getDefaultProducerAllocation(subject, brokerGroups);
+            } else {
+                // 初始化 partition set
+                List<Partition> partitions = partitionService.mapPartitions(subject, brokerGroups.size(),
+                        brokerGroups.stream().map(BrokerGroup::getGroupName).collect(Collectors.toList()), null,
+                        partitionNameResolver);
+                partitionSet = partitionService.mapPartitionSet(subject, partitions, null);
+                partitionService.updatePartitions(subject, partitionSet, partitions, null);
+                partitionSet = cachedMetaInfoManager.getLatestPartitionSet(subject);
             }
-            return new ProducerAllocation(subject, version, rangeMap);
         }
+
+        Set<Integer> partitionIds = partitionSet.getPhysicalPartitions();
+        int version = partitionSet.getVersion();
+        RangeMap<Integer, PartitionProps> rangeMap = TreeRangeMap.create();
+        for (Integer partitionId : partitionIds) {
+            Partition partition = cachedMetaInfoManager.getPartition(subject, partitionId);
+            if (partition != null) {
+                rangeMap.put(partition.getLogicalPartition(),
+                        new PartitionProps(partitionId, partition.getPartitionName(), partition.getBrokerGroup()));
+            } else {
+                LOGGER.warn("无法找到 Partition subject {} id {}", subject, partitionId);
+            }
+        }
+        return new ProducerAllocation(subject, version, rangeMap);
     }
 
     private ProducerAllocation getDefaultProducerAllocation(String subject, List<BrokerGroup> brokerGroups) {
@@ -89,44 +107,63 @@ public class DefaultAllocationService implements AllocationService {
     @Override
     public ConsumerAllocation getConsumerAllocation(String subject, String consumerGroup, String clientId,
             long authExpireTime, ConsumeStrategy consumeStrategy, List<BrokerGroup> brokerGroups) {
-        PartitionAllocation partitionAllocation = cachedMetaInfoManager.getPartitionAllocation(subject, consumerGroup);
-        if (partitionAllocation != null) {
-            int version = partitionAllocation.getVersion();
-            Map<String, Set<PartitionProps>> clientId2PartitionProps = partitionAllocation.getAllocationDetail()
-                    .getClientId2PartitionProps();
-            Set<PartitionProps> partitionProps = clientId2PartitionProps.get(clientId);
-            if (partitionProps == null) {
-                // 说明还未给该 client 分配, 应该返回空列表
-                partitionProps = Collections.emptySet();
-            }
+        if (CollectionUtils.isEmpty(brokerGroups)) {
+            return new ConsumerAllocation(-1, Collections.emptyList(), -1, consumeStrategy);
+        }
 
-            // 将旧的分区合并到所有 consumer 的分区分配列表
-            Set<Integer> latestPartitionIds = partitionProps.stream().map(PartitionProps::getPartitionId)
-                    .collect(Collectors.toSet());
-            List<PartitionSet> allPartitionSets = cachedMetaInfoManager.getPartitionSets(subject);
-            List<PartitionProps> mergedPartitionProps = Lists.newArrayList();
-            mergedPartitionProps.addAll(partitionProps);
-            for (PartitionSet oldPartitionSet : allPartitionSets) {
-                if (oldPartitionSet.getVersion() >= partitionAllocation.getPartitionSetVersion()) {
-                    continue;
-                }
-                Set<Integer> pps = oldPartitionSet.getPhysicalPartitions();
-                SetView<Integer> sharedPartitionIds = Sets.difference(pps, latestPartitionIds);
-                if (!CollectionUtils.isEmpty(sharedPartitionIds)) {
-                    for (Integer sharedPartitionId : sharedPartitionIds) {
-                        Partition partition = cachedMetaInfoManager.getPartition(subject, sharedPartitionId);
-                        mergedPartitionProps
-                                .add(new PartitionProps(partition.getPartitionId(), partition.getPartitionName(),
-                                        partition.getBrokerGroup()));
-                    }
-                }
+        if (consumeStrategy == ConsumeStrategy.EXCLUSIVE) {
+            PartitionAllocation partitionAllocation = cachedMetaInfoManager
+                    .getPartitionAllocation(subject, consumerGroup);
+            if (partitionAllocation == null) {
+                return getDefaultConsumerAllocation(subject, authExpireTime, consumeStrategy, brokerGroups);
+            } else {
+                return createConsumerAllocation(subject, consumerGroup, clientId, authExpireTime, consumeStrategy,
+                        brokerGroups, partitionAllocation);
             }
-
-            mergedPartitionProps.sort((o1, o2) -> Ints.compare(o1.getPartitionId(), o2.getPartitionId()));
-            return new ConsumerAllocation(version, mergedPartitionProps, authExpireTime, consumeStrategy);
         } else {
             return getDefaultConsumerAllocation(subject, authExpireTime, consumeStrategy, brokerGroups);
         }
+    }
+
+    private ConsumerAllocation createConsumerAllocation(String subject, String consumerGroup, String clientId,
+            long authExpireTime, ConsumeStrategy consumeStrategy, List<BrokerGroup> brokerGroups,
+            PartitionAllocation partitionAllocation) {
+        int version = partitionAllocation.getVersion();
+        Map<String, Set<PartitionProps>> clientId2PartitionProps = partitionAllocation.getAllocationDetail()
+                .getClientId2PartitionProps();
+        Set<PartitionProps> partitionProps = clientId2PartitionProps.get(clientId);
+        if (partitionProps == null) {
+            // 说明还未给该 client 分配, 应该返回空列表
+            partitionProps = Collections.emptySet();
+        }
+
+        // 将旧的分区合并到所有 consumer 的分区分配列表
+        Set<Integer> latestPartitionIds = partitionProps.stream().map(PartitionProps::getPartitionId)
+                .collect(Collectors.toSet());
+        List<PartitionSet> allPartitionSets = cachedMetaInfoManager.getPartitionSets(subject);
+
+        List<PartitionProps> mergedPartitionProps = Lists.newArrayList();
+        mergedPartitionProps.addAll(partitionProps);
+
+        for (PartitionSet oldPartitionSet : allPartitionSets) {
+            if (oldPartitionSet.getVersion() >= partitionAllocation.getPartitionSetVersion()) {
+                continue;
+            }
+            Set<Integer> pps = oldPartitionSet.getPhysicalPartitions();
+            SetView<Integer> sharedPartitionIds = Sets.difference(pps, latestPartitionIds);
+            if (!CollectionUtils.isEmpty(sharedPartitionIds)) {
+                for (Integer sharedPartitionId : sharedPartitionIds) {
+                    Partition partition = cachedMetaInfoManager.getPartition(subject, sharedPartitionId);
+                    mergedPartitionProps
+                            .add(new PartitionProps(partition.getPartitionId(), partition.getPartitionName(),
+                                    partition.getBrokerGroup()));
+                }
+            }
+        }
+
+        mergedPartitionProps.sort((o1, o2) -> Ints.compare(o1.getPartitionId(), o2.getPartitionId()));
+
+        return new ConsumerAllocation(version, mergedPartitionProps, authExpireTime, consumeStrategy);
     }
 
     private ConsumerAllocation getDefaultConsumerAllocation(String subject, long authExpireTime,

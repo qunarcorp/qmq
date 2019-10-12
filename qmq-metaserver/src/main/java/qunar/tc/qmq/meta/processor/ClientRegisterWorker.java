@@ -42,7 +42,7 @@ import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 import qunar.tc.qmq.meta.cache.CachedOfflineStateManager;
 import qunar.tc.qmq.meta.model.ClientMetaInfo;
 import qunar.tc.qmq.meta.order.AllocationService;
-import qunar.tc.qmq.meta.order.PartitionReallocator;
+import qunar.tc.qmq.meta.order.ConsumerPartitionAllocator;
 import qunar.tc.qmq.meta.route.SubjectRouter;
 import qunar.tc.qmq.meta.store.ClientMetaInfoStore;
 import qunar.tc.qmq.meta.store.Store;
@@ -72,15 +72,15 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
     private final ClientMetaInfoStore clientMetaInfoStore;
     private final CachedOfflineStateManager offlineStateManager;
     private final AllocationService allocationService;
-    private final PartitionReallocator partitionReallocator;
+    private final ConsumerPartitionAllocator consumerPartitionAllocator;
 
     ClientRegisterWorker(final SubjectRouter subjectRouter, final CachedOfflineStateManager offlineStateManager,
             final Store store, CachedMetaInfoManager cachedMetaInfoManager, ClientMetaInfoStore clientMetaInfoStore,
-            AllocationService allocationService, PartitionReallocator partitionReallocator) {
+            AllocationService allocationService, ConsumerPartitionAllocator consumerPartitionAllocator) {
         this.subjectRouter = subjectRouter;
         this.clientMetaInfoStore = clientMetaInfoStore;
         this.allocationService = allocationService;
-        this.partitionReallocator = partitionReallocator;
+        this.consumerPartitionAllocator = consumerPartitionAllocator;
         this.actorSystem = new ActorSystem("qmq_meta");
         this.offlineStateManager = offlineStateManager;
         this.store = store;
@@ -183,7 +183,7 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
 
             if (ClientRequestType.SWITCH_STATE.getCode() == requestType) {
                 // 触发重分配
-                partitionReallocator.reallocate(subject, consumerGroup);
+                consumerPartitionAllocator.reallocate(subject, consumerGroup);
             }
         }
     }
@@ -271,6 +271,7 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
             ClientType clientType = ClientType.of(clientTypeCode);
             String subject = request.getSubject();
             String consumerGroup = request.getConsumerGroup();
+
             if (clientType.isProducer()) {
                 ProducerAllocation producerAllocation = allocationService
                         .getProducerAllocation(clientType, subject, brokerCluster.getBrokerGroups());

@@ -10,7 +10,7 @@ import qunar.tc.qmq.meta.ProducerAllocation;
 import qunar.tc.qmq.protocol.MetaInfoResponse;
 import qunar.tc.qmq.protocol.QuerySubjectRequest;
 import qunar.tc.qmq.protocol.QuerySubjectResponse;
-import qunar.tc.qmq.protocol.consumer.ReleasePullLockRequest;
+import qunar.tc.qmq.protocol.consumer.LockOperationRequest;
 
 import java.util.List;
 import java.util.Map;
@@ -39,7 +39,7 @@ public class Serializers {
         serializerMap.put(MetaInfoResponse.class, new MetaInfoResponseSerializer());
         serializerMap.put(QuerySubjectRequest.class, new QuerySubjectRequestSerializer());
         serializerMap.put(QuerySubjectResponse.class, new QuerySubjectResponseSerializer());
-        serializerMap.put(ReleasePullLockRequest.class, new ReleasePullLockRequestSerializer());
+        serializerMap.put(LockOperationRequest.class, new ReleasePullLockRequestSerializer());
     }
 
     public static <T> Serializer<T> getSerializer(Class<T> clazz) {

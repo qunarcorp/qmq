@@ -58,7 +58,7 @@ public class DefaultCachedMetaInfoManager implements Disposable, CachedMetaInfoM
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultCachedMetaInfoManager.class);
 
     private static final ScheduledExecutorService SCHEDULE_POOL = Executors.newSingleThreadScheduledExecutor(
-            new ThreadFactoryBuilder().setNameFormat("meta-info-refresh-%d").build());
+            new ThreadFactoryBuilder().setNameFormat("meta-info-refreshMetaInfo-%d").build());
     private static final long DEFAULT_REFRESH_PERIOD_SECONDS = 5L;
 
     private static final String DEFAULT_BROKER_GROUP_TAG = "_default_";
@@ -201,7 +201,6 @@ public class DefaultCachedMetaInfoManager implements Disposable, CachedMetaInfoM
     }
 
     private void doRefresh() {
-        LOGGER.info("refresh meta info");
         refreshBrokerGroups();
         refreshSubjectInfoCache();
         refreshGroupsAndSubjects();
@@ -222,7 +221,8 @@ public class DefaultCachedMetaInfoManager implements Disposable, CachedMetaInfoM
         readonlyBrokerGroupSettings = map;
     }
 
-    private void refreshPartitions() {
+    @Override
+    public void refreshPartitions() {
         this.subjectPid2Partition = partitionService.getAllPartitions().stream().collect(
                 Collectors.toMap(p -> createPartitionKey(p.getSubject(), p.getPartitionId()), p -> p));
         List<PartitionSet> allPartitionSets = partitionService.getAllPartitionSets();
@@ -238,7 +238,8 @@ public class DefaultCachedMetaInfoManager implements Disposable, CachedMetaInfoM
                 Collectors.toMap(p -> createPartitionSetKey(p.getSubject()), p -> p));
     }
 
-    private void refreshPartitionAllocations() {
+    @Override
+    public void refreshPartitionAllocations() {
         this.subjectConsumerGroup2partitionAllocation = partitionService.getLatestPartitionAllocations().stream()
                 .collect(
                         Collectors.toMap(pa -> createPartitionAllocationKey(pa.getSubject(), pa.getConsumerGroup()),

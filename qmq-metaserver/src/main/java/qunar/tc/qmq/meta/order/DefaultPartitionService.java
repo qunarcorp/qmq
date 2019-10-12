@@ -22,6 +22,7 @@ import qunar.tc.qmq.base.OnOfflineState;
 import qunar.tc.qmq.common.PartitionConstants;
 import qunar.tc.qmq.meta.Partition;
 import qunar.tc.qmq.meta.PartitionSet;
+import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 import qunar.tc.qmq.meta.model.ClientMetaInfo;
 import qunar.tc.qmq.meta.store.ClientMetaInfoStore;
 import qunar.tc.qmq.meta.store.PartitionAllocationStore;
@@ -43,11 +44,11 @@ public class DefaultPartitionService implements PartitionService {
     private PartitionStore partitionStore;
     private PartitionSetStore partitionSetStore;
     private PartitionAllocationStore partitionAllocationStore;
-    private PartitionAllocator partitionAllocator;
+    private PartitionAllocateStrategy partitionAllocateStrategy;
     private TransactionTemplate transactionTemplate;
     private RangeMapper rangeMapper = new AverageRangeMapper();
     private ItemMapper itemMapper = new AverageItemMapper();
-
+    private CachedMetaInfoManager cachedMetaInfoManager;
 
     public DefaultPartitionService(
             PartitionNameResolver partitionNameResolver,
@@ -56,7 +57,7 @@ public class DefaultPartitionService implements PartitionService {
             PartitionStore partitionStore,
             PartitionSetStore partitionSetStore,
             PartitionAllocationStore partitionAllocationStore,
-            PartitionAllocator partitionAllocator,
+            PartitionAllocateStrategy partitionAllocateStrategy,
             TransactionTemplate transactionTemplate) {
         this.partitionNameResolver = partitionNameResolver;
         this.store = store;
@@ -64,13 +65,61 @@ public class DefaultPartitionService implements PartitionService {
         this.partitionStore = partitionStore;
         this.partitionSetStore = partitionSetStore;
         this.partitionAllocationStore = partitionAllocationStore;
-        this.partitionAllocator = partitionAllocator;
+        this.partitionAllocateStrategy = partitionAllocateStrategy;
         this.transactionTemplate = transactionTemplate;
     }
 
     @Override
     public boolean updatePartitions(String subject, int newPartitionNum, List<String> brokerGroups) {
         List<PartitionSet> oldPartitionSets = partitionSetStore.getAll(subject);
+        List<Partition> partitions = mapPartitions(subject, newPartitionNum, brokerGroups, oldPartitionSets, partitionNameResolver);
+        PartitionSet partitionSet = mapPartitionSet(subject, partitions, oldPartitionSets);
+        return updatePartitions(subject, partitionSet, partitions, oldPartitionSets);
+    }
+
+    @Override
+    public boolean updatePartitions(String subject, PartitionSet partitionSet, List<Partition> partitions, List<PartitionSet> oldPartitionSets) {
+        boolean update = transactionTemplate.execute(transactionStatus -> {
+            if (!CollectionUtils.isEmpty(oldPartitionSets)) {
+                // 关闭旧分区
+                for (PartitionSet oldPartitionSet : oldPartitionSets) {
+                    Set<Integer> oldPartitions = oldPartitionSet.getPhysicalPartitions();
+                    partitionStore.updatePartitionsByIds(subject, oldPartitions, Partition.Status.NRW);
+                }
+            }
+            partitionStore.save(partitions);
+            partitionSetStore.save(partitionSet);
+            return true;
+        });
+        cachedMetaInfoManager.refreshPartitions();
+        return update;
+    }
+
+    @Override
+    public PartitionSet mapPartitionSet(String subject, int newPartitionNum, List<String> brokerGroups) {
+        List<PartitionSet> oldPartitionSets = partitionSetStore.getAll(subject);
+        List<Partition> partitions = mapPartitions(subject, newPartitionNum, brokerGroups, oldPartitionSets, partitionNameResolver);
+        return mapPartitionSet(subject, partitions, oldPartitionSets);
+    }
+
+    @Override
+    public PartitionSet mapPartitionSet(String subject, List<Partition> partitions,
+            List<PartitionSet> oldPartitionSets) {
+        int partitionSetVersion = CollectionUtils.isEmpty(oldPartitionSets) ? 0
+                : oldPartitionSets.get(oldPartitionSets.size() - 1).getVersion() + 1;
+
+        PartitionSet partitionSet = new PartitionSet();
+        partitionSet.setSubject(subject);
+        partitionSet.setVersion(partitionSetVersion);
+        partitionSet
+                .setPhysicalPartitions(partitions.stream().map(Partition::getPartitionId).collect(Collectors.toSet()));
+
+        return partitionSet;
+    }
+
+    @Override
+    public List<Partition> mapPartitions(String subject, int newPartitionNum, List<String> brokerGroups,
+            List<PartitionSet> oldPartitionSets, PartitionNameResolver partitionNameResolver) {
 
         int logicalPartitionNum = PartitionConstants.DEFAULT_LOGICAL_PARTITION_NUM;
         int defaultPhysicalPartitionNum = PartitionConstants.DEFAULT_PHYSICAL_PARTITION_NUM;
@@ -78,14 +127,11 @@ public class DefaultPartitionService implements PartitionService {
 
         // 初始化 physical/logical partition 列表
         int startPartitionId;
-        int currentVersion;
         if (CollectionUtils.isEmpty(oldPartitionSets)) {
             startPartitionId = 0;
-            currentVersion = 0;
         } else {
             PartitionSet latestPartitionSet = oldPartitionSets.get(oldPartitionSets.size() - 1);
             startPartitionId = Collections.max(latestPartitionSet.getPhysicalPartitions()) + 1;
-            currentVersion = latestPartitionSet.getVersion() + 1;
         }
 
         List<Integer> physicalPartitionList = createIntList(startPartitionId, newPartitionNum);
@@ -117,24 +163,7 @@ public class DefaultPartitionService implements PartitionService {
             partitions.add(partition);
         }
 
-        PartitionSet partitionSet = new PartitionSet();
-        partitionSet.setSubject(subject);
-        partitionSet.setVersion(currentVersion);
-        partitionSet
-                .setPhysicalPartitions(partitions.stream().map(Partition::getPartitionId).collect(Collectors.toSet()));
-
-        return transactionTemplate.execute(transactionStatus -> {
-            if (!CollectionUtils.isEmpty(oldPartitionSets)) {
-                // 关闭旧分区
-                for (PartitionSet oldPartitionSet : oldPartitionSets) {
-                    Set<Integer> oldPartitions = oldPartitionSet.getPhysicalPartitions();
-                    partitionStore.updatePartitionsByIds(subject, oldPartitions, Partition.Status.NRW);
-                }
-            }
-            partitionStore.save(partitions);
-            partitionSetStore.save(partitionSet);
-            return true;
-        });
+        return partitions;
     }
 
     @Override
@@ -169,7 +198,7 @@ public class DefaultPartitionService implements PartitionService {
         List<Partition> partitions = partitionStore.getByPartitionIds(subject, partitionSet.getPhysicalPartitions());
         Map<Integer, Partition> partitionMap = partitions.stream()
                 .collect(Collectors.toMap(Partition::getPartitionId, p -> p));
-        return partitionAllocator.allocate(partitionSet, partitionMap, onlineConsumerList, consumerGroup);
+        return partitionAllocateStrategy.allocate(partitionSet, partitionMap, onlineConsumerList, consumerGroup);
     }
 
     @Override

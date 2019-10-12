@@ -30,8 +30,8 @@ public class ProducerTest {
         provider.setMetaServer("http://127.0.0.1:8080/meta/address");
         provider.setTransactionProvider(new SpringTransactionProvider(dataSource));
         provider.init();
-        for (int i = 0; i < 1000; i++) {
-            Message message = provider.generateMessage("alloc.partition.subject");
+        for (int i = 0; i < 1; i++) {
+            Message message = provider.generateMessage("alloc.partition.subject10");
             message.setOrderKey(String.valueOf(i));
             message.setProperty("mytag", i);
             provider.sendMessage(message, new MessageSendStateListener() {

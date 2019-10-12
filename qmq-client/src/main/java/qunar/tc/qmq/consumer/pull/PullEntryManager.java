@@ -93,7 +93,7 @@ public class PullEntryManager extends AbstractPullClientManager<PullEntry> {
                 getConsumerOnlineStateManager(),
                 partitionExecutor);
         pullEntry.startPull(partitionExecutor);
-        LOGGER.info("创建 pull client {} {} {}", subject, partitionName, consumerGroup);
+        LOGGER.info("创建 pull client {} {} {} {}", subject, partitionName, brokerGroup, consumerGroup);
         return pullEntry;
     }
 

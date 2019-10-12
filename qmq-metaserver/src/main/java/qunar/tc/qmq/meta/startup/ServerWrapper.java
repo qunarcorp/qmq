@@ -77,7 +77,7 @@ public class ServerWrapper implements Disposable {
         final PartitionStoreImpl partitionStore = new PartitionStoreImpl();
         final PartitionSetStoreImpl partitionSetStore = new PartitionSetStoreImpl();
         final PartitionAllocationStoreImpl partitionAllocationStore = new PartitionAllocationStoreImpl();
-        final AveragePartitionAllocator partitionAllocator = new AveragePartitionAllocator();
+        final AveragePartitionAllocateStrategy partitionAllocator = new AveragePartitionAllocateStrategy();
         final DefaultPartitionService partitionService = new DefaultPartitionService(
                 partitionNameResolver,
                 store,
@@ -89,10 +89,12 @@ public class ServerWrapper implements Disposable {
                 JdbcTemplateHolder.getTransactionTemplate()
         );
         final CachedMetaInfoManager cachedMetaInfoManager = new DefaultCachedMetaInfoManager(config, store, readonlyBrokerGroupSettingStore, partitionService);
-        AllocationService allocationService = new DefaultAllocationService(cachedMetaInfoManager);
 
         final SubjectRouter subjectRouter = new DefaultSubjectRouter(config, cachedMetaInfoManager, store);
-        final DefaultPartitionReallocator partitionReallocator = new DefaultPartitionReallocator(partitionService, cachedMetaInfoManager);
+        final DefaultPartitionReallocator partitionReallocator = new DefaultPartitionReallocator(partitionService, cachedMetaInfoManager,
+                subjectRouter);
+        final AllocationService allocationService = new DefaultAllocationService(cachedMetaInfoManager, partitionReallocator,
+                partitionService);
         final ClientRegisterProcessor clientRegisterProcessor = new ClientRegisterProcessor(subjectRouter, CachedOfflineStateManager.SUPPLIER.get(), store, clientMetaInfoStore, cachedMetaInfoManager, allocationService, partitionReallocator);
         final BrokerRegisterProcessor brokerRegisterProcessor = new BrokerRegisterProcessor(config, cachedMetaInfoManager, store);
         final BrokerAcquireMetaProcessor brokerAcquireMetaProcessor = new BrokerAcquireMetaProcessor(new BrokerStoreImpl(jdbcTemplate));

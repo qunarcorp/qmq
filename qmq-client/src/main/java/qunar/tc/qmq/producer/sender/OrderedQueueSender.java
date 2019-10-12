@@ -72,7 +72,9 @@ public class OrderedQueueSender implements QueueSender {
                 continue;
             }
             try {
-                sendMessageExecutorManager.getExecutor(message).addMessage(message);
+                StatefulSendMessageExecutor executor = sendMessageExecutorManager.getExecutor(message);
+                executor.addMessage(message);
+                LOGGER.info("进入发送分区 {} partition {}", message.getSubject(), executor.getMessageGroup().getPartitionName());
             } catch (Throwable t) {
                 try {
                     LOGGER.error("消息派发失败", t);

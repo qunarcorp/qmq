@@ -22,7 +22,7 @@ import qunar.tc.qmq.base.*;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.consumer.ConsumerSequenceManager;
 import qunar.tc.qmq.monitor.QMon;
-import qunar.tc.qmq.order.ExclusiveMessageLockManager;
+import qunar.tc.qmq.order.ExclusiveConsumerLockManager;
 import qunar.tc.qmq.protocol.consumer.PullRequest;
 import qunar.tc.qmq.protocol.producer.MessageProducerCode;
 
@@ -38,7 +38,7 @@ public class MessageStoreWrapper {
     private final SharedMessageReader sharedMessageReader;
     private final ExclusiveMessageReader exclusiveMessageReader;
 
-    public MessageStoreWrapper(final DynamicConfig config, final Storage storage, final ConsumerSequenceManager consumerSequenceManager, ExclusiveMessageLockManager lockManager) {
+    public MessageStoreWrapper(final DynamicConfig config, final Storage storage, final ConsumerSequenceManager consumerSequenceManager, ExclusiveConsumerLockManager lockManager) {
         this.storage = storage;
         this.sharedMessageReader = new SharedMessageReader(storage, consumerSequenceManager, config);
         this.exclusiveMessageReader = new ExclusiveMessageReader(storage, consumerSequenceManager, lockManager, config);

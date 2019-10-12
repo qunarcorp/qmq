@@ -16,7 +16,7 @@ import java.util.Set;
  * @author zhenwei.liu
  * @since 2019-08-28
  */
-public class AveragePartitionAllocator implements PartitionAllocator {
+public class AveragePartitionAllocateStrategy implements PartitionAllocateStrategy {
 
     private ItemMapper itemMapper = new AverageItemMapper();
 

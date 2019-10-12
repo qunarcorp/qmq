@@ -17,32 +17,37 @@
 package qunar.tc.qmq.consumer;
 
 import com.google.common.collect.Table;
+import java.util.Collection;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.common.Disposable;
 import qunar.tc.qmq.concurrent.ActorSystem;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.configuration.DynamicConfig;
+import qunar.tc.qmq.order.ExclusiveConsumerLockManager;
 import qunar.tc.qmq.store.ConsumerGroupProgress;
 import qunar.tc.qmq.store.GroupAndPartition;
 import qunar.tc.qmq.store.PullLog;
 import qunar.tc.qmq.store.Storage;
 import qunar.tc.qmq.utils.RetryPartitionUtils;
 
-import java.util.Collection;
-import java.util.Map;
-import java.util.concurrent.*;
-
 /**
- * Created by zhaohui.yu
- * 7/30/18
+ * Created by zhaohui.yu 7/30/18
  */
 public class SubscriberStatusChecker implements ActorSystem.Processor<Subscriber>, Runnable, Disposable {
+
     private static final Logger LOGGER = LoggerFactory.getLogger(SubscriberStatusChecker.class);
 
     private final DynamicConfig config;
     private final Storage storage;
     private final ConsumerSequenceManager consumerSequenceManager;
+    private final ExclusiveConsumerLockManager lockManager;
     private final ActorSystem actorSystem;
 
     private final ConcurrentMap<String, ConcurrentMap<String, Subscriber>> subscribers = new ConcurrentHashMap<>();
@@ -51,10 +56,13 @@ public class SubscriberStatusChecker implements ActorSystem.Processor<Subscriber
 
     private ScheduledExecutorService executor;
 
-    public SubscriberStatusChecker(DynamicConfig config, Storage storage, ConsumerSequenceManager consumerSequenceManager) {
+    public SubscriberStatusChecker(DynamicConfig config, Storage storage,
+            ConsumerSequenceManager consumerSequenceManager,
+            ExclusiveConsumerLockManager lockManager) {
         this.config = config;
         this.storage = storage;
         this.consumerSequenceManager = consumerSequenceManager;
+        this.lockManager = lockManager;
         this.actorSystem = new ActorSystem("consumers", 4, false);
     }
 
@@ -65,16 +73,20 @@ public class SubscriberStatusChecker implements ActorSystem.Processor<Subscriber
 
     private void cleanPullLogAndCheckpoint() {
         final Table<String, String, PullLog> pullLogs = storage.allPullLogs();
-        if (pullLogs == null || pullLogs.size() == 0) return;
+        if (pullLogs == null || pullLogs.size() == 0) {
+            return;
+        }
 
         // delete all pull log without max pulled message sequence
         for (final String groupAndSubject : pullLogs.columnKeySet()) {
             final GroupAndPartition gs = GroupAndPartition.parse(groupAndSubject);
-            final long maxPulledMessageSequence = storage.getMaxPulledMessageSequence(gs.getPartitionName(), gs.getGroup());
+            final long maxPulledMessageSequence = storage
+                    .getMaxPulledMessageSequence(gs.getPartitionName(), gs.getGroup());
             if (maxPulledMessageSequence == -1) {
                 for (final Map.Entry<String, PullLog> entry : pullLogs.column(groupAndSubject).entrySet()) {
                     final String consumerId = entry.getKey();
-                    LOGGER.info("remove pull log. partitionName: {}, group: {}, consumerId: {}", gs.getPartitionName(), gs.getGroup(), consumerId);
+                    LOGGER.info("remove pull log. partitionName: {}, group: {}, consumerId: {}", gs.getPartitionName(),
+                            gs.getGroup(), consumerId);
                     storage.destroyPullLog(gs.getPartitionName(), gs.getGroup(), consumerId);
                 }
             }
@@ -89,7 +101,8 @@ public class SubscriberStatusChecker implements ActorSystem.Processor<Subscriber
             }
 
             progress.getConsumers().values().forEach(consumer -> {
-                final String groupAndSubject = GroupAndPartition.groupAndPartition(consumer.getSubject(), consumer.getGroup());
+                final String groupAndSubject = GroupAndPartition
+                        .groupAndPartition(consumer.getSubject(), consumer.getGroup());
                 addSubscriber(groupAndSubject, consumer.getConsumerId());
             });
         });
@@ -120,7 +133,9 @@ public class SubscriberStatusChecker implements ActorSystem.Processor<Subscriber
                 if (needSkipCheck()) {
                     subscriber.renew();
                 } else {
-                    if (subscriber.status() == Subscriber.Status.ONLINE) continue;
+                    if (subscriber.status() == Subscriber.Status.ONLINE) {
+                        continue;
+                    }
 
                     subscriber.reset();
                     actorSystem.dispatch("status-checker-" + subscriber.getConsumerGroup(), subscriber, this);
@@ -186,6 +201,7 @@ public class SubscriberStatusChecker implements ActorSystem.Processor<Subscriber
         final String realPartitionName = RetryPartitionUtils.getRealPartitionName(partitionName);
         final String retryPartition = RetryPartitionUtils.buildRetryPartitionName(realPartitionName, consumerGroup);
 
+        lockManager.refreshLock(partitionName, consumerGroup, consumerId);
         refreshSubscriber(realPartitionName, consumerGroup, consumerId);
         refreshSubscriber(retryPartition, consumerGroup, consumerId);
     }
@@ -227,7 +243,9 @@ public class SubscriberStatusChecker implements ActorSystem.Processor<Subscriber
 
     @Override
     public void destroy() {
-        if (executor == null) return;
+        if (executor == null) {
+            return;
+        }
         executor.shutdown();
     }
 }

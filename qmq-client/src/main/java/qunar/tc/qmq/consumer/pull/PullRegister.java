@@ -26,12 +26,10 @@ import com.google.common.util.concurrent.SettableFuture;
 import io.netty.channel.ChannelFuture;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ClientType;
@@ -163,7 +161,7 @@ public class PullRegister implements ConsumerRegister {
         boolean isBroadcast = param.isBroadcast();
         consumerOnlineStateManager.registerConsumer(subject, consumerGroup);
         consumerOnlineStateManager.addOnlineStateListener(subject, consumerGroup, (isOnline) -> {
-            onClientOnOffline(subject, consumerGroup, isOnline, isBroadcast, isOrdered, pullEntryManager);
+            onClientOnlineStateChange(subject, consumerGroup, isOnline, isBroadcast, isOrdered, pullEntryManager);
         });
         metaInfoService.registerHeartbeat(appCode, ClientType.CONSUMER.getCode(), subject, consumerGroup,
                 isBroadcast,
@@ -187,7 +185,7 @@ public class PullRegister implements ConsumerRegister {
         SettableFuture<PullConsumer> future = SettableFuture.create();
         consumerOnlineStateManager.registerConsumer(subject, consumerGroup);
         consumerOnlineStateManager.addOnlineStateListener(subject, consumerGroup, (isOnline) -> {
-            onClientOnOffline(subject, consumerGroup, isOnline, isBroadcast, isOrdered, pullConsumerManager);
+            onClientOnlineStateChange(subject, consumerGroup, isOnline, isBroadcast, isOrdered, pullConsumerManager);
         });
         metaInfoService.registerHeartbeat(
                 appCode,
@@ -290,7 +288,7 @@ public class PullRegister implements ConsumerRegister {
         return thisTimestamp < lastUpdateTimestamp;
     }
 
-    private void onClientOnOffline(String subject, String consumerGroup, boolean isOnline, boolean isBroadcast, boolean isOrdered, PullClientManager pullClientManager) {
+    private void onClientOnlineStateChange(String subject, String consumerGroup, boolean isOnline, boolean isBroadcast, boolean isOrdered, PullClientManager pullClientManager) {
         PullClient pullClient = pullClientManager.getPullClient(subject, consumerGroup);
         Preconditions.checkNotNull(pullClient, "pull client 尚未初始化 %s %s", subject, consumerGroup);
         if (isOnline) {
@@ -314,6 +312,7 @@ public class PullRegister implements ConsumerRegister {
                 isBroadcast,
                 isOrdered
         );
+        request.setOnlineState(isOnline ? OnOfflineState.ONLINE : OnOfflineState.OFFLINE);
         request.setConsumeStrategy(pullClient.getConsumeStrategy());
         ChannelFuture channelFuture = metaInfoService.sendRequest(request);
         try {

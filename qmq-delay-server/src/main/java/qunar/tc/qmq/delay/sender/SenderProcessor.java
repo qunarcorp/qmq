@@ -141,7 +141,7 @@ public class SenderProcessor implements DelayProcessor, Processor<ScheduleIndex>
     private void refresh(ScheduleIndex index, Set<String> refreshSubject) {
         boolean refresh = !refreshSubject.contains(index.getSubject());
         if (refresh) {
-            brokerService.refresh(ClientType.PRODUCER, index.getSubject());
+            brokerService.refreshMetaInfo(ClientType.PRODUCER, index.getSubject());
             refreshSubject.add(index.getSubject());
         }
     }
