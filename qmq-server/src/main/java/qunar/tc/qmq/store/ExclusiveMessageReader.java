@@ -37,6 +37,7 @@ public class ExclusiveMessageReader extends MessageReader {
      * 独占消费时，会根据consumer拉取请求里的offset进行拉取，所以consumer可以决定从何位置开始拉取
      * 如果consumer没有指定拉取位置，也就是-1，那么就使用consumer的ack位置，如果ack位置也是-1，也就是从来没有消费过
      * 那么就从0开始拉取
+     *
      * @param pullRequest 拉取请求
      * @return 拉取到的结果
      */
@@ -46,7 +47,7 @@ public class ExclusiveMessageReader extends MessageReader {
         String consumerGroup = pullRequest.getGroup();
         String consumerId = pullRequest.getConsumerId();
 
-        //独占消费时候有个独占锁，只有获取这个锁之后才允许读取消息
+        //独占消费时候有个独占锁，只有获取这个锁之后才允许读取消息，防止有多个消费者同时拉取同一个partition
         if (!lockManager.acquireLock(subject, consumerGroup, consumerId)) {
             // 获取锁失败
             return PullMessageResult.REJECT;
@@ -55,22 +56,32 @@ public class ExclusiveMessageReader extends MessageReader {
         final ConsumerSequence consumerSequence = consumerSequenceManager.getOrCreateConsumerSequence(subject, consumerGroup, consumerId, true);
 
         final long ackSequence = consumerSequence.getAckSequence();
-        long pullLogSequenceInConsumer = pullRequest.getPullOffsetLast();
-        if (pullLogSequenceInConsumer < ackSequence) {
-            pullLogSequenceInConsumer = ackSequence;
-        }
+        long pullSequenceFromConsumer = pullRequest.getPullOffsetLast();
+
+        //如果消费者拉取请求的位置小于0，则使用server端保存的ack位置
+        pullSequenceFromConsumer = pullSequenceFromConsumer < 0 ? ackSequence : pullSequenceFromConsumer;
+
+        /*
+         * pullSequenceFromConsumer表示的是上一次consumer拉取到的最后一条消息的位置，那么当前这次拉取我们其实是要拉取下一条消息
+         * 所以需要将这个位置递增1
+         *
+         * @FIXME(zhaohui.yu)
+         * 但是这里存在一个问题，如果consumer端已经拉到了10条消息，那么consumer拿到的位置是[0,9]，然后消费端因某种原因,
+         * 希望将第10条，也就是[9]这个位置的消息重新消费，那么用户将拉取位置设置为9，则实际上拿到的是第11条消息，位置是[10]的消息。
+         * 不过目前我们并没有提供给用户设置从某个位置拉取的API，当需要提供这种API的时候需要注意如何处理
+         */
+        pullSequenceFromConsumer = pullSequenceFromConsumer + 1;
 
         final long start = System.currentTimeMillis();
         try {
-            pullLogSequenceInConsumer = pullLogSequenceInConsumer < 0 ? 0 : pullLogSequenceInConsumer;
-            GetMessageResult result = pollMessages(subject, pullLogSequenceInConsumer, pullRequest.getRequestNum());
+            GetMessageResult result = pollMessages(subject, pullSequenceFromConsumer, pullRequest.getRequestNum());
             switch (result.getStatus()) {
                 case SUCCESS:
                     long actualSequence = result.getNextBeginSequence() - result.getMessageNum();
                     if (result.getMessageNum() == 0) {
                         return PullMessageResult.EMPTY;
                     }
-                    confirmExpiredMessages(subject, consumerGroup, pullLogSequenceInConsumer, actualSequence, result);
+                    confirmExpiredMessages(subject, consumerGroup, pullSequenceFromConsumer, actualSequence, result);
                     if (noPullFilter(pullRequest)) {
                         return new PullMessageResult(actualSequence, result.getBuffers(), result.getBufferTotalSize(), result.getMessageNum());
                     }

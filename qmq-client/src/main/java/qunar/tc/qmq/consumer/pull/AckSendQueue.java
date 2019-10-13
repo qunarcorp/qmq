@@ -68,7 +68,6 @@ class AckSendQueue implements TimerTask {
     private final AckService ackService;
 
     private final String currentPartitionName;
-    private final String realPartitionName;
     private final String retryPartitionName;
     private final String deadRetryPartitionName;
     private final ConsumeStrategy consumeStrategy;
@@ -126,7 +125,6 @@ class AckSendQueue implements TimerTask {
         this.isOrdered = isOrdered;
 
         this.currentPartitionName = partitionName;
-        this.realPartitionName = RetryPartitionUtils.getRealPartitionName(partitionName);
         this.retryPartitionName = RetryPartitionUtils.buildRetryPartitionName(partitionName, consumerGroup);
         this.deadRetryPartitionName = RetryPartitionUtils.buildDeadRetryPartitionName(partitionName, consumerGroup);
         this.pullBatchSize = PullSubjectsConfig.get().getPullBatchSize(subject);

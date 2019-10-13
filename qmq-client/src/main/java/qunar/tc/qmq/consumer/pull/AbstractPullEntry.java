@@ -16,15 +16,7 @@
 
 package qunar.tc.qmq.consumer.pull;
 
-import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_GROUP_ARRAY;
-
 import com.google.common.base.Strings;
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
@@ -34,12 +26,17 @@ import qunar.tc.qmq.PullEntry;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
-import qunar.tc.qmq.common.PartitionConstants;
-import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.config.PullSubjectsConfig;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.QmqCounter;
 import qunar.tc.qmq.protocol.CommandCode;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_GROUP_ARRAY;
 
 /**
  * @author yiqun.fan create on 17-11-2.
@@ -203,9 +200,5 @@ abstract class AbstractPullEntry extends AbstractPullClient implements PullEntry
         } catch (Exception e) {
             LOGGER.error("offline error", e);
         }
-    }
-
-    protected AckSendQueue getAckSendQueue() {
-        return ackSendQueue;
     }
 }
