@@ -58,7 +58,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import static qunar.tc.qmq.protocol.RemotingHeader.getTagsVersion;
+import static qunar.tc.qmq.protocol.RemotingHeader.supportTags;
 import static qunar.tc.qmq.util.RemotingBuilder.buildResponseHeader;
 
 /**
@@ -343,7 +343,7 @@ public class PullMessageProcessor extends AbstractRequestProcessor implements Fi
                 for (final Buffer buffer : buffers) {
                     ByteBuffer message = buffer.getBuffer();
                     //新客户端拉取消息
-                    if (requestHeader.getVersion() >= getTagsVersion()) {
+                    if (supportTags(requestHeader.getVersion())) {
                         output.writeBytes(message);
                     } else {
                         //老客户端拉取消息

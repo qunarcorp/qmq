@@ -15,7 +15,7 @@ import java.util.Set;
 public class SetSerializer extends ObjectSerializer<Set> {
 
     @Override
-    void doSerialize(Set set, ByteBuf buf, long version) {
+    void doSerialize(Set set, ByteBuf buf, short version) {
         int size = set.size();
         buf.writeInt(size);
         for (Object element : set) {
@@ -25,7 +25,7 @@ public class SetSerializer extends ObjectSerializer<Set> {
     }
 
     @Override
-    Set doDeserialize(ByteBuf buf, Type type, long version) {
+    Set doDeserialize(ByteBuf buf, Type type, short version) {
         Type[] argTypes = ((ParameterizedType) type).getActualTypeArguments();
         Type argType = argTypes[0];
         Serializer serializer = getSerializer(argType);

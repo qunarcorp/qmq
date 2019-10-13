@@ -13,14 +13,14 @@ import java.lang.reflect.Type;
 public class ReleasePullLockRequestSerializer extends ObjectSerializer<LockOperationRequest> {
 
     @Override
-    void doSerialize(LockOperationRequest request, ByteBuf buf, long version) {
+    void doSerialize(LockOperationRequest request, ByteBuf buf, short version) {
         PayloadHolderUtils.writeString(request.getPartitionName(), buf);
         PayloadHolderUtils.writeString(request.getConsumerGroup(), buf);
         PayloadHolderUtils.writeString(request.getClientId(), buf);
     }
 
     @Override
-    LockOperationRequest doDeserialize(ByteBuf buf, Type type, long version) {
+    LockOperationRequest doDeserialize(ByteBuf buf, Type type, short version) {
         String partitionName = PayloadHolderUtils.readString(buf);
         String consumerGroup = PayloadHolderUtils.readString(buf);
         String clientId = PayloadHolderUtils.readString(buf);

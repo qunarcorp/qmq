@@ -20,7 +20,7 @@ import java.util.List;
 public class MetaInfoResponseSerializer extends ObjectSerializer<MetaInfoResponse> {
 
     @Override
-    void doSerialize(MetaInfoResponse response, ByteBuf out, long version) {
+    void doSerialize(MetaInfoResponse response, ByteBuf out, short version) {
         out.writeLong(response.getTimestamp());
         PayloadHolderUtils.writeString(response.getSubject(), out);
         PayloadHolderUtils.writeString(response.getConsumerGroup(), out);
@@ -51,7 +51,7 @@ public class MetaInfoResponseSerializer extends ObjectSerializer<MetaInfoRespons
     }
 
     @Override
-    MetaInfoResponse doDeserialize(ByteBuf buf, Type type, long version) {
+    MetaInfoResponse doDeserialize(ByteBuf buf, Type type, short version) {
         long timestamp = buf.readLong();
         String subject = PayloadHolderUtils.readString(buf);
         String consumerGroup = PayloadHolderUtils.readString(buf);

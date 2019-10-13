@@ -38,31 +38,35 @@ public class RemotingHeader {
     /**
      * add pull request filters
      */
-    private static final short VERSION_9 = 9;
+    private static final short FILTER_VERSION = 9;
 
     /**
      * ordered message version
      */
-    private static final short VERSION_10 = 10;
+    private static final short ORDERED_MESSAGE_VERSION = 10;
 
     public static short getScheduleTimeVersion() {
         return VERSION_7;
     }
 
-    public static short getTagsVersion() {
-        return VERSION_8;
+    public static boolean supportTags(int version) {
+        return version >= VERSION_8;
     }
 
-    public static short getFilterVersion() {
-        return VERSION_9;
+    public static boolean supportFilter(int version) {
+        return version >= FILTER_VERSION;
+    }
+
+    public static boolean supportOrderedMessage(int version) {
+        return version >= ORDERED_MESSAGE_VERSION;
     }
 
     public static short getOrderedMessageVersion() {
-        return VERSION_10;
+        return ORDERED_MESSAGE_VERSION;
     }
 
     public static short getCurrentVersion() {
-        return VERSION_10;
+        return ORDERED_MESSAGE_VERSION;
     }
 
     public static final short MIN_HEADER_SIZE = 18;  // magic code(4) + code(2) + version(2) + opaque(4) + flag(4) + request code(2)

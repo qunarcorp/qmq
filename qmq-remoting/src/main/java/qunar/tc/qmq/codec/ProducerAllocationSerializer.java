@@ -3,8 +3,8 @@ package qunar.tc.qmq.codec;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeMap;
 import io.netty.buffer.ByteBuf;
-import qunar.tc.qmq.meta.ProducerAllocation;
 import qunar.tc.qmq.PartitionProps;
+import qunar.tc.qmq.meta.ProducerAllocation;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
 
 import java.lang.reflect.ParameterizedType;
@@ -18,13 +18,13 @@ public class ProducerAllocationSerializer extends ObjectSerializer<ProducerAlloc
 
     private ParameterizedType rangeMapType = Types.newParameterizedType(null, RangeMap.class, new Type[]{
             Types.newParameterizedType(
-                    null, Range.class, new Type[] {Integer.class}
+                    null, Range.class, new Type[]{Integer.class}
             ),
             PartitionProps.class
     });
 
     @Override
-    void doSerialize(ProducerAllocation producerAllocation, ByteBuf buf, long version) {
+    void doSerialize(ProducerAllocation producerAllocation, ByteBuf buf, short version) {
         PayloadHolderUtils.writeString(producerAllocation.getSubject(), buf);
         buf.writeInt(producerAllocation.getVersion());
         Serializer<RangeMap> rangeMapSerializer = Serializers.getSerializer(RangeMap.class);
@@ -32,7 +32,7 @@ public class ProducerAllocationSerializer extends ObjectSerializer<ProducerAlloc
     }
 
     @Override
-    ProducerAllocation doDeserialize(ByteBuf buf, Type type, long version) {
+    ProducerAllocation doDeserialize(ByteBuf buf, Type type, short version) {
         String subject = PayloadHolderUtils.readString(buf);
         int allocationVersion = buf.readInt();
         Serializer<RangeMap> rangeMapSerializer = Serializers.getSerializer(RangeMap.class);

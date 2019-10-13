@@ -82,7 +82,7 @@ public class AckMessageProcessor extends AbstractRequestProcessor {
         long pullStartOffset = input.readLong();
         long pullEndOffset = input.readLong();
         byte isExcludeConsume = AckRequest.UNSET;
-        if (command.getHeader().getVersion() >= RemotingHeader.getTagsVersion()) {
+        if (RemotingHeader.supportTags(command.getHeader().getVersion())) {
             isExcludeConsume = input.readByte();
         }
 
