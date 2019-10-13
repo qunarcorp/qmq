@@ -17,7 +17,7 @@ import java.util.List;
 /**
  * 用于独占模式的读取
  * 独占模式即某个时刻，一个consumer独占的消费一个partition上的消息
- * 独占模式的特点就是不需要为consumer维护拉取状态了，所以对于一个consumerGroup维护一个状态即可，所以也就不需要pull log了
+ * 独占模式的特点就是不需要单独为每个consumer维护拉取状态了，对于一个consumerGroup维护一个状态即可，所以也就不需要pull log了
  */
 public class ExclusiveMessageReader extends MessageReader {
     private static final Logger LOGGER = LoggerFactory.getLogger(ExclusiveMessageReader.class);
@@ -33,12 +33,20 @@ public class ExclusiveMessageReader extends MessageReader {
         this.lockManager = lockManager;
     }
 
+    /**
+     * 独占消费时，会根据consumer拉取请求里的offset进行拉取，所以consumer可以决定从何位置开始拉取
+     * 如果consumer没有指定拉取位置，也就是-1，那么就使用consumer的ack位置，如果ack位置也是-1，也就是从来没有消费过
+     * 那么就从0开始拉取
+     * @param pullRequest 拉取请求
+     * @return 拉取到的结果
+     */
     @Override
     public PullMessageResult findMessages(PullRequest pullRequest) {
         String subject = pullRequest.getPartitionName();
         String consumerGroup = pullRequest.getGroup();
         String consumerId = pullRequest.getConsumerId();
 
+        //独占消费时候有个独占锁，只有获取这个锁之后才允许读取消息
         if (!lockManager.acquireLock(subject, consumerGroup, consumerId)) {
             // 获取锁失败
             return PullMessageResult.REJECT;
@@ -54,6 +62,7 @@ public class ExclusiveMessageReader extends MessageReader {
 
         final long start = System.currentTimeMillis();
         try {
+            pullLogSequenceInConsumer = pullLogSequenceInConsumer < 0 ? 0 : pullLogSequenceInConsumer;
             GetMessageResult result = pollMessages(subject, pullLogSequenceInConsumer, pullRequest.getRequestNum());
             switch (result.getStatus()) {
                 case SUCCESS:
