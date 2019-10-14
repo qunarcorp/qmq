@@ -28,7 +28,6 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -99,11 +98,12 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
         });
     }
 
-    private void updateBrokerCluster(String key, BrokerClusterInfo clusterInfo) {
-        SettableFuture<AtomicReference<BrokerClusterInfo>> oldFuture = clusterMap.computeIfAbsent(key, k -> SettableFuture.create());
+    private void updateBrokerCluster(String key, BrokerClusterInfo newBrokerCluster) {
+        SettableFuture<AtomicReference<BrokerClusterInfo>> oldFuture = clusterMap
+                .computeIfAbsent(key, k -> SettableFuture.create());
 
         if (!oldFuture.isDone()) {
-            oldFuture.set(new AtomicReference<>(clusterInfo));
+            oldFuture.set(new AtomicReference<>(newBrokerCluster));
             return;
         }
 
@@ -115,50 +115,64 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
             throw new RuntimeException(t);
         }
 
-        if (isEquals(oldRef.get(), clusterInfo)) {
+        BrokerClusterInfo oldBrokerCluster = oldRef.get();
+        if (isBrokerClusterEquals(oldBrokerCluster, newBrokerCluster)) {
             return;
         }
 
-        List<BrokerGroupInfo> groups = clusterInfo.getGroups();
-        List<BrokerGroupInfo> updated = new ArrayList<>(groups.size());
-        for (BrokerGroupInfo group : groups) {
-            BrokerGroupInfo oldGroup = oldRef.get().getGroupByName(group.getGroupName());
-            if (oldGroup == null) {
-                updated.add(group);
+        List<BrokerGroupInfo> newBrokerGroups = newBrokerCluster.getGroups();
+        List<BrokerGroupInfo> mergedBrokerGroups = new ArrayList<>(newBrokerGroups.size());
+        for (BrokerGroupInfo newBrokerGroup : newBrokerGroups) {
+            BrokerGroupInfo oldBrokerGroup = oldBrokerCluster.getGroupByName(newBrokerGroup.getGroupName());
+
+            // 新 brokerGroup
+            if (oldBrokerGroup == null) {
+                mergedBrokerGroups.add(newBrokerGroup);
                 continue;
             }
 
-            if (oldGroup.getMaster().equals(group.getMaster())) {
-                BrokerGroupInfo copy = new BrokerGroupInfo(group.getGroupIndex(),
-                        group.getGroupName(), group.getMaster(), group.getSlaves(), oldGroup.getCircuitBreaker());
-                updated.add(copy);
+            // 复用 circuitBreaker
+            if (Objects.equals(oldBrokerGroup.getMaster(), newBrokerGroup.getMaster())) {
+                BrokerGroupInfo copy = new BrokerGroupInfo(newBrokerGroup.getGroupIndex(),
+                        newBrokerGroup.getGroupName(), newBrokerGroup.getMaster(), newBrokerGroup.getSlaves(),
+                        oldBrokerGroup.getCircuitBreaker());
+                mergedBrokerGroups.add(copy);
                 continue;
             }
 
-            updated.add(group);
+            // 同名 BrokerGroup 但是 Master 发生变化
+            mergedBrokerGroups.add(newBrokerGroup);
         }
 
-        BrokerClusterInfo updatedCluster = new BrokerClusterInfo(updated);
+        BrokerClusterInfo updatedCluster = new BrokerClusterInfo(mergedBrokerGroups);
         oldRef.set(updatedCluster);
     }
 
-    private boolean isEquals(BrokerClusterInfo oldClusterInfo, BrokerClusterInfo clusterInfo) {
-        List<BrokerGroupInfo> groups = clusterInfo.getGroups();
-        if (groups.size() != oldClusterInfo.getGroups().size()) {
+    private boolean isBrokerClusterEquals(BrokerClusterInfo oldClusterInfo, BrokerClusterInfo newClusterInfo) {
+        List<BrokerGroupInfo> newBrokerGroups = newClusterInfo.getGroups();
+        if (newBrokerGroups.size() != oldClusterInfo.getGroups().size()) {
             return false;
         }
 
-        for (BrokerGroupInfo group : groups) {
-            BrokerGroupInfo oldGroup = oldClusterInfo.getGroupByName(group.getGroupName());
-            if (oldGroup == null) {
+        for (BrokerGroupInfo newBrokerGroup : newBrokerGroups) {
+            BrokerGroupInfo oldBrokerGroup = oldClusterInfo.getGroupByName(newBrokerGroup.getGroupName());
+            if (oldBrokerGroup == null) {
                 return false;
             }
 
-            if (!oldGroup.getMaster().equals(group.getMaster())) {
+            if (!isBrokerGroupEquals(oldBrokerGroup, newBrokerGroup)) {
                 return false;
             }
         }
         return true;
+    }
+
+    private boolean isBrokerGroupEquals(BrokerGroupInfo oldBrokerGroup, BrokerGroupInfo newBrokerGroup) {
+        return Objects.equals(oldBrokerGroup.getMaster(), newBrokerGroup.getMaster()) &&
+                Objects.equals(oldBrokerGroup.getSlaves(), newBrokerGroup.getSlaves()) &&
+                Objects.equals(oldBrokerGroup.getGroupName(), newBrokerGroup.getGroupName()) &&
+                Objects.equals(oldBrokerGroup.getGroupIndex(), newBrokerGroup.getGroupIndex()) &&
+                Objects.equals(oldBrokerGroup.isAvailable(), newBrokerGroup.isAvailable());
     }
 
     private void logMetaInfo(MetaInfo metaInfo) {

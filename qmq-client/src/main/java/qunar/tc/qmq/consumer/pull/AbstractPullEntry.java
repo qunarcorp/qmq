@@ -16,7 +16,13 @@
 
 package qunar.tc.qmq.consumer.pull;
 
+import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_GROUP_ARRAY;
+
 import com.google.common.base.Strings;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
@@ -30,13 +36,6 @@ import qunar.tc.qmq.config.PullSubjectsConfig;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.QmqCounter;
 import qunar.tc.qmq.protocol.CommandCode;
-
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
-
-import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_GROUP_ARRAY;
 
 /**
  * @author yiqun.fan create on 17-11-2.
@@ -123,6 +122,10 @@ abstract class AbstractPullEntry extends AbstractPullClient implements PullEntry
             brokerService.refreshMetaInfo(ClientType.CONSUMER, pullParam.getSubject(), pullParam.getGroup());
         }
 
+        if (pullResult.getResponseCode() == CommandCode.ACQUIRE_LOCK_FAILED) {
+            LOGGER.error("获取独占锁失败 subject {} partition {} consumerGroup {} brokerGroup {}", getSubject(), getPartitionName(), getConsumerGroup(), getBrokerGroup());
+        }
+
         List<BaseMessage> messages = pullResult.getMessages();
         if (messages != null && !messages.isEmpty()) {
             monitorMessageCount(pullParam, pullResult);
@@ -189,12 +192,14 @@ abstract class AbstractPullEntry extends AbstractPullClient implements PullEntry
     public void destroy() {
         super.destroy();
         this.ackSendQueue.destroy(TimeUnit.SECONDS.toMillis(5));
+        this.brokerService.releaseLock(getSubject(), getConsumerGroup(), getPartitionName(), getBrokerGroup(),
+                getConsumeStrategy());
     }
 
     @Override
     public void offline() {
         try {
-            ackSendQueue.trySendAck(1000);
+            ackSendQueue.trySendAck(3000);
             brokerService.releaseLock(getSubject(), getConsumerGroup(), getPartitionName(), getBrokerGroup(),
                     getConsumeStrategy());
         } catch (Exception e) {

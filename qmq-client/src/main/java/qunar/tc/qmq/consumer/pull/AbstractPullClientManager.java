@@ -71,14 +71,15 @@ public abstract class AbstractPullClientManager<T extends PullClient> implements
         CompositePullClient newRetryPullClient = createOrUpdatePullClient(subject, consumerGroup,
                 new WeightPullStrategy(), retryConsumerAllocation, oldRetryClient, registryParam);
 
-        CompositePullClient finalClient;
         ArrayList<CompositePullClient> newComponents = Lists.newArrayList(newNormalPullClient, newRetryPullClient);
         if (oldCompositeClient == null) {
-            finalClient = doCreateCompositePullClient(subject, consumerGroup, consumeStrategy, version, consumptionExpiredTime,
+            CompositePullClient newClient = doCreateCompositePullClient(subject, consumerGroup,
+                    consumeStrategy, version, consumptionExpiredTime,
                     newComponents, registryParam);
-            clientMap.put(clientKey, (T) finalClient);
+            clientMap.put(clientKey, (T) newClient);
         } else {
             oldCompositeClient.setComponents(newComponents);
+            oldCompositeClient.setVersion(version);
         }
     }
 

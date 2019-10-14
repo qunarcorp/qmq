@@ -1,6 +1,8 @@
 package qunar.tc.qmq.meta.order;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import qunar.tc.qmq.PartitionAllocation;
 import qunar.tc.qmq.meta.Partition;
 import qunar.tc.qmq.meta.PartitionSet;

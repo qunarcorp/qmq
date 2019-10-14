@@ -198,6 +198,7 @@ public class DefaultPartitionService implements PartitionService {
         List<Partition> partitions = partitionStore.getByPartitionIds(subject, partitionSet.getPhysicalPartitions());
         Map<Integer, Partition> partitionMap = partitions.stream()
                 .collect(Collectors.toMap(Partition::getPartitionId, p -> p));
+
         return partitionAllocateStrategy.allocate(partitionSet, partitionMap, onlineConsumerList, consumerGroup);
     }
 

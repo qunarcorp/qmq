@@ -6,12 +6,16 @@ import com.google.common.cache.CacheBuilder;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @author zhenwei.liu
  * @since 2019-08-30
  */
 public class DefaultExclusiveConsumerLockManager implements ExclusiveConsumerLockManager {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(DefaultExclusiveConsumerLockManager.class);
 
     private static final Joiner keyJoiner = Joiner.on(":");
 
@@ -28,9 +32,12 @@ public class DefaultExclusiveConsumerLockManager implements ExclusiveConsumerLoc
         String lockKey = createLockKey(partitionName, consumerGroup);
         synchronized (lockKey.intern()) {
             try {
-                String oldClient = lockCache.get(lockKey, () -> clientId);
+                String oldClient = lockCache.get(lockKey, () -> {
+                    LOGGER.info("acquire new lock for partition {} consumerGroup {} clientId {}", partitionName, consumerGroup, clientId);
+                    return clientId;
+                });
                 if (Objects.equals(clientId, oldClient)) {
-                    // refreshMetaInfo expired duration
+                    // refresh MetaInfo expired duration
                     lockCache.put(lockKey, clientId);
                     return true;
                 } else {
@@ -48,7 +55,6 @@ public class DefaultExclusiveConsumerLockManager implements ExclusiveConsumerLoc
         synchronized (lockKey.intern()) {
             String oldClient = lockCache.getIfPresent(lockKey);
             if (Objects.equals(clientId, oldClient)) {
-                // refreshMetaInfo expired duration
                 lockCache.put(lockKey, clientId);
                 return true;
             } else {
@@ -64,6 +70,7 @@ public class DefaultExclusiveConsumerLockManager implements ExclusiveConsumerLoc
             String oldClient = lockCache.getIfPresent(lockKey);
             if (Objects.equals(clientId, oldClient)) {
                 lockCache.invalidate(lockKey);
+                LOGGER.info("release lock for partition {} consumerGroup {} clientId {}", partitionName, consumerGroup, clientId);
                 return true;
             } else {
                 return false;

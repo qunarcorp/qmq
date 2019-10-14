@@ -136,6 +136,9 @@ class DefaultPullEntry extends AbstractPullEntry implements PullEntry, Runnable 
             switch (state.get()) {
                 case PREPARE_PULL:
                     if (!isRunning.get()) {
+                        brokerService
+                                .releaseLock(getSubject(), getConsumerGroup(), getPartitionName(), getBrokerGroup(),
+                                        getConsumeStrategy());
                         return;
                     }
 

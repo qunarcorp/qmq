@@ -29,6 +29,7 @@ import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.common.OrderStrategy;
 import qunar.tc.qmq.common.OrderStrategyCache;
+import qunar.tc.qmq.common.PartitionConstants;
 import qunar.tc.qmq.common.TimerUtil;
 import qunar.tc.qmq.config.PullSubjectsConfig;
 import qunar.tc.qmq.metrics.Metrics;
@@ -53,7 +54,6 @@ import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_GROUP_ARRAY;
 class AckSendQueue implements TimerTask {
     private static final Logger LOGGER = LoggerFactory.getLogger(AckSendQueue.class);
     private static final long DEFAULT_PULL_OFFSET = -1;
-    private static final int ACK_INTERVAL_SECONDS = 10;
     private static final long ACK_TRY_SEND_TIMEOUT_MILLIS = 1000;
 
     private static final int DESTROY_CHECK_WAIT_MILLIS = 50;
@@ -327,7 +327,7 @@ class AckSendQueue implements TimerTask {
 
 
     void init() {
-        TimerUtil.newTimeout(this, ACK_INTERVAL_SECONDS, TimeUnit.SECONDS);
+        TimerUtil.newTimeout(this, PartitionConstants.ACK_INTERVAL_MILLS, TimeUnit.MILLISECONDS);
 
         String[] values = new String[]{subject, consumerGroup};
         sendNumQps = Metrics.meter("qmq_pull_ack_sendnum_qps", SUBJECT_GROUP_ARRAY, values);
@@ -387,10 +387,12 @@ class AckSendQueue implements TimerTask {
                     LOGGER.debug("lost broker group: {}. partitionName={}, consumeGroup={}", brokerGroupName, currentPartitionName, consumerGroup);
                     return;
                 }
-                ackService.sendAck(brokerGroup, subject, currentPartitionName, consumerGroup, consumeStrategy, EMPTY_ACK, EMPTY_ACK_CALLBACK);
+                if (!stopped.get()) {
+                    ackService.sendAck(brokerGroup, subject, currentPartitionName, consumerGroup, consumeStrategy, EMPTY_ACK, EMPTY_ACK_CALLBACK);
+                }
             }
         } finally {
-            TimerUtil.newTimeout(this, ACK_INTERVAL_SECONDS, TimeUnit.SECONDS);
+            TimerUtil.newTimeout(this, PartitionConstants.ACK_INTERVAL_MILLS, TimeUnit.MILLISECONDS);
         }
     }
 

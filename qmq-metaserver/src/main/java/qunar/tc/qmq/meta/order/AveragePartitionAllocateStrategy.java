@@ -37,6 +37,11 @@ public class AveragePartitionAllocateStrategy implements PartitionAllocateStrate
             partitionPropsSet.add(new PartitionProps(partitionId, partition.getPartitionName(), partition.getBrokerGroup()));
         }
 
+        // 对于未被分配到分区的 client, 需要给一个空占位符
+        for (String consumerId : onlineConsumerList) {
+            clientId2SubjectLocations.computeIfAbsent(consumerId, k -> Sets.newHashSet());
+        }
+
         PartitionAllocation.AllocationDetail allocationDetail = new PartitionAllocation.AllocationDetail();
         allocationDetail.setClientId2PartitionProps(clientId2SubjectLocations);
 

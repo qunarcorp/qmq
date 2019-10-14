@@ -43,17 +43,17 @@ public class ExclusiveMessageReader extends MessageReader {
      */
     @Override
     public PullMessageResult findMessages(PullRequest pullRequest) {
-        String subject = pullRequest.getPartitionName();
+        String partitionName = pullRequest.getPartitionName();
         String consumerGroup = pullRequest.getGroup();
         String consumerId = pullRequest.getConsumerId();
 
         //独占消费时候有个独占锁，只有获取这个锁之后才允许读取消息，防止有多个消费者同时拉取同一个partition
-        if (!lockManager.acquireLock(subject, consumerGroup, consumerId)) {
+        if (!lockManager.acquireLock(partitionName, consumerGroup, consumerId)) {
             // 获取锁失败
-            return PullMessageResult.REJECT;
+            return PullMessageResult.ACQUIRE_LOCK_FAILED;
         }
 
-        final ConsumerSequence consumerSequence = consumerSequenceManager.getOrCreateConsumerSequence(subject, consumerGroup, consumerId, true);
+        final ConsumerSequence consumerSequence = consumerSequenceManager.getOrCreateConsumerSequence(partitionName, consumerGroup, consumerId, true);
 
         final long ackSequence = consumerSequence.getAckSequence();
         long pullSequenceFromConsumer = pullRequest.getPullOffsetLast();
@@ -74,14 +74,14 @@ public class ExclusiveMessageReader extends MessageReader {
 
         final long start = System.currentTimeMillis();
         try {
-            GetMessageResult result = pollMessages(subject, pullSequenceFromConsumer, pullRequest.getRequestNum());
+            GetMessageResult result = pollMessages(partitionName, pullSequenceFromConsumer, pullRequest.getRequestNum());
             switch (result.getStatus()) {
                 case SUCCESS:
                     long actualSequence = result.getNextBeginSequence() - result.getMessageNum();
                     if (result.getMessageNum() == 0) {
                         return PullMessageResult.EMPTY;
                     }
-                    confirmExpiredMessages(subject, consumerGroup, pullSequenceFromConsumer, actualSequence, result);
+                    confirmExpiredMessages(partitionName, consumerGroup, pullSequenceFromConsumer, actualSequence, result);
                     if (noPullFilter(pullRequest)) {
                         return new PullMessageResult(actualSequence, result.getBuffers(), result.getBufferTotalSize(), result.getMessageNum());
                     }
@@ -89,15 +89,15 @@ public class ExclusiveMessageReader extends MessageReader {
                     return doPullResultFilter(pullRequest, result);
                 case OFFSET_OVERFLOW:
                     LOGGER.warn("get message result not success, consumer:{}, result:{}", pullRequest, result);
-                    QMon.getMessageOverflowCountInc(subject, consumerGroup);
+                    QMon.getMessageOverflowCountInc(partitionName, consumerGroup);
                 default:
                     return PullMessageResult.EMPTY;
             }
         } catch (Throwable e) {
             LOGGER.error("find messages error, consumer: {}", pullRequest, e);
-            QMon.findMessagesErrorCountInc(subject, consumerGroup);
+            QMon.findMessagesErrorCountInc(partitionName, consumerGroup);
         } finally {
-            QMon.findNewExistMessageTime(subject, consumerGroup, System.currentTimeMillis() - start);
+            QMon.findNewExistMessageTime(partitionName, consumerGroup, System.currentTimeMillis() - start);
         }
         return PullMessageResult.EMPTY;
     }
