@@ -57,9 +57,8 @@ public abstract class AtomicConfig<T> {
         AtomicReference<T> valueRef = configMap.get(key);
         if (valueRef != null) {
             T oldValue = valueRef.get();
-            T defaultValue = getDefaultValue();
-            valueRef.set(defaultValue);
-            LOGGER.info("update no pull config: {}. key={}, oldValue={}, newValue={}", configName, key, oldValue, defaultValue);
+            configMap.remove(key);
+            LOGGER.info("remove no pull config: {}. key={}, oldValue={}", configName, key, oldValue);
         }
     }
 
