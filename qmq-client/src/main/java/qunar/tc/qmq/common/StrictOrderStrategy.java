@@ -2,6 +2,7 @@ package qunar.tc.qmq.common;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.MessageGroup;
 import qunar.tc.qmq.ProduceMessage;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.producer.sender.SendMessageExecutor;
@@ -19,7 +20,10 @@ public class StrictOrderStrategy extends AbstractOrderStrategy {
 
     @Override
     public void doOnSendError(ProduceMessage message, SendMessageExecutor currentExecutor, SendMessageExecutorManager sendMessageExecutorManager, Exception e) {
+        MessageGroup messageGroup = currentExecutor.getMessageGroup();
         message.incTries();
+        LOGGER.error("消息发送失败, 将进行重试, subject {} partition {} brokerGroup {}",
+                messageGroup.getSubject(), messageGroup.getPartitionName(), messageGroup.getBrokerGroup());
     }
 
     @Override

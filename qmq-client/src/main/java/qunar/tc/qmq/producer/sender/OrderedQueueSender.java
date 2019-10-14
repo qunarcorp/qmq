@@ -76,7 +76,7 @@ public class OrderedQueueSender implements QueueSender {
                 StatefulSendMessageExecutor executor = sendMessageExecutorManager.getExecutor(message);
                 executor.addMessage(message);
                 MessageGroup messageGroup = executor.getMessageGroup();
-                LOGGER.info("进入发送分区 subject {} partition {} brokerGroup {}", message.getSubject(), messageGroup.getPartitionName(), messageGroup.getBrokerGroup());
+                LOGGER.info("进入发送队列 subject {} partition {} brokerGroup {}", message.getSubject(), messageGroup.getPartitionName(), messageGroup.getBrokerGroup());
             } catch (Throwable t) {
                 try {
                     LOGGER.error("消息派发失败", t);

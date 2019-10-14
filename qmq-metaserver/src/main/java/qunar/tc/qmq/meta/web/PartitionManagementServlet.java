@@ -42,7 +42,6 @@ public class PartitionManagementServlet extends HttpServlet {
     private static final Logger LOGGER = LoggerFactory.getLogger(PartitionManagementServlet.class);
     private static final ObjectMapper jsonMapper = JsonUtils.getMapper();
     private final PartitionService partitionService;
-    private final CachedMetaInfoManager cachedMetaInfoManager;
     private final SubjectRouter subjectRouter;
 
     public PartitionManagementServlet() {
@@ -57,7 +56,7 @@ public class PartitionManagementServlet extends HttpServlet {
                 new AveragePartitionAllocateStrategy(),
                 JdbcTemplateHolder.getTransactionTemplate()
         );
-        this.cachedMetaInfoManager = new DefaultCachedMetaInfoManager(store,
+        CachedMetaInfoManager cachedMetaInfoManager = new DefaultCachedMetaInfoManager(store,
                 new ReadonlyBrokerGroupSettingStoreImpl(JdbcTemplateHolder.getOrCreate()), partitionService);
         this.subjectRouter = new DefaultSubjectRouter(cachedMetaInfoManager, store);
     }

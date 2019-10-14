@@ -111,7 +111,7 @@ public class ProduceMessageImpl implements ProduceMessage {
                 traceSpan = scope.span();
 
                 if (sender.offer(this)) {
-                    LOGGER.info("进入发送队列 {}:{}", getSubject(), getMessageId());
+                    LOGGER.debug("进入发送队列 {}:{}", getSubject(), getMessageId());
                 } else if (store != null) {
                     enterQueueFail.inc();
                     LOGGER.info("内存发送队列已满! 此消息将暂时丢弃,等待补偿服务处理 {}:{}", getSubject(), getMessageId());
