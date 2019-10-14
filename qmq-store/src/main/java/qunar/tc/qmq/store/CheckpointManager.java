@@ -153,10 +153,10 @@ public class CheckpointManager implements AutoCloseable {
         }
     }
 
-    ConsumerGroupProgress getConsumerGroupProgress(String subject, String consumerGroup) {
+    ConsumerGroupProgress getConsumerGroupProgress(String partitionName, String consumerGroup) {
         actionCheckpointGuard.lock();
         try {
-            return actionCheckpoint.getProgresses().get(subject, consumerGroup);
+            return actionCheckpoint.getProgresses().get(partitionName, consumerGroup);
         } finally {
             actionCheckpointGuard.unlock();
         }
@@ -182,7 +182,8 @@ public class CheckpointManager implements AutoCloseable {
         try {
             updateMaxPulledMessageSequence(action);
             updateConsumerMaxPullLogSequence(action);
-            actionCheckpoint.setOffset(offset);
+            if (offset > 0)
+                actionCheckpoint.setOffset(offset);
         } finally {
             actionCheckpointGuard.unlock();
         }
@@ -225,8 +226,8 @@ public class CheckpointManager implements AutoCloseable {
         }
     }
 
-    private long getConsumerMaxPullLogSequence(final String subject, final String consumerGroup, final String consumerId) {
-        final ConsumerProgress consumer = getConsumerProgress(subject, consumerGroup, consumerId);
+    private long getConsumerMaxPullLogSequence(final String partitionName, final String consumerGroup, final String consumerId) {
+        final ConsumerProgress consumer = getConsumerProgress(partitionName, consumerGroup, consumerId);
         if (consumer == null) {
             return -1;
         } else {
@@ -234,18 +235,18 @@ public class CheckpointManager implements AutoCloseable {
         }
     }
 
-    private void updateConsumerMaxPullLogSequence(final String subject, final String consumerGroup, final String consumerId, final boolean isExclusiveConsume, final long maxSequence) {
-        final ConsumerProgress consumer = getOrCreateConsumerProgress(subject, consumerGroup, consumerId, isExclusiveConsume);
+    private void updateConsumerMaxPullLogSequence(final String partitionName, final String consumerGroup, final String consumerId, final boolean isExclusiveConsume, final long maxSequence) {
+        final ConsumerProgress consumer = getOrCreateConsumerProgress(partitionName, consumerGroup, consumerId, isExclusiveConsume);
         consumer.setPull(maxSequence);
     }
 
-    private ConsumerProgress getOrCreateConsumerProgress(final String subject, final String consumerGroup, final String consumerId, final boolean isExclusiveConsume) {
-        final ConsumerGroupProgress progress = getOrCreateConsumerGroupProgress(subject, consumerGroup, isExclusiveConsume);
+    private ConsumerProgress getOrCreateConsumerProgress(final String partitionName, final String consumerGroup, final String consumerId, final boolean isExclusiveConsume) {
+        final ConsumerGroupProgress progress = getOrCreateConsumerGroupProgress(partitionName, consumerGroup, isExclusiveConsume);
 
         String exclusiveKey = isExclusiveConsume ? consumerGroup : consumerId;
         final Map<String, ConsumerProgress> consumers = progress.getConsumers();
         if (!consumers.containsKey(exclusiveKey)) {
-            consumers.put(exclusiveKey, new ConsumerProgress(subject, consumerGroup, exclusiveKey, -1, -1));
+            consumers.put(exclusiveKey, new ConsumerProgress(partitionName, consumerGroup, exclusiveKey, -1, -1));
         }
         return consumers.get(exclusiveKey);
     }
@@ -274,8 +275,9 @@ public class CheckpointManager implements AutoCloseable {
         }
     }
 
-    private long getConsumerMaxAckedPullLogSequence(final String subject, final String consumerGroup, final String consumerId) {
-        final ConsumerProgress consumer = getConsumerProgress(subject, consumerGroup, consumerId);
+    private long getConsumerMaxAckedPullLogSequence(
+            final String partitionName, final String consumerGroup, final String consumerId) {
+        final ConsumerProgress consumer = getConsumerProgress(partitionName, consumerGroup, consumerId);
         if (consumer == null) {
             return -1;
         } else {
@@ -283,15 +285,27 @@ public class CheckpointManager implements AutoCloseable {
         }
     }
 
-    private void updateConsumerMaxAckedPullLogSequence(final String subject, final String consumerGroup, final String consumerId, final long maxSequence) {
-        final ConsumerProgress consumer = getConsumerProgress(subject, consumerGroup, consumerId);
-        if (consumer != null) {
-            consumer.setAck(maxSequence);
+    /**
+     * 更新ack的checkpoint
+     * 因为现在取消了独占消费拉取消息时候写pull action log，所以独占消费就没有回放的action log了，这就导致在ack的时候就没有这个ConsumerProgress的
+     * 但是pull一定是先于ack的，所以如果是共享消费更新ack的时候一定是有ConsumerProgress的，如果没有则说明是独占消费
+     *
+     * @FIXME(zhaohui.yu) 这里实现的比较恶心，更好的做法现在想到的是将pull和acK的checkpoint分开维护
+     * @param partitionName
+     * @param consumerGroup
+     * @param consumerId
+     * @param maxSequence
+     */
+    private void updateConsumerMaxAckedPullLogSequence(final String partitionName, final String consumerGroup, final String consumerId, final long maxSequence) {
+        ConsumerProgress consumer = getConsumerProgress(partitionName, consumerGroup, consumerId);
+        if (consumer == null) {
+            consumer = getOrCreateConsumerProgress(partitionName, consumerGroup, consumerId, true);
         }
+        consumer.setAck(maxSequence);
     }
 
-    private ConsumerProgress getConsumerProgress(final String subject, final String consumerGroup, final String consumerId) {
-        final ConsumerGroupProgress progress = actionCheckpoint.getProgresses().get(subject, consumerGroup);
+    private ConsumerProgress getConsumerProgress(final String partitionName, final String consumerGroup, final String consumerId) {
+        final ConsumerGroupProgress progress = actionCheckpoint.getProgresses().get(partitionName, consumerGroup);
         if (progress == null) {
             return null;
         }
@@ -314,8 +328,8 @@ public class CheckpointManager implements AutoCloseable {
         return progresses.get(partitionName, consumerGroup);
     }
 
-    void removeConsumerProgress(String subject, String consumerGroup, String consumerId) {
-        final ConsumerGroupProgress progress = actionCheckpoint.getProgresses().get(subject, consumerGroup);
+    void removeConsumerProgress(String partitionName, String consumerGroup, String consumerId) {
+        final ConsumerGroupProgress progress = actionCheckpoint.getProgresses().get(partitionName, consumerGroup);
         if (progress == null) {
             return;
         }
