@@ -57,9 +57,4 @@ public class AtomicIntegerConfig extends AtomicConfig<Integer> {
         }
         return Optional.of(v);
     }
-
-    @Override
-    protected Integer getDefaultValue() {
-        return defaultValue;
-    }
 }

@@ -82,6 +82,4 @@ public abstract class AtomicConfig<T> {
     }
 
     protected abstract Optional<T> parse(String key, String value);
-
-    protected abstract T getDefaultValue();
 }
