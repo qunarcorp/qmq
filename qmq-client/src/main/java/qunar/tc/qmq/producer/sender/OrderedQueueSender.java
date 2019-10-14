@@ -2,6 +2,7 @@ package qunar.tc.qmq.producer.sender;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.MessageGroup;
 import qunar.tc.qmq.ProduceMessage;
 import qunar.tc.qmq.producer.ConfigCenter;
 import qunar.tc.qmq.producer.QueueSender;
@@ -72,7 +73,10 @@ public class OrderedQueueSender implements QueueSender {
                 continue;
             }
             try {
-                sendMessageExecutorManager.getExecutor(message).addMessage(message);
+                StatefulSendMessageExecutor executor = sendMessageExecutorManager.getExecutor(message);
+                executor.addMessage(message);
+                MessageGroup messageGroup = executor.getMessageGroup();
+                LOGGER.info("进入发送分区 subject {} partition {} brokerGroup {}", message.getSubject(), messageGroup.getPartitionName(), messageGroup.getBrokerGroup());
             } catch (Throwable t) {
                 try {
                     LOGGER.error("消息派发失败", t);

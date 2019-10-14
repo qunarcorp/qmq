@@ -36,6 +36,7 @@ public class PullMessageResult {
     public static final PullMessageResult EMPTY = new PullMessageResult(-1, new ArrayList<>(), 0, 0);
     public static final PullMessageResult FILTER_EMPTY = new PullMessageResult(-1, new ArrayList<>(), 0, 0);
     public static final PullMessageResult REJECT = new PullMessageResult(CommandCode.BROKER_REJECT, -1, new ArrayList<>(), 0, 0);
+    public static final PullMessageResult ACQUIRE_LOCK_FAILED = new PullMessageResult(CommandCode.ACQUIRE_LOCK_FAILED, -1, new ArrayList<>(), 0, 0);
 
     public PullMessageResult(long pullLogOffset, List<Buffer> buffers, int bufferTotalSize, int messageNum) {
         this(CommandCode.SUCCESS, pullLogOffset, buffers, bufferTotalSize, messageNum);

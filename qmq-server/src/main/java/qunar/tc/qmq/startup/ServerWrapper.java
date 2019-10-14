@@ -16,8 +16,18 @@
 
 package qunar.tc.qmq.startup;
 
+import static qunar.tc.qmq.constants.BrokerConstants.DEFAULT_PORT;
+import static qunar.tc.qmq.constants.BrokerConstants.META_SERVER_ENDPOINT;
+import static qunar.tc.qmq.constants.BrokerConstants.PORT_CONFIG;
+
 import com.google.common.base.Preconditions;
 import io.netty.buffer.ByteBuf;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.common.Disposable;
@@ -33,23 +43,31 @@ import qunar.tc.qmq.meta.BrokerRegisterService;
 import qunar.tc.qmq.meta.BrokerRole;
 import qunar.tc.qmq.meta.MetaServerLocator;
 import qunar.tc.qmq.netty.NettyServer;
-import qunar.tc.qmq.order.DefaultExclusiveMessageLockManager;
-import qunar.tc.qmq.order.ExclusiveMessageLockManager;
-import qunar.tc.qmq.processor.*;
+import qunar.tc.qmq.order.DefaultExclusiveConsumerLockManager;
+import qunar.tc.qmq.order.ExclusiveConsumerLockManager;
+import qunar.tc.qmq.processor.AckMessageProcessor;
+import qunar.tc.qmq.processor.BrokerConnectionEventHandler;
+import qunar.tc.qmq.processor.ConsumerManageProcessor;
+import qunar.tc.qmq.processor.PullMessageProcessor;
+import qunar.tc.qmq.processor.ReleasePullLockProcessor;
+import qunar.tc.qmq.processor.SendMessageProcessor;
+import qunar.tc.qmq.processor.SendMessageWorker;
 import qunar.tc.qmq.protocol.CommandCode;
 import qunar.tc.qmq.protocol.Datagram;
-import qunar.tc.qmq.store.*;
-import qunar.tc.qmq.sync.*;
+import qunar.tc.qmq.store.CheckpointLoader;
+import qunar.tc.qmq.store.CheckpointManager;
+import qunar.tc.qmq.store.ConsumerLogWroteEvent;
+import qunar.tc.qmq.store.DefaultStorage;
+import qunar.tc.qmq.store.MessageStoreWrapper;
+import qunar.tc.qmq.store.Storage;
+import qunar.tc.qmq.store.StorageConfigImpl;
+import qunar.tc.qmq.sync.HeartbeatProcessor;
+import qunar.tc.qmq.sync.MasterSlaveSyncManager;
+import qunar.tc.qmq.sync.SlaveSyncClient;
+import qunar.tc.qmq.sync.SyncActionLogProcessor;
+import qunar.tc.qmq.sync.SyncMessageLogProcessor;
+import qunar.tc.qmq.sync.SyncType;
 import qunar.tc.qmq.sync.master.MasterSyncNettyServer;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-
-import static qunar.tc.qmq.constants.BrokerConstants.*;
 
 
 /**
@@ -57,6 +75,7 @@ import static qunar.tc.qmq.constants.BrokerConstants.*;
  * @since 2017/6/30
  */
 public class ServerWrapper implements Disposable {
+
     private static final Logger LOGGER = LoggerFactory.getLogger(ServerWrapper.class);
 
     private final DynamicConfig config;
@@ -74,7 +93,7 @@ public class ServerWrapper implements Disposable {
     private MasterSyncNettyServer masterSyncNettyServer;
     private MasterSlaveSyncManager masterSlaveSyncManager;
     private BrokerRegisterService brokerRegisterService;
-    private ExclusiveMessageLockManager exclusiveMessageLockManager;
+    private ExclusiveConsumerLockManager exclusiveConsumerLockManager;
 
     private SubscriberStatusChecker subscriberStatusChecker;
 
@@ -95,8 +114,9 @@ public class ServerWrapper implements Disposable {
         startServerHandlers();
         startConsumerChecker();
         addToResources();
-        if (autoOnline)
+        if (autoOnline) {
             online();
+        }
         LOGGER.info("qmq server init done");
     }
 
@@ -128,37 +148,38 @@ public class ServerWrapper implements Disposable {
 
     private void createStorage() {
         slaveSyncClient = new SlaveSyncClient(config);
-        this.storage = new DefaultStorage(BrokerConfig.getBrokerRole(), new StorageConfigImpl(config), new CheckpointLoader() {
-            @Override
-            public ByteBuf loadCheckpoint() {
-                Datagram datagram = null;
-                try {
-                    datagram = syncCheckpointUntilSuccess();
-                    final ByteBuf body = datagram.getBody();
-                    body.retain();
-                    return body;
-                } finally {
-                    if (datagram != null) {
-                        datagram.release();
-                    }
-                }
-            }
-
-            private Datagram syncCheckpointUntilSuccess() {
-                while (true) {
-                    try {
-                        return slaveSyncClient.syncCheckpoint();
-                    } catch (Exception e) {
-                        LOGGER.warn("sync checkpoint failed, will retry after 2 seconds", e);
+        this.storage = new DefaultStorage(BrokerConfig.getBrokerRole(), new StorageConfigImpl(config),
+                new CheckpointLoader() {
+                    @Override
+                    public ByteBuf loadCheckpoint() {
+                        Datagram datagram = null;
                         try {
-                            TimeUnit.SECONDS.sleep(2);
-                        } catch (InterruptedException ignore) {
-                            LOGGER.debug("sync checkpoint interrupted");
+                            datagram = syncCheckpointUntilSuccess();
+                            final ByteBuf body = datagram.getBody();
+                            body.retain();
+                            return body;
+                        } finally {
+                            if (datagram != null) {
+                                datagram.release();
+                            }
                         }
                     }
-                }
-            }
-        });
+
+                    private Datagram syncCheckpointUntilSuccess() {
+                        while (true) {
+                            try {
+                                return slaveSyncClient.syncCheckpoint();
+                            } catch (Exception e) {
+                                LOGGER.warn("sync checkpoint failed, will retry after 2 seconds", e);
+                                try {
+                                    TimeUnit.SECONDS.sleep(2);
+                                } catch (InterruptedException ignore) {
+                                    LOGGER.debug("sync checkpoint interrupted");
+                                }
+                            }
+                        }
+                    }
+                });
     }
 
     private void startSyncLog() {
@@ -194,11 +215,14 @@ public class ServerWrapper implements Disposable {
     }
 
     private void initStorage() {
-        this.exclusiveMessageLockManager = new DefaultExclusiveMessageLockManager(PartitionConstants.EXCLUSIVE_CONSUMER_LOCK_LEASE_MILLS, TimeUnit.MILLISECONDS);
+        this.exclusiveConsumerLockManager = new DefaultExclusiveConsumerLockManager(
+                PartitionConstants.EXCLUSIVE_CONSUMER_LOCK_LEASE_MILLS, TimeUnit.MILLISECONDS);
         this.consumerSequenceManager = new ConsumerSequenceManager(storage);
-        this.subscriberStatusChecker = new SubscriberStatusChecker(config, storage, consumerSequenceManager);
+        this.subscriberStatusChecker = new SubscriberStatusChecker(config, storage, consumerSequenceManager,
+                exclusiveConsumerLockManager);
         this.subscriberStatusChecker.init();
-        this.messageStoreWrapper = new MessageStoreWrapper(config, storage, consumerSequenceManager, exclusiveMessageLockManager);
+        this.messageStoreWrapper = new MessageStoreWrapper(config, storage, consumerSequenceManager,
+                exclusiveConsumerLockManager);
         final OfflineActionHandler handler = new OfflineActionHandler(storage);
         this.storage.registerActionEventListener(handler);
         this.storage.start();
@@ -206,9 +230,11 @@ public class ServerWrapper implements Disposable {
         this.consumerSequenceManager.init();
 
         this.sendMessageExecutorService = new ThreadPoolExecutor(1, 1,
-                0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(), new NamedThreadFactory("send-message-processor"));
+                0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(),
+                new NamedThreadFactory("send-message-processor"));
         this.consumeManageExecutorService = new ThreadPoolExecutor(1, 1,
-                0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(), new NamedThreadFactory("consume-manage-processor"));
+                0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(),
+                new NamedThreadFactory("consume-manage-processor"));
 
         this.sendMessageWorker = new SendMessageWorker(config, messageStoreWrapper);
     }
@@ -221,14 +247,18 @@ public class ServerWrapper implements Disposable {
 
     private void startServerHandlers() {
         final ActorSystem actorSystem = new ActorSystem("qmq");
-        final PullMessageProcessor pullMessageProcessor = new PullMessageProcessor(config, actorSystem, messageStoreWrapper, subscriberStatusChecker);
+        final PullMessageProcessor pullMessageProcessor = new PullMessageProcessor(config, actorSystem,
+                messageStoreWrapper, subscriberStatusChecker);
         this.storage.registerEventListener(ConsumerLogWroteEvent.class, pullMessageProcessor);
         final SendMessageProcessor sendMessageProcessor = new SendMessageProcessor(sendMessageWorker);
-        final AckMessageProcessor ackMessageProcessor = new AckMessageProcessor(actorSystem, consumerSequenceManager, subscriberStatusChecker);
+        final AckMessageProcessor ackMessageProcessor = new AckMessageProcessor(actorSystem, consumerSequenceManager,
+                subscriberStatusChecker);
         final ConsumerManageProcessor consumerManageProcessor = new ConsumerManageProcessor(storage);
-        final ReleasePullLockProcessor releasePullLockProcessor = new ReleasePullLockProcessor(exclusiveMessageLockManager);
+        final ReleasePullLockProcessor releasePullLockProcessor = new ReleasePullLockProcessor(
+                exclusiveConsumerLockManager);
 
-        this.nettyServer = new NettyServer("broker", Runtime.getRuntime().availableProcessors(), listenPort, new BrokerConnectionEventHandler());
+        this.nettyServer = new NettyServer("broker", Runtime.getRuntime().availableProcessors(), listenPort,
+                new BrokerConnectionEventHandler());
         this.nettyServer.registerProcessor(CommandCode.SEND_MESSAGE, sendMessageProcessor, sendMessageExecutorService);
         this.nettyServer.registerProcessor(CommandCode.PULL_MESSAGE, pullMessageProcessor);
         this.nettyServer.registerProcessor(CommandCode.ACK_REQUEST, ackMessageProcessor);
@@ -271,7 +301,9 @@ public class ServerWrapper implements Disposable {
                 LOGGER.error("Shutdown consumeManageExecutorService interrupted.");
             }
         }
-        if (resources.isEmpty()) return;
+        if (resources.isEmpty()) {
+            return;
+        }
 
         for (final Disposable resource : resources) {
             try {

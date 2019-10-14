@@ -1,5 +1,7 @@
 package qunar.tc.qmq.meta.store.impl;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.type.TypeFactory;
 import org.springframework.dao.support.DataAccessUtils;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -37,6 +39,7 @@ public class PartitionAllocationStoreImpl implements PartitionAllocationStore {
             "where subject = ? and group = ? order by id desc limit 1";
 
     private static final RowMapper<PartitionAllocation> partitionAllocationRowMapper = new RowMapper<PartitionAllocation>() {
+
         @Override
         public PartitionAllocation mapRow(ResultSet rs, int rowNum) throws SQLException {
             PartitionAllocation partitionAllocation = new PartitionAllocation();

@@ -16,6 +16,8 @@
 
 package qunar.tc.qmq.meta.startup;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -26,8 +28,28 @@ import qunar.tc.qmq.meta.cache.BrokerMetaManager;
 import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 import qunar.tc.qmq.meta.cache.CachedOfflineStateManager;
 import qunar.tc.qmq.meta.cache.DefaultCachedMetaInfoManager;
-import qunar.tc.qmq.meta.management.*;
-import qunar.tc.qmq.meta.order.*;
+import qunar.tc.qmq.meta.management.AddBrokerAction;
+import qunar.tc.qmq.meta.management.AddNewSubjectAction;
+import qunar.tc.qmq.meta.management.AddSubjectBrokerGroupAction;
+import qunar.tc.qmq.meta.management.ExtendSubjectRouteAction;
+import qunar.tc.qmq.meta.management.ListBrokerGroupsAction;
+import qunar.tc.qmq.meta.management.ListBrokersAction;
+import qunar.tc.qmq.meta.management.ListSubjectRoutesAction;
+import qunar.tc.qmq.meta.management.MarkReadonlyBrokerGroupAction;
+import qunar.tc.qmq.meta.management.MetaManagementActionSupplier;
+import qunar.tc.qmq.meta.management.RegisterClientDbAction;
+import qunar.tc.qmq.meta.management.RemoveSubjectBrokerGroupAction;
+import qunar.tc.qmq.meta.management.ReplaceBrokerAction;
+import qunar.tc.qmq.meta.management.ResetOffsetAction;
+import qunar.tc.qmq.meta.management.TokenVerificationAction;
+import qunar.tc.qmq.meta.management.UnMarkReadonlyBrokerGroupAction;
+import qunar.tc.qmq.meta.order.AllocationService;
+import qunar.tc.qmq.meta.order.AveragePartitionAllocateStrategy;
+import qunar.tc.qmq.meta.order.DefaultAllocationService;
+import qunar.tc.qmq.meta.order.DefaultPartitionNameResolver;
+import qunar.tc.qmq.meta.order.DefaultPartitionReallocator;
+import qunar.tc.qmq.meta.order.DefaultPartitionService;
+import qunar.tc.qmq.meta.order.PartitionAllocationTask;
 import qunar.tc.qmq.meta.processor.BrokerAcquireMetaProcessor;
 import qunar.tc.qmq.meta.processor.BrokerRegisterProcessor;
 import qunar.tc.qmq.meta.processor.ClientRegisterProcessor;
@@ -39,13 +61,17 @@ import qunar.tc.qmq.meta.store.BrokerStore;
 import qunar.tc.qmq.meta.store.ClientDbConfigurationStore;
 import qunar.tc.qmq.meta.store.ReadonlyBrokerGroupSettingStore;
 import qunar.tc.qmq.meta.store.Store;
-import qunar.tc.qmq.meta.store.impl.*;
+import qunar.tc.qmq.meta.store.impl.BrokerStoreImpl;
+import qunar.tc.qmq.meta.store.impl.ClientDbConfigurationStoreImpl;
+import qunar.tc.qmq.meta.store.impl.ClientMetaInfoStoreImpl;
+import qunar.tc.qmq.meta.store.impl.DatabaseStore;
+import qunar.tc.qmq.meta.store.impl.PartitionAllocationStoreImpl;
+import qunar.tc.qmq.meta.store.impl.PartitionSetStoreImpl;
+import qunar.tc.qmq.meta.store.impl.PartitionStoreImpl;
+import qunar.tc.qmq.meta.store.impl.ReadonlyBrokerGroupSettingStoreImpl;
 import qunar.tc.qmq.netty.DefaultConnectionEventHandler;
 import qunar.tc.qmq.netty.NettyServer;
 import qunar.tc.qmq.protocol.CommandCode;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * @author yunfeng.yang
@@ -53,6 +79,7 @@ import java.util.List;
  */
 @SuppressWarnings("all")
 public class ServerWrapper implements Disposable {
+
     private static final Logger LOGGER = LoggerFactory.getLogger(ServerWrapper.class);
 
     private final List<Disposable> resources;
@@ -72,12 +99,13 @@ public class ServerWrapper implements Disposable {
         final BrokerMetaManager brokerMetaManager = BrokerMetaManager.getInstance();
         brokerMetaManager.init(brokerStore);
 
-        final ReadonlyBrokerGroupSettingStore readonlyBrokerGroupSettingStore = new ReadonlyBrokerGroupSettingStoreImpl(jdbcTemplate);
+        final ReadonlyBrokerGroupSettingStore readonlyBrokerGroupSettingStore = new ReadonlyBrokerGroupSettingStoreImpl(
+                jdbcTemplate);
         final DefaultPartitionNameResolver partitionNameResolver = new DefaultPartitionNameResolver();
         final PartitionStoreImpl partitionStore = new PartitionStoreImpl();
         final PartitionSetStoreImpl partitionSetStore = new PartitionSetStoreImpl();
         final PartitionAllocationStoreImpl partitionAllocationStore = new PartitionAllocationStoreImpl();
-        final AveragePartitionAllocator partitionAllocator = new AveragePartitionAllocator();
+        final AveragePartitionAllocateStrategy partitionAllocator = new AveragePartitionAllocateStrategy();
         final DefaultPartitionService partitionService = new DefaultPartitionService(
                 partitionNameResolver,
                 store,
@@ -88,18 +116,28 @@ public class ServerWrapper implements Disposable {
                 partitionAllocator,
                 JdbcTemplateHolder.getTransactionTemplate()
         );
-        final CachedMetaInfoManager cachedMetaInfoManager = new DefaultCachedMetaInfoManager(config, store, readonlyBrokerGroupSettingStore, partitionService);
-        AllocationService allocationService = new DefaultAllocationService(cachedMetaInfoManager);
+        final CachedMetaInfoManager cachedMetaInfoManager = new DefaultCachedMetaInfoManager(config, store,
+                readonlyBrokerGroupSettingStore, partitionService);
 
         final SubjectRouter subjectRouter = new DefaultSubjectRouter(config, cachedMetaInfoManager, store);
-        final DefaultPartitionReallocator partitionReallocator = new DefaultPartitionReallocator(partitionService, cachedMetaInfoManager);
-        final ClientRegisterProcessor clientRegisterProcessor = new ClientRegisterProcessor(subjectRouter, CachedOfflineStateManager.SUPPLIER.get(), store, clientMetaInfoStore, cachedMetaInfoManager, allocationService, partitionReallocator);
-        final BrokerRegisterProcessor brokerRegisterProcessor = new BrokerRegisterProcessor(config, cachedMetaInfoManager, store);
-        final BrokerAcquireMetaProcessor brokerAcquireMetaProcessor = new BrokerAcquireMetaProcessor(new BrokerStoreImpl(jdbcTemplate));
-        final ReadonlyBrokerGroupSettingService readonlyBrokerGroupSettingService = new ReadonlyBrokerGroupSettingService(readonlyBrokerGroupSettingStore);
+        final DefaultPartitionReallocator partitionReallocator = new DefaultPartitionReallocator(partitionService,
+                cachedMetaInfoManager);
+        final AllocationService allocationService = new DefaultAllocationService(cachedMetaInfoManager,
+                partitionReallocator,
+                partitionService);
+        final ClientRegisterProcessor clientRegisterProcessor = new ClientRegisterProcessor(subjectRouter,
+                CachedOfflineStateManager.SUPPLIER.get(), store, clientMetaInfoStore, cachedMetaInfoManager,
+                allocationService, partitionReallocator);
+        final BrokerRegisterProcessor brokerRegisterProcessor = new BrokerRegisterProcessor(config,
+                cachedMetaInfoManager, store);
+        final BrokerAcquireMetaProcessor brokerAcquireMetaProcessor = new BrokerAcquireMetaProcessor(
+                new BrokerStoreImpl(jdbcTemplate));
+        final ReadonlyBrokerGroupSettingService readonlyBrokerGroupSettingService = new ReadonlyBrokerGroupSettingService(
+                readonlyBrokerGroupSettingStore);
         QuerySubjectProcessor querySubjectProcessor = new QuerySubjectProcessor(partitionNameResolver);
 
-        final NettyServer metaNettyServer = new NettyServer("meta", Runtime.getRuntime().availableProcessors(), metaServerPort, new DefaultConnectionEventHandler("meta"));
+        final NettyServer metaNettyServer = new NettyServer("meta", Runtime.getRuntime().availableProcessors(),
+                metaServerPort, new DefaultConnectionEventHandler("meta"));
         metaNettyServer.registerProcessor(CommandCode.CLIENT_REGISTER, clientRegisterProcessor);
         metaNettyServer.registerProcessor(CommandCode.BROKER_REGISTER, brokerRegisterProcessor);
         metaNettyServer.registerProcessor(CommandCode.BROKER_ACQUIRE_META, brokerAcquireMetaProcessor);
@@ -114,26 +152,35 @@ public class ServerWrapper implements Disposable {
         actions.register("ListBrokers", new ListBrokersAction(brokerStore));
         actions.register("ListBrokerGroups", new ListBrokerGroupsAction(store));
         actions.register("ListSubjectRoutes", new ListSubjectRoutesAction(store));
-        actions.register("AddSubjectBrokerGroup", new TokenVerificationAction(new AddSubjectBrokerGroupAction(store, cachedMetaInfoManager)));
-        actions.register("RemoveSubjectBrokerGroup", new TokenVerificationAction(new RemoveSubjectBrokerGroupAction(store, cachedMetaInfoManager)));
+        actions.register("AddSubjectBrokerGroup",
+                new TokenVerificationAction(new AddSubjectBrokerGroupAction(store, cachedMetaInfoManager)));
+        actions.register("RemoveSubjectBrokerGroup",
+                new TokenVerificationAction(new RemoveSubjectBrokerGroupAction(store, cachedMetaInfoManager)));
         actions.register("AddNewSubject", new TokenVerificationAction(new AddNewSubjectAction(store)));
-        actions.register("ExtendSubjectRoute", new TokenVerificationAction(new ExtendSubjectRouteAction(store, cachedMetaInfoManager)));
+        actions.register("ExtendSubjectRoute",
+                new TokenVerificationAction(new ExtendSubjectRouteAction(store, cachedMetaInfoManager)));
         actions.register("AddDb", new TokenVerificationAction(new RegisterClientDbAction(clientDbConfigurationStore)));
-        actions.register("MarkReadonlyBrokerGroup", new TokenVerificationAction(new MarkReadonlyBrokerGroupAction(readonlyBrokerGroupSettingService)));
-        actions.register("UnMarkReadonlyBrokerGroup", new TokenVerificationAction(new UnMarkReadonlyBrokerGroupAction(readonlyBrokerGroupSettingService)));
-        actions.register("ResetOffset", new TokenVerificationAction(new ResetOffsetAction(store, cachedMetaInfoManager)));
+        actions.register("MarkReadonlyBrokerGroup",
+                new TokenVerificationAction(new MarkReadonlyBrokerGroupAction(readonlyBrokerGroupSettingService)));
+        actions.register("UnMarkReadonlyBrokerGroup",
+                new TokenVerificationAction(new UnMarkReadonlyBrokerGroupAction(readonlyBrokerGroupSettingService)));
+        actions.register("ResetOffset",
+                new TokenVerificationAction(new ResetOffsetAction(store, cachedMetaInfoManager)));
 
         resources.add(cachedMetaInfoManager);
         resources.add(brokerMetaManager);
         resources.add(metaNettyServer);
 
-        PartitionAllocationTask partitionAllocationTask = new PartitionAllocationTask(partitionService, partitionReallocator);
+        PartitionAllocationTask partitionAllocationTask = new PartitionAllocationTask(partitionService,
+                partitionReallocator);
         partitionAllocationTask.start();
     }
 
     @Override
     public void destroy() {
-        if (resources.isEmpty()) return;
+        if (resources.isEmpty()) {
+            return;
+        }
 
         for (int i = resources.size() - 1; i >= 0; --i) {
             try {

@@ -141,7 +141,7 @@ class DefaultAckService implements AckService {
     public void sendAck(BrokerGroupInfo brokerGroup, String subject, String partitionName, String consumerGroup, ConsumeStrategy consumeStrategy, AckSendEntry ack, SendAckCallback callback) {
         AckRequest request = buildAckRequest(partitionName, consumerGroup, consumeStrategy, ack);
         Datagram datagram = RemotingBuilder.buildRequestDatagram(CommandCode.ACK_REQUEST, new AckRequestPayloadHolder(request));
-        sendRequest(brokerGroup, partitionName, consumerGroup, request, datagram, callback);
+        sendRequest(brokerGroup, subject, consumerGroup, request, datagram, callback);
     }
 
     private AckRequest buildAckRequest(String partitionName, String consumerGroup, ConsumeStrategy consumeStrategy, AckSendEntry ack) {
@@ -193,7 +193,7 @@ class DefaultAckService implements AckService {
             if (!responseFuture.isSendOk() || response == null) {
                 monitorAckError(request.getPartitionName(), request.getConsumerGroup(), -1);
                 sendAckCallback.fail(new AckException("send fail"));
-                this.brokerService.refresh(ClientType.CONSUMER, request.getPartitionName(), request.getConsumerGroup());
+                this.brokerService.refreshMetaInfo(ClientType.CONSUMER, subject, request.getConsumerGroup());
                 return;
             }
             final short responseCode = response.getHeader().getCode();
@@ -201,7 +201,7 @@ class DefaultAckService implements AckService {
                 sendAckCallback.success();
             } else {
                 monitorAckError(request.getPartitionName(), request.getConsumerGroup(), 100 + responseCode);
-                this.brokerService.refresh(ClientType.CONSUMER, subject, request.getConsumerGroup());
+                this.brokerService.refreshMetaInfo(ClientType.CONSUMER, subject, request.getConsumerGroup());
                 sendAckCallback.fail(new AckException("responseCode: " + responseCode));
             }
         }

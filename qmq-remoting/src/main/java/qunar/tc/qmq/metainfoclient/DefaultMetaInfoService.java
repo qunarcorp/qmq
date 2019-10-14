@@ -23,6 +23,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.util.concurrent.SettableFuture;
+import io.netty.channel.ChannelFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -31,9 +32,11 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ClientType;
+import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.base.OnOfflineState;
 import qunar.tc.qmq.batch.Stateful;
+import qunar.tc.qmq.common.PartitionConstants;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.meta.MetaServerLocator;
 import qunar.tc.qmq.metrics.Metrics;
@@ -99,8 +102,6 @@ public class DefaultMetaInfoService implements MetaInfoService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultMetaInfoService.class);
 
-    private static final long REFRESH_INTERVAL_SECONDS = 60;
-
     // partitionName => subject
     private final LoadingCache<String, SettableFuture<String>> partitionName2Subject = CacheBuilder.newBuilder()
             .build(new CacheLoader<String, SettableFuture<String>>() {
@@ -111,6 +112,7 @@ public class DefaultMetaInfoService implements MetaInfoService {
             });
 
     private final ConcurrentHashMap<String, MetaInfoRequestWrapper> metaInfoRequests = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, MetaInfoRequestWrapper> exclusiveConsumerMetaInfoRequests = new ConcurrentHashMap<>();
 
 
     private final MetaInfoClient metaInfoClient;
@@ -118,6 +120,7 @@ public class DefaultMetaInfoService implements MetaInfoService {
     private ConsumerOnlineStateManager consumerOnlineStateManager = DefaultConsumerOnlineStateManager.getInstance();
 
     private ScheduledExecutorService metaInfoRequestExecutor;
+    private ScheduledExecutorService exclusiveConsumerMetaInfoRequestExecutor;
 
     private String clientId;
 
@@ -127,7 +130,6 @@ public class DefaultMetaInfoService implements MetaInfoService {
 
     public DefaultMetaInfoService(MetaServerLocator locator) {
         this.metaInfoClient = MetaServerNettyClient.getClient(locator);
-        this.metaInfoClient.registerResponseSubscriber(consumerOnlineStateManager);
         this.metaInfoClient.registerResponseSubscriber(response -> {
             // 如果是异常退出, 只能等待 timeout 了
             int clientTypeCode = response.getClientTypeCode();
@@ -135,13 +137,18 @@ public class DefaultMetaInfoService implements MetaInfoService {
             String consumerGroup = response.getConsumerGroup();
             String requestKey = createMetaInfoRequestKey(clientTypeCode, subject, consumerGroup);
             MetaInfoRequestWrapper rw = metaInfoRequests.get(requestKey);
+            rw.hasOnline = true;
             rw.reset();
 
             // 更新 metaInfoRequest 的 ConsumeStrategy
             if (clientTypeCode == ClientType.CONSUMER.getCode()) {
                 MetaInfoRequest request = rw.getRequest();
                 ConsumerMetaInfoResponse cresponse = (ConsumerMetaInfoResponse) response;
-                request.setConsumeStrategy(cresponse.getConsumerAllocation().getConsumeStrategy());
+                ConsumeStrategy consumeStrategy = cresponse.getConsumerAllocation().getConsumeStrategy();
+                request.setConsumeStrategy(consumeStrategy);
+                if (consumeStrategy == ConsumeStrategy.EXCLUSIVE) {
+                    exclusiveConsumerMetaInfoRequests.putIfAbsent(requestKey, rw);
+                }
             }
         });
     }
@@ -149,9 +156,16 @@ public class DefaultMetaInfoService implements MetaInfoService {
     public void init() {
         this.metaInfoRequestExecutor = Executors
                 .newSingleThreadScheduledExecutor(new NamedThreadFactory("qmq-client-heartbeat-%s"));
+        this.exclusiveConsumerMetaInfoRequestExecutor = Executors
+                .newSingleThreadScheduledExecutor(new NamedThreadFactory("qmq-client-exclusive-consumer-heartbeat-%s"));
         this.metaInfoRequestExecutor
-                .scheduleAtFixedRate(() -> scheduleRequest(metaInfoRequests), 0, REFRESH_INTERVAL_SECONDS,
-                        TimeUnit.SECONDS);
+                .scheduleAtFixedRate(() -> scheduleRequest(metaInfoRequests), 0,
+                        PartitionConstants.CLIENT_HEARTBEAT_INTERVAL_MILLS,
+                        TimeUnit.MILLISECONDS);
+        this.exclusiveConsumerMetaInfoRequestExecutor
+                .scheduleAtFixedRate(() -> scheduleRequest(exclusiveConsumerMetaInfoRequests), 0,
+                        PartitionConstants.EXCLUSIVE_CLIENT_HEARTBEAT_INTERVAL_MILLS,
+                        TimeUnit.MILLISECONDS);
     }
 
     public void registerResponseSubscriber(MetaInfoClient.ResponseSubscriber subscriber) {
@@ -240,8 +254,8 @@ public class DefaultMetaInfoService implements MetaInfoService {
     }
 
     @Override
-    public void sendRequest(MetaInfoRequest request) {
-        metaInfoClient.sendMetaInfoRequest(request);
+    public ChannelFuture sendRequest(MetaInfoRequest request) {
+        return metaInfoClient.sendMetaInfoRequest(request);
     }
 
     @Override

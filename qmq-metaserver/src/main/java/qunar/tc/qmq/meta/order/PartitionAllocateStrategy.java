@@ -13,7 +13,7 @@ import java.util.Map;
  * @author zhenwei.liu
  * @since 2019-08-28
  */
-public interface PartitionAllocator {
+public interface PartitionAllocateStrategy {
 
     PartitionAllocation allocate(PartitionSet partitionSet, Map<Integer, Partition> partitionMap, List<String> onlineConsumerList, String consumerGroup);
 }

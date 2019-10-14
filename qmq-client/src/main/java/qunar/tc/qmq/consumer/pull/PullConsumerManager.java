@@ -59,12 +59,13 @@ public class PullConsumerManager extends AbstractPullClientManager<PullConsumer>
     }
 
     @Override
-    CompositePullClient doCreateCompositePullClient(String subject, String consumerGroup, int version, long consumptionExpiredTime, List<? extends PullClient> clientList, Object param) {
+    CompositePullClient doCreateCompositePullClient(String subject, String consumerGroup, ConsumeStrategy consumeStrategy, int version, long consumptionExpiredTime, List<? extends PullClient> clientList, Object param) {
         PullConsumerRegistryParam registryParam = (PullConsumerRegistryParam) param;
         return new CompositePullConsumer<>(
                 subject,
                 consumerGroup,
                 getClientId(),
+                consumeStrategy,
                 version,
                 registryParam.isBroadcast(),
                 registryParam.isOrdered(),

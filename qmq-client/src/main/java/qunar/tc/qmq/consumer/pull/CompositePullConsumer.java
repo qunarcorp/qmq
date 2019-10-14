@@ -7,6 +7,7 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import org.springframework.util.CollectionUtils;
 import qunar.tc.qmq.CompositePullClient;
+import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.Message;
 import qunar.tc.qmq.PullConsumer;
 import qunar.tc.qmq.StatusSource;
@@ -28,13 +29,14 @@ public class CompositePullConsumer<T extends PullConsumer> extends AbstractCompo
             String subject,
             String consumerGroup,
             String consumerId,
+            ConsumeStrategy consumeStrategy,
             int version,
             boolean isBroadcast,
             boolean isOrdered,
             long consumptionExpiredTime,
             List<T> consumers,
             ConsumerOnlineStateManager consumerOnlineStateManager) {
-        super(subject, consumerGroup, "", "", consumerId, null, version, isBroadcast, isOrdered, consumptionExpiredTime, consumers);
+        super(subject, consumerGroup, "", consumerId, consumeStrategy, version, isBroadcast, isOrdered, consumptionExpiredTime, consumers);
         SwitchWaiter switchWaiter = consumerOnlineStateManager.getSwitchWaiter(subject, consumerGroup);
         switchWaiter.on(StatusSource.HEALTHCHECKER);
     }

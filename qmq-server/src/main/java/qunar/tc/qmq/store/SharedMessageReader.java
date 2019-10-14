@@ -31,9 +31,15 @@ public class SharedMessageReader extends MessageReader {
         super(config);
         this.storage = storage;
         this.consumerSequenceManager = consumerSequenceManager;
-
     }
 
+    /**
+     * 共享消费拉取的时候，首先要根据该consumer的ack位置以及pull log的位置，判断是否将已经拉取(也就是存在pull log里的)但是仍未ack的消息重新发送
+     * 如果不存在未ack的消息，则会拉取新消息，但是拉取的位置以server端记录的为准，并不参考consumer传递上来的位置，因为共享消费时是多个consumer竞争
+     * 消费相同的partition，单个consumer的拉取请求位置只表示自己的位置
+     * @param pullRequest
+     * @return
+     */
     @Override
     public PullMessageResult findMessages(final PullRequest pullRequest) {
         try {

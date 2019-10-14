@@ -15,7 +15,7 @@ import java.util.List;
 public class ListSerializer extends ObjectSerializer<List> {
 
     @Override
-    void doSerialize(List list, ByteBuf buf, long version) {
+    void doSerialize(List list, ByteBuf buf, short version) {
         buf.writeInt(list.size());
         for (Object o : list) {
             Serializer serializer = getSerializer(o.getClass());
@@ -24,7 +24,7 @@ public class ListSerializer extends ObjectSerializer<List> {
     }
 
     @Override
-    List doDeserialize(ByteBuf buf, Type type, long version) {
+    List doDeserialize(ByteBuf buf, Type type, short version) {
         int size = buf.readInt();
         ArrayList<Object> list = Lists.newArrayListWithCapacity(size);
         Type elementType = ((ParameterizedType) type).getActualTypeArguments()[0];

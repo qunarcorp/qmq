@@ -58,7 +58,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import static qunar.tc.qmq.protocol.RemotingHeader.getTagsVersion;
+import static qunar.tc.qmq.protocol.RemotingHeader.supportTags;
 import static qunar.tc.qmq.util.RemotingBuilder.buildResponseHeader;
 
 /**
@@ -111,14 +111,13 @@ public class PullMessageProcessor extends AbstractRequestProcessor implements Fi
     }
 
     private void subscribe(PullRequest pullRequest) {
-        // TODO(zhenwei.liu) 这里需要抽象一下, 用来处理 Shared/Exclusive 模式切换的 PullLog 逻辑, 而不能完全按照 PullRequest 的属性来决定
         if (pullRequest.isExclusiveConsume()) return;
 
         final String partitionName = pullRequest.getPartitionName();
         final String group = pullRequest.getGroup();
         final String consumerId = pullRequest.getConsumerId();
         subscriberStatusChecker.addSubscriber(partitionName, group, consumerId);
-        subscriberStatusChecker.heartbeat(consumerId, partitionName, group);
+        subscriberStatusChecker.heartbeat(partitionName, group, consumerId);
     }
 
     private boolean checkAndRepairPullRequest(PullRequest pullRequest) {
@@ -344,7 +343,7 @@ public class PullMessageProcessor extends AbstractRequestProcessor implements Fi
                 for (final Buffer buffer : buffers) {
                     ByteBuffer message = buffer.getBuffer();
                     //新客户端拉取消息
-                    if (requestHeader.getVersion() >= getTagsVersion()) {
+                    if (supportTags(requestHeader.getVersion())) {
                         output.writeBytes(message);
                     } else {
                         //老客户端拉取消息

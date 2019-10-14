@@ -1,27 +1,36 @@
 package qunar.tc.qmq.consumer.pull;
 
+import com.google.common.base.Joiner;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.CompositePullClient;
 import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.PullClient;
 
-import java.util.List;
-import java.util.concurrent.ExecutorService;
-
 /**
  * @author zhenwei.liu
  * @since 2019-09-30
  */
-public abstract class AbstractCompositePullClient<T extends PullClient> extends AbstractPullClient implements CompositePullClient<T> {
+public abstract class AbstractCompositePullClient<T extends PullClient> extends AbstractPullClient implements
+        CompositePullClient<T> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractCompositePullClient.class);
 
     private List<T> components;
 
-    public AbstractCompositePullClient(String subject, String consumerGroup, String partitionName, String brokerGroup, String consumerId, ConsumeStrategy consumeStrategy, int version, boolean isBroadcast, boolean isOrdered, long consumptionExpiredTime, List<T> components) {
-        super(subject, consumerGroup, partitionName, brokerGroup, consumerId, consumeStrategy, version, isBroadcast, isOrdered, consumptionExpiredTime);
+    public AbstractCompositePullClient(String subject, String consumerGroup, String brokerGroup, String consumerId,
+            ConsumeStrategy consumeStrategy, int version, boolean isBroadcast, boolean isOrdered,
+            long consumptionExpiredTime, List<T> components) {
+        super(subject, consumerGroup, createCompositePartitions(components), brokerGroup, consumerId, consumeStrategy,
+                version, isBroadcast, isOrdered, consumptionExpiredTime);
         this.components = components;
+    }
+
+    private static String createCompositePartitions(List<? extends PullClient> components) {
+        return Joiner.on("|").join(components.stream().map(PullClient::getPartitionName).collect(Collectors.toList()));
     }
 
 

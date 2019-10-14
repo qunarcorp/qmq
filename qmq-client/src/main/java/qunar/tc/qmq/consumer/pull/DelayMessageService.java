@@ -115,7 +115,7 @@ class DelayMessageService {
         try {
             return sendFuture.get();
         } catch (Exception e) {
-            brokerService.refresh(ClientType.DELAY_PRODUCER, message.getSubject());
+            brokerService.refreshMetaInfo(ClientType.DELAY_PRODUCER, message.getSubject());
             LOGGER.warn("send delay message fail. {}", e.getMessage());
             return SEND_FAIL;
         }

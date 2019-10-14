@@ -30,6 +30,7 @@ public interface CommandCode {
 
     short BROKER_ERROR = 51;
     short BROKER_REJECT = 52;
+    short ACQUIRE_LOCK_FAILED = 53;
     short PARAM_ERROR = 53;
 
     // request code

@@ -42,7 +42,7 @@ import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 import qunar.tc.qmq.meta.cache.CachedOfflineStateManager;
 import qunar.tc.qmq.meta.model.ClientMetaInfo;
 import qunar.tc.qmq.meta.order.AllocationService;
-import qunar.tc.qmq.meta.order.PartitionReallocator;
+import qunar.tc.qmq.meta.order.ConsumerPartitionAllocator;
 import qunar.tc.qmq.meta.route.SubjectRouter;
 import qunar.tc.qmq.meta.store.ClientMetaInfoStore;
 import qunar.tc.qmq.meta.store.Store;
@@ -72,15 +72,15 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
     private final ClientMetaInfoStore clientMetaInfoStore;
     private final CachedOfflineStateManager offlineStateManager;
     private final AllocationService allocationService;
-    private final PartitionReallocator partitionReallocator;
+    private final ConsumerPartitionAllocator consumerPartitionAllocator;
 
     ClientRegisterWorker(final SubjectRouter subjectRouter, final CachedOfflineStateManager offlineStateManager,
             final Store store, CachedMetaInfoManager cachedMetaInfoManager, ClientMetaInfoStore clientMetaInfoStore,
-            AllocationService allocationService, PartitionReallocator partitionReallocator) {
+            AllocationService allocationService, ConsumerPartitionAllocator consumerPartitionAllocator) {
         this.subjectRouter = subjectRouter;
         this.clientMetaInfoStore = clientMetaInfoStore;
         this.allocationService = allocationService;
-        this.partitionReallocator = partitionReallocator;
+        this.consumerPartitionAllocator = consumerPartitionAllocator;
         this.actorSystem = new ActorSystem("qmq_meta");
         this.offlineStateManager = offlineStateManager;
         this.store = store;
@@ -121,7 +121,7 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
         String subject = request.getSubject();
         if (SubjectUtils.isInValid(subject)) {
             return buildResponse(header, request, -2, OnOfflineState.OFFLINE, new BrokerCluster(new ArrayList<>()),
-                    Long.MIN_VALUE);
+                    ConsumeStrategy.SHARED, Long.MIN_VALUE);
         }
 
         try {
@@ -141,19 +141,23 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
                     "client register response, request:{}, realSubject:{}, brokerGroups:{}, clientState:{}",
                     request, subject, filteredBrokerGroups, onlineState);
 
-            updateClientMetaInfo(request);
+            ConsumeStrategy consumeStrategy = null;
+            if (request.getClientTypeCode() == ClientType.CONSUMER.getCode()) {
+                consumeStrategy = getConsumeStrategy(request);
+                updateClientMetaInfo(request, consumeStrategy);
+            }
 
             return buildResponse(header, request, offlineStateManager.getLastUpdateTimestamp(), onlineState,
-                    new BrokerCluster(filteredBrokerGroups), expiredTimestamp());
+                    new BrokerCluster(filteredBrokerGroups), consumeStrategy, expiredTimestamp());
         } catch (Exception e) {
             LOGGER.error("handle client register exception. {} {} {}", request.getSubject(),
                     request.getClientTypeCode(), request.getClientId(), e);
             return buildResponse(header, request, -2, OnOfflineState.OFFLINE, new BrokerCluster(new ArrayList<>()),
-                    Long.MIN_VALUE);
+                    ConsumeStrategy.SHARED, Long.MIN_VALUE);
         }
     }
 
-    private void updateClientMetaInfo(MetaInfoRequest request) {
+    private void updateClientMetaInfo(MetaInfoRequest request, ConsumeStrategy consumeStrategy) {
         String subject = request.getSubject();
         String consumerGroup = request.getConsumerGroup();
         int requestType = request.getRequestType();
@@ -161,27 +165,6 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
 
         int clientTypeCode = request.getClientTypeCode();
         ClientType clientType = ClientType.of(clientTypeCode);
-
-        if (!Objects.equals(clientType, ClientType.CONSUMER)) {
-            return;
-        }
-
-        // 第一次上线判断旧的 consumer 的 consumeStrategy, 只能沿用老的策略
-        ConsumeStrategy consumeStrategy;
-        if (requestType == ClientRequestType.ONLINE.getCode()) {
-            ClientMetaInfo consumerState = clientMetaInfoStore.queryConsumer(subject, clientId);
-            if (consumerState != null) {
-                consumeStrategy = consumerState.getConsumeStrategy();
-            } else {
-                consumeStrategy = ConsumeStrategy.getConsumeStrategy(request.isBroadcast(), request.isOrdered());
-            }
-        } else {
-            // 使用客户端提供的参数
-            consumeStrategy = request.getConsumeStrategy();
-            if (consumeStrategy == null) {
-                consumeStrategy = ConsumeStrategy.SHARED;
-            }
-        }
 
         if (Objects.equals(consumeStrategy, ConsumeStrategy.EXCLUSIVE) && clientType.isConsumer()) {
 
@@ -200,16 +183,43 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
 
             if (ClientRequestType.SWITCH_STATE.getCode() == requestType) {
                 // 触发重分配
-                partitionReallocator.reallocate(subject, consumerGroup);
+                consumerPartitionAllocator.reallocate(subject, consumerGroup);
             }
         }
     }
 
+    private ConsumeStrategy getConsumeStrategy(MetaInfoRequest request) {
+        // 第一次上线判断旧的 consumer 的 consumeStrategy, 只能沿用老的策略
+
+        String subject = request.getSubject();
+        int requestType = request.getRequestType();
+        String clientId = request.getClientId();
+
+        ConsumeStrategy consumeStrategy;
+        if (requestType == ClientRequestType.ONLINE.getCode()) {
+            ClientMetaInfo consumerState = clientMetaInfoStore.queryConsumer(subject, clientId);
+            if (consumerState != null && consumerState.getConsumeStrategy() != null) {
+                consumeStrategy = consumerState.getConsumeStrategy();
+            } else {
+                consumeStrategy = ConsumeStrategy.getConsumeStrategy(request.isBroadcast(), request.isOrdered());
+            }
+        } else {
+            // 使用客户端提供的参数
+            consumeStrategy = request.getConsumeStrategy();
+            if (consumeStrategy == null) {
+                consumeStrategy = ConsumeStrategy.SHARED;
+            }
+        }
+
+        return consumeStrategy;
+    }
+
     private MetaInfoResponse buildResponse(RemotingHeader header, MetaInfoRequest request, long updateTime,
-            OnOfflineState clientState, BrokerCluster brokerCluster, long authExpireTime) {
+            OnOfflineState clientState, BrokerCluster brokerCluster, ConsumeStrategy consumeStrategy,
+            long authExpireTime) {
         short version = header.getVersion();
         ResponseBuilder component = VersionableComponentManager.getComponent(ResponseBuilder.class, version);
-        return component.buildResponse(request, updateTime, clientState, brokerCluster, authExpireTime);
+        return component.buildResponse(request, updateTime, clientState, brokerCluster, consumeStrategy, authExpireTime);
     }
 
     private void writeResponse(final ClientRegisterProcessor.ClientRegisterMessage message,
@@ -233,14 +243,14 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
     private interface ResponseBuilder {
 
         MetaInfoResponse buildResponse(MetaInfoRequest clientRequest, long updateTime, OnOfflineState clientState,
-                BrokerCluster brokerCluster, long authExpireTime);
+                BrokerCluster brokerCluster, ConsumeStrategy consumeStrategy, long authExpireTime);
     }
 
     private class DefaultResponseBuilder implements ResponseBuilder {
 
         @Override
         public MetaInfoResponse buildResponse(MetaInfoRequest request, long updateTime, OnOfflineState clientState,
-                BrokerCluster brokerCluster, long authExpireTime) {
+                BrokerCluster brokerCluster, ConsumeStrategy consumeStrategy, long authExpireTime) {
             return new MetaInfoResponse(
                     updateTime,
                     request.getSubject(),
@@ -256,11 +266,12 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
 
         @Override
         public MetaInfoResponse buildResponse(MetaInfoRequest request, long updateTime, OnOfflineState clientState,
-                BrokerCluster brokerCluster, long authExpireTime) {
+                BrokerCluster brokerCluster, ConsumeStrategy consumeStrategy, long authExpireTime) {
             int clientTypeCode = request.getClientTypeCode();
             ClientType clientType = ClientType.of(clientTypeCode);
             String subject = request.getSubject();
             String consumerGroup = request.getConsumerGroup();
+
             if (clientType.isProducer()) {
                 ProducerAllocation producerAllocation = allocationService
                         .getProducerAllocation(clientType, subject, brokerCluster.getBrokerGroups());
@@ -268,9 +279,6 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
                         brokerCluster, producerAllocation);
             } else if (clientType.isConsumer()) {
                 String clientId = request.getClientId();
-                // TODO(zhenwei.liu) 保持原有的消费行为, 共享或独占
-                ConsumeStrategy consumeStrategy = ConsumeStrategy
-                        .getConsumeStrategy(request.isBroadcast(), request.isOrdered());
                 ConsumerAllocation consumerAllocation = allocationService
                         .getConsumerAllocation(subject, consumerGroup, clientId, authExpireTime, consumeStrategy,
                                 brokerCluster.getBrokerGroups());

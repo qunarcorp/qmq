@@ -1,9 +1,10 @@
 package qunar.tc.qmq.codec;
 
 import io.netty.buffer.ByteBuf;
-import qunar.tc.qmq.protocol.RemotingHeader;
 
 import java.lang.reflect.Type;
+
+import static qunar.tc.qmq.protocol.RemotingHeader.supportOrderedMessage;
 
 /**
  * @author zhenwei.liu
@@ -15,8 +16,8 @@ public abstract class ObjectSerializer<T> implements Serializer<T> {
     private static final byte EXISTS = 1;
 
     @Override
-    public void serialize(T t, ByteBuf buf, long version) {
-        if (version >= RemotingHeader.getOrderedMessageVersion()) {
+    public void serialize(T t, ByteBuf buf, short version) {
+        if (supportOrderedMessage(version)) {
             if (t == null) {
                 buf.writeByte(NULL);
             } else {
@@ -31,12 +32,12 @@ public abstract class ObjectSerializer<T> implements Serializer<T> {
         }
     }
 
-    abstract void doSerialize(T t, ByteBuf buf, long version);
+    abstract void doSerialize(T t, ByteBuf buf, short version);
 
     @Override
-    public T deserialize(ByteBuf buf, Type type, long version) {
+    public T deserialize(ByteBuf buf, Type type, short version) {
         byte exists = buf.readByte();
-        if (version >= RemotingHeader.getOrderedMessageVersion()) {
+        if (supportOrderedMessage(version)) {
             if (exists == NULL) {
                 return null;
             } else {
@@ -47,5 +48,5 @@ public abstract class ObjectSerializer<T> implements Serializer<T> {
         }
     }
 
-    abstract T doDeserialize(ByteBuf buf, Type type, long version);
+    abstract T doDeserialize(ByteBuf buf, Type type, short version);
 }

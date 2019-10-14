@@ -16,10 +16,8 @@ import java.util.Map;
  * @since 2019-08-23
  */
 public class RangeMapSerializer extends ObjectSerializer<RangeMap> {
-
-
     @Override
-    void doSerialize(RangeMap rangeMap, ByteBuf buf, long version) {
+    void doSerialize(RangeMap rangeMap, ByteBuf buf, short version) {
         Map<Range<? extends Comparable>, Object> map = rangeMap.asMapOfRanges();
         buf.writeInt(map.size());
         Serializer<Range> rangeSerializer = Serializers.getSerializer(Range.class);
@@ -34,7 +32,7 @@ public class RangeMapSerializer extends ObjectSerializer<RangeMap> {
     }
 
     @Override
-    RangeMap doDeserialize(ByteBuf buf, Type type, long version) {
+    RangeMap doDeserialize(ByteBuf buf, Type type, short version) {
         Type[] argTypes = ((ParameterizedType) type).getActualTypeArguments();
         Type keyType = argTypes[0];
         Type valType = argTypes[1];

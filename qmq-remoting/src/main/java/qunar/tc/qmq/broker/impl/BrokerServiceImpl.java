@@ -21,6 +21,14 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.SettableFuture;
 import io.netty.buffer.ByteBuf;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ClientType;
@@ -46,27 +54,19 @@ import qunar.tc.qmq.protocol.CommandCode;
 import qunar.tc.qmq.protocol.MetaInfoResponse;
 import qunar.tc.qmq.protocol.PayloadHolder;
 import qunar.tc.qmq.protocol.RemotingHeader;
-import qunar.tc.qmq.protocol.consumer.ReleasePullLockRequest;
+import qunar.tc.qmq.protocol.consumer.LockOperationRequest;
 import qunar.tc.qmq.protocol.producer.ProducerMetaInfoResponse;
 import qunar.tc.qmq.util.RemotingBuilder;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 
 /**
  * @author yiqun.fan create on 17-8-18.
  */
 public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
+
     private static final Logger LOGGER = LoggerFactory.getLogger(BrokerServiceImpl.class);
 
     private Map<String, SettableFuture<ProducerAllocation>> producerAllocationMap = Maps.newConcurrentMap();
-    private final ConcurrentMap<String, SettableFuture<BrokerClusterInfo>> clusterMap = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, SettableFuture<AtomicReference<BrokerClusterInfo>>> clusterMap = new ConcurrentHashMap<>();
 
     private final MetaInfoService metaInfoService;
     private final ConsumerOnlineStateManager consumerOnlineStateManager;
@@ -87,9 +87,8 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
             if (metaInfo != null) {
                 LOGGER.debug("meta info: {}", metaInfo);
                 String key = buildBrokerClusterKey(metaInfo.getClientType(), metaInfo.getSubject());
-                SettableFuture<BrokerClusterInfo> clusterFuture = clusterMap.get(key);
                 if (isEmptyCluster(metaInfo)) {
-                    logMetaInfo(metaInfo, !clusterFuture.isDone());
+                    logMetaInfo(metaInfo);
                 } else {
                     updateBrokerCluster(key, metaInfo.getClusterInfo());
                 }
@@ -99,69 +98,86 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
         });
     }
 
-    private void updateBrokerCluster(String key, BrokerClusterInfo clusterInfo) {
-        SettableFuture<BrokerClusterInfo> oldFuture = clusterMap.computeIfAbsent(key, k -> SettableFuture.create());
+    private void updateBrokerCluster(String key, BrokerClusterInfo newBrokerCluster) {
+        SettableFuture<AtomicReference<BrokerClusterInfo>> oldFuture = clusterMap
+                .computeIfAbsent(key, k -> SettableFuture.create());
 
         if (!oldFuture.isDone()) {
-            oldFuture.set(clusterInfo);
+            oldFuture.set(new AtomicReference<>(newBrokerCluster));
             return;
         }
 
-        BrokerClusterInfo oldClusterInfo;
+        AtomicReference<BrokerClusterInfo> oldRef;
         try {
-            oldClusterInfo = oldFuture.get();
+            oldRef = oldFuture.get();
         } catch (Throwable t) {
             // ignore
             throw new RuntimeException(t);
         }
 
-        if (isEquals(oldClusterInfo, clusterInfo)) {
+        BrokerClusterInfo oldBrokerCluster = oldRef.get();
+        if (isBrokerClusterEquals(oldBrokerCluster, newBrokerCluster)) {
             return;
         }
 
-        List<BrokerGroupInfo> groups = clusterInfo.getGroups();
-        List<BrokerGroupInfo> updated = new ArrayList<>(groups.size());
-        for (BrokerGroupInfo group : groups) {
-            BrokerGroupInfo oldGroup = oldClusterInfo.getGroupByName(group.getGroupName());
-            if (oldGroup == null) {
-                updated.add(group);
+        List<BrokerGroupInfo> newBrokerGroups = newBrokerCluster.getGroups();
+        List<BrokerGroupInfo> mergedBrokerGroups = new ArrayList<>(newBrokerGroups.size());
+        for (BrokerGroupInfo newBrokerGroup : newBrokerGroups) {
+            BrokerGroupInfo oldBrokerGroup = oldBrokerCluster.getGroupByName(newBrokerGroup.getGroupName());
+
+            // 新 brokerGroup
+            if (oldBrokerGroup == null) {
+                mergedBrokerGroups.add(newBrokerGroup);
                 continue;
             }
 
-            if (oldGroup.getMaster().equals(group.getMaster())) {
-                BrokerGroupInfo copy = new BrokerGroupInfo(group.getGroupIndex(),
-                        group.getGroupName(), group.getMaster(), group.getSlaves(), oldGroup.getCircuitBreaker());
-                updated.add(copy);
+            // 复用 circuitBreaker
+            if (Objects.equals(oldBrokerGroup.getMaster(), newBrokerGroup.getMaster())) {
+                BrokerGroupInfo copy = new BrokerGroupInfo(newBrokerGroup.getGroupIndex(),
+                        newBrokerGroup.getGroupName(), newBrokerGroup.getMaster(), newBrokerGroup.getSlaves(),
+                        oldBrokerGroup.getCircuitBreaker());
+                mergedBrokerGroups.add(copy);
                 continue;
             }
 
-            updated.add(group);
+            // 同名 BrokerGroup 但是 Master 发生变化
+            mergedBrokerGroups.add(newBrokerGroup);
         }
 
-        BrokerClusterInfo updatedCluster = new BrokerClusterInfo(updated);
-        oldFuture.set(updatedCluster);
+        BrokerClusterInfo updatedCluster = new BrokerClusterInfo(mergedBrokerGroups);
+        oldRef.set(updatedCluster);
     }
 
-    private boolean isEquals(BrokerClusterInfo oldClusterInfo, BrokerClusterInfo clusterInfo) {
-        List<BrokerGroupInfo> groups = clusterInfo.getGroups();
-        if (groups.size() != oldClusterInfo.getGroups().size()) return false;
+    private boolean isBrokerClusterEquals(BrokerClusterInfo oldClusterInfo, BrokerClusterInfo newClusterInfo) {
+        List<BrokerGroupInfo> newBrokerGroups = newClusterInfo.getGroups();
+        if (newBrokerGroups.size() != oldClusterInfo.getGroups().size()) {
+            return false;
+        }
 
-        for (BrokerGroupInfo group : groups) {
-            BrokerGroupInfo oldGroup = oldClusterInfo.getGroupByName(group.getGroupName());
-            if (oldGroup == null) return false;
+        for (BrokerGroupInfo newBrokerGroup : newBrokerGroups) {
+            BrokerGroupInfo oldBrokerGroup = oldClusterInfo.getGroupByName(newBrokerGroup.getGroupName());
+            if (oldBrokerGroup == null) {
+                return false;
+            }
 
-            if (!oldGroup.getMaster().equals(group.getMaster())) return false;
+            if (!isBrokerGroupEquals(oldBrokerGroup, newBrokerGroup)) {
+                return false;
+            }
         }
         return true;
     }
 
-    private void logMetaInfo(MetaInfo metaInfo, boolean error) {
+    private boolean isBrokerGroupEquals(BrokerGroupInfo oldBrokerGroup, BrokerGroupInfo newBrokerGroup) {
+        return Objects.equals(oldBrokerGroup.getMaster(), newBrokerGroup.getMaster()) &&
+                Objects.equals(oldBrokerGroup.getSlaves(), newBrokerGroup.getSlaves()) &&
+                Objects.equals(oldBrokerGroup.getGroupName(), newBrokerGroup.getGroupName()) &&
+                Objects.equals(oldBrokerGroup.getGroupIndex(), newBrokerGroup.getGroupIndex()) &&
+                Objects.equals(oldBrokerGroup.isAvailable(), newBrokerGroup.isAvailable());
+    }
+
+    private void logMetaInfo(MetaInfo metaInfo) {
         String msg = "meta server return empty broker, will retry in a few seconds. subject={}, client={}";
-        if (error) {
-            LOGGER.error(msg, metaInfo.getSubject(), metaInfo.getClientType());
-        } else {
-            LOGGER.info(msg, metaInfo.getSubject(), metaInfo.getClientType());
-        }
+        LOGGER.error(msg, metaInfo.getSubject(), metaInfo.getClientType());
     }
 
     private boolean isEmptyCluster(MetaInfo metaInfo) {
@@ -177,23 +193,27 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
     @Override
     public BrokerClusterInfo getConsumerBrokerCluster(ClientType clientType, String subject) {
         String key = buildBrokerClusterKey(clientType, subject);
-        SettableFuture<BrokerClusterInfo> future = clusterMap.get(key);
+        SettableFuture<AtomicReference<BrokerClusterInfo>> future = clusterMap.get(key);
         Preconditions.checkNotNull(future, "broker 信息不存在 %s %s", clientType, subject);
         try {
-            return future.get();
+            return future.get().get();
         } catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException(e);
         }
     }
 
     @Override
-    public BrokerClusterInfo getBrokerCluster(ClientType clientType, String subject, String consumerGroup, boolean isBroadcast, boolean isOrdered) {
+    public BrokerClusterInfo getBrokerCluster(ClientType clientType, String subject, String consumerGroup,
+            boolean isBroadcast, boolean isOrdered) {
         // 这个key上加group不兼容MetaInfoResponse
         String key = buildBrokerClusterKey(clientType, subject);
-        Future<BrokerClusterInfo> future = clusterMap.computeIfAbsent(key, k -> SettableFuture.create());
-        registerHeartbeat(clientType, subject, consumerGroup, isBroadcast, isOrdered);
+        SettableFuture<AtomicReference<BrokerClusterInfo>> future = clusterMap.computeIfAbsent(key, k -> {
+            SettableFuture<AtomicReference<BrokerClusterInfo>> f = SettableFuture.create();
+            registerHeartbeat(clientType, subject, consumerGroup, isBroadcast, isOrdered);
+            return f;
+        });
         try {
-            return future.get();
+            return future.get().get();
         } catch (Throwable t) {
             throw new RuntimeException(t);
         }
@@ -204,35 +224,46 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
     }
 
     @Override
-    public void refresh(ClientType clientType, String subject) {
-        refresh(clientType, subject, "");
+    public void refreshMetaInfo(ClientType clientType, String subject) {
+        refreshMetaInfo(clientType, subject, "");
     }
 
     @Override
-    public void refresh(ClientType clientType, String subject, String consumerGroup) {
+    public void refreshMetaInfo(ClientType clientType, String subject, String consumerGroup) {
         metaInfoService.triggerHeartbeat(clientType.getCode(), subject, consumerGroup);
     }
 
     @Override
-    public void releaseLock(String subject, String consumerGroup, String partitionName, String brokerGroupName, ConsumeStrategy consumeStrategy) {
+    public void releaseLock(String subject, String consumerGroup, String partitionName, String brokerGroupName,
+            ConsumeStrategy consumeStrategy) {
+        operateLock(CommandCode.RELEASE_PULL_LOCK, subject, consumerGroup, partitionName, brokerGroupName,
+                consumeStrategy);
+    }
+
+    private void operateLock(short commandCode, String subject, String consumerGroup, String partitionName,
+            String brokerGroupName, ConsumeStrategy consumeStrategy) {
         if (!Objects.equals(consumeStrategy, ConsumeStrategy.EXCLUSIVE)) {
             return;
         }
         BrokerClusterInfo brokerCluster = getConsumerBrokerCluster(ClientType.CONSUMER, subject);
         BrokerGroupInfo brokerGroup = brokerCluster.getGroupByName(brokerGroupName);
-        ReleasePullLockRequest request = new ReleasePullLockRequest(partitionName, consumerGroup, clientId);
+        LockOperationRequest request = new LockOperationRequest(partitionName, consumerGroup, clientId);
         try {
-            nettyClient.sendAsync(brokerGroup.getMaster(), RemotingBuilder.buildRequestDatagram(CommandCode.RELEASE_PULL_LOCK, new PayloadHolder() {
-                @Override
-                public void writeBody(ByteBuf out) {
-                    Serializer<ReleasePullLockRequest> serializer = Serializers.getSerializer(ReleasePullLockRequest.class);
-                    serializer.serialize(request, out, RemotingHeader.getCurrentVersion());
-                }
-            }), 3000);
+            nettyClient.sendAsync(brokerGroup.getMaster(),
+                    RemotingBuilder.buildRequestDatagram(commandCode, new PayloadHolder() {
+                        @Override
+                        public void writeBody(ByteBuf out) {
+                            Serializer<LockOperationRequest> serializer = Serializers
+                                    .getSerializer(LockOperationRequest.class);
+                            serializer.serialize(request, out, RemotingHeader.getCurrentVersion());
+                        }
+                    }), 3000);
         } catch (ClientSendException e) {
-            LOGGER.error("release lock failed broker {} subject {} partition {} consumerGroup {}", brokerGroupName, subject, partitionName, consumerGroup, e);
+            LOGGER.error("锁操作失败 opCode {} broker {} subject {} partition {} consumerGroup {}", commandCode,
+                    brokerGroupName, subject, partitionName, consumerGroup, e);
         }
     }
+
 
     @Override
     public String getAppCode() {
@@ -250,8 +281,11 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
 
     }
 
-    private <T extends Versionable> void updatePartitionCache(String key, Map<String, SettableFuture<T>> map, T newVal) {
-        if (newVal == null) return;
+    private <T extends Versionable> void updatePartitionCache(String key, Map<String, SettableFuture<T>> map,
+            T newVal) {
+        if (newVal == null) {
+            return;
+        }
         synchronized (key.intern()) {
             SettableFuture<T> future = map.computeIfAbsent(key, k -> SettableFuture.create());
             // 旧的存在, 对比版本
@@ -270,22 +304,24 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
         }
     }
 
-    private String createConsumerAllocationKey(String subject, String group, String clientId) {
-        return subject + ":" + group + ":" + clientId;
-    }
-
     private String createProducerPartitionMappingKey(ClientType clientType, String subject) {
         return clientType.name() + ":" + subject;
     }
 
     private MetaInfo parseResponse(MetaInfoResponse response) {
-        if (response == null) return null;
+        if (response == null) {
+            return null;
+        }
 
         String subject = response.getSubject();
-        if (Strings.isNullOrEmpty(subject)) return null;
+        if (Strings.isNullOrEmpty(subject)) {
+            return null;
+        }
 
         ClientType clientType = parseClientType(response);
-        if (clientType == null) return null;
+        if (clientType == null) {
+            return null;
+        }
 
         BrokerCluster cluster = response.getBrokerCluster();
         List<BrokerGroup> groups = cluster == null ? null : cluster.getBrokerGroups();
@@ -323,7 +359,8 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
     @Override
     public ProducerAllocation getProducerAllocation(ClientType clientType, String subject) {
         String producerKey = createProducerPartitionMappingKey(clientType, subject);
-        SettableFuture<ProducerAllocation> future = producerAllocationMap.computeIfAbsent(producerKey, key -> SettableFuture.create());
+        SettableFuture<ProducerAllocation> future = producerAllocationMap
+                .computeIfAbsent(producerKey, key -> SettableFuture.create());
         registerHeartbeat(clientType, subject, "", false, false);
         try {
             return future.get();
@@ -332,7 +369,8 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
         }
     }
 
-    private void registerHeartbeat(ClientType clientType, String subject, String consumerGroup, boolean isBroadcast, boolean isOrdered) {
+    private void registerHeartbeat(ClientType clientType, String subject, String consumerGroup, boolean isBroadcast,
+            boolean isOrdered) {
         metaInfoService.registerHeartbeat(
                 appCode,
                 clientType.getCode(),
@@ -342,4 +380,5 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
                 isOrdered
         );
     }
+
 }

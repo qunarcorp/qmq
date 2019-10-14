@@ -29,6 +29,7 @@ import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.common.OrderStrategy;
 import qunar.tc.qmq.common.OrderStrategyCache;
+import qunar.tc.qmq.common.PartitionConstants;
 import qunar.tc.qmq.common.TimerUtil;
 import qunar.tc.qmq.config.PullSubjectsConfig;
 import qunar.tc.qmq.metrics.Metrics;
@@ -53,7 +54,6 @@ import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_GROUP_ARRAY;
 class AckSendQueue implements TimerTask {
     private static final Logger LOGGER = LoggerFactory.getLogger(AckSendQueue.class);
     private static final long DEFAULT_PULL_OFFSET = -1;
-    private static final int ACK_INTERVAL_SECONDS = 10;
     private static final long ACK_TRY_SEND_TIMEOUT_MILLIS = 1000;
 
     private static final int DESTROY_CHECK_WAIT_MILLIS = 50;
@@ -67,7 +67,7 @@ class AckSendQueue implements TimerTask {
 
     private final AckService ackService;
 
-    private final String partitionName;
+    private final String currentPartitionName;
     private final String retryPartitionName;
     private final String deadRetryPartitionName;
     private final ConsumeStrategy consumeStrategy;
@@ -124,7 +124,7 @@ class AckSendQueue implements TimerTask {
         this.isBroadcast = isBroadcast;
         this.isOrdered = isOrdered;
 
-        this.partitionName = RetryPartitionUtils.getRealPartitionName(partitionName);
+        this.currentPartitionName = partitionName;
         this.retryPartitionName = RetryPartitionUtils.buildRetryPartitionName(partitionName, consumerGroup);
         this.deadRetryPartitionName = RetryPartitionUtils.buildDeadRetryPartitionName(partitionName, consumerGroup);
         this.pullBatchSize = PullSubjectsConfig.get().getPullBatchSize(subject);
@@ -136,7 +136,7 @@ class AckSendQueue implements TimerTask {
         updateLock.lock();
         try {
             if (lastAppendOffset != -1 && lastAppendOffset + 1 != batch.get(0).pullOffset()) {
-                LOGGER.warn("{}/{} append ack entry not continous. last: {}, new: {}", partitionName, consumerGroup, lastAppendOffset, batch.get(0).pullOffset());
+                LOGGER.warn("{}/{} append ack entry not continous. last: {}, new: {}", currentPartitionName, consumerGroup, lastAppendOffset, batch.get(0).pullOffset());
                 appendErrorCount.inc();
             }
 
@@ -269,16 +269,16 @@ class AckSendQueue implements TimerTask {
     private void doSendAck(final AckSendEntry sendEntry) {
         BrokerGroupInfo brokerGroup = getBrokerGroup();
         if (brokerGroup == null) {
-            LOGGER.debug("lost broker group: {}. partition={}, consumeGroup={}", brokerGroupName, partitionName, consumerGroup);
+            LOGGER.debug("lost broker group: {}. partition={}, consumeGroup={}", brokerGroupName, currentPartitionName, consumerGroup);
             inSending.set(false);
             return;
         }
 
-        ackService.sendAck(brokerGroup, subject, partitionName, consumerGroup, consumeStrategy, sendEntry, new AckService.SendAckCallback() {
+        ackService.sendAck(brokerGroup, subject, currentPartitionName, consumerGroup, consumeStrategy, sendEntry, new AckService.SendAckCallback() {
             @Override
             public void success() {
                 if (lastSendOkOffset != -1 && lastSendOkOffset + 1 != sendEntry.getPullOffsetBegin()) {
-                    LOGGER.warn("{}/{} ack send not continous. last={}, send={}", partitionName, consumerGroup, lastSendOkOffset, sendEntry);
+                    LOGGER.warn("{}/{} ack send not continous. last={}, send={}", currentPartitionName, consumerGroup, lastSendOkOffset, sendEntry);
                     sendErrorCount.inc();
                 }
                 lastSendOkOffset = sendEntry.getPullOffsetLast();
@@ -327,7 +327,7 @@ class AckSendQueue implements TimerTask {
 
 
     void init() {
-        TimerUtil.newTimeout(this, ACK_INTERVAL_SECONDS, TimeUnit.SECONDS);
+        TimerUtil.newTimeout(this, PartitionConstants.ACK_INTERVAL_MILLS, TimeUnit.MILLISECONDS);
 
         String[] values = new String[]{subject, consumerGroup};
         sendNumQps = Metrics.meter("qmq_pull_ack_sendnum_qps", SUBJECT_GROUP_ARRAY, values);
@@ -384,13 +384,15 @@ class AckSendQueue implements TimerTask {
             if (!trySendAck(ACK_TRY_SEND_TIMEOUT_MILLIS)) {
                 final BrokerGroupInfo brokerGroup = getBrokerGroup();
                 if (brokerGroup == null) {
-                    LOGGER.debug("lost broker group: {}. partitionName={}, consumeGroup={}", brokerGroupName, partitionName, consumerGroup);
+                    LOGGER.debug("lost broker group: {}. partitionName={}, consumeGroup={}", brokerGroupName, currentPartitionName, consumerGroup);
                     return;
                 }
-                ackService.sendAck(brokerGroup, subject, partitionName, consumerGroup, consumeStrategy, EMPTY_ACK, EMPTY_ACK_CALLBACK);
+                if (!stopped.get()) {
+                    ackService.sendAck(brokerGroup, subject, currentPartitionName, consumerGroup, consumeStrategy, EMPTY_ACK, EMPTY_ACK_CALLBACK);
+                }
             }
         } finally {
-            TimerUtil.newTimeout(this, ACK_INTERVAL_SECONDS, TimeUnit.SECONDS);
+            TimerUtil.newTimeout(this, PartitionConstants.ACK_INTERVAL_MILLS, TimeUnit.MILLISECONDS);
         }
     }
 

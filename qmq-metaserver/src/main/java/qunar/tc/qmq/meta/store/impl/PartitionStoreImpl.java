@@ -32,9 +32,8 @@ public class PartitionStoreImpl implements PartitionStore {
 
     private static final String SELECT_BY_IDS =
             "select subject, partition_name, partition_id, logical_partition_lower_bound, logical_partition_upper_bound, broker_group, rw_status  "
-                    +
-                    "from partitions" +
-                    "where subject = :subject and partition_id in (:ids)";
+                    + "from partitions "
+                    + "where subject = :subject and partition_id in (:ids)";
 
 
     private static final String SELECT_ALL =

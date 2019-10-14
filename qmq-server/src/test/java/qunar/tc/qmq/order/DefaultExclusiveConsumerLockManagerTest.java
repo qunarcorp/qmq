@@ -8,6 +8,6 @@ import org.mockito.junit.MockitoJUnitRunner;
  * @since 2019-09-29
  */
 @RunWith(MockitoJUnitRunner.class)
-public class DefaultExclusiveMessageLockManagerTest {
+public class DefaultExclusiveConsumerLockManagerTest {
 
 }

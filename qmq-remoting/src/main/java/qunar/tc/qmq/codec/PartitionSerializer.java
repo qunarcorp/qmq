@@ -19,7 +19,7 @@ public class PartitionSerializer extends ObjectSerializer<Partition> {
     });
 
     @Override
-    void doSerialize(Partition partition, ByteBuf buf, long version) {
+    void doSerialize(Partition partition, ByteBuf buf, short version) {
         PayloadHolderUtils.writeString(partition.getSubject(), buf);
         PayloadHolderUtils.writeString(partition.getPartitionName(), buf);
         buf.writeInt(partition.getPartitionId());
@@ -30,7 +30,7 @@ public class PartitionSerializer extends ObjectSerializer<Partition> {
     }
 
     @Override
-    Partition doDeserialize(ByteBuf buf, Type type, long version) {
+    Partition doDeserialize(ByteBuf buf, Type type, short version) {
         String subject = PayloadHolderUtils.readString(buf);
         String partitionName = PayloadHolderUtils.readString(buf);
         int partitionId = buf.readInt();

@@ -13,14 +13,14 @@ import java.lang.reflect.Type;
 public class PartitionPropsSerializer extends ObjectSerializer<PartitionProps> {
 
     @Override
-    void doSerialize(PartitionProps partitionProps, ByteBuf buf, long version) {
+    void doSerialize(PartitionProps partitionProps, ByteBuf buf, short version) {
         buf.writeInt(partitionProps.getPartitionId());
         PayloadHolderUtils.writeString(partitionProps.getPartitionName(), buf);
         PayloadHolderUtils.writeString(partitionProps.getBrokerGroup(), buf);
     }
 
     @Override
-    PartitionProps doDeserialize(ByteBuf buf, Type type, long version) {
+    PartitionProps doDeserialize(ByteBuf buf, Type type, short version) {
         int partitionId = buf.readInt();
         String partitionName = PayloadHolderUtils.readString(buf);
         String brokerGroup = PayloadHolderUtils.readString(buf);

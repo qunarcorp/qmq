@@ -11,7 +11,7 @@ import java.lang.reflect.Type;
  */
 public interface Serializer<T> {
 
-    void serialize(T t, ByteBuf buf, long version);
+    void serialize(T t, ByteBuf buf, short version);
 
     /**
      * 反序列化
@@ -22,7 +22,7 @@ public interface Serializer<T> {
      *
      * @return T
      */
-    T deserialize(ByteBuf buf, Type type, long version);
+    T deserialize(ByteBuf buf, Type type, short version);
 
     default Serializer getSerializer(Type type) {
         Class clazz;

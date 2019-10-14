@@ -19,19 +19,26 @@ package qunar.tc.qmq.consumer.pull;
 import static qunar.tc.qmq.StatusSource.CODE;
 import static qunar.tc.qmq.StatusSource.HEALTHCHECKER;
 
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.SettableFuture;
+import io.netty.channel.ChannelFuture;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ClientType;
+import qunar.tc.qmq.PullClient;
 import qunar.tc.qmq.PullConsumer;
 import qunar.tc.qmq.PullEntry;
+import qunar.tc.qmq.StatusSource;
 import qunar.tc.qmq.base.ClientRequestType;
+import qunar.tc.qmq.base.OnOfflineState;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.broker.impl.BrokerServiceImpl;
 import qunar.tc.qmq.broker.impl.SwitchWaiter;
@@ -57,6 +64,8 @@ public class PullRegister implements ConsumerRegister {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PullRegister.class);
 
+    private long lastUpdateTimestamp = -1;
+
     private abstract class PullClientUpdater implements MetaInfoClient.ResponseSubscriber {
 
         private String subject;
@@ -78,6 +87,9 @@ public class PullRegister implements ConsumerRegister {
 
             if (Objects.equals(respSubject, subject) || Objects.equals(respConsumerGroup, consumerGroup)) {
                 updateClient((ConsumerMetaInfoResponse) response);
+
+                // update online state
+                updateConsumerOPSStatus(response);
             }
         }
 
@@ -149,33 +161,7 @@ public class PullRegister implements ConsumerRegister {
         boolean isBroadcast = param.isBroadcast();
         consumerOnlineStateManager.registerConsumer(subject, consumerGroup);
         consumerOnlineStateManager.addOnlineStateListener(subject, consumerGroup, (isOnline) -> {
-            final PullEntry pullClient = pullEntryManager.getPullClient(subject, consumerGroup);
-            if (pullClient == null) {
-                return;
-            }
-            if (isOnline) {
-                LOGGER.info("consumer offline, subject {} consumerGroup {} broadcast {} ordered {} clientId {}",
-                        subject, consumerGroup, isBroadcast, isOrdered, clientId);
-            } else {
-                // 触发 Consumer 下线清理操作
-                LOGGER.info("consumer offline, Subject {} ConsumerGroup {} Broadcast {} ordered {} clientId {}",
-                        subject, consumerGroup, isBroadcast, isOrdered, clientId);
-                pullClient.offline();
-            }
-
-            // 上下线主动触发心跳
-            MetaInfoRequest request = new MetaInfoRequest(
-                    subject,
-                    consumerGroup,
-                    ClientType.CONSUMER.getCode(),
-                    appCode,
-                    clientId,
-                    ClientRequestType.SWITCH_STATE,
-                    isBroadcast,
-                    isOrdered
-            );
-            request.setConsumeStrategy(pullClient.getConsumeStrategy());
-            metaInfoService.sendRequest(request);
+            onClientOnlineStateChange(subject, consumerGroup, isOnline, isBroadcast, isOrdered, pullEntryManager);
         });
         metaInfoService.registerHeartbeat(appCode, ClientType.CONSUMER.getCode(), subject, consumerGroup,
                 isBroadcast,
@@ -199,33 +185,7 @@ public class PullRegister implements ConsumerRegister {
         SettableFuture<PullConsumer> future = SettableFuture.create();
         consumerOnlineStateManager.registerConsumer(subject, consumerGroup);
         consumerOnlineStateManager.addOnlineStateListener(subject, consumerGroup, (isOnline) -> {
-            PullConsumer pullClient = pullConsumerManager.getPullClient(subject, consumerGroup);
-            if (pullClient == null) {
-                return;
-            }
-            if (isOnline) {
-                LOGGER.info("consumer offline, subject {} consumerGroup {} broadcast {} ordered {} clientId {}",
-                        subject, consumerGroup, isBroadcast, isOrdered, clientId);
-            } else {
-                // 触发 Consumer 下线清理操作
-                LOGGER.info("consumer offline, Subject {} ConsumerGroup {} Broadcast {} ordered {} clientId {}",
-                        subject, consumerGroup, isBroadcast, isOrdered, clientId);
-                pullClient.offline();
-            }
-
-            // 上下线主动触发心跳
-            MetaInfoRequest request = new MetaInfoRequest(
-                    subject,
-                    consumerGroup,
-                    ClientType.CONSUMER.getCode(),
-                    appCode,
-                    clientId,
-                    ClientRequestType.SWITCH_STATE,
-                    isBroadcast,
-                    isOrdered
-            );
-            request.setConsumeStrategy(pullClient.getConsumeStrategy());
-            metaInfoService.sendRequest(request);
+            onClientOnlineStateChange(subject, consumerGroup, isOnline, isBroadcast, isOrdered, pullConsumerManager);
         });
         metaInfoService.registerHeartbeat(
                 appCode,
@@ -291,5 +251,76 @@ public class PullRegister implements ConsumerRegister {
     public PullRegister setMetaServer(String metaServer) {
         this.metaServer = metaServer;
         return this;
+    }
+
+    private void updateConsumerOPSStatus(MetaInfoResponse response) {
+        final String subject = response.getSubject();
+        final String consumerGroup = response.getConsumerGroup();
+        String key = getMetaKey(response.getClientTypeCode(), subject, consumerGroup);
+        synchronized (key.intern()) {
+            try {
+                if (isStale(response.getTimestamp(), lastUpdateTimestamp)) {
+                    LOGGER.debug("skip response {}", response);
+                    return;
+                }
+                lastUpdateTimestamp = response.getTimestamp();
+
+                if (!Strings.isNullOrEmpty(consumerGroup)) {
+                    OnOfflineState onOfflineState = response.getOnOfflineState();
+                    LOGGER.debug("消费者状态发生变更 {}/{}:{}", subject, consumerGroup, onOfflineState);
+                    if (onOfflineState == OnOfflineState.ONLINE) {
+                        consumerOnlineStateManager.online(subject, consumerGroup, StatusSource.OPS);
+                    } else if (onOfflineState == OnOfflineState.OFFLINE) {
+                        consumerOnlineStateManager.offline(subject, consumerGroup, StatusSource.OPS);
+                    }
+                }
+            } catch (Exception e) {
+                LOGGER.error("update meta info exception. response={}", response, e);
+            }
+        }
+    }
+
+    private String getMetaKey(int clientType, String subject, String consumerGroup) {
+        return clientType + ":" + subject + ":" + consumerGroup;
+    }
+
+    private boolean isStale(long thisTimestamp, long lastUpdateTimestamp) {
+        return thisTimestamp < lastUpdateTimestamp;
+    }
+
+    private void onClientOnlineStateChange(String subject, String consumerGroup, boolean isOnline, boolean isBroadcast, boolean isOrdered, PullClientManager pullClientManager) {
+        PullClient pullClient = pullClientManager.getPullClient(subject, consumerGroup);
+        Preconditions.checkNotNull(pullClient, "pull client 尚未初始化 %s %s", subject, consumerGroup);
+        if (isOnline) {
+            LOGGER.info("consumer online, subject {} consumerGroup {} consumeStrategy {} broadcast {} ordered {} clientId {} partitions {}",
+                    subject, consumerGroup, pullClient.getConsumeStrategy(), isBroadcast, isOrdered, clientId, pullClient.getPartitionName());
+        } else {
+            // 触发 Consumer 下线清理操作
+            LOGGER.info("consumer offline, Subject {} ConsumerGroup {} consumeStrategy {} Broadcast {} ordered {} clientId {}",
+                    subject, consumerGroup, pullClient.getConsumeStrategy(), isBroadcast, isOrdered, clientId);
+            pullClient.offline();
+        }
+
+        // 下线主动触发心跳
+        MetaInfoRequest request = new MetaInfoRequest(
+                subject,
+                consumerGroup,
+                ClientType.CONSUMER.getCode(),
+                appCode,
+                clientId,
+                ClientRequestType.SWITCH_STATE,
+                isBroadcast,
+                isOrdered
+        );
+        request.setOnlineState(isOnline ? OnOfflineState.ONLINE : OnOfflineState.OFFLINE);
+        request.setConsumeStrategy(pullClient.getConsumeStrategy());
+        ChannelFuture channelFuture = metaInfoService.sendRequest(request);
+        try {
+            channelFuture.get(2, TimeUnit.SECONDS);
+        } catch (Throwable t) {
+            // ignore
+            LOGGER.error("等待上下线结果出错 {} {}", subject, consumerGroup, t);
+        }
+        LOGGER.info("发送{}请求成功 {} {}", isOnline ? "上线" : "下线", subject, consumerGroup);
     }
 }

@@ -2,6 +2,7 @@ package qunar.tc.qmq.consumer.pull;
 
 import java.util.List;
 import qunar.tc.qmq.CompositePullClient;
+import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.PullEntry;
 
 /**
@@ -15,12 +16,13 @@ public class CompositePullEntry<T extends PullEntry> extends AbstractCompositePu
             String subject,
             String consumerGroup,
             String consumerId,
+            ConsumeStrategy consumeStrategy,
             int version,
             boolean isBroadcast,
             boolean isOrdered,
             long consumptionExpiredTime,
             List<T> pullEntries) {
-        super(subject, consumerGroup, "", "", consumerId, null, version, isBroadcast, isOrdered, consumptionExpiredTime,
+        super(subject, consumerGroup, "", consumerId, consumeStrategy, version, isBroadcast, isOrdered, consumptionExpiredTime,
                 pullEntries);
     }
 }

@@ -1,9 +1,15 @@
 package qunar.tc.qmq.consumer.pull;
 
 import com.google.common.base.Strings;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.*;
+import qunar.tc.qmq.CompositePullClient;
+import qunar.tc.qmq.ConsumeStrategy;
+import qunar.tc.qmq.PullClient;
+import qunar.tc.qmq.PullEntry;
+import qunar.tc.qmq.StatusSource;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.common.EnvProvider;
 import qunar.tc.qmq.consumer.BaseMessageHandler;
@@ -13,14 +19,12 @@ import qunar.tc.qmq.consumer.register.RegistParam;
 import qunar.tc.qmq.metainfoclient.ConsumerOnlineStateManager;
 import qunar.tc.qmq.protocol.consumer.SubEnvIsolationPullFilter;
 
-import java.util.List;
-import java.util.concurrent.ExecutorService;
-
 /**
  * @author zhenwei.liu
  * @since 2019-09-27
  */
 public class PullEntryManager extends AbstractPullClientManager<PullEntry> {
+
     private static final Logger LOGGER = LoggerFactory.getLogger(PullEntryManager.class);
 
     private final EnvProvider envProvider;
@@ -89,13 +93,17 @@ public class PullEntryManager extends AbstractPullClientManager<PullEntry> {
                 getConsumerOnlineStateManager(),
                 partitionExecutor);
         pullEntry.startPull(partitionExecutor);
+        LOGGER.info("创建 pull client {} {} {} {}", subject, partitionName, brokerGroup, consumerGroup);
         return pullEntry;
     }
 
     @Override
-    CompositePullClient doCreateCompositePullClient(String subject, String consumerGroup, int version, long consumptionExpiredTime, List<? extends PullClient> clientList, Object registryParam) {
+    CompositePullClient doCreateCompositePullClient(String subject, String consumerGroup,
+            ConsumeStrategy consumeStrategy, int version, long consumptionExpiredTime,
+            List<? extends PullClient> clientList, Object registryParam) {
         RegistParam param = (RegistParam) registryParam;
-        return new CompositePullEntry(subject, consumerGroup, getClientId(), version, param.isBroadcast(), param.isOrdered(), consumptionExpiredTime, clientList);
+        return new CompositePullEntry(subject, consumerGroup, getClientId(), consumeStrategy, version,
+                param.isBroadcast(), param.isOrdered(), consumptionExpiredTime, clientList);
 
     }
 
@@ -110,7 +118,8 @@ public class PullEntryManager extends AbstractPullClientManager<PullEntry> {
         if (envProvider != null && !Strings.isNullOrEmpty(env = envProvider.env(subject))) {
             String subEnv = envProvider.subEnv(env);
             final String realGroup = toSubEnvIsolationGroup(consumerGroup, env, subEnv);
-            LOGGER.info("enable subenv isolation for {}/{}, rename consumer consumerGroup to {}", subject, consumerGroup, realGroup);
+            LOGGER.info("enable subenv isolation for {}/{}, rename consumer consumerGroup to {}", subject,
+                    consumerGroup, realGroup);
 
             param.addFilter(new SubEnvIsolationPullFilter(env, subEnv));
             return realGroup;

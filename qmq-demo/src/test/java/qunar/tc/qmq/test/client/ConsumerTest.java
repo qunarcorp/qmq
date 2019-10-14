@@ -27,12 +27,13 @@ public class ConsumerTest {
         final MessageConsumerProvider provider = new MessageConsumerProvider();
         provider.setMetaServer("http://127.0.0.1:8080/meta/address");
         provider.setAppCode("consumer_test");
+        provider.setClientIdProvider(new TestClientIdProvider());
         provider.init();
 
         SubscribeParam param = new SubscribeParam.SubscribeParamBuilder()
                 .setOrdered(true)
                 .create();
-        final ListenerHolder listener = provider.addListener("new.partition.subject", "test_consumer_group", new MessageListener() {
+        final ListenerHolder listener = provider.addListener("alloc.partition.subject10", "test_consumer_group", new MessageListener() {
             @Override
             public void onMessage(Message msg) {
                 LOGGER.info("msgId:{}", msg.getMessageId());

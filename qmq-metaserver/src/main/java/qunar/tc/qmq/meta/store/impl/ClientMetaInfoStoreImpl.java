@@ -19,6 +19,9 @@ package qunar.tc.qmq.meta.store.impl;
 import com.google.common.base.Strings;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.support.DataAccessUtils;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -81,12 +84,15 @@ public class ClientMetaInfoStoreImpl implements ClientMetaInfoStore {
         );
     }
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(ClientMetaInfoStoreImpl.class);
+
     @Override
     public List<ClientMetaInfo> queryClientsUpdateAfterDate(ClientType clientType, OnOfflineState onlineStatus,
             Date updateDate) {
         return jdbcTemplate
                 .query(QUERY_CLIENT_AFTER_DATE_SQL, clientMetaInfoRowMapper, clientType.getCode(), onlineStatus.name(),
                         updateDate);
+
     }
 
     @Override

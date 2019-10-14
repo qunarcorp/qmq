@@ -11,12 +11,12 @@ import java.lang.reflect.Type;
 public class IntegerSerializer implements Serializer<Integer> {
 
     @Override
-    public void serialize(Integer i, ByteBuf buf, long version) {
+    public void serialize(Integer i, ByteBuf buf, short version) {
         buf.writeInt(i);
     }
 
     @Override
-    public Integer deserialize(ByteBuf buf, Type type, long version) {
+    public Integer deserialize(ByteBuf buf, Type type, short version) {
         return buf.readInt();
     }
 }

@@ -16,7 +16,7 @@ import java.util.Set;
  * @author zhenwei.liu
  * @since 2019-08-28
  */
-public class AveragePartitionAllocator implements PartitionAllocator {
+public class AveragePartitionAllocateStrategy implements PartitionAllocateStrategy {
 
     private ItemMapper itemMapper = new AverageItemMapper();
 
@@ -35,6 +35,11 @@ public class AveragePartitionAllocator implements PartitionAllocator {
             String clientId = entry.getValue();
             Set<PartitionProps> partitionPropsSet = clientId2SubjectLocations.computeIfAbsent(clientId, k -> Sets.newHashSet());
             partitionPropsSet.add(new PartitionProps(partitionId, partition.getPartitionName(), partition.getBrokerGroup()));
+        }
+
+        // 对于未被分配到分区的 client, 需要给一个空占位符
+        for (String consumerId : onlineConsumerList) {
+            clientId2SubjectLocations.computeIfAbsent(consumerId, k -> Sets.newHashSet());
         }
 
         PartitionAllocation.AllocationDetail allocationDetail = new PartitionAllocation.AllocationDetail();

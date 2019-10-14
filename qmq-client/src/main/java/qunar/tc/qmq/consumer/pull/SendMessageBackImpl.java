@@ -114,7 +114,7 @@ class SendMessageBackImpl implements SendMessageBack {
 
                             if (respCode == CommandCode.BROKER_REJECT || sendResult.getCode() == MessageProducerCode.BROKER_READ_ONLY) {
                                 brokerGroup.setAvailable(false);
-                                brokerService.refresh(clientType, subject);
+                                brokerService.refreshMetaInfo(clientType, subject);
                             }
 
                             monitorSendError(subject, 100 + respCode);

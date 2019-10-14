@@ -23,9 +23,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
 import java.io.IOException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class JsonUtils {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(JsonUtils.class);
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     static {
@@ -44,6 +47,7 @@ public class JsonUtils {
         try {
             return MAPPER.writeValueAsString(data);
         } catch (IOException e) {
+            LOGGER.error("json serialize error class {}", data.getClass(), e);
             return null;
         }
     }
@@ -52,6 +56,7 @@ public class JsonUtils {
         try {
             return MAPPER.readValue(content, typeReference);
         } catch (IOException e) {
+            LOGGER.error("json deserialize error", e);
             return null;
         }
     }
@@ -60,6 +65,7 @@ public class JsonUtils {
         try {
             return MAPPER.readValue(content, clazz);
         } catch (IOException e) {
+            LOGGER.error("json deserialize error class {}", clazz, e);
             return null;
         }
     }

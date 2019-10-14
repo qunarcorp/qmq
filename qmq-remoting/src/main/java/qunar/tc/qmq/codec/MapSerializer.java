@@ -16,7 +16,7 @@ import java.util.Set;
 public class MapSerializer extends ObjectSerializer<Map> {
 
     @Override
-    void doSerialize(Map map, ByteBuf buf, long version) {
+    void doSerialize(Map map, ByteBuf buf, short version) {
         int size = map.size();
         buf.writeInt(size);
         Set<Map.Entry> entrySet = map.entrySet();
@@ -31,7 +31,7 @@ public class MapSerializer extends ObjectSerializer<Map> {
     }
 
     @Override
-    Map doDeserialize(ByteBuf buf, Type type, long version) {
+    Map doDeserialize(ByteBuf buf, Type type, short version) {
         Type[] argTypes = ((ParameterizedType) type).getActualTypeArguments();
         Type keyType = argTypes[0];
         Type valType = argTypes[1];

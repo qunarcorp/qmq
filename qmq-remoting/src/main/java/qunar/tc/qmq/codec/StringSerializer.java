@@ -3,7 +3,6 @@ package qunar.tc.qmq.codec;
 import io.netty.buffer.ByteBuf;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
 
-import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
 /**
@@ -13,12 +12,12 @@ import java.lang.reflect.Type;
 public class StringSerializer extends ObjectSerializer<String> {
 
     @Override
-    void doSerialize(String s, ByteBuf buf, long version) {
+    void doSerialize(String s, ByteBuf buf, short version) {
         PayloadHolderUtils.writeString(s, buf);
     }
 
     @Override
-    String doDeserialize(ByteBuf buf, Type type, long version) {
+    String doDeserialize(ByteBuf buf, Type type, short version) {
         return PayloadHolderUtils.readString(buf);
     }
 }

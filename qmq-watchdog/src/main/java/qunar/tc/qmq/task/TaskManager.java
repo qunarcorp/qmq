@@ -84,7 +84,7 @@ class TaskManager {
     }
 
     private void scheduleRefreshTask() {
-        final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("refresh-send-message-task", true));
+        final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("refreshMetaInfo-send-message-task", true));
         executor.scheduleAtFixedRate(this::initSendMessagesTasks, refreshInterval, refreshInterval, TimeUnit.MILLISECONDS);
     }
 

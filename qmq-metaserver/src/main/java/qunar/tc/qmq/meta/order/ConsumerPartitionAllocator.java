@@ -8,7 +8,7 @@ import java.util.List;
  * @author zhenwei.liu
  * @since 2019-10-09
  */
-public interface PartitionReallocator {
+public interface ConsumerPartitionAllocator {
 
     /**
      * 分区重分配

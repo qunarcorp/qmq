@@ -4,13 +4,13 @@ package qunar.tc.qmq.protocol.consumer;
  * @author zhenwei.liu
  * @since 2019-09-18
  */
-public class ReleasePullLockRequest {
+public class LockOperationRequest {
 
     private String partitionName;
     private String consumerGroup;
     private String clientId;
 
-    public ReleasePullLockRequest(String partitionName, String consumerGroup, String clientId) {
+    public LockOperationRequest(String partitionName, String consumerGroup, String clientId) {
         this.partitionName = partitionName;
         this.consumerGroup = consumerGroup;
         this.clientId = clientId;

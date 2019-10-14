@@ -62,7 +62,7 @@ public class CachedOfflineStateManager implements Disposable {
 
     private CachedOfflineStateManager() {
         refresh();
-        scheduledExecutor = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder().setNameFormat("meta-info-offlinestate-refresh-%d").build());
+        scheduledExecutor = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder().setNameFormat("meta-info-offlinestate-refreshMetaInfo-%d").build());
         scheduledExecutor.scheduleAtFixedRate(this::refresh, REFRESH_PERIOD_SECONDS, REFRESH_PERIOD_SECONDS, TimeUnit.SECONDS);
         LOGGER.info("CachedOfflineStateManager started");
     }
@@ -86,9 +86,8 @@ public class CachedOfflineStateManager implements Disposable {
             this.updateTime = updateTime;
             this.groupStateMap = groupStateMap;
             this.clientStateMap = clientStateMap;
-            LOGGER.info("refreshed onoffline state {}", updateTime);
         } catch (Exception e) {
-            LOGGER.error("refresh OfflineState exception", e);
+            LOGGER.error("refreshMetaInfo OfflineState exception", e);
             REFRESH_ERROR.inc();
         }
     }

@@ -18,7 +18,7 @@ import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
 import qunar.tc.qmq.meta.BrokerGroup;
 import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 import qunar.tc.qmq.meta.cache.DefaultCachedMetaInfoManager;
-import qunar.tc.qmq.meta.order.AveragePartitionAllocator;
+import qunar.tc.qmq.meta.order.AveragePartitionAllocateStrategy;
 import qunar.tc.qmq.meta.order.DefaultPartitionNameResolver;
 import qunar.tc.qmq.meta.order.DefaultPartitionService;
 import qunar.tc.qmq.meta.order.PartitionService;
@@ -54,7 +54,7 @@ public class PartitionManagementServlet extends HttpServlet {
                 new PartitionStoreImpl(),
                 new PartitionSetStoreImpl(),
                 new PartitionAllocationStoreImpl(),
-                new AveragePartitionAllocator(),
+                new AveragePartitionAllocateStrategy(),
                 JdbcTemplateHolder.getTransactionTemplate()
         );
         this.cachedMetaInfoManager = new DefaultCachedMetaInfoManager(store,
