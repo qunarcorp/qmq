@@ -26,7 +26,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.util.StringUtils;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
@@ -184,24 +183,7 @@ class DefaultPullEntry extends AbstractPullEntry {
 
     private BrokerGroupInfo getBrokerGroup() {
         BrokerClusterInfo brokerCluster = getBrokerCluster();
-        if (!StringUtils.isEmpty(brokerGroupName)) {
-            return brokerCluster.getGroupByName(brokerGroupName);
-        } else {
-            //没有分配到brokers
-            List<BrokerGroupInfo> groups = brokerCluster.getGroups();
-            if (groups.isEmpty()) return null;
-
-            final int brokerSize = groups.size();
-            for (int cnt = 0; cnt < brokerSize; cnt++) {
-                BrokerGroupInfo broker = loadBalance.select(brokerCluster);
-                if (broker == null) return null;
-                if (brokersOfWaitAck.contains(broker.getGroupName())) continue;
-
-                return broker;
-            }
-            // 没有可用的brokers
-            return null;
-        }
+        return brokerCluster.getGroupByName(brokerGroupName);
     }
 
     private BrokerClusterInfo getBrokerCluster() {

@@ -68,15 +68,27 @@ public class CompositePullEntry implements PullEntry {
     public void startPull(Executor executor) {
         executor.execute(() -> {
             if (isStarted.compareAndSet(false, true)) {
-                if (onlineSwitcher.waitOn()) {
-                    BrokerClusterInfo brokerCluster = brokerService
-                            .getClusterBySubject(ClientType.CONSUMER, getSubject(), getConsumerGroup());
-                    for (BrokerGroupInfo brokerGroup : brokerCluster.getGroups()) {
-                        String brokerGroupName = brokerGroup.getGroupName();
-                        PullEntry pullEntry = pullEntryMap.computeIfAbsent(brokerGroupName,
-                                bgn -> new DefaultPullEntry(brokerGroupName, pushConsumer, pullService, ackService,
-                                        brokerService, pullStrategy, onlineSwitcher));
-                        pullEntry.startPull(executor);
+                while (isStarted.get()) {
+                    if (onlineSwitcher.waitOn()) {
+                        BrokerClusterInfo brokerCluster = brokerService
+                                .getClusterBySubject(ClientType.CONSUMER, getSubject(), getConsumerGroup());
+                        for (BrokerGroupInfo brokerGroup : brokerCluster.getGroups()) {
+                            String brokerGroupName = brokerGroup.getGroupName();
+                            pullEntryMap.computeIfAbsent(brokerGroupName,
+                                    bgn -> {
+                                        DefaultPullEntry pullEntry = new DefaultPullEntry(brokerGroupName,
+                                                pushConsumer, pullService, ackService,
+                                                brokerService, pullStrategy, onlineSwitcher);
+                                        pullEntry.startPull(executor);
+                                        return pullEntry;
+                                    });
+                        }
+                    }
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        // ignore
+                        LOGGER.warn("sleep interrupted", e);
                     }
                 }
             }
@@ -85,6 +97,7 @@ public class CompositePullEntry implements PullEntry {
 
     @Override
     public void destroy() {
+        isStarted.set(false);
         pullEntryMap.values().forEach(PullEntry::destroy);
     }
 }
