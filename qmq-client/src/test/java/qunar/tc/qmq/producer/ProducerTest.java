@@ -14,7 +14,7 @@ public class ProducerTest {
     public static void main(String[] args) throws Exception {
         final MessageProducerProvider provider = new MessageProducerProvider();
         provider.setAppCode("producer_test");
-        provider.setMetaServer("http://1.g.fd.dev.bj1.wormpex.com:7028/meta/address");
+        provider.setMetaServer("http://127.0.0.1:8080/meta/address");
         provider.init();
 
         int msgNum = 10;
