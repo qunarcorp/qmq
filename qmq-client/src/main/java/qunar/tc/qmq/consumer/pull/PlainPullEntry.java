@@ -16,6 +16,7 @@
 
 package qunar.tc.qmq.consumer.pull;
 
+import java.util.concurrent.Executor;
 import qunar.tc.qmq.Message;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
@@ -23,6 +24,7 @@ import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.common.ClientType;
 
 import java.util.List;
+import qunar.tc.qmq.common.StatusSource;
 
 /**
  * @author yiqun.fan create on 17-9-21.
@@ -40,16 +42,50 @@ class PlainPullEntry extends AbstractPullEntry {
 
     PlainPullResult pull(final int fetchSize, final int pullTimeout, final List<Message> output) {
         if (!pullStrategy.needPull()) return PlainPullResult.NOMORE_MESSAGE;
-        BrokerClusterInfo brokerCluster = brokerService.getClusterBySubject(ClientType.CONSUMER, consumeParam.getSubject(), consumeParam.getGroup());
+        BrokerClusterInfo brokerCluster = brokerService
+                .getClusterBySubject(ClientType.CONSUMER, consumeParam.getSubject(), consumeParam.getGroup());
         List<BrokerGroupInfo> groups = brokerCluster.getGroups();
         if (groups.isEmpty()) {
             return PlainPullResult.NO_BROKER;
         }
-        BrokerGroupInfo group = loadBalance.select(brokerCluster);
-        List<PulledMessage> received = pull(consumeParam, group, fetchSize, pullTimeout, null);
+        BrokerGroupInfo brokerGroup = loadBalance.select(brokerCluster);
+        if (brokerGroup == null || !brokerGroup.isAvailable()) {
+            return PlainPullResult.NO_BROKER;
+        }
+        List<PulledMessage> received = pull(consumeParam, brokerGroup, fetchSize, pullTimeout, null);
         output.addAll(received);
         pullStrategy.record(received.size() > 0);
         return PlainPullResult.NOMORE_MESSAGE;
+    }
+
+    @Override
+    public String getSubject() {
+        return consumeParam.getSubject();
+    }
+
+    @Override
+    public String getConsumerGroup() {
+        return consumeParam.getGroup();
+    }
+
+    @Override
+    public void online(StatusSource src) {
+
+    }
+
+    @Override
+    public void offline(StatusSource src) {
+
+    }
+
+    @Override
+    public void startPull(Executor executor) {
+
+    }
+
+    @Override
+    public void destroy() {
+
     }
 
     enum PlainPullResult {

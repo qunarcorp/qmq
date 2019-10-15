@@ -16,9 +16,19 @@
 
 package qunar.tc.qmq.consumer.pull;
 
+import static qunar.tc.qmq.common.StatusSource.CODE;
+import static qunar.tc.qmq.common.StatusSource.HEALTHCHECKER;
+import static qunar.tc.qmq.common.StatusSource.OPS;
+
 import com.google.common.base.Strings;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.locks.ReentrantLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.PullConsumer;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.broker.impl.BrokerServiceImpl;
 import qunar.tc.qmq.common.EnvProvider;
@@ -33,17 +43,11 @@ import qunar.tc.qmq.metainfoclient.MetaInfoService;
 import qunar.tc.qmq.protocol.consumer.SubEnvIsolationPullFilter;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
-import static qunar.tc.qmq.common.StatusSource.*;
-
 /**
  * @author yiqun.fan create on 17-8-17.
  */
 public class PullRegister implements ConsumerRegister, ConsumerStateChangedListener {
+
     private static final Logger LOG = LoggerFactory.getLogger(PullRegister.class);
 
     private volatile Boolean isOnline = false;
@@ -53,6 +57,8 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
     private final Map<String, DefaultPullConsumer> pullConsumerMap = new HashMap<>();
 
     private final ExecutorService pullExecutor = Executors.newCachedThreadPool(new NamedThreadFactory("qmq-pull"));
+
+    private final ReentrantLock onlineLock = new ReentrantLock();
 
     private final MetaInfoService metaInfoService;
     private final BrokerService brokerService;
@@ -86,58 +92,69 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
     }
 
     @Override
-    public synchronized void regist(String subject, String group, RegistParam param) {
-        String env;
-        String subEnv;
-        if (envProvider != null && !Strings.isNullOrEmpty(env = envProvider.env(subject))) {
-            subEnv = envProvider.subEnv(env);
-            final String realGroup = toSubEnvIsolationGroup(group, env, subEnv);
-            LOG.info("enable subenv isolation for {}/{}, rename consumer group to {}", subject, group, realGroup);
-            group = realGroup;
-            param.addFilter(new SubEnvIsolationPullFilter(env, subEnv));
-        }
+    public void regist(String subject, String group, RegistParam param) {
+        synchronized (getConsumerLockKey(subject, group, "reg")) {
+            String env;
+            String subEnv;
+            if (envProvider != null && !Strings.isNullOrEmpty(env = envProvider.env(subject))) {
+                subEnv = envProvider.subEnv(env);
+                final String realGroup = toSubEnvIsolationGroup(group, env, subEnv);
+                LOG.info("enable subenv isolation for {}/{}, rename consumer group to {}", subject, group, realGroup);
+                group = realGroup;
+                param.addFilter(new SubEnvIsolationPullFilter(env, subEnv));
+            }
 
-        registPullEntry(subject, group, param, new AlwaysPullStrategy());
-        if (RetrySubjectUtils.isDeadRetrySubject(subject)) return;
-        registPullEntry(RetrySubjectUtils.buildRetrySubject(subject, group), group, param, new WeightPullStrategy());
+            registPullEntry(subject, group, param, new AlwaysPullStrategy());
+            if (RetrySubjectUtils.isDeadRetrySubject(subject)) {
+                return;
+            }
+            registPullEntry(RetrySubjectUtils.buildRetrySubject(subject, group), group, param,
+                    new WeightPullStrategy());
+        }
     }
 
     private String toSubEnvIsolationGroup(final String originGroup, final String env, final String subEnv) {
         return originGroup + "_" + env + "_" + subEnv;
     }
 
-    private void registPullEntry(String subject, String group, RegistParam param, PullStrategy pullStrategy) {
-        final String subscribeKey = MapKeyBuilder.buildSubscribeKey(subject, group);
+    private void registPullEntry(String subject, String consumerGroup, RegistParam param, PullStrategy pullStrategy) {
+        final String subscribeKey = MapKeyBuilder.buildSubscribeKey(subject, consumerGroup);
         PullEntry pullEntry = pullEntryMap.get(subscribeKey);
         if (pullEntry == PullEntry.EMPTY_PULL_ENTRY) {
             throw new DuplicateListenerException(subscribeKey);
         }
         if (pullEntry == null) {
-            pullEntry = createAndSubmitPullEntry(subject, group, param, pullStrategy);
+            pullEntry = createAndSubmitPullEntry(subject, consumerGroup, param, pullStrategy);
         }
         if (isOnline) {
             pullEntry.online(param.getActionSrc());
         } else {
             pullEntry.offline(param.getActionSrc());
         }
+
     }
 
-    private PullEntry createAndSubmitPullEntry(String subject, String group, RegistParam param, PullStrategy pullStrategy) {
-        PushConsumerImpl pushConsumer = new PushConsumerImpl(subject, group, param);
-        PullEntry pullEntry = new PullEntry(pushConsumer, pullService, ackService, brokerService, pullStrategy);
-        pullEntryMap.put(MapKeyBuilder.buildSubscribeKey(subject, group), pullEntry);
-        pullExecutor.submit(pullEntry);
+    private PullEntry createAndSubmitPullEntry(String subject, String consumerGroup, RegistParam param,
+            PullStrategy pullStrategy) {
+        PushConsumerImpl pushConsumer = new PushConsumerImpl(subject, consumerGroup, param);
+        PullEntry pullEntry = new CompositePullEntry(pushConsumer, pullService, ackService, brokerService,
+                pullStrategy);
+        String subscribeKey = MapKeyBuilder.buildSubscribeKey(subject, consumerGroup);
+        pullEntry.startPull(pullExecutor);
+        pullEntryMap.put(subscribeKey, pullEntry);
         return pullEntry;
     }
 
-    DefaultPullConsumer createDefaultPullConsumer(String subject, String group, boolean isBroadcast) {
-        DefaultPullConsumer pullConsumer = new DefaultPullConsumer(subject, group, isBroadcast, clientId, pullService, ackService, brokerService);
+    PullConsumer createDefaultPullConsumer(String subject, String consumerGroup, boolean isBroadcast) {
+        DefaultPullConsumer pullConsumer = new DefaultPullConsumer(subject, consumerGroup, isBroadcast, clientId,
+                pullService, ackService, brokerService);
         registerDefaultPullConsumer(pullConsumer);
         return pullConsumer;
     }
 
-    private synchronized void registerDefaultPullConsumer(DefaultPullConsumer pullConsumer) {
-        final String subscribeKey = MapKeyBuilder.buildSubscribeKey(pullConsumer.subject(), pullConsumer.group());
+    private void registerDefaultPullConsumer(DefaultPullConsumer pullConsumer) {
+        final String subscribeKey = MapKeyBuilder
+                .buildSubscribeKey(pullConsumer.subject(), pullConsumer.group());
         if (pullEntryMap.containsKey(subscribeKey)) {
             throw new DuplicateListenerException(subscribeKey);
         }
@@ -161,39 +178,53 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         changeOnOffline(subject, group, false, OPS);
     }
 
-    private synchronized void changeOnOffline(String subject, String group, boolean isOnline, StatusSource src) {
-        final String realSubject = RetrySubjectUtils.getRealSubject(subject);
-        final String retrySubject = RetrySubjectUtils.buildRetrySubject(realSubject, group);
+    private String getConsumerLockKey(String subject, String consumerGroup, String type) {
+        return (subject + ":" + consumerGroup + ":" + type).intern();
+    }
 
-        final String key = MapKeyBuilder.buildSubscribeKey(realSubject, group);
-        final PullEntry pullEntry = pullEntryMap.get(key);
-        changeOnOffline(pullEntry, isOnline, src);
+    private void changeOnOffline(String subject, String consumerGroup, boolean isOnline, StatusSource src) {
+        synchronized (getConsumerLockKey(subject, consumerGroup, "onOffline")) {
+            final String realSubject = RetrySubjectUtils.getRealSubject(subject);
+            final String retrySubject = RetrySubjectUtils.buildRetrySubject(realSubject, consumerGroup);
 
-        final PullEntry retryPullEntry = pullEntryMap.get(MapKeyBuilder.buildSubscribeKey(retrySubject, group));
-        changeOnOffline(retryPullEntry, isOnline, src);
+            final String key = MapKeyBuilder.buildSubscribeKey(realSubject, consumerGroup);
+            final PullEntry pullEntry = pullEntryMap.get(key);
+            changeOnOffline(pullEntry, isOnline, src);
 
-        final DefaultPullConsumer pullConsumer = pullConsumerMap.get(key);
-        if (pullConsumer == null) return;
+            final PullEntry retryPullEntry = pullEntryMap
+                    .get(MapKeyBuilder.buildSubscribeKey(retrySubject, consumerGroup));
+            changeOnOffline(retryPullEntry, isOnline, src);
 
-        if (isOnline) {
-            pullConsumer.online(src);
-        } else {
-            pullConsumer.offline(src);
+            final DefaultPullConsumer pullConsumer = pullConsumerMap.get(key);
+            if (pullConsumer == null) {
+                return;
+            }
+
+            if (isOnline) {
+                pullConsumer.online(src);
+            } else {
+                pullConsumer.offline(src);
+            }
         }
     }
 
     private void changeOnOffline(PullEntry pullEntry, boolean isOnline, StatusSource src) {
-        if (pullEntry == null) return;
+        if (pullEntry == null) {
+            return;
+        }
 
-        if (isOnline) {
-            pullEntry.online(src);
-        } else {
-            pullEntry.offline(src);
+        synchronized (pullEntry) {
+            if (isOnline) {
+                pullEntry.online(src);
+            } else {
+                pullEntry.offline(src);
+            }
         }
     }
 
+
     @Override
-    public synchronized void setAutoOnline(boolean autoOnline) {
+    public void setAutoOnline(boolean autoOnline) {
         if (autoOnline) {
             online();
         } else {
@@ -202,27 +233,37 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         isOnline = autoOnline;
     }
 
-    public synchronized boolean offline() {
-        isOnline = false;
-        for (PullEntry pullEntry : pullEntryMap.values()) {
-            pullEntry.offline(HEALTHCHECKER);
+    public boolean offline() {
+        onlineLock.lock();
+        try {
+            isOnline = false;
+            for (PullEntry pullEntry : pullEntryMap.values()) {
+                pullEntry.offline(HEALTHCHECKER);
+            }
+            for (DefaultPullConsumer pullConsumer : pullConsumerMap.values()) {
+                pullConsumer.offline(HEALTHCHECKER);
+            }
+            ackService.tryCleanAck();
+            return true;
+        } finally {
+            onlineLock.unlock();
         }
-        for (DefaultPullConsumer pullConsumer : pullConsumerMap.values()) {
-            pullConsumer.offline(HEALTHCHECKER);
-        }
-        ackService.tryCleanAck();
-        return true;
     }
 
-    public synchronized boolean online() {
-        isOnline = true;
-        for (PullEntry pullEntry : pullEntryMap.values()) {
-            pullEntry.online(HEALTHCHECKER);
+    public boolean online() {
+        onlineLock.lock();
+        try {
+            isOnline = true;
+            for (PullEntry pullEntry : pullEntryMap.values()) {
+                pullEntry.online(HEALTHCHECKER);
+            }
+            for (DefaultPullConsumer pullConsumer : pullConsumerMap.values()) {
+                pullConsumer.online(HEALTHCHECKER);
+            }
+            return true;
+        } finally {
+            onlineLock.unlock();
         }
-        for (DefaultPullConsumer pullConsumer : pullConsumerMap.values()) {
-            pullConsumer.online(HEALTHCHECKER);
-        }
-        return true;
     }
 
     public void setClientId(String clientId) {
@@ -237,12 +278,12 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         this.envProvider = envProvider;
     }
 
-	public void setAppCode(String appCode) {
-		this.appCode = appCode;
-	}
+    public void setAppCode(String appCode) {
+        this.appCode = appCode;
+    }
 
     @Override
-    public synchronized void destroy() {
+    public void destroy() {
         for (PullEntry pullEntry : pullEntryMap.values()) {
             pullEntry.destroy();
         }

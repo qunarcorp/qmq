@@ -24,25 +24,21 @@ public class ConsumerTest {
 
     public static void main(String[] args) throws Exception {
         final MessageConsumerProvider provider = new MessageConsumerProvider();
-        provider.setMetaServer("http://127.0.0.1:8080/meta/address");
+        provider.setMetaServer("http://1.g.fd.dev.bj1.wormpex.com:7028/meta/address");
+//        provider.setMetaServer("http://127.0.0.1:8080/meta/address");
         provider.setAppCode("consumer_test");
         provider.init();
-
-        final BatchFileAppender appender = new BatchFileAppender(new File("consumer-a.txt"), 10_000);
+        provider.online();
 
         final ListenerHolder listener = provider.addListener("new.qmq.test", "group1", new MessageListener() {
             @Override
             public void onMessage(Message msg) {
                 LOG.info("msgId:{}", msg.getMessageId());
-                appender.write(msg.getMessageId());
             }
         }, executor);
 
         System.in.read();
         listener.stopListen();
         provider.destroy();
-        TimeUnit.SECONDS.sleep(5);
-        appender.close();
-
     }
 }

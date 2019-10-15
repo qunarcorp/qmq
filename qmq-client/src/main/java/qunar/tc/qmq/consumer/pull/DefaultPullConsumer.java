@@ -50,8 +50,8 @@ class DefaultPullConsumer extends AbstractPullConsumer implements Runnable {
     private final int preFetchSize;
     private final int lowWaterMark;
 
-    DefaultPullConsumer(String subject, String group, boolean isBroadcast, String clientId, PullService pullService, AckService ackService, BrokerService brokerService) {
-        super(subject, group, isBroadcast, clientId, pullService, ackService, brokerService);
+    DefaultPullConsumer(String subject, String consumerGroup, boolean isBroadcast, String clientId, PullService pullService, AckService ackService, BrokerService brokerService) {
+        super(subject, consumerGroup, isBroadcast, clientId, pullService, ackService, brokerService);
         this.preFetchSize = PullSubjectsConfig.get().getPullBatchSize(subject).get();
         this.lowWaterMark = Math.round(preFetchSize * 0.2F);
     }
