@@ -1,11 +1,14 @@
 package qunar.tc.qmq.consumer.pull;
 
-import qunar.tc.qmq.*;
-import qunar.tc.qmq.broker.BrokerService;
-import qunar.tc.qmq.metainfoclient.ConsumerOnlineStateManager;
-
 import java.util.List;
 import java.util.concurrent.ExecutorService;
+import qunar.tc.qmq.CompositePullClient;
+import qunar.tc.qmq.ConsumeStrategy;
+import qunar.tc.qmq.PullClient;
+import qunar.tc.qmq.PullConsumer;
+import qunar.tc.qmq.StatusSource;
+import qunar.tc.qmq.broker.BrokerService;
+import qunar.tc.qmq.metainfoclient.ConsumerOnlineStateManager;
 
 /**
  * @author zhenwei.liu
@@ -36,7 +39,9 @@ public class PullConsumerManager extends AbstractPullClientManager<PullConsumer>
     }
 
     @Override
-    PullConsumer doCreatePullClient(String subject, String consumerGroup, String partitionName, String brokerGroup, ConsumeStrategy consumeStrategy, int version, long consumptionExpiredTime, PullStrategy pullStrategy, Object param) {
+    PullConsumer doCreatePullClient(String subject, String consumerGroup, String partitionName, String brokerGroup,
+            ConsumeStrategy consumeStrategy, int allocationVersion, long consumptionExpiredTime, PullStrategy pullStrategy,
+            int partitionSetVersion, Object param) {
         PullConsumerRegistryParam registryParam = (PullConsumerRegistryParam) param;
         DefaultPullConsumer pullConsumer = new DefaultPullConsumer(
                 subject,
@@ -45,7 +50,7 @@ public class PullConsumerManager extends AbstractPullClientManager<PullConsumer>
                 brokerGroup,
                 getClientId(),
                 consumeStrategy,
-                version,
+                allocationVersion,
                 consumptionExpiredTime,
                 registryParam.isBroadcast(),
                 registryParam.isOrdered(),
@@ -53,22 +58,26 @@ public class PullConsumerManager extends AbstractPullClientManager<PullConsumer>
                 ackService,
                 brokerService,
                 sendMessageBack,
+                partitionSetVersion,
                 getConsumerOnlineStateManager());
         pullConsumer.startPull(partitionExecutor);
         return pullConsumer;
     }
 
     @Override
-    CompositePullClient doCreateCompositePullClient(String subject, String consumerGroup, ConsumeStrategy consumeStrategy, int version, long consumptionExpiredTime, List<? extends PullClient> clientList, Object param) {
+    CompositePullClient doCreateCompositePullClient(String subject, String consumerGroup,
+            ConsumeStrategy consumeStrategy, int allocationVersion, long consumptionExpiredTime,
+            List<? extends PullClient> clientList, int partitionSetVersion, Object param) {
         PullConsumerRegistryParam registryParam = (PullConsumerRegistryParam) param;
         return new CompositePullConsumer<>(
                 subject,
                 consumerGroup,
                 getClientId(),
                 consumeStrategy,
-                version,
+                allocationVersion,
                 registryParam.isBroadcast(),
                 registryParam.isOrdered(),
+                partitionSetVersion,
                 consumptionExpiredTime,
                 (List<? extends PullConsumer>) clientList,
                 getConsumerOnlineStateManager()

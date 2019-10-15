@@ -58,9 +58,10 @@ public class PullEntryManager extends AbstractPullClientManager<PullEntry> {
             String partitionName,
             String brokerGroup,
             ConsumeStrategy consumeStrategy,
-            int version,
+            int allocationVersion,
             long consumptionExpiredTime,
             PullStrategy pullStrategy,
+            int partitionSetVersion,
             Object registryParam0
     ) {
         RegistParam registryParam = (RegistParam) registryParam0;
@@ -83,14 +84,14 @@ public class PullEntryManager extends AbstractPullClientManager<PullEntry> {
                 brokerGroup,
                 getClientId(),
                 consumeStrategy,
-                version,
+                allocationVersion,
                 consumptionExpiredTime,
                 pullService,
                 ackService,
                 brokerService,
+                partitionSetVersion,
                 pullStrategy,
                 sendMessageBack,
-                getConsumerOnlineStateManager(),
                 partitionExecutor);
         pullEntry.startPull(partitionExecutor);
         LOGGER.info("创建 pull client {} {} {} {}", subject, partitionName, brokerGroup, consumerGroup);
@@ -99,11 +100,11 @@ public class PullEntryManager extends AbstractPullClientManager<PullEntry> {
 
     @Override
     CompositePullClient doCreateCompositePullClient(String subject, String consumerGroup,
-            ConsumeStrategy consumeStrategy, int version, long consumptionExpiredTime,
-            List<? extends PullClient> clientList, Object registryParam) {
+            ConsumeStrategy consumeStrategy, int allocationVersion, long consumptionExpiredTime,
+            List<? extends PullClient> clientList, int partitionSetVersion, Object registryParam) {
         RegistParam param = (RegistParam) registryParam;
-        return new CompositePullEntry(subject, consumerGroup, getClientId(), consumeStrategy, version,
-                param.isBroadcast(), param.isOrdered(), consumptionExpiredTime, clientList);
+        return new CompositePullEntry(subject, consumerGroup, getClientId(), consumeStrategy, allocationVersion,
+                param.isBroadcast(), param.isOrdered(), partitionSetVersion, consumptionExpiredTime, clientList);
 
     }
 

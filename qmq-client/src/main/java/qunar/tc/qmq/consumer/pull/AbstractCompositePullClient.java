@@ -22,10 +22,10 @@ public abstract class AbstractCompositePullClient<T extends PullClient> extends 
     private List<T> components;
 
     public AbstractCompositePullClient(String subject, String consumerGroup, String brokerGroup, String consumerId,
-            ConsumeStrategy consumeStrategy, int version, boolean isBroadcast, boolean isOrdered,
-            long consumptionExpiredTime, List<T> components) {
+            ConsumeStrategy consumeStrategy, int allocationVersion, boolean isBroadcast, boolean isOrdered,
+            int partitionSetVersion, long consumptionExpiredTime, List<T> components) {
         super(subject, consumerGroup, createCompositePartitions(components), brokerGroup, consumerId, consumeStrategy,
-                version, isBroadcast, isOrdered, consumptionExpiredTime);
+                allocationVersion, isBroadcast, isOrdered, partitionSetVersion, consumptionExpiredTime);
         this.components = components;
     }
 
@@ -52,16 +52,16 @@ public abstract class AbstractCompositePullClient<T extends PullClient> extends 
     }
 
     @Override
-    public void stopPull() {
+    public void destroy() {
         for (T component : components) {
-            doIgnoreException(component::stopPull);
+            doIgnoreException(component::destroy);
         }
     }
 
     @Override
-    public void destroy() {
+    public void online() {
         for (T component : components) {
-            doIgnoreException(component::destroy);
+            doIgnoreException(component::online);
         }
     }
 
@@ -73,9 +73,9 @@ public abstract class AbstractCompositePullClient<T extends PullClient> extends 
     }
 
     @Override
-    public void setVersion(int version) {
+    public void setConsumerAllocationVersion(int version) {
         for (T component : components) {
-            component.setVersion(version);
+            component.setConsumerAllocationVersion(version);
         }
     }
 

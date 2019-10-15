@@ -136,7 +136,7 @@ public class ClientTestUtils {
         List<PartitionProps> partitionProps = Lists.newArrayList();
         partitionProps.add(new PartitionProps(TEST_PARTITION_IDX_1, TEST_PARTITION_1, TEST_BROKER_GROUP_1));
         partitionProps.add(new PartitionProps(TEST_PARTITION_IDX_2, TEST_PARTITION_2, TEST_BROKER_GROUP_2));
-        ConsumerAllocation consumerAllocation = new ConsumerAllocation(TEST_VERSION, partitionProps, Long.MAX_VALUE, ConsumeStrategy.SHARED);
+        ConsumerAllocation consumerAllocation = new ConsumerAllocation(TEST_VERSION, TEST_VERSION, partitionProps, Long.MAX_VALUE, ConsumeStrategy.SHARED);
         BrokerCluster brokerCluster = getBrokerCluster();
         return new ConsumerMetaInfoResponse(
                 System.currentTimeMillis(),
@@ -184,7 +184,7 @@ public class ClientTestUtils {
         when(pullClient.getSubject()).thenReturn(TEST_SUBJECT);
         when(pullClient.getConsumerGroup()).thenReturn(TEST_CONSUMER_GROUP);
         when(pullClient.getConsumerId()).thenReturn(TEST_CLIENT_ID);
-        when(pullClient.getVersion()).thenReturn(TEST_VERSION);
+        when(pullClient.getConsumerAllocationVersion()).thenReturn(TEST_VERSION);
         when(pullClient.isBroadcast()).thenReturn(TEST_IS_BROADCAST);
         when(pullClient.isOrdered()).thenReturn(TEST_IS_ORDERED);
         when(pullClient.getConsumptionExpiredTime()).thenReturn(TEST_EXPIRATION);
@@ -196,7 +196,7 @@ public class ClientTestUtils {
         when(pullClient.getSubject()).thenReturn(TEST_SUBJECT);
         when(pullClient.getConsumerGroup()).thenReturn(TEST_CONSUMER_GROUP);
         when(pullClient.getConsumerId()).thenReturn(TEST_CLIENT_ID);
-        when(pullClient.getVersion()).thenReturn(TEST_VERSION);
+        when(pullClient.getConsumerAllocationVersion()).thenReturn(TEST_VERSION);
         when(pullClient.isBroadcast()).thenReturn(TEST_IS_BROADCAST);
         when(pullClient.isOrdered()).thenReturn(TEST_IS_ORDERED);
         when(pullClient.getConsumptionExpiredTime()).thenReturn(TEST_EXPIRATION);

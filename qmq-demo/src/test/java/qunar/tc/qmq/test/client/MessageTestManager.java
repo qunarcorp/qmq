@@ -10,7 +10,6 @@ import com.google.common.collect.Maps;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -20,7 +19,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.stream.Collectors;
-import jdk.jfr.events.FileReadEvent;
 import qunar.tc.qmq.Message;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.base.BaseMessage.keys;
@@ -34,17 +32,44 @@ import qunar.tc.qmq.producer.MessageProducerProvider;
 public class MessageTestManager {
 
     private static final String CLASS_PATH_ROOT = MessageTestManager.class.getClassLoader().getResource("").getPath();
-    private static final String SENDER_ROOT = CLASS_PATH_ROOT + File.separator + "sender";
+    private static final String PRODUCER_ROOT = CLASS_PATH_ROOT + File.separator + "producer";
+    private static final String CONSUMER_ROOT = CLASS_PATH_ROOT + File.separator + "consumer";
+
     private static final String BEST_TRIED_GENERATE_MESSAGE_FILE =
-            SENDER_ROOT + File.separator + "best_tried_generate_messages";
+            PRODUCER_ROOT + File.separator + "best_tried_generate_messages";
     private static final String BEST_TRIED_SEND_MESSAGE_FILE =
-            SENDER_ROOT + File.separator + "best_tried_send_messages";
-    private static final String STRICT_SEND_MESSAGE_FILE = SENDER_ROOT + File.separator + "strict_send_messages";
+            PRODUCER_ROOT + File.separator + "best_tried_send_messages";
+
+    private static final String STRICT_GENERATE_MESSAGE_FILE =
+            PRODUCER_ROOT + File.separator + "strict_generate_messages";
+    private static final String STRICT_SEND_MESSAGE_FILE = PRODUCER_ROOT + File.separator + "strict_send_messages";
+
+    private static final String SHARED_BEST_TRIED_CONSUMER_FILE =
+            CONSUMER_ROOT + File.separator + "shared_best_tried_consumer_messages";
+    private static final String SHARED_STRICT_CONSUMER_FILE =
+            CONSUMER_ROOT + File.separator + "shared_strict_consumer_messages";
+    private static final String EXCLUSIVE_BEST_TRIED_CONSUMER_FILE =
+            CONSUMER_ROOT + File.separator + "exclusive_best_tried_consumer_messages";
+    private static final String EXCLUSIVE_STRICT_CONSUMER_FILE =
+            CONSUMER_ROOT + File.separator + "exclusive_strict_consumer_messages";
 
     public static final File bestTriedGenerateMessageFile = mkDir(new File(BEST_TRIED_GENERATE_MESSAGE_FILE));
     public static final File bestTriedSendMessageFile = mkDir(new File(BEST_TRIED_SEND_MESSAGE_FILE));
 
-    public static final String BEST_TRIED_MESSAGE_SUBJECT = "best.tried.subject";
+    public static final File strictGenerateMessageFile = mkDir(new File(STRICT_GENERATE_MESSAGE_FILE));
+    public static final File strictSendMessageFile = mkDir(new File(STRICT_SEND_MESSAGE_FILE));
+
+    public static final String BEST_TRIED_MESSAGE_SUBJECT = "test.best.tried.subject";
+    public static final String STRICT_MESSAGE_SUBJECT = "test.strict.subject";
+
+    public static final String SHARED_CONSUMER_GROUP = "shared.consumer.group";
+    public static final String EXCLUSIVE_CONSUMER_GROUP = "exclusive.consumer.group";
+
+    public static final File sharedBestTriedConsumerMessageFile = mkDir(new File(SHARED_BEST_TRIED_CONSUMER_FILE));
+    public static final File sharedStrictConsumerMessageFile = mkDir(new File(SHARED_STRICT_CONSUMER_FILE));
+    public static final File exclusiveBestTriedConsumerMessageFile = mkDir(
+            new File(EXCLUSIVE_BEST_TRIED_CONSUMER_FILE));
+    public static final File exclusiveStrictConsumerMessageFile = mkDir(new File(EXCLUSIVE_STRICT_CONSUMER_FILE));
 
     private static File mkDir(File file) {
         File parentFile = file.getParentFile();
@@ -54,6 +79,13 @@ public class MessageTestManager {
         return file;
     }
 
+    public static String getClientId() {
+        return System.getProperty("qmq.client.id");
+    }
+
+    public static void setClientId(String clientId) {
+        System.setProperty("qmq.client.id", clientId);
+    }
 
     /**
      * 生成随机消息, 并将消息记录保存到文件中
@@ -87,9 +119,11 @@ public class MessageTestManager {
     public static List<Message> replayMessages(File file) throws IOException {
         List<Message> result = Lists.newArrayList();
         try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-            String s = reader.readLine();
-            Message message = deserializeMessage(s);
-            result.add(message);
+            String s;
+            while ((s = reader.readLine()) != null) {
+                Message message = deserializeMessage(s);
+                result.add(message);
+            }
         }
         return result;
     }
@@ -100,20 +134,62 @@ public class MessageTestManager {
      * @param generateMessageFile 生成消息存储文件
      * @param sendMessageFile 发送成功消息存储文件
      */
-    public static void checkBestTriedSendMessageFile(File generateMessageFile, File sendMessageFile) throws IOException {
+    public static void checkBestTriedSendMessageFile(File generateMessageFile, File sendMessageFile)
+            throws IOException {
         List<Message> generateMessages = replayMessages(generateMessageFile);
         List<Message> sendMessages = replayMessages(sendMessageFile);
 
         // 1. 生成的消息必须包括所有发送成功的消息, 但发送成功的消息, 不一定包含所有生成的消息
-        Set<String> generateMessageIdSet = generateMessages.stream().map(Message::getMessageId).collect(Collectors.toSet());
+        Set<String> generateMessageIdSet = generateMessages.stream().map(Message::getMessageId)
+                .collect(Collectors.toSet());
+        Set<String> sendMessageIdSet = sendMessages.stream().map(Message::getMessageId).collect(Collectors.toSet());
+
+        assertTrue(generateMessageIdSet.size() >= sendMessageIdSet.size());
+        assertTrue(generateMessageIdSet.containsAll(sendMessageIdSet));
+
+        // 2. 验证同一个 Broker 分区的消息 messageId 是按顺序的
+        checkMessagesGroupOrder(sendMessages);
+    }
+
+    /**
+     * 检查 STRICT 策略的发送消息文件是否正确
+     *
+     * @param generateMessageFile 生成消息存储文件
+     * @param sendMessageFile 发送成功消息存储文件
+     */
+    public static void checkStrictSendMessageFile(File generateMessageFile, File sendMessageFile) throws IOException {
+        List<Message> generateMessages = replayMessages(generateMessageFile);
+        List<Message> sendMessages = replayMessages(sendMessageFile);
+
+        // 1. 生成的消息必须数量和 msgId 与发送成功的消息相同, 但顺序可以不一样
+        Set<String> generateMessageIdSet = generateMessages.stream().map(Message::getMessageId)
+                .collect(Collectors.toSet());
         Set<String> sendMessageIdSet = sendMessages.stream().map(Message::getMessageId).collect(Collectors.toSet());
 
         assertEquals(generateMessageIdSet, sendMessageIdSet);
 
         // 2. 验证同一个 Broker 分区的消息 messageId 是按顺序的
+        checkMessagesGroupOrder(sendMessages);
+    }
+
+    public static void checkSharedBestTriedConsumeMessageFile(File generateMessageFile, File consumeMessageFile)
+            throws IOException {
+        List<Message> generateMessages = replayMessages(generateMessageFile);
+        List<Message> consumeMessages = replayMessages(consumeMessageFile);
+
+        // 1. 因为消费没有出异常, 不存在最大重试失败的问题, 生成的消息必须数量和 msgId 与消费成功的消息相同, 但顺序可以不一样
+        Set<String> generateMessageIdSet = generateMessages.stream().map(Message::getMessageId)
+                .collect(Collectors.toSet());
+        Set<String> consumeMessageIdSet = consumeMessages.stream().map(Message::getMessageId).collect(Collectors.toSet());
+
+        assertEquals(generateMessageIdSet, consumeMessageIdSet);
+    }
+
+    private static void checkMessagesGroupOrder(List<Message> sendMessages) {
         Map<String, List<Message>> groupSendMessages = Maps.newConcurrentMap();
         for (Message sendMessage : sendMessages) {
-            String key = sendMessage.getStringProperty(keys.qmq_partitionBroker.name()) + ":"  + sendMessage.getPartitionName();
+            String key = sendMessage.getStringProperty(keys.qmq_partitionBroker.name()) + ":" + sendMessage
+                    .getPartitionName();
             List<Message> messages = groupSendMessages.computeIfAbsent(key, k -> Lists.newArrayList());
             messages.add(sendMessage);
         }
@@ -126,10 +202,31 @@ public class MessageTestManager {
                     lastMessageId = message.getMessageId();
                 } else {
                     String currentMessageId = message.getMessageId();
-                    assertTrue(currentMessageId.compareTo(lastMessageId) > 0);
+                    if (compareMessageId(currentMessageId, lastMessageId) <= 0) {
+                        throw new IllegalStateException(
+                                String.format("消息乱序, currentId %s lastId %s", currentMessageId, lastMessageId));
+                    }
                 }
             }
         }
+    }
+
+    private static final Splitter MID_SP = Splitter.on(".");
+
+    private static int compareMessageId(String mid1, String mid2) {
+        List<String> sp1s = MID_SP.splitToList(mid1);
+        List<String> sp2s = MID_SP.splitToList(mid2);
+        assertEquals(sp1s.size(), sp2s.size());
+        for (int i = 0; i < sp1s.size(); i++) {
+            long sp1Part = Long.valueOf(sp1s.get(i));
+            long sp2Part = Long.valueOf(sp2s.get(i));
+            if (sp1Part > sp2Part) {
+                return 1;
+            } else if (sp1Part < sp2Part) {
+                return -1;
+            }
+        }
+        return 0;
     }
 
     private static final String PROP_SEP = "||||";

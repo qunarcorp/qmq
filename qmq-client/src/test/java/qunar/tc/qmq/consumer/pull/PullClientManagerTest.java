@@ -142,7 +142,7 @@ public class PullClientManagerTest {
     public void testUpdateClientWhenThereIsOldClient() throws Exception {
         ConsumerMetaInfoResponse response = getConsumerMetaInfoResponse();
         ConsumerAllocation consumerAllocation = response.getConsumerAllocation();
-        Whitebox.setInternalState(consumerAllocation, "allocationVersion", consumerAllocation.getVersion() + 1);
+        Whitebox.setInternalState(consumerAllocation, "allocationVersion", consumerAllocation.getAllocationVersion() + 1);
         // 去掉一个旧的 broker, 增加一个新的 broker
         List<PartitionProps> props = consumerAllocation.getPartitionProps();
         List<PartitionProps> newProps = Lists.newArrayList();

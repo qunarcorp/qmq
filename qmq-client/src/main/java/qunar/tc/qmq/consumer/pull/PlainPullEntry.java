@@ -54,6 +54,7 @@ class PlainPullEntry extends AbstractPullEntry {
             AckService ackService,
             BrokerService brokerService,
             PullStrategy pullStrategy,
+            int partitionSetVersion,
             SendMessageBack sendMessageBack) {
         super(
                 consumeParam.getSubject(),
@@ -65,6 +66,7 @@ class PlainPullEntry extends AbstractPullEntry {
                 allocationVersion,
                 consumeParam.isBroadcast(),
                 consumeParam.isOrdered(),
+                partitionSetVersion,
                 consumptionExpiredTime,
                 pullService,
                 ackService,
@@ -144,7 +146,7 @@ class PlainPullEntry extends AbstractPullEntry {
     }
 
     @Override
-    public void stopPull() {
+    public void online() {
 
     }
 

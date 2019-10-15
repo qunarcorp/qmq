@@ -17,12 +17,12 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.CollectionUtils;
 import qunar.tc.qmq.ClientType;
+import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.PartitionAllocation;
 import qunar.tc.qmq.base.OnOfflineState;
 import qunar.tc.qmq.common.PartitionConstants;
 import qunar.tc.qmq.meta.Partition;
 import qunar.tc.qmq.meta.PartitionSet;
-import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 import qunar.tc.qmq.meta.model.ClientMetaInfo;
 import qunar.tc.qmq.meta.store.ClientMetaInfoStore;
 import qunar.tc.qmq.meta.store.PartitionAllocationStore;
@@ -48,7 +48,6 @@ public class DefaultPartitionService implements PartitionService {
     private TransactionTemplate transactionTemplate;
     private RangeMapper rangeMapper = new AverageRangeMapper();
     private ItemMapper itemMapper = new AverageItemMapper();
-    private CachedMetaInfoManager cachedMetaInfoManager;
 
     public DefaultPartitionService(
             PartitionNameResolver partitionNameResolver,
@@ -72,14 +71,16 @@ public class DefaultPartitionService implements PartitionService {
     @Override
     public boolean updatePartitions(String subject, int newPartitionNum, List<String> brokerGroups) {
         List<PartitionSet> oldPartitionSets = partitionSetStore.getAll(subject);
-        List<Partition> partitions = mapPartitions(subject, newPartitionNum, brokerGroups, oldPartitionSets, partitionNameResolver);
+        List<Partition> partitions = mapPartitions(subject, newPartitionNum, brokerGroups, oldPartitionSets,
+                partitionNameResolver);
         PartitionSet partitionSet = mapPartitionSet(subject, partitions, oldPartitionSets);
         return updatePartitions(subject, partitionSet, partitions, oldPartitionSets);
     }
 
     @Override
-    public boolean updatePartitions(String subject, PartitionSet partitionSet, List<Partition> partitions, List<PartitionSet> oldPartitionSets) {
-        boolean update = transactionTemplate.execute(transactionStatus -> {
+    public boolean updatePartitions(String subject, PartitionSet partitionSet, List<Partition> partitions,
+            List<PartitionSet> oldPartitionSets) {
+        return transactionTemplate.execute(transactionStatus -> {
             if (!CollectionUtils.isEmpty(oldPartitionSets)) {
                 // 关闭旧分区
                 for (PartitionSet oldPartitionSet : oldPartitionSets) {
@@ -91,14 +92,13 @@ public class DefaultPartitionService implements PartitionService {
             partitionSetStore.save(partitionSet);
             return true;
         });
-        cachedMetaInfoManager.refreshPartitions();
-        return update;
     }
 
     @Override
     public PartitionSet mapPartitionSet(String subject, int newPartitionNum, List<String> brokerGroups) {
         List<PartitionSet> oldPartitionSets = partitionSetStore.getAll(subject);
-        List<Partition> partitions = mapPartitions(subject, newPartitionNum, brokerGroups, oldPartitionSets, partitionNameResolver);
+        List<Partition> partitions = mapPartitions(subject, newPartitionNum, brokerGroups, oldPartitionSets,
+                partitionNameResolver);
         return mapPartitionSet(subject, partitions, oldPartitionSets);
     }
 
@@ -220,7 +220,8 @@ public class DefaultPartitionService implements PartitionService {
     public List<ClientMetaInfo> getOnlineExclusiveConsumers() {
         Date updateTime = new Date(System.currentTimeMillis() - EXCLUSIVE_CONSUMER_LOCK_LEASE_MILLS);
         return clientMetaInfoStore
-                .queryClientsUpdateAfterDate(ClientType.CONSUMER, OnOfflineState.ONLINE, updateTime);
+                .queryClientsUpdateAfterDate(ClientType.CONSUMER, OnOfflineState.ONLINE, ConsumeStrategy.EXCLUSIVE,
+                        updateTime);
     }
 
     @Override
@@ -228,7 +229,7 @@ public class DefaultPartitionService implements PartitionService {
         Date updateTime = new Date(System.currentTimeMillis() - EXCLUSIVE_CONSUMER_LOCK_LEASE_MILLS);
         return clientMetaInfoStore
                 .queryClientsUpdateAfterDate(subject, consumerGroup, ClientType.CONSUMER, OnOfflineState.ONLINE,
-                        updateTime);
+                        ConsumeStrategy.EXCLUSIVE, updateTime);
     }
 
     private List<Integer> createIntList(int startInt, int size) {

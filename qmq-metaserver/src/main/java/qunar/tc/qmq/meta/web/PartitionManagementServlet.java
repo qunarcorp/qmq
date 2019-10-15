@@ -54,8 +54,7 @@ public class PartitionManagementServlet extends HttpServlet {
                 new PartitionSetStoreImpl(),
                 new PartitionAllocationStoreImpl(),
                 new AveragePartitionAllocateStrategy(),
-                JdbcTemplateHolder.getTransactionTemplate()
-        );
+                JdbcTemplateHolder.getTransactionTemplate());
         CachedMetaInfoManager cachedMetaInfoManager = new DefaultCachedMetaInfoManager(store,
                 new ReadonlyBrokerGroupSettingStoreImpl(JdbcTemplateHolder.getOrCreate()), partitionService);
         this.subjectRouter = new DefaultSubjectRouter(cachedMetaInfoManager, store);

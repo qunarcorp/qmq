@@ -12,7 +12,7 @@ public class TestClientIdProvider implements ClientIdProvider {
 
     @Override
     public String get() {
-        String id = System.getProperty("qmq.client.id");
+        String id = MessageTestManager.getClientId();
         Preconditions.checkArgument(!Strings.isNullOrEmpty(id));
         return id;
     }

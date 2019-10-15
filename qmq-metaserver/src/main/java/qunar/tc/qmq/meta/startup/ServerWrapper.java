@@ -114,8 +114,7 @@ public class ServerWrapper implements Disposable {
                 partitionSetStore,
                 partitionAllocationStore,
                 partitionAllocator,
-                JdbcTemplateHolder.getTransactionTemplate()
-        );
+                JdbcTemplateHolder.getTransactionTemplate());
         final CachedMetaInfoManager cachedMetaInfoManager = new DefaultCachedMetaInfoManager(config, store,
                 readonlyBrokerGroupSettingStore, partitionService);
 

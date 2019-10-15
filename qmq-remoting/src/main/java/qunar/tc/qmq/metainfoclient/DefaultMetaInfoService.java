@@ -137,6 +137,9 @@ public class DefaultMetaInfoService implements MetaInfoService {
             String consumerGroup = response.getConsumerGroup();
             String requestKey = createMetaInfoRequestKey(clientTypeCode, subject, consumerGroup);
             MetaInfoRequestWrapper rw = metaInfoRequests.get(requestKey);
+            if (rw == null) {
+                return;
+            }
             rw.hasOnline = true;
             rw.reset();
 

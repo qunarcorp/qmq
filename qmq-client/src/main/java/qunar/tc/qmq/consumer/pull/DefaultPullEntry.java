@@ -39,11 +39,9 @@ import qunar.tc.qmq.PullEntry;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
-import qunar.tc.qmq.broker.impl.SwitchWaiter;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.config.PullSubjectsConfig;
 import qunar.tc.qmq.consumer.ConsumeMessageExecutor;
-import qunar.tc.qmq.metainfoclient.ConsumerOnlineStateManager;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.QmqCounter;
 
@@ -86,18 +84,18 @@ class DefaultPullEntry extends AbstractPullEntry implements PullEntry, Runnable 
             String brokerGroup,
             String consumerId,
             ConsumeStrategy consumeStrategy,
-            int version,
+            int allocationVersion,
             long consumptionExpiredTime,
             PullService pullService,
             AckService ackService,
             BrokerService brokerService,
+            int partitionSetVersion,
             PullStrategy pullStrategy,
             SendMessageBack sendMessageBack,
-            ConsumerOnlineStateManager consumerOnlineStateManager,
             ExecutorService partitionExecutor) {
         super(consumeParam.getSubject(), consumeParam.getConsumerGroup(), partitionName, brokerGroup, consumerId,
-                consumeStrategy, version, consumeParam.isBroadcast(), consumeParam.isOrdered(), consumptionExpiredTime,
-                pullService, ackService, brokerService, sendMessageBack);
+                consumeStrategy, allocationVersion, consumeParam.isBroadcast(), consumeParam.isOrdered(),
+                partitionSetVersion, consumptionExpiredTime, pullService, ackService, brokerService, sendMessageBack);
         this.partitionExecutor = partitionExecutor;
 
         String subject = consumeParam.getSubject();
@@ -114,8 +112,6 @@ class DefaultPullEntry extends AbstractPullEntry implements PullEntry, Runnable 
         String[] values = new String[]{subject, consumerGroup};
         this.pullRunCounter = Metrics.counter("qmq_pull_run_count", SUBJECT_GROUP_ARRAY, values);
         this.pauseCounter = Metrics.counter("qmq_pull_pause_count", SUBJECT_GROUP_ARRAY, values);
-
-        subscribeOnlineStateChanged(consumerOnlineStateManager, subject, consumerGroup);
     }
 
     @Override
@@ -270,23 +266,24 @@ class DefaultPullEntry extends AbstractPullEntry implements PullEntry, Runnable 
     }
 
     @Override
-    public void stopPull() {
-        isRunning.set(false);
+    public void offline() {
+        synchronized (this.isOnline) {
+            this.isOnline.set(false);
+            this.isRunning.set(false);
+            super.offline();
+        }
     }
 
-    private void subscribeOnlineStateChanged(ConsumerOnlineStateManager consumerOnlineStateManager, String subject,
-            String consumerGroup) {
-        SwitchWaiter switchWaiter = consumerOnlineStateManager.getSwitchWaiter(subject, consumerGroup);
-        isOnline.set(switchWaiter.isOnline());
-        switchWaiter.addListener(isOnline -> {
-            synchronized (this.isOnline) {
-                this.isOnline.set(isOnline);
-                final SettableFuture future = waitOnlineFuture;
-                if (future != null && isOnline) {
-                    future.set(null);
-                }
+    @Override
+    public void online() {
+        synchronized (this.isOnline) {
+            this.isOnline.set(true);
+            this.isRunning.set(true);
+            final SettableFuture future = waitOnlineFuture;
+            if (future != null) {
+                future.set(null);
             }
-        });
+        }
     }
 
     private static final class DoPullParam {

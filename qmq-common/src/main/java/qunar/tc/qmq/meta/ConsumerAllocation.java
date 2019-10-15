@@ -12,22 +12,28 @@ import java.util.List;
  * @author zhenwei.liu
  * @since 2019-09-05
  */
-public class ConsumerAllocation implements Versionable {
+public class ConsumerAllocation {
 
+    private int partitionSetVersion;
     private int allocationVersion;
     private List<PartitionProps> partitionProps;
     private long expired; // 本次心跳授权超时时间
     private ConsumeStrategy consumeStrategy;
 
-    public ConsumerAllocation(int allocationVersion, List<PartitionProps> partitionProps, long expired, ConsumeStrategy consumeStrategy) {
+    public ConsumerAllocation(int partitionSetVersion, int allocationVersion, List<PartitionProps> partitionProps,
+            long expired, ConsumeStrategy consumeStrategy) {
+        this.partitionSetVersion = partitionSetVersion;
         this.allocationVersion = allocationVersion;
         this.partitionProps = partitionProps;
         this.expired = expired;
         this.consumeStrategy = consumeStrategy;
     }
 
-    @Override
-    public int getVersion() {
+    public int getPartitionSetVersion() {
+        return partitionSetVersion;
+    }
+
+    public int getAllocationVersion() {
         return allocationVersion;
     }
 
@@ -49,6 +55,6 @@ public class ConsumerAllocation implements Versionable {
             copy.add(new PartitionProps(partitionProp.getPartitionId(), RetryPartitionUtils.buildRetryPartitionName(partitionProp.getPartitionName(), consumerGroup), partitionProp.getBrokerGroup()));
         }
 
-        return new ConsumerAllocation(allocationVersion, copy, expired, consumeStrategy);
+        return new ConsumerAllocation(partitionSetVersion, allocationVersion, copy, expired, consumeStrategy);
     }
 }

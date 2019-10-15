@@ -16,13 +16,12 @@
 
 package qunar.tc.qmq.meta.store;
 
-import qunar.tc.qmq.ConsumeStrategy;
-import qunar.tc.qmq.base.OnOfflineState;
-import qunar.tc.qmq.ClientType;
-import qunar.tc.qmq.meta.model.ClientMetaInfo;
-
 import java.util.Date;
 import java.util.List;
+import qunar.tc.qmq.ClientType;
+import qunar.tc.qmq.ConsumeStrategy;
+import qunar.tc.qmq.base.OnOfflineState;
+import qunar.tc.qmq.meta.model.ClientMetaInfo;
 
 /**
  * @author keli.wang
@@ -41,9 +40,11 @@ public interface ClientMetaInfoStore {
      * @param onlineStatus online status
      * @return client list
      */
-    List<ClientMetaInfo> queryClientsUpdateAfterDate(ClientType clientType, OnOfflineState onlineStatus, Date updateDate);
+    List<ClientMetaInfo> queryClientsUpdateAfterDate(ClientType clientType, OnOfflineState onlineStatus,
+            ConsumeStrategy consumeStrategy, Date updateDate);
 
-    List<ClientMetaInfo> queryClientsUpdateAfterDate(String subject, String consumerGroup, ClientType clientType, OnOfflineState onlineStatus, Date updateDate);
+    List<ClientMetaInfo> queryClientsUpdateAfterDate(String subject, String consumerGroup, ClientType clientType,
+            OnOfflineState onlineStatus, ConsumeStrategy consumeStrategy, Date updateDate);
 
     int updateClientOnlineState(ClientMetaInfo clientMetaInfo, ConsumeStrategy consumeStrategy);
 }

@@ -4,8 +4,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.PullClient;
-import qunar.tc.qmq.StatusSource;
-import qunar.tc.qmq.broker.BrokerService;
 
 /**
  * @author zhenwei.liu
@@ -24,7 +22,8 @@ public abstract class AbstractPullClient implements PullClient {
     private String consumerId;
 
     private volatile ConsumeStrategy consumeStrategy;
-    private volatile int version;
+    private volatile int consumerAllocationVersion;
+    private volatile int partitionSetVersion;
     private volatile long consumptionExpiredTime;
 
     public AbstractPullClient(
@@ -34,16 +33,17 @@ public abstract class AbstractPullClient implements PullClient {
             String brokerGroup,
             String consumerId,
             ConsumeStrategy consumeStrategy,
-            int version,
+            int consumerAllocationVersion,
             boolean isBroadcast,
             boolean isOrdered,
-            long consumptionExpiredTime) {
+            int partitionSetVersion, long consumptionExpiredTime) {
         this.subject = subject;
         this.consumerGroup = consumerGroup;
         this.partitionName = partitionName;
         this.brokerGroup = brokerGroup;
         this.consumeStrategy = consumeStrategy;
-        this.version = version;
+        this.consumerAllocationVersion = consumerAllocationVersion;
+        this.partitionSetVersion = partitionSetVersion;
         this.consumptionExpiredTime = consumptionExpiredTime;
         this.consumerId = consumerId;
         this.isBroadcast = isBroadcast;
@@ -81,13 +81,23 @@ public abstract class AbstractPullClient implements PullClient {
     }
 
     @Override
-    public int getVersion() {
-        return version;
+    public int getConsumerAllocationVersion() {
+        return consumerAllocationVersion;
     }
 
     @Override
-    public void setVersion(int version) {
-        this.version = version;
+    public void setConsumerAllocationVersion(int version) {
+        this.consumerAllocationVersion = version;
+    }
+
+    @Override
+    public int getPartitionSetVersion() {
+        return partitionSetVersion;
+    }
+
+    @Override
+    public void setPartitionSetVersion(int version) {
+        this.partitionSetVersion = version;
     }
 
     @Override
@@ -119,6 +129,5 @@ public abstract class AbstractPullClient implements PullClient {
     public void destroy() {
         LOGGER.info("关闭 Consumer {} {} {} {}", getSubject(), getPartitionName(), getBrokerGroup(), getConsumerGroup());
         offline();
-        stopPull();
     }
 }

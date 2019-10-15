@@ -14,4 +14,6 @@ public class PartitionConstants {
     public static final long EXCLUSIVE_CONSUMER_LOCK_LEASE_MILLS = ACK_INTERVAL_MILLS * 3;
     public static final int EMPTY_VERSION = -1;
     public static final int EMPTY_PARTITION_ID = -1;
+
+
 }

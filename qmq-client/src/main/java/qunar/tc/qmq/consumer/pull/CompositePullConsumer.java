@@ -5,6 +5,10 @@ import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.AsyncFunction;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.springframework.util.CollectionUtils;
 import qunar.tc.qmq.CompositePullClient;
 import qunar.tc.qmq.ConsumeStrategy;
@@ -14,29 +18,27 @@ import qunar.tc.qmq.StatusSource;
 import qunar.tc.qmq.broker.impl.SwitchWaiter;
 import qunar.tc.qmq.metainfoclient.ConsumerOnlineStateManager;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
-
 /**
  * @author zhenwei.liu
  * @since 2019-09-02
  */
-public class CompositePullConsumer<T extends PullConsumer> extends AbstractCompositePullClient<T> implements PullConsumer, CompositePullClient<T> {
+public class CompositePullConsumer<T extends PullConsumer> extends AbstractCompositePullClient<T> implements
+        PullConsumer, CompositePullClient<T> {
 
     public CompositePullConsumer(
             String subject,
             String consumerGroup,
             String consumerId,
             ConsumeStrategy consumeStrategy,
-            int version,
+            int allocationVersion,
             boolean isBroadcast,
             boolean isOrdered,
+            int partitionSetVersion,
             long consumptionExpiredTime,
             List<T> consumers,
             ConsumerOnlineStateManager consumerOnlineStateManager) {
-        super(subject, consumerGroup, "", consumerId, consumeStrategy, version, isBroadcast, isOrdered, consumptionExpiredTime, consumers);
+        super(subject, consumerGroup, "", consumerId, consumeStrategy, allocationVersion, isBroadcast, isOrdered,
+                partitionSetVersion, consumptionExpiredTime, consumers);
         SwitchWaiter switchWaiter = consumerOnlineStateManager.getSwitchWaiter(subject, consumerGroup);
         switchWaiter.on(StatusSource.HEALTHCHECKER);
     }
@@ -103,12 +105,15 @@ public class CompositePullConsumer<T extends PullConsumer> extends AbstractCompo
             return Futures.immediateFuture(Collections.emptyList());
         } else {
             PullConsumer consumer = components.get(0);
-            ListenableFuture<List<Message>> future = (ListenableFuture<List<Message>>) consumer.pullFuture(size, timeoutMillis, isResetCreateTime);
-            return chainNextPullFuture(size, timeoutMillis, isResetCreateTime, System.currentTimeMillis(), future, new AtomicInteger(0));
+            ListenableFuture<List<Message>> future = (ListenableFuture<List<Message>>) consumer
+                    .pullFuture(size, timeoutMillis, isResetCreateTime);
+            return chainNextPullFuture(size, timeoutMillis, isResetCreateTime, System.currentTimeMillis(), future,
+                    new AtomicInteger(0));
         }
     }
 
-    private ListenableFuture<List<Message>> chainNextPullFuture(int size, long timeoutMillis, boolean isResetCreateTime, long startMills, ListenableFuture<List<Message>> future, AtomicInteger currentConsumerIdx) {
+    private ListenableFuture<List<Message>> chainNextPullFuture(int size, long timeoutMillis, boolean isResetCreateTime,
+            long startMills, ListenableFuture<List<Message>> future, AtomicInteger currentConsumerIdx) {
         return Futures.transform(future, new AsyncFunction<List<Message>, List<Message>>() {
             @Override
             public ListenableFuture<List<Message>> apply(List<Message> messages) throws Exception {
@@ -121,7 +126,8 @@ public class CompositePullConsumer<T extends PullConsumer> extends AbstractCompo
                 }
                 PullConsumer nextConsumer = getComponents().get(currentConsumerIdx.incrementAndGet());
                 // 还不够
-                ListenableFuture<List<Message>> nextFuture = (ListenableFuture<List<Message>>) nextConsumer.pullFuture(messageLeft, timeoutLeft, isResetCreateTime);
+                ListenableFuture<List<Message>> nextFuture = (ListenableFuture<List<Message>>) nextConsumer
+                        .pullFuture(messageLeft, timeoutLeft, isResetCreateTime);
                 nextFuture = Futures.transform(nextFuture, (Function<List<Message>, List<Message>>) nextResult -> {
                     // 合并下一个 future 和当前 future 的消息
                     if (nextResult == null) {
@@ -132,7 +138,8 @@ public class CompositePullConsumer<T extends PullConsumer> extends AbstractCompo
                     result.addAll(messages);
                     return result;
                 });
-                return chainNextPullFuture(messageLeft, timeoutLeft, isResetCreateTime, System.currentTimeMillis(), nextFuture, currentConsumerIdx);
+                return chainNextPullFuture(messageLeft, timeoutLeft, isResetCreateTime, System.currentTimeMillis(),
+                        nextFuture, currentConsumerIdx);
             }
         });
     }

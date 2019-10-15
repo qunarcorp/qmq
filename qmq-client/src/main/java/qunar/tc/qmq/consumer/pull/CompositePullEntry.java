@@ -17,12 +17,13 @@ public class CompositePullEntry<T extends PullEntry> extends AbstractCompositePu
             String consumerGroup,
             String consumerId,
             ConsumeStrategy consumeStrategy,
-            int version,
+            int allocationVersion,
             boolean isBroadcast,
             boolean isOrdered,
+            int partitionSetVersion,
             long consumptionExpiredTime,
             List<T> pullEntries) {
-        super(subject, consumerGroup, "", consumerId, consumeStrategy, version, isBroadcast, isOrdered, consumptionExpiredTime,
-                pullEntries);
+        super(subject, consumerGroup, "", consumerId, consumeStrategy, allocationVersion, isBroadcast, isOrdered,
+                partitionSetVersion, consumptionExpiredTime, pullEntries);
     }
 }

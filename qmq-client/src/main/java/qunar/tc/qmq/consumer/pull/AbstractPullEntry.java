@@ -64,16 +64,17 @@ abstract class AbstractPullEntry extends AbstractPullClient implements PullEntry
             String brokerGroup,
             String consumerId,
             ConsumeStrategy consumeStrategy,
-            int version,
+            int allocationVersion,
             boolean isBroadcast,
             boolean isOrdered,
+            int partitionSetVersion,
             long consumptionExpiredTime,
             PullService pullService,
             AckService ackService,
             BrokerService brokerService,
             SendMessageBack sendMessageBack) {
-        super(subject, consumerGroup, partitionName, brokerGroup, consumerId, consumeStrategy, version, isBroadcast,
-                isOrdered, consumptionExpiredTime);
+        super(subject, consumerGroup, partitionName, brokerGroup, consumerId, consumeStrategy, allocationVersion, isBroadcast,
+                isOrdered, partitionSetVersion, consumptionExpiredTime);
         this.pullService = pullService;
         this.ackService = ackService;
         this.brokerService = brokerService;
@@ -111,7 +112,7 @@ abstract class AbstractPullEntry extends AbstractPullClient implements PullEntry
                 .setMaxPullOffset(ackSendInfo.getMaxPullOffset())
                 .setPartitionName(getPartitionName())
                 .setConsumeStrategy(getConsumeStrategy())
-                .setAllocationVersion(getVersion())
+                .setAllocationVersion(getConsumerAllocationVersion())
                 .create();
     }
 

@@ -27,17 +27,21 @@ public interface PullClient {
 
     void setConsumeStrategy(ConsumeStrategy consumeStrategy);
 
-    int getVersion();
+    int getConsumerAllocationVersion();
 
-    void setVersion(int version);
+    void setConsumerAllocationVersion(int version);
+
+    int getPartitionSetVersion();
+
+    void setPartitionSetVersion(int version);
 
     void startPull(ExecutorService executor);
-
-    void stopPull();
 
     void destroy();
 
     String getConsumerId();
+
+    void online();
 
     void offline();
 

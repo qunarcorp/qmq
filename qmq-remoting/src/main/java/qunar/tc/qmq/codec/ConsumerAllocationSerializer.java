@@ -19,7 +19,8 @@ public class ConsumerAllocationSerializer extends ObjectSerializer<ConsumerAlloc
 
     @Override
     void doSerialize(ConsumerAllocation consumerAllocation, ByteBuf buf, short version) {
-        buf.writeInt(consumerAllocation.getVersion());
+        buf.writeInt(consumerAllocation.getPartitionSetVersion());
+        buf.writeInt(consumerAllocation.getAllocationVersion());
         buf.writeLong(consumerAllocation.getExpired());
         PayloadHolderUtils.writeString(consumerAllocation.getConsumeStrategy().name(), buf);
         List<PartitionProps> partitionProps = consumerAllocation.getPartitionProps();
@@ -29,11 +30,12 @@ public class ConsumerAllocationSerializer extends ObjectSerializer<ConsumerAlloc
 
     @Override
     ConsumerAllocation doDeserialize(ByteBuf buf, Type type, short version) {
+        int partitionSetVersion = buf.readInt();
         int allocationVersion = buf.readInt();
         long expired = buf.readLong();
         ConsumeStrategy consumeStrategy = ConsumeStrategy.valueOf(PayloadHolderUtils.readString(buf));
         Serializer<List> serializer = getSerializer(List.class);
         List<PartitionProps> partitionProps = serializer.deserialize(buf, subjectLocationListType, version);
-        return new ConsumerAllocation(allocationVersion, partitionProps, expired, consumeStrategy);
+        return new ConsumerAllocation(partitionSetVersion, allocationVersion, partitionProps, expired, consumeStrategy);
     }
 }

@@ -294,6 +294,7 @@ public class PullRegister implements ConsumerRegister {
         if (isOnline) {
             LOGGER.info("consumer online, subject {} consumerGroup {} consumeStrategy {} broadcast {} ordered {} clientId {} partitions {}",
                     subject, consumerGroup, pullClient.getConsumeStrategy(), isBroadcast, isOrdered, clientId, pullClient.getPartitionName());
+            pullClient.online();
         } else {
             // 触发 Consumer 下线清理操作
             LOGGER.info("consumer offline, Subject {} ConsumerGroup {} consumeStrategy {} Broadcast {} ordered {} clientId {}",
