@@ -14,11 +14,6 @@
     <name>qmq client</name>
     <description>build all in one module</description>
 
-    <properties>
-        <java_source_version>1.7</java_source_version>
-        <java_target_version>1.7</java_target_version>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>${project.groupId}</groupId>

@@ -13,8 +13,6 @@
     <description>qmq client</description>
 
     <properties>
-        <java_source_version>1.7</java_source_version>
-        <java_target_version>1.7</java_target_version>
         <maven_deploy_skip>true</maven_deploy_skip>
     </properties>
 
