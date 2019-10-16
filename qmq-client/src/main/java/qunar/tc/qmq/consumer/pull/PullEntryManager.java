@@ -18,6 +18,7 @@ import qunar.tc.qmq.consumer.ConsumeMessageExecutorFactory;
 import qunar.tc.qmq.consumer.register.RegistParam;
 import qunar.tc.qmq.metainfoclient.ConsumerOnlineStateManager;
 import qunar.tc.qmq.protocol.consumer.SubEnvIsolationPullFilter;
+import qunar.tc.qmq.utils.RetryPartitionUtils;
 
 /**
  * @author zhenwei.liu
@@ -60,7 +61,6 @@ public class PullEntryManager extends AbstractPullClientManager<PullEntry> {
             ConsumeStrategy consumeStrategy,
             int allocationVersion,
             long consumptionExpiredTime,
-            PullStrategy pullStrategy,
             int partitionSetVersion,
             Object registryParam0
     ) {
@@ -77,6 +77,10 @@ public class PullEntryManager extends AbstractPullClientManager<PullEntry> {
                 registryParam.getExecutor(),
                 consumptionExpiredTime
         );
+
+        boolean isRetry = RetryPartitionUtils.isRetryPartitionName(partitionName);
+        PullStrategy pullStrategy = isRetry ? new WeightPullStrategy() : new AlwaysPullStrategy();
+
         PullEntry pullEntry = new DefaultPullEntry(
                 consumeMessageExecutor,
                 consumeParam,

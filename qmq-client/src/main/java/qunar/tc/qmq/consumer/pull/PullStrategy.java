@@ -17,6 +17,7 @@
 package qunar.tc.qmq.consumer.pull;
 
 interface PullStrategy {
+
     boolean needPull();
 
     void record(boolean status);

@@ -68,7 +68,8 @@ public class MessageConsumptionTask {
             }
         } catch (Throwable t) {
             handleFailCounter.inc();
-            LOGGER.error("消息处理失败 {} {}", message.getSubject(), message.getMessageId(), t);
+            LOGGER.error("message 处理失败. subject={}, msgId={}, times={}, maxRetryNum={}",
+                    message.getSubject(), message.getMessageId(), message.times(), message.getMaxRetryNum(), t);
             orderStrategy.onConsumeFailed(message, messageExecutor, t);
         }
     }

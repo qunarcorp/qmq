@@ -29,9 +29,9 @@ import qunar.tc.qmq.producer.MessageProducerProvider;
  * @author zhenwei.liu
  * @since 2019-10-14
  */
-public class MessageTestManager {
+public class MessageTestUtils {
 
-    private static final String CLASS_PATH_ROOT = MessageTestManager.class.getClassLoader().getResource("").getPath();
+    private static final String CLASS_PATH_ROOT = MessageTestUtils.class.getClassLoader().getResource("").getPath();
     private static final String PRODUCER_ROOT = CLASS_PATH_ROOT + File.separator + "producer";
     private static final String CONSUMER_ROOT = CLASS_PATH_ROOT + File.separator + "consumer";
 
@@ -176,6 +176,8 @@ public class MessageTestManager {
             throws IOException {
         List<Message> generateMessages = replayMessages(generateMessageFile);
         List<Message> consumeMessages = replayMessages(consumeMessageFile);
+
+        assertEquals(generateMessages.size(), consumeMessages.size());
 
         // 1. 因为消费没有出异常, 不存在最大重试失败的问题, 生成的消息必须数量和 msgId 与消费成功的消息相同, 但顺序可以不一样
         Set<String> generateMessageIdSet = generateMessages.stream().map(Message::getMessageId)

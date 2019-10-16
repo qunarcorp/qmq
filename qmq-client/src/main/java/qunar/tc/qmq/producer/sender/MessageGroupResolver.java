@@ -1,6 +1,5 @@
 package qunar.tc.qmq.producer.sender;
 
-import qunar.tc.qmq.Message;
 import qunar.tc.qmq.MessageGroup;
 import qunar.tc.qmq.base.BaseMessage;
 
@@ -14,6 +13,7 @@ public interface MessageGroupResolver {
 
     /**
      * 选择一个 brokerGroup, 该 brokerGroup 不一定可用
+     *
      * @param message 消息
      * @return brokerGroup
      */
@@ -21,6 +21,7 @@ public interface MessageGroupResolver {
 
     /**
      * 选择一个可用的 brokerGroup, 如不可用则选择下一个可用的 brokerGroup, 但必须保证 PartitionName 在这两个 BrokerGroup 是相同的
+     *
      * @param message message
      * @return 可用的 brokerGroup
      */

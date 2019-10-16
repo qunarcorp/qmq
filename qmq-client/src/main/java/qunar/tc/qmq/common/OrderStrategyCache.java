@@ -20,7 +20,7 @@ public class OrderStrategyCache {
     public static void initOrderStrategy(MessageGroupResolver messageGroupResolver) {
         if (inited.compareAndSet(false, true)) {
             BestTriedOrderStrategy bestTriedOrderStrategy = new BestTriedOrderStrategy(messageGroupResolver);
-            StrictOrderStrategy strictOrderStrategy = new StrictOrderStrategy();
+            StrictOrderStrategy strictOrderStrategy = new StrictOrderStrategy(messageGroupResolver);
             setDefaultStrategy(bestTriedOrderStrategy);
             registerStrategy(bestTriedOrderStrategy);
             registerStrategy(strictOrderStrategy);

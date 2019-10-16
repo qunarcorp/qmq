@@ -40,7 +40,7 @@ public class PullConsumerManager extends AbstractPullClientManager<PullConsumer>
 
     @Override
     PullConsumer doCreatePullClient(String subject, String consumerGroup, String partitionName, String brokerGroup,
-            ConsumeStrategy consumeStrategy, int allocationVersion, long consumptionExpiredTime, PullStrategy pullStrategy,
+            ConsumeStrategy consumeStrategy, int allocationVersion, long consumptionExpiredTime,
             int partitionSetVersion, Object param) {
         PullConsumerRegistryParam registryParam = (PullConsumerRegistryParam) param;
         DefaultPullConsumer pullConsumer = new DefaultPullConsumer(

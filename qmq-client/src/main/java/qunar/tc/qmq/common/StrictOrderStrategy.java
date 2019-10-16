@@ -2,9 +2,11 @@ package qunar.tc.qmq.common;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.MessageGroup;
 import qunar.tc.qmq.ProduceMessage;
 import qunar.tc.qmq.base.BaseMessage;
+import qunar.tc.qmq.producer.sender.MessageGroupResolver;
 import qunar.tc.qmq.producer.sender.SendMessageExecutor;
 import qunar.tc.qmq.consumer.ConsumeMessageExecutor;
 import qunar.tc.qmq.consumer.pull.PulledMessage;
@@ -18,12 +20,23 @@ public class StrictOrderStrategy extends AbstractOrderStrategy {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(StrictOrderStrategy.class);
 
+    private final MessageGroupResolver messageGroupResolver;
+
+    public StrictOrderStrategy(MessageGroupResolver messageGroupResolver) {
+        this.messageGroupResolver = messageGroupResolver;
+    }
+
     @Override
     public void doOnSendError(ProduceMessage message, SendMessageExecutor currentExecutor, SendMessageExecutorManager sendMessageExecutorManager, Exception e) {
         MessageGroup messageGroup = currentExecutor.getMessageGroup();
         message.incTries();
         LOGGER.error("消息发送失败, 将进行重试, subject {} partition {} brokerGroup {}",
                 messageGroup.getSubject(), messageGroup.getPartitionName(), messageGroup.getBrokerGroup());
+    }
+
+    @Override
+    public MessageGroup resolveMessageGroup(BaseMessage message) {
+        return messageGroupResolver.resolveGroup(message);
     }
 
     @Override

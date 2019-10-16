@@ -12,7 +12,7 @@ public class TestClientIdProvider implements ClientIdProvider {
 
     @Override
     public String get() {
-        String id = MessageTestManager.getClientId();
+        String id = MessageTestUtils.getClientId();
         Preconditions.checkArgument(!Strings.isNullOrEmpty(id));
         return id;
     }

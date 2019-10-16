@@ -19,11 +19,13 @@ package qunar.tc.qmq.consumer.pull;
 import java.util.concurrent.ThreadLocalRandom;
 
 class WeightPullStrategy implements PullStrategy {
+
     private static final int MIN_WEIGHT = 1;
     private static final int MAX_WEIGHT = 32;
 
     private int currentWeight = MAX_WEIGHT;
 
+    @Override
     public boolean needPull() {
         return randomWeightThreshold() < currentWeight;
     }

@@ -23,7 +23,6 @@ import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.NeedRetryException;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.consumer.ConsumeMessage;
-import qunar.tc.qmq.consumer.ConsumerUtils;
 import qunar.tc.qmq.metrics.Metrics;
 
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -74,7 +73,6 @@ public class PulledMessage extends ConsumeMessage {
     public void ack(Throwable throwable) {
         isAcked.set(true);
         PulledMessage message = this;
-        ConsumerUtils.printError(message, throwable);
         final AckEntry ackEntry = message.getAckEntry();
         if (throwable == null) {
             ackEntry.ack();

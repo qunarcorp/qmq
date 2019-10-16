@@ -72,10 +72,10 @@ public abstract class AbstractPullClientManager<T extends PullClient> implements
             }
 
             CompositePullClient newNormalPullClient = createOrUpdatePullClient(subject, consumerGroup,
-                    new AlwaysPullStrategy(), consumerAllocation, oldNormalClient, registryParam);
+                    consumerAllocation, oldNormalClient, registryParam);
             ConsumerAllocation retryConsumerAllocation = consumerAllocation.getRetryConsumerAllocation(consumerGroup);
             CompositePullClient newRetryPullClient = createOrUpdatePullClient(subject, consumerGroup,
-                    new WeightPullStrategy(), retryConsumerAllocation, oldRetryClient, registryParam);
+                    retryConsumerAllocation, oldRetryClient, registryParam);
 
             ArrayList<CompositePullClient> newComponents = Lists.newArrayList(newNormalPullClient, newRetryPullClient);
             if (oldCompositeClient == null) {
@@ -101,22 +101,20 @@ public abstract class AbstractPullClientManager<T extends PullClient> implements
     private CompositePullClient createOrUpdatePullClient(
             String subject,
             String consumerGroup,
-            PullStrategy pullStrategy,
             ConsumerAllocation consumerAllocation,
             CompositePullClient oldClient,
             Object registryParam
     ) {
         if (oldClient == null) {
-            return createNewPullClient(subject, consumerGroup, pullStrategy, consumerAllocation, registryParam);
+            return createNewPullClient(subject, consumerGroup, consumerAllocation, registryParam);
         } else {
-            return updatePullClient(subject, consumerGroup, pullStrategy, consumerAllocation, oldClient, registryParam);
+            return updatePullClient(subject, consumerGroup, consumerAllocation, oldClient, registryParam);
         }
     }
 
     private CompositePullClient createNewPullClient(
             String subject,
             String consumerGroup,
-            PullStrategy pullStrategy,
             ConsumerAllocation consumerAllocation,
             Object registryParam
     ) {
@@ -130,7 +128,7 @@ public abstract class AbstractPullClientManager<T extends PullClient> implements
             String partitionName = partitionProp.getPartitionName();
             String brokerGroup = partitionProp.getBrokerGroup();
             PullClient newDefaultClient = doCreatePullClient(subject, consumerGroup, partitionName, brokerGroup,
-                    consumeStrategy, allocationVersion, expired, pullStrategy, partitionSetVersion, registryParam);
+                    consumeStrategy, allocationVersion, expired, partitionSetVersion, registryParam);
             clientList.add(newDefaultClient);
         }
         return doCreateCompositePullClient(subject, consumerGroup, consumeStrategy, allocationVersion, expired,
@@ -141,7 +139,6 @@ public abstract class AbstractPullClientManager<T extends PullClient> implements
     private CompositePullClient updatePullClient(
             String subject,
             String consumerGroup,
-            PullStrategy pullStrategy,
             ConsumerAllocation consumerAllocation,
             CompositePullClient oldClient,
             Object registryParam
@@ -185,7 +182,7 @@ public abstract class AbstractPullClientManager<T extends PullClient> implements
                 String partitionName = partitionProps.getPartitionName();
                 String brokerGroup = partitionProps.getBrokerGroup();
                 T newPullClient = doCreatePullClient(subject, consumerGroup, partitionName, brokerGroup,
-                        newConsumeStrategy, newConsumerAllocationVersion, expired, pullStrategy, newPartitionSetVersion,
+                        newConsumeStrategy, newConsumerAllocationVersion, expired, newPartitionSetVersion,
                         registryParam);
                 newPullClients.add(newPullClient);
             }
@@ -207,7 +204,6 @@ public abstract class AbstractPullClientManager<T extends PullClient> implements
 
     abstract T doCreatePullClient(String subject, String consumerGroup, String partitionName, String brokerGroup,
             ConsumeStrategy consumeStrategy, int allocationVersion, long consumptionExpiredTime,
-            PullStrategy pullStrategy,
             int partitionSetVersion, Object registryParam);
 
     abstract CompositePullClient doCreateCompositePullClient(String subject, String consumerGroup,

@@ -1,7 +1,9 @@
 package qunar.tc.qmq.common;
 
+import qunar.tc.qmq.MessageGroup;
 import qunar.tc.qmq.ProduceMessage;
 import qunar.tc.qmq.base.BaseMessage;
+import qunar.tc.qmq.meta.BrokerGroup;
 import qunar.tc.qmq.producer.sender.SendMessageExecutor;
 import qunar.tc.qmq.consumer.ConsumeMessageExecutor;
 import qunar.tc.qmq.consumer.pull.PulledMessage;
@@ -23,6 +25,11 @@ public interface OrderStrategy {
      * 发送错误, 如网络异常等第三方因素
      */
     void onSendError(ProduceMessage message, SendMessageExecutor currentExecutor, SendMessageExecutorManager sendMessageExecutorManager, Exception e);
+
+    /**
+     * 发送 nack 失败
+     */
+    MessageGroup resolveMessageGroup(BaseMessage message);
 
     /**
      * 发送错误, 代表 Broker 出现的问题

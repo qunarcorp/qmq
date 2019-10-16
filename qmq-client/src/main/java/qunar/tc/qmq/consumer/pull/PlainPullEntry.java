@@ -40,7 +40,6 @@ class PlainPullEntry extends AbstractPullEntry {
     private final BrokerService brokerService;
     private final ConsumeParam consumeParam;
     private final PullStrategy pullStrategy;
-    private final WeightLoadBalance loadBalance;
 
     PlainPullEntry(
             ConsumeParam consumeParam,
@@ -75,7 +74,6 @@ class PlainPullEntry extends AbstractPullEntry {
         this.consumeParam = consumeParam;
         this.pullStrategy = pullStrategy;
         this.brokerService = brokerService;
-        this.loadBalance = new WeightLoadBalance();
     }
 
     PlainPullResult pull(final int fetchSize, final int pullTimeout, final List<Message> output) {
@@ -88,7 +86,7 @@ class PlainPullEntry extends AbstractPullEntry {
         if (groups.isEmpty()) {
             return PlainPullResult.NO_BROKER;
         }
-        BrokerGroupInfo brokerGroup = loadBalance.select(brokerCluster);
+        BrokerGroupInfo brokerGroup = brokerCluster.getGroupByName(getBrokerGroup());
         List<PulledMessage> received = pull(consumeParam, brokerGroup, fetchSize, pullTimeout, null);
         output.addAll(received);
         pullStrategy.record(received.size() > 0);
@@ -97,7 +95,6 @@ class PlainPullEntry extends AbstractPullEntry {
 
     protected void markFailed(BrokerGroupInfo group) {
         super.markFailed(group);
-        loadBalance.timeout(group);
     }
 
     protected List<PulledMessage> pull(ConsumeParam consumeParam, BrokerGroupInfo brokerGroupInfo, int pullSize,
@@ -109,7 +106,7 @@ class PlainPullEntry extends AbstractPullEntry {
             PullResult pullResult = pullService.pull(pullParam);
             List<PulledMessage> pulledMessages = handlePullResult(pullParam, pullResult, ackHook);
             brokerGroupInfo.markSuccess();
-            recordPullSize(brokerGroupInfo, pulledMessages, pullSize);
+            recordPullSize(pulledMessages, pullSize);
             return pulledMessages;
         } catch (ExecutionException e) {
             markFailed(brokerGroupInfo);
@@ -126,18 +123,14 @@ class PlainPullEntry extends AbstractPullEntry {
         return Collections.emptyList();
     }
 
-    private void recordPullSize(BrokerGroupInfo group, List<PulledMessage> received, int pullSize) {
+    private void recordPullSize(List<PulledMessage> received, int pullSize) {
         if (received.size() == 0) {
-            loadBalance.noMessage(group);
             return;
         }
 
         if (received.size() >= pullSize) {
-            loadBalance.fetchedEnoughMessages(group);
             return;
         }
-
-        loadBalance.fetchedMessages(group);
     }
 
     @Override

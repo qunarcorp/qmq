@@ -39,29 +39,29 @@ public class ProducerTest {
 
     @Test
     public void testSendBestTriedMessages() throws Exception {
-        List<Message> messages = MessageTestManager
-                .generateMessages(producerProvider, MessageTestManager.BEST_TRIED_MESSAGE_SUBJECT, 100);
-        MessageTestManager.saveMessage(messages, MessageTestManager.bestTriedGenerateMessageFile);
+        List<Message> messages = MessageTestUtils
+                .generateMessages(producerProvider, MessageTestUtils.BEST_TRIED_MESSAGE_SUBJECT, 100);
+        MessageTestUtils.saveMessage(messages, MessageTestUtils.bestTriedGenerateMessageFile);
         try (PrintWriter writer = new PrintWriter(
-                new BufferedWriter(new FileWriter(MessageTestManager.bestTriedSendMessageFile)))) {
+                new BufferedWriter(new FileWriter(MessageTestUtils.bestTriedSendMessageFile)))) {
             sendMessage(producerProvider, messages, writer);
         }
-        MessageTestManager.checkBestTriedSendMessageFile(MessageTestManager.bestTriedGenerateMessageFile,
-                MessageTestManager.bestTriedSendMessageFile);
+        MessageTestUtils.checkBestTriedSendMessageFile(MessageTestUtils.bestTriedGenerateMessageFile,
+                MessageTestUtils.bestTriedSendMessageFile);
     }
 
     @Test
     public void testSendStrictMessages() throws Exception {
-        List<Message> messages = MessageTestManager
-                .generateMessages(producerProvider, MessageTestManager.STRICT_MESSAGE_SUBJECT, 100);
-        OrderStrategyManager.setOrderStrategy(MessageTestManager.STRICT_MESSAGE_SUBJECT, OrderStrategy.STRICT);
-        MessageTestManager.saveMessage(messages, MessageTestManager.strictGenerateMessageFile);
+        List<Message> messages = MessageTestUtils
+                .generateMessages(producerProvider, MessageTestUtils.STRICT_MESSAGE_SUBJECT, 100);
+        OrderStrategyManager.setOrderStrategy(MessageTestUtils.STRICT_MESSAGE_SUBJECT, OrderStrategy.STRICT);
+        MessageTestUtils.saveMessage(messages, MessageTestUtils.strictGenerateMessageFile);
         try (PrintWriter writer = new PrintWriter(
-                new BufferedWriter(new FileWriter(MessageTestManager.strictSendMessageFile)))) {
+                new BufferedWriter(new FileWriter(MessageTestUtils.strictSendMessageFile)))) {
             sendMessage(producerProvider, messages, writer);
         }
-        MessageTestManager.checkStrictSendMessageFile(MessageTestManager.strictGenerateMessageFile,
-                MessageTestManager.strictSendMessageFile);
+        MessageTestUtils.checkStrictSendMessageFile(MessageTestUtils.strictGenerateMessageFile,
+                MessageTestUtils.strictSendMessageFile);
     }
 
     private static void sendMessage(MessageProducerProvider provider, List<Message> messages, PrintWriter writer)
@@ -73,7 +73,7 @@ public class ProducerTest {
                 @Override
                 public void onSuccess(Message message) {
                     if (writer != null) {
-                        MessageTestManager.saveMessage(message, writer);
+                        MessageTestUtils.saveMessage(message, writer);
                     }
                     LOGGER.info("send message success {}", message.getMessageId());
                     countDownLatch.countDown();
