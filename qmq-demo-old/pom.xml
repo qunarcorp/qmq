@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+	<artifactId>qmq-demo-old</artifactId>
+	<groupId>com.qunar.qmq</groupId>
+	<version>1.1.12-SNAPSHOT</version>
+	<modelVersion>4.0.0</modelVersion>
+
+	<description>用于测试旧版本的 client 与新版本的 Meta 及 Server 兼容性</description>
+
+	<properties>
+		<slf4j.version>1.7.26</slf4j.version>
+		<qmq.version>1.1.16</qmq.version>
+		<logback.version>1.2.3</logback.version>
+		<tomcat-jdbc.version>8.5.27</tomcat-jdbc.version>
+		<mysql-connector-java.version>8.0.15</mysql-connector-java.version>
+		<junit.version>4.12</junit.version>
+		<springl.version>4.3.22.RELEASE</springl.version>
+	</properties>
+
+	<dependencies>
+		<dependency>
+			<groupId>com.qunar.qmq</groupId>
+			<artifactId>qmq</artifactId>
+			<version>${qmq.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-tx</artifactId>
+			<version>${springl.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-jdbc</artifactId>
+			<version>${springl.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-context</artifactId>
+			<version>${springl.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+			<version>${slf4j.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.tomcat</groupId>
+			<artifactId>tomcat-jdbc</artifactId>
+			<version>${tomcat-jdbc.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>${junit.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>mysql</groupId>
+			<artifactId>mysql-connector-java</artifactId>
+			<version>${mysql-connector-java.version}</version>
+			<scope>runtime</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>ch.qos.logback</groupId>
+			<artifactId>logback-core</artifactId>
+			<version>${logback.version}</version>
+			<scope>runtime</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>ch.qos.logback</groupId>
+			<artifactId>logback-classic</artifactId>
+			<version>${logback.version}</version>
+			<scope>runtime</scope>
+		</dependency>
+	</dependencies>
+</project>

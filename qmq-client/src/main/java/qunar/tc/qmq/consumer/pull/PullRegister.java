@@ -33,6 +33,7 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ClientType;
+import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.PullClient;
 import qunar.tc.qmq.PullConsumer;
 import qunar.tc.qmq.PullEntry;
@@ -288,17 +289,26 @@ public class PullRegister implements ConsumerRegister {
         return thisTimestamp < lastUpdateTimestamp;
     }
 
-    private void onClientOnlineStateChange(String subject, String consumerGroup, boolean isOnline, boolean isBroadcast, boolean isOrdered, PullClientManager pullClientManager) {
+    private void onClientOnlineStateChange(String subject, String consumerGroup, boolean isOnline, boolean isBroadcast,
+            boolean isOrdered, PullClientManager pullClientManager) {
         PullClient pullClient = pullClientManager.getPullClient(subject, consumerGroup);
         Preconditions.checkNotNull(pullClient, "pull client 尚未初始化 %s %s", subject, consumerGroup);
+        ConsumeStrategy consumeStrategy = pullClient.getConsumeStrategy();
         if (isOnline) {
-            LOGGER.info("consumer online, subject {} consumerGroup {} consumeStrategy {} broadcast {} ordered {} clientId {} partitions {}",
-                    subject, consumerGroup, pullClient.getConsumeStrategy(), isBroadcast, isOrdered, clientId, pullClient.getPartitionName());
+            if (!Objects.equals(consumeStrategy, isOrdered ? ConsumeStrategy.EXCLUSIVE : ConsumeStrategy.SHARED)) {
+                LOGGER.warn("由于主题 {}:{} 的客户端 {} 曾经使用 {} 模式消费过, 虽然设置顺序消费模式为 {}, 但实际上依然会使用 {} 模式消费", subject,
+                        consumerGroup, clientId, consumeStrategy, isOrdered, consumeStrategy);
+            }
+            LOGGER.info(
+                    "consumer online, subject {} consumerGroup {} consumeStrategy {} broadcast {} ordered {} clientId {} partitions {}",
+                    subject, consumerGroup, consumeStrategy, isBroadcast, isOrdered, clientId,
+                    pullClient.getPartitionName());
             pullClient.online();
         } else {
             // 触发 Consumer 下线清理操作
-            LOGGER.info("consumer offline, Subject {} ConsumerGroup {} consumeStrategy {} Broadcast {} ordered {} clientId {}",
-                    subject, consumerGroup, pullClient.getConsumeStrategy(), isBroadcast, isOrdered, clientId);
+            LOGGER.info(
+                    "consumer offline, Subject {} ConsumerGroup {} consumeStrategy {} Broadcast {} ordered {} clientId {}",
+                    subject, consumerGroup, consumeStrategy, isBroadcast, isOrdered, clientId);
             pullClient.offline();
         }
 
@@ -314,7 +324,7 @@ public class PullRegister implements ConsumerRegister {
                 isOrdered
         );
         request.setOnlineState(isOnline ? OnOfflineState.ONLINE : OnOfflineState.OFFLINE);
-        request.setConsumeStrategy(pullClient.getConsumeStrategy());
+        request.setConsumeStrategy(consumeStrategy);
         ChannelFuture channelFuture = metaInfoService.sendRequest(request);
         try {
             channelFuture.get(2, TimeUnit.SECONDS);

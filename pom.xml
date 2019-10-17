@@ -76,6 +76,7 @@
         <module>qmq-watchdog</module>
         <module>qmq-gateway</module>
         <module>qmq-demo</module>
+<!--        <module>qmq-demo-old</module>-->
     </modules>
 
     <properties>

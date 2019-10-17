@@ -59,8 +59,11 @@ public class MessageTestUtils {
     public static final File strictGenerateMessageFile = mkDir(new File(STRICT_GENERATE_MESSAGE_FILE));
     public static final File strictSendMessageFile = mkDir(new File(STRICT_SEND_MESSAGE_FILE));
 
-    public static final String BEST_TRIED_MESSAGE_SUBJECT = "test.best.tried.subject";
-    public static final String STRICT_MESSAGE_SUBJECT = "test.strict.subject";
+    public static final String SHARED_BEST_TRIED_MESSAGE_SUBJECT = "shared.best.tried.subject";
+    public static final String SHARED_STRICT_MESSAGE_SUBJECT = "shared.strict.subject";
+
+    public static final String EXCLUSIVE_BEST_TRIED_MESSAGE_SUBJECT = "exclusive.best.tried.subject";
+    public static final String EXCLUSIVE_STRICT_MESSAGE_SUBJECT = "exclusive.strict.subject";
 
     public static final String SHARED_CONSUMER_GROUP = "shared.consumer.group";
     public static final String EXCLUSIVE_CONSUMER_GROUP = "exclusive.consumer.group";
@@ -182,9 +185,114 @@ public class MessageTestUtils {
         // 1. 因为消费没有出异常, 不存在最大重试失败的问题, 生成的消息必须数量和 msgId 与消费成功的消息相同, 但顺序可以不一样
         Set<String> generateMessageIdSet = generateMessages.stream().map(Message::getMessageId)
                 .collect(Collectors.toSet());
-        Set<String> consumeMessageIdSet = consumeMessages.stream().map(Message::getMessageId).collect(Collectors.toSet());
+        Set<String> consumeMessageIdSet = consumeMessages.stream().map(Message::getMessageId)
+                .collect(Collectors.toSet());
 
         assertEquals(generateMessageIdSet, consumeMessageIdSet);
+    }
+
+    public static void checkSharedStrictConsumeMessageFile(File generateMessageFile, File consumeMessageFile)
+            throws IOException {
+        List<Message> generateMessages = replayMessages(generateMessageFile);
+        List<Message> consumeMessages = replayMessages(consumeMessageFile);
+
+        assertEquals(generateMessages.size(), consumeMessages.size());
+
+        // 1. 因为消费没有出异常, 不存在最大重试失败的问题, 生成的消息必须数量和 msgId 与消费成功的消息相同, 但顺序可以不一样
+        Set<String> generateMessageIdSet = generateMessages.stream().map(Message::getMessageId)
+                .collect(Collectors.toSet());
+        Set<String> consumeMessageIdSet = consumeMessages.stream().map(Message::getMessageId)
+                .collect(Collectors.toSet());
+
+        assertEquals(generateMessageIdSet, consumeMessageIdSet);
+    }
+
+    public static void checkExclusiveBestTriedConsumeMessageFile(File generateMessageFile, File consumeMessageFile)
+            throws IOException {
+        List<Message> generateMessages = replayMessages(generateMessageFile);
+        List<Message> consumeMessages = replayMessages(consumeMessageFile);
+
+        assertEquals(generateMessages.size(), consumeMessages.size());
+
+        // 1. 因为消费没有出异常, 不存在最大重试失败的问题, 生成的消息必须数量和 msgId 与消费成功的消息相同, 且同分区的顺序必须一样
+        Set<String> generateMessageIdSet = generateMessages.stream().map(Message::getMessageId)
+                .collect(Collectors.toSet());
+        Set<String> consumeMessageIdSet = consumeMessages.stream().map(Message::getMessageId)
+                .collect(Collectors.toSet());
+
+        assertEquals(generateMessageIdSet, consumeMessageIdSet);
+
+        // 2. 检查同分区的消息顺序是否一致
+        Map<String, List<Message>> orderKey2Message = groupOrderedMessage(consumeMessages);
+        for (List<Message> messageList : orderKey2Message.values()) {
+            Message lastMessage = null;
+            for (Message message : messageList) {
+                if (lastMessage == null) {
+                    lastMessage = message;
+                } else {
+                    assertTrue(compareMessageId(message.getMessageId(), lastMessage.getMessageId()) > 0);
+                }
+            }
+        }
+    }
+
+    public static void checkExclusiveBestTriedConsumeMessageExceptionFile(File generateMessageFile, File consumeMessageFile)
+            throws IOException {
+        List<Message> generateMessages = replayMessages(generateMessageFile);
+        List<Message> consumeMessages = replayMessages(consumeMessageFile);
+
+        assertEquals(generateMessages.size(), consumeMessages.size());
+
+        // 1. 生成的消息必须数量和 msgId 与消费成功的消息相同, 虽然是顺序消息, 但是出异常以后使用 %retry% 机制会导致消息乱序
+        Set<String> generateMessageIdSet = generateMessages.stream().map(Message::getMessageId)
+                .collect(Collectors.toSet());
+        Set<String> consumeMessageIdSet = consumeMessages.stream().map(Message::getMessageId)
+                .collect(Collectors.toSet());
+
+        assertEquals(generateMessageIdSet, consumeMessageIdSet);
+    }
+
+    public static void checkExclusiveStrictConsumeMessageFile(File generateMessageFile, File consumeMessageFile)
+            throws IOException {
+        List<Message> generateMessages = replayMessages(generateMessageFile);
+        List<Message> consumeMessages = replayMessages(consumeMessageFile);
+
+        assertEquals(generateMessages.size(), consumeMessages.size());
+
+        // 1. 因为消费没有出异常, 不存在最大重试失败的问题, 生成的消息必须数量和 msgId 与消费成功的消息相同, 且同分区的顺序必须一样
+        Set<String> generateMessageIdSet = generateMessages.stream().map(Message::getMessageId)
+                .collect(Collectors.toSet());
+        Set<String> consumeMessageIdSet = consumeMessages.stream().map(Message::getMessageId)
+                .collect(Collectors.toSet());
+
+        assertEquals(generateMessageIdSet, consumeMessageIdSet);
+
+        // 2. 检查同分区的消息顺序是否一致
+        Map<String, List<Message>> orderKey2Message = groupOrderedMessage(consumeMessages);
+        for (List<Message> messageList : orderKey2Message.values()) {
+            Message lastMessage = null;
+            for (Message message : messageList) {
+                if (lastMessage == null) {
+                    lastMessage = message;
+                } else {
+                    assertTrue(compareMessageId(message.getMessageId(), lastMessage.getMessageId()) > 0);
+                }
+            }
+        }
+    }
+
+    private static Map<String, List<Message>> groupOrderedMessage(List<Message> messages) {
+        Map<String, List<Message>> map = Maps.newConcurrentMap();
+        for (Message message : messages) {
+            String orderKey = message.getOrderKey();
+            List<Message> messageList = map.computeIfAbsent(orderKey, k -> Lists.newArrayList());
+            messageList.add(message);
+        }
+        return map;
+    }
+
+    public static String getOrderKey(Message message) {
+        return String.valueOf(message.getMessageId().hashCode() % 3);
     }
 
     private static void checkMessagesGroupOrder(List<Message> sendMessages) {

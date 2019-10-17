@@ -61,9 +61,12 @@ public class CompositePullConsumer<T extends PullConsumer> extends AbstractCompo
     @Override
     public List<Message> pull(int size) {
         List<Message> result = Lists.newArrayListWithCapacity(size);
+        int left = size;
         for (PullConsumer consumer : getComponents()) {
-            result.addAll(consumer.pull(size));
-            if (result.size() >= size) {
+            List<Message> pullResult = consumer.pull(left);
+            result.addAll(pullResult);
+            left = left - pullResult.size();
+            if (left <= 0) {
                 break;
             }
         }
@@ -81,7 +84,7 @@ public class CompositePullConsumer<T extends PullConsumer> extends AbstractCompo
             }
             long elapsed = System.currentTimeMillis() - start;
             timeoutMillis = timeoutMillis - elapsed;
-            if (elapsed <= 0) {
+            if (timeoutMillis <= 0) {
                 break;
             }
         }

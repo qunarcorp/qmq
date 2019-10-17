@@ -84,8 +84,9 @@ public class Receiver {
         }
 
         return Futures.transform(Futures.allAsList(futures)
-                , (Function<? super List<ReceivedResult>, ? extends Datagram>) results -> RemotingBuilder.buildResponseDatagram(CommandCode.SUCCESS
-                        , cmd.getHeader(), new SendResultPayloadHolder(results)));
+                , (Function<? super List<ReceivedResult>, ? extends Datagram>) results -> {
+                    return RemotingBuilder.buildResponseDatagram(CommandCode.SUCCESS, cmd.getHeader(), new SendResultPayloadHolder(results));
+                });
     }
 
     private void doInvoke(ReceivedDelayMessage message) {

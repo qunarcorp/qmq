@@ -1,9 +1,8 @@
 package qunar.tc.qmq.consumer;
 
+import java.util.concurrent.Executor;
 import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.consumer.pull.PulledMessage;
-
-import java.util.concurrent.Executor;
 
 /**
  * @author zhenwei.liu
@@ -28,7 +27,8 @@ public class SharedConsumeMessageExecutor extends AbstractConsumeMessageExecutor
     @Override
     void processMessage(PulledMessage message) {
         MessageHandler messageHandler = getMessageHandler();
-        MessageConsumptionTask task = new MessageConsumptionTask(message, messageHandler, this, getCreateToHandleTimer(), getHandleTimer(), getHandleFailCounter());
+        MessageConsumptionTask task = new MessageConsumptionTask(message, messageHandler, this,
+                getCreateToHandleTimer(), getHandleTimer(), getHandleFailCounter());
         task.run(messageHandleExecutor);
     }
 

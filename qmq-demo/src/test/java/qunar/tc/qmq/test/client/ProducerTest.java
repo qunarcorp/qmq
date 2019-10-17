@@ -38,9 +38,9 @@ public class ProducerTest {
     }
 
     @Test
-    public void testSendBestTriedMessages() throws Exception {
+    public void testSendSharedBestTriedMessages() throws Exception {
         List<Message> messages = MessageTestUtils
-                .generateMessages(producerProvider, MessageTestUtils.BEST_TRIED_MESSAGE_SUBJECT, 100);
+                .generateMessages(producerProvider, MessageTestUtils.SHARED_BEST_TRIED_MESSAGE_SUBJECT, 100);
         MessageTestUtils.saveMessage(messages, MessageTestUtils.bestTriedGenerateMessageFile);
         try (PrintWriter writer = new PrintWriter(
                 new BufferedWriter(new FileWriter(MessageTestUtils.bestTriedSendMessageFile)))) {
@@ -51,10 +51,43 @@ public class ProducerTest {
     }
 
     @Test
-    public void testSendStrictMessages() throws Exception {
+    public void testSendSharedStrictMessages() throws Exception {
         List<Message> messages = MessageTestUtils
-                .generateMessages(producerProvider, MessageTestUtils.STRICT_MESSAGE_SUBJECT, 100);
-        OrderStrategyManager.setOrderStrategy(MessageTestUtils.STRICT_MESSAGE_SUBJECT, OrderStrategy.STRICT);
+                .generateMessages(producerProvider, MessageTestUtils.SHARED_STRICT_MESSAGE_SUBJECT, 100);
+        OrderStrategyManager.setOrderStrategy(MessageTestUtils.SHARED_STRICT_MESSAGE_SUBJECT, OrderStrategy.STRICT);
+        MessageTestUtils.saveMessage(messages, MessageTestUtils.strictGenerateMessageFile);
+        try (PrintWriter writer = new PrintWriter(
+                new BufferedWriter(new FileWriter(MessageTestUtils.strictSendMessageFile)))) {
+            sendMessage(producerProvider, messages, writer);
+        }
+        MessageTestUtils.checkStrictSendMessageFile(MessageTestUtils.strictGenerateMessageFile,
+                MessageTestUtils.strictSendMessageFile);
+    }
+
+    @Test
+    public void testSendOrderedBestTriedMessages() throws Exception {
+        List<Message> messages = MessageTestUtils
+                .generateMessages(producerProvider, MessageTestUtils.EXCLUSIVE_BEST_TRIED_MESSAGE_SUBJECT, 100);
+        for (Message message : messages) {
+            message.setOrderKey(MessageTestUtils.getOrderKey(message));
+        }
+        MessageTestUtils.saveMessage(messages, MessageTestUtils.bestTriedGenerateMessageFile);
+        try (PrintWriter writer = new PrintWriter(
+                new BufferedWriter(new FileWriter(MessageTestUtils.bestTriedSendMessageFile)))) {
+            sendMessage(producerProvider, messages, writer);
+        }
+        MessageTestUtils.checkBestTriedSendMessageFile(MessageTestUtils.bestTriedGenerateMessageFile,
+                MessageTestUtils.bestTriedSendMessageFile);
+    }
+
+    @Test
+    public void testSendOrderedStrictMessages() throws Exception {
+        List<Message> messages = MessageTestUtils
+                .generateMessages(producerProvider, MessageTestUtils.EXCLUSIVE_STRICT_MESSAGE_SUBJECT, 100);
+        for (Message message : messages) {
+            message.setOrderKey(MessageTestUtils.getOrderKey(message));
+        }
+        OrderStrategyManager.setOrderStrategy(MessageTestUtils.EXCLUSIVE_STRICT_MESSAGE_SUBJECT, OrderStrategy.STRICT);
         MessageTestUtils.saveMessage(messages, MessageTestUtils.strictGenerateMessageFile);
         try (PrintWriter writer = new PrintWriter(
                 new BufferedWriter(new FileWriter(MessageTestUtils.strictSendMessageFile)))) {

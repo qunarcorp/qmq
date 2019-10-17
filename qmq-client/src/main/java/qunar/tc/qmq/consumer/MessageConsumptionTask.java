@@ -1,20 +1,18 @@
 package qunar.tc.qmq.consumer;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.NeedRetryException;
-import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.common.OrderStrategy;
 import qunar.tc.qmq.common.OrderStrategyCache;
 import qunar.tc.qmq.consumer.pull.PulledMessage;
 import qunar.tc.qmq.metrics.QmqCounter;
 import qunar.tc.qmq.metrics.QmqTimer;
 import qunar.tc.qmq.tracing.TraceUtil;
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.Executor;
-import java.util.concurrent.TimeUnit;
 
 /**
  * @author zhenwei.liu

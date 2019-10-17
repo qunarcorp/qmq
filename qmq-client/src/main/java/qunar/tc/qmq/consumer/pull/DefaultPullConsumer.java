@@ -127,6 +127,7 @@ class DefaultPullConsumer extends AbstractPullConsumer {
         }
     }
 
+    // TODO(zhenwei.liu) pullConsumer 的 pull 方法需要改为拉取非阻塞, 只拉一次就好, 阻塞的事情交给外层来做
     private void doPull(PullMessageFuture request) {
         List<Message> messages = Lists.newArrayListWithCapacity(request.getFetchSize());
         try {
