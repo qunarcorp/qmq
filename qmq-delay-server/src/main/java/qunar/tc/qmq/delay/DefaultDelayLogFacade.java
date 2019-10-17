@@ -75,7 +75,7 @@ public class DefaultDelayLogFacade implements DelayLogFacade {
             long checkpoint = e.getStartWroteOffset() + e.getRecordSize();
             updateIterateOffset(checkpoint);
         });
-        this.messageLogIterateService = new LogIterateService<>("message-log", 5, messageLog, initialMessageIterateFrom(), bus);
+        this.messageLogIterateService = new LogIterateService<>("message-log", 5, messageLog, offsetManager.getIterateOffset(), bus);
         this.logFlusher = new LogFlusher(messageLog, offsetManager, dispatchLog);
         this.cleaner = new LogCleaner(config, dispatchLog, scheduleLog, messageLog);
     }
@@ -187,18 +187,6 @@ public class DefaultDelayLogFacade implements DelayLogFacade {
     @Override
     public AppendLogResult<ScheduleIndex> appendScheduleLog(LogRecord event) {
         return scheduleLog.append(event);
-    }
-
-    @Override
-    public long initialMessageIterateFrom() {
-        long iterateOffset = offsetManager.getIterateOffset();
-        if (iterateOffset <= 0) {
-            return getMessageLogMaxOffset();
-        }
-        if (iterateOffset > getMessageLogMaxOffset()) {
-            return getMessageLogMaxOffset();
-        }
-        return iterateOffset;
     }
 
     @Override

@@ -24,7 +24,6 @@ import qunar.tc.qmq.delay.store.log.ScheduleSetSegment;
 import qunar.tc.qmq.delay.store.model.AppendLogResult;
 import qunar.tc.qmq.delay.store.model.LogRecord;
 import qunar.tc.qmq.delay.store.model.ScheduleSetRecord;
-import qunar.tc.qmq.delay.store.visitor.LogVisitor;
 import qunar.tc.qmq.delay.wheel.WheelLoadCursor;
 import qunar.tc.qmq.store.buffer.SegmentBuffer;
 import qunar.tc.qmq.sync.DelaySyncRequest;
@@ -75,8 +74,6 @@ public interface DelayLogFacade {
     long higherScheduleBaseOffset(long index);
 
     AppendLogResult<ScheduleIndex> appendScheduleLog(LogRecord event);
-
-    long initialMessageIterateFrom();
 
     void updateIterateOffset(long checkpoint);
 
