@@ -5,15 +5,11 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
-import qunar.tc.qmq.ClientType;
-import qunar.tc.qmq.MessageGroup;
-import qunar.tc.qmq.ProduceMessage;
-import qunar.tc.qmq.ClientTestUtils;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.common.BestTriedOrderStrategy;
 import qunar.tc.qmq.consumer.ConsumeMessageExecutor;
 import qunar.tc.qmq.consumer.pull.PulledMessage;
-import qunar.tc.qmq.producer.sender.MessageGroupResolver;
+import qunar.tc.qmq.common.MessageGroupResolver;
 import qunar.tc.qmq.producer.sender.SendMessageExecutor;
 import qunar.tc.qmq.producer.sender.SendMessageExecutorManager;
 

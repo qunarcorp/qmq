@@ -1,5 +1,6 @@
-package qunar.tc.qmq.producer.sender;
+package qunar.tc.qmq.common;
 
+import qunar.tc.qmq.ClientType;
 import qunar.tc.qmq.MessageGroup;
 import qunar.tc.qmq.base.BaseMessage;
 
@@ -12,11 +13,17 @@ import qunar.tc.qmq.base.BaseMessage;
 public interface MessageGroupResolver {
 
     /**
-     * 选择一个 brokerGroup, 该 brokerGroup 不一定可用
-     *
-     * @param message 消息
-     * @return brokerGroup
+     * 随机选取 broker
      */
+    MessageGroup resolveRandomAvailableGroup(String subject, ClientType clientType);
+
+
+        /**
+         * 选择一个 brokerGroup, 该 brokerGroup 不一定可用
+         *
+         * @param message 消息
+         * @return brokerGroup
+         */
     MessageGroup resolveGroup(BaseMessage message);
 
     /**

@@ -11,8 +11,8 @@ import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
-import qunar.tc.qmq.producer.sender.DefaultMessageGroupResolver;
-import qunar.tc.qmq.producer.sender.MessageGroupResolver;
+import qunar.tc.qmq.common.DefaultMessageGroupResolver;
+import qunar.tc.qmq.common.MessageGroupResolver;
 
 import java.util.List;
 

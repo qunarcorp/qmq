@@ -24,6 +24,7 @@ import qunar.tc.qmq.delay.ScheduleIndex;
  * @since 2018-08-07 13:24
  */
 public interface DelayProcessor extends Disposable {
+
     void init();
 
     void send(ScheduleIndex index);

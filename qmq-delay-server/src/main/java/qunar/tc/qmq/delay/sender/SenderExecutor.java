@@ -18,104 +18,97 @@ package qunar.tc.qmq.delay.sender;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import qunar.tc.qmq.ClientType;
+import qunar.tc.qmq.MessageGroup;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
-import qunar.tc.qmq.broker.BrokerLoadBalance;
 import qunar.tc.qmq.broker.BrokerService;
-import qunar.tc.qmq.broker.impl.BrokerLoadBalanceFactory;
+import qunar.tc.qmq.common.DefaultMessageGroupResolver;
 import qunar.tc.qmq.common.Disposable;
+import qunar.tc.qmq.common.MessageGroupResolver;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.delay.DelayLogFacade;
 import qunar.tc.qmq.delay.ScheduleIndex;
-
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 
 /**
  * @author xufeng.deng dennisdxf@gmail.com
  * @since 2018-08-16 21:00
  */
 class SenderExecutor implements Disposable {
+
     private static final int DEFAULT_SEND_THREAD = 1;
 
-    private final ConcurrentMap<String, SenderGroup> groupSenders = new ConcurrentHashMap<>();
-    private final BrokerLoadBalance brokerLoadBalance;
+    private final ConcurrentMap<String, GroupSender> groupSenders = new ConcurrentHashMap<>();
     private final Sender sender;
     private final DelayLogFacade store;
     private final int sendThreads;
+    private final BrokerService brokerService;
+    private final MessageGroupResolver messageGroupResolver;
 
-    SenderExecutor(final Sender sender, DelayLogFacade store, DynamicConfig sendConfig) {
+    SenderExecutor(Sender sender, DelayLogFacade store, DynamicConfig sendConfig, BrokerService brokerService) {
         this.sender = sender;
         this.store = store;
-        this.brokerLoadBalance = BrokerLoadBalanceFactory.get();
+        this.brokerService = brokerService;
         this.sendThreads = sendConfig.getInt("delay.send.threads", DEFAULT_SEND_THREAD);
+        this.messageGroupResolver = new DefaultMessageGroupResolver(brokerService);
     }
 
-    void execute(final List<ScheduleIndex> indexList, final SenderGroup.ResultHandler handler, final BrokerService brokerService) {
-        Map<SenderGroup, List<ScheduleIndex>> groups = groupByBroker(indexList, brokerService);
-        for (Map.Entry<SenderGroup, List<ScheduleIndex>> entry : groups.entrySet()) {
-            doExecute(entry.getKey(), entry.getValue(), handler);
+    void execute(final List<ScheduleIndex> indexList, final GroupSender.ResultHandler handler) {
+        Map<MessageGroup, List<ScheduleIndex>> messageGroups = groupMessage(indexList);
+        for (Entry<MessageGroup, List<ScheduleIndex>> entry : messageGroups.entrySet()) {
+            MessageGroup messageGroup = entry.getKey();
+            List<ScheduleIndex> messages = entry.getValue();
+            doExecute(messageGroup, messages, handler);
         }
     }
 
-    private void doExecute(final SenderGroup group, final List<ScheduleIndex> list, final SenderGroup.ResultHandler handler) {
-        group.send(list, sender, handler);
+    private void doExecute(MessageGroup messageGroup, List<ScheduleIndex> messages, GroupSender.ResultHandler handler) {
+        String subject = messageGroup.getSubject();
+        String brokerGroupName = messageGroup.getBrokerGroup();
+        BrokerClusterInfo brokerCluster = brokerService.getProducerBrokerCluster(ClientType.PRODUCER, subject);
+        BrokerGroupInfo brokerGroup = brokerCluster.getGroupByName(brokerGroupName);
+        GroupSender groupSender = getGroupSender(brokerGroup, sendThreads);
+        groupSender.send(messageGroup, messages, sender, handler);
     }
 
-    private Map<SenderGroup, List<ScheduleIndex>> groupByBroker(final List<ScheduleIndex> indexList, final BrokerService brokerService) {
-        Map<SenderGroup, List<ScheduleIndex>> groups = Maps.newHashMap();
-        Map<String, List<ScheduleIndex>> recordsGroupBySubject = groupBySubject(indexList);
-        for (Map.Entry<String, List<ScheduleIndex>> entry : recordsGroupBySubject.entrySet()) {
-            List<ScheduleIndex> setRecordsGroupBySubject = entry.getValue();
-            BrokerGroupInfo groupInfo = loadGroup(entry.getKey(), brokerService);
-            SenderGroup senderGroup = getGroup(groupInfo, sendThreads);
-
-            List<ScheduleIndex> recordsInGroup = groups.get(senderGroup);
-            if (null == recordsInGroup) {
-                recordsInGroup = Lists.newArrayListWithCapacity(setRecordsGroupBySubject.size());
-            }
-            recordsInGroup.addAll(setRecordsGroupBySubject);
-            groups.put(senderGroup, recordsInGroup);
-        }
-
-        return groups;
-    }
-
-    private SenderGroup getGroup(BrokerGroupInfo groupInfo, int sendThreads) {
-        String groupName = groupInfo.getGroupName();
-        SenderGroup senderGroup = groupSenders.get(groupName);
-        if (null == senderGroup) {
-            senderGroup = new SenderGroup(groupInfo, sendThreads, store);
-            SenderGroup currentSenderGroup = groupSenders.putIfAbsent(groupName, senderGroup);
-            senderGroup = null != currentSenderGroup ? currentSenderGroup : senderGroup;
-        } else {
-            senderGroup.reconfigureGroup(groupInfo);
-        }
-
-        return senderGroup;
-    }
-
-    private BrokerGroupInfo loadGroup(String subject, BrokerService brokerService) {
-        BrokerClusterInfo cluster = brokerService.getProducerBrokerCluster(ClientType.PRODUCER, subject);
-        return brokerLoadBalance.loadBalance(cluster.getGroups(), null);
-    }
-
-    private Map<String, List<ScheduleIndex>> groupBySubject(List<ScheduleIndex> list) {
-        Map<String, List<ScheduleIndex>> map = Maps.newHashMap();
-        for (ScheduleIndex index : list) {
-            List<ScheduleIndex> group = map.computeIfAbsent(index.getSubject(), k -> Lists.newArrayList());
+    private Map<MessageGroup, List<ScheduleIndex>> groupMessage(final List<ScheduleIndex> indexList) {
+        Map<MessageGroup, List<ScheduleIndex>> result = Maps.newHashMap();
+        for (ScheduleIndex index : indexList) {
+            String subject = index.getSubject();
+            MessageGroup messageGroup = lookupMessageGroup(subject);
+            List<ScheduleIndex> group = result.computeIfAbsent(messageGroup, k -> Lists.newArrayList());
             group.add(index);
         }
 
-        return map;
+        return result;
+    }
+
+    private GroupSender getGroupSender(BrokerGroupInfo groupInfo, int sendThreads) {
+        String groupName = groupInfo.getGroupName();
+        GroupSender groupSender = groupSenders.get(groupName);
+        if (null == groupSender) {
+            groupSender = new GroupSender(groupInfo, sendThreads, store);
+            GroupSender currentGroupSender = groupSenders.putIfAbsent(groupName, groupSender);
+            groupSender = null != currentGroupSender ? currentGroupSender : groupSender;
+        } else {
+            groupSender.reconfigureGroup(groupInfo);
+        }
+
+        return groupSender;
+    }
+
+    private MessageGroup lookupMessageGroup(String subject) {
+        return messageGroupResolver.resolveRandomAvailableGroup(subject, ClientType.PRODUCER);
     }
 
     @Override
     public void destroy() {
-        groupSenders.values().parallelStream().forEach(SenderGroup::destroy);
+        groupSenders.values().parallelStream().forEach(GroupSender::destroy);
         groupSenders.clear();
     }
 }

@@ -4,6 +4,7 @@ import com.google.common.collect.Maps;
 import qunar.tc.qmq.MessageGroup;
 import qunar.tc.qmq.ProduceMessage;
 import qunar.tc.qmq.base.BaseMessage;
+import qunar.tc.qmq.common.MessageGroupResolver;
 import qunar.tc.qmq.producer.ConfigCenter;
 
 import java.util.Map;

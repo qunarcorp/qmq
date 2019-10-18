@@ -54,21 +54,22 @@ public class DefaultAllocationService implements AllocationService {
     @Override
     public ProducerAllocation getProducerAllocation(ClientType clientType, String subject,
             List<BrokerGroup> brokerGroups) {
+
+        if (Objects.equals(clientType, ClientType.DELAY_PRODUCER)) {
+            return getDefaultProducerAllocation(subject, brokerGroups);
+        }
+
         PartitionSet partitionSet = cachedMetaInfoManager.getLatestPartitionSet(subject);
 
         if (partitionSet == null) {
-            if (Objects.equals(clientType, ClientType.DELAY_PRODUCER)) {
-                return getDefaultProducerAllocation(subject, brokerGroups);
-            } else {
-                // 初始化 partition set
-                List<Partition> partitions = partitionService.mapPartitions(subject, brokerGroups.size(),
-                        brokerGroups.stream().map(BrokerGroup::getGroupName).collect(Collectors.toList()), null,
-                        partitionNameResolver);
-                partitionSet = partitionService.mapPartitionSet(subject, partitions, null);
-                partitionService.updatePartitions(subject, partitionSet, partitions, null);
-                cachedMetaInfoManager.refreshPartitions();
-                partitionSet = cachedMetaInfoManager.getLatestPartitionSet(subject);
-            }
+            // 初始化 partition set
+            List<Partition> partitions = partitionService.mapPartitions(subject, brokerGroups.size(),
+                    brokerGroups.stream().map(BrokerGroup::getGroupName).collect(Collectors.toList()), null,
+                    partitionNameResolver);
+            partitionSet = partitionService.mapPartitionSet(subject, partitions, null);
+            partitionService.updatePartitions(subject, partitionSet, partitions, null);
+            cachedMetaInfoManager.refreshPartitions();
+            partitionSet = cachedMetaInfoManager.getLatestPartitionSet(subject);
         }
 
         Set<Integer> partitionIds = partitionSet.getPhysicalPartitions();

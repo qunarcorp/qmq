@@ -16,6 +16,7 @@
 
 package qunar.tc.qmq.delay.sender;
 
+import qunar.tc.qmq.MessageGroup;
 import qunar.tc.qmq.delay.store.model.ScheduleSetRecord;
 import qunar.tc.qmq.netty.exception.ClientSendException;
 import qunar.tc.qmq.netty.exception.RemoteTimeoutException;
@@ -28,7 +29,8 @@ import java.util.List;
  * @since 2018-07-23 11:19
  */
 public interface Sender {
-    Datagram send(List<ScheduleSetRecord> records, SenderGroup group) throws InterruptedException, RemoteTimeoutException, ClientSendException;
+
+    Datagram send(MessageGroup messageGroup, List<ScheduleSetRecord> records, GroupSender groupSender) throws InterruptedException, RemoteTimeoutException, ClientSendException;
 
     void shutdown();
 }

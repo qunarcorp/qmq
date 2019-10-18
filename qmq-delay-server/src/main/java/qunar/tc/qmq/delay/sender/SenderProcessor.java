@@ -17,6 +17,9 @@
 package qunar.tc.qmq.delay.sender;
 
 import com.google.common.collect.Sets;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ClientType;
@@ -30,15 +33,12 @@ import qunar.tc.qmq.delay.meta.BrokerRoleManager;
 import qunar.tc.qmq.delay.store.model.DispatchLogRecord;
 import qunar.tc.qmq.delay.store.model.ScheduleSetRecord;
 
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-
 /**
  * @author xufeng.deng dennisdxf@gmail.com
  * @since 2018-07-25 13:59
  */
-public class SenderProcessor implements DelayProcessor, Processor<ScheduleIndex>, SenderGroup.ResultHandler {
+public class SenderProcessor implements DelayProcessor, Processor<ScheduleIndex>, GroupSender.ResultHandler {
+
     private static final Logger LOGGER = LoggerFactory.getLogger(SenderProcessor.class);
 
     private static final long DEFAULT_SEND_WAIT_TIME = 10;
@@ -55,9 +55,10 @@ public class SenderProcessor implements DelayProcessor, Processor<ScheduleIndex>
 
     private long sendWaitTime = DEFAULT_SEND_WAIT_TIME;
 
-    public SenderProcessor(final DelayLogFacade store, final BrokerService brokerService, final Sender sender, final DynamicConfig config) {
+    public SenderProcessor(final DelayLogFacade store, final BrokerService brokerService, final Sender sender,
+            final DynamicConfig config) {
         this.brokerService = brokerService;
-        this.senderExecutor = new SenderExecutor(sender, store, config);
+        this.senderExecutor = new SenderExecutor(sender, store, config, brokerService);
         this.facade = store;
         this.config = config;
     }
@@ -98,7 +99,7 @@ public class SenderProcessor implements DelayProcessor, Processor<ScheduleIndex>
     @Override
     public void process(List<ScheduleIndex> indexList) {
         try {
-            senderExecutor.execute(indexList, this, brokerService);
+            senderExecutor.execute(indexList, this);
         } catch (Exception e) {
             LOGGER.error("send message failed,messageSize:{} will retry", indexList.size(), e);
             retry(indexList);
@@ -110,14 +111,17 @@ public class SenderProcessor implements DelayProcessor, Processor<ScheduleIndex>
     }
 
     private void success(ScheduleSetRecord record) {
-        facade.appendDispatchLog(new DispatchLogRecord(record.getSubject(), record.getMessageId(), record.getScheduleTime(), record.getSequence()));
+        facade.appendDispatchLog(
+                new DispatchLogRecord(record.getSubject(), record.getMessageId(), record.getScheduleTime(),
+                        record.getSequence()));
     }
 
     private void retry(List<ScheduleSetRecord> records, Set<String> messageIds) {
         final Set<String> refreshSubject = Sets.newHashSet();
         for (ScheduleSetRecord record : records) {
             if (messageIds.contains(record.getMessageId())) {
-                ScheduleIndex index = new ScheduleIndex(record.getSubject(), record.getScheduleTime(), record.getStartWroteOffset(), record.getRecordSize(), record.getSequence());
+                ScheduleIndex index = new ScheduleIndex(record.getSubject(), record.getScheduleTime(),
+                        record.getStartWroteOffset(), record.getRecordSize(), record.getSequence());
                 refresh(index, refreshSubject);
                 send(index);
                 continue;

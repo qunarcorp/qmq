@@ -5,6 +5,7 @@ import java.io.FileWriter;
 import java.io.PrintWriter;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.apache.tomcat.jdbc.pool.DataSource;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -95,6 +96,25 @@ public class ProducerTest {
         }
         MessageTestUtils.checkStrictSendMessageFile(MessageTestUtils.strictGenerateMessageFile,
                 MessageTestUtils.strictSendMessageFile);
+    }
+
+    @Test
+    public void testSendDelayMessages() throws Exception {
+        int messageCount = 2;
+        List<Message> messages = MessageTestUtils
+                .generateMessages(producerProvider, MessageTestUtils.DELAY_MESSAGE_SUBJECT, messageCount);
+        for (Message message : messages) {
+            message.setOrderKey(MessageTestUtils.getOrderKey(message));
+            message.setDelayTime(5, TimeUnit.SECONDS);
+        }
+        OrderStrategyManager.setOrderStrategy(MessageTestUtils.DELAY_MESSAGE_SUBJECT, OrderStrategy.STRICT);
+        MessageTestUtils.saveMessage(messages, MessageTestUtils.delayGenerateMessageFile);
+        try (PrintWriter writer = new PrintWriter(
+                new BufferedWriter(new FileWriter(MessageTestUtils.delaySendMessageFile)))) {
+            sendMessage(producerProvider, messages, writer);
+        }
+        MessageTestUtils.checkStrictSendMessageFile(MessageTestUtils.delayGenerateMessageFile,
+                MessageTestUtils.delaySendMessageFile);
     }
 
     private static void sendMessage(MessageProducerProvider provider, List<Message> messages, PrintWriter writer)

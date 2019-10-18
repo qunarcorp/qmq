@@ -17,6 +17,7 @@
 package qunar.tc.qmq.protocol;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.util.internal.StringUtil;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.utils.Crc32;
 import qunar.tc.qmq.utils.DelayUtil;
@@ -134,6 +135,8 @@ public class MessagesPayloadHolder implements PayloadHolder {
     }
 
     protected void writeSubject(BaseMessage message, ByteBuf out) {
-        PayloadHolderUtils.writeString(message.getPartitionName(), out);
+        String partitionName = message.getPartitionName();
+        String subject = message.getSubject();
+        PayloadHolderUtils.writeString(StringUtil.isNullOrEmpty(partitionName) ? subject : partitionName, out);
     }
 }

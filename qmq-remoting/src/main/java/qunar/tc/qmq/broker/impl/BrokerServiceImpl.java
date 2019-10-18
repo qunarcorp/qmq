@@ -69,7 +69,6 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
     private final ConcurrentMap<String, SettableFuture<AtomicReference<BrokerClusterInfo>>> clusterMap = new ConcurrentHashMap<>();
 
     private final MetaInfoService metaInfoService;
-    private final ConsumerOnlineStateManager consumerOnlineStateManager;
     private final NettyClient nettyClient = NettyClient.getClient();
     private String appCode;
     private String clientId;
@@ -78,7 +77,6 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
         this.appCode = appCode;
         this.metaInfoService = metaInfoService;
         this.clientId = clientId;
-        this.consumerOnlineStateManager = DefaultConsumerOnlineStateManager.getInstance();
         this.metaInfoService.registerResponseSubscriber(response -> {
             // update cache
             updatePartitionCache(response);

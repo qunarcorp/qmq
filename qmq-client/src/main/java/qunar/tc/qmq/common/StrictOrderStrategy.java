@@ -7,7 +7,6 @@ import qunar.tc.qmq.ProduceMessage;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.consumer.ConsumeMessageExecutor;
 import qunar.tc.qmq.consumer.pull.PulledMessage;
-import qunar.tc.qmq.producer.sender.MessageGroupResolver;
 import qunar.tc.qmq.producer.sender.SendMessageExecutor;
 import qunar.tc.qmq.producer.sender.SendMessageExecutorManager;
 
@@ -31,7 +30,7 @@ public class StrictOrderStrategy extends AbstractOrderStrategy {
         MessageGroup messageGroup = currentExecutor.getMessageGroup();
         message.incTries();
         LOGGER.error("消息发送失败, 将进行重试, subject {} partition {} brokerGroup {}",
-                messageGroup.getSubject(), messageGroup.getPartitionName(), messageGroup.getBrokerGroup());
+                messageGroup.getSubject(), messageGroup.getPartitionName(), messageGroup.getBrokerGroup(), e);
     }
 
     @Override

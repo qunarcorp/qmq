@@ -2,6 +2,7 @@ package qunar.tc.qmq.test.client;
 
 import static junit.framework.TestCase.assertEquals;
 import static junit.framework.TestCase.assertNotNull;
+import static qunar.tc.qmq.test.client.MessageTestUtils.DELAY_MESSAGE_SUBJECT;
 import static qunar.tc.qmq.test.client.MessageTestUtils.EXCLUSIVE_BEST_TRIED_MESSAGE_SUBJECT;
 import static qunar.tc.qmq.test.client.MessageTestUtils.EXCLUSIVE_CONSUMER_GROUP;
 import static qunar.tc.qmq.test.client.MessageTestUtils.EXCLUSIVE_STRICT_MESSAGE_SUBJECT;
@@ -14,6 +15,7 @@ import static qunar.tc.qmq.test.client.MessageTestUtils.checkExclusiveBestTriedC
 import static qunar.tc.qmq.test.client.MessageTestUtils.checkExclusiveStrictConsumeMessageFile;
 import static qunar.tc.qmq.test.client.MessageTestUtils.checkSharedBestTriedConsumeMessageFile;
 import static qunar.tc.qmq.test.client.MessageTestUtils.checkSharedStrictConsumeMessageFile;
+import static qunar.tc.qmq.test.client.MessageTestUtils.delayGenerateMessageFile;
 import static qunar.tc.qmq.test.client.MessageTestUtils.exclusiveBestTriedConsumerMessageFile;
 import static qunar.tc.qmq.test.client.MessageTestUtils.exclusiveStrictConsumerMessageFile;
 import static qunar.tc.qmq.test.client.MessageTestUtils.replayMessages;
@@ -651,6 +653,28 @@ public class ConsumerTest extends ProducerTest {
                 assertEquals(exCounter.get(), 1);
             }
         }
+    }
+
+    @Test
+    public void testConsumeDelayMessages() throws Exception {
+        MessageConsumerProvider consumerProvider = initConsumer("delay-shared-strict-consumer-0");
+        testSendDelayMessages();
+
+        SubscribeParam param = new SubscribeParam.SubscribeParamBuilder().create();
+        PrintWriter pw = new PrintWriter(new FileWriter(sharedStrictConsumerMessageFile));
+        final ListenerHolder listener = consumerProvider
+                .addListener(DELAY_MESSAGE_SUBJECT, SHARED_CONSUMER_GROUP,
+                        msg -> {
+                            saveMessage(msg, pw);
+                            renewWaitTimestamp(10);
+                        }, executor, param);
+
+        waitUntilNoNewMessage();
+        listener.stopListen();
+        consumerProvider.destroy();
+        pw.close();
+
+        checkSharedStrictConsumeMessageFile(delayGenerateMessageFile, sharedStrictConsumerMessageFile);
     }
 
 

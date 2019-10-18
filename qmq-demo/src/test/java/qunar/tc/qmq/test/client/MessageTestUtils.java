@@ -44,6 +44,9 @@ public class MessageTestUtils {
             PRODUCER_ROOT + File.separator + "strict_generate_messages";
     private static final String STRICT_SEND_MESSAGE_FILE = PRODUCER_ROOT + File.separator + "strict_send_messages";
 
+    private static final String DELAY_GENERATE_MESSAGE_FILE = PRODUCER_ROOT + File.separator + "delay_generate_messages";
+    private static final String DELAY_SEND_MESSAGE_FILE = PRODUCER_ROOT + File.separator + "delay_send_messages";
+
     private static final String SHARED_BEST_TRIED_CONSUMER_FILE =
             CONSUMER_ROOT + File.separator + "shared_best_tried_consumer_messages";
     private static final String SHARED_STRICT_CONSUMER_FILE =
@@ -59,11 +62,16 @@ public class MessageTestUtils {
     public static final File strictGenerateMessageFile = mkDir(new File(STRICT_GENERATE_MESSAGE_FILE));
     public static final File strictSendMessageFile = mkDir(new File(STRICT_SEND_MESSAGE_FILE));
 
+    public static final File delayGenerateMessageFile = mkDir(new File(DELAY_GENERATE_MESSAGE_FILE));
+    public static final File delaySendMessageFile = mkDir(new File(DELAY_SEND_MESSAGE_FILE));
+
     public static final String SHARED_BEST_TRIED_MESSAGE_SUBJECT = "shared.best.tried.subject";
     public static final String SHARED_STRICT_MESSAGE_SUBJECT = "shared.strict.subject";
 
     public static final String EXCLUSIVE_BEST_TRIED_MESSAGE_SUBJECT = "exclusive.best.tried.subject";
     public static final String EXCLUSIVE_STRICT_MESSAGE_SUBJECT = "exclusive.strict.subject";
+
+    public static final String DELAY_MESSAGE_SUBJECT = "delay.message.subject";
 
     public static final String SHARED_CONSUMER_GROUP = "shared.consumer.group";
     public static final String EXCLUSIVE_CONSUMER_GROUP = "exclusive.consumer.group";

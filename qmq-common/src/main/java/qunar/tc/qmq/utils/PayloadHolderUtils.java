@@ -27,6 +27,16 @@ import java.util.Map;
  */
 public final class PayloadHolderUtils {
 
+    public static void skipString(ByteBuffer buf) {
+        short length = buf.getShort();
+        buf.position(buf.position() + length);
+    }
+
+    public static void skipString(ByteBuf buf) {
+        short length = buf.readShort();
+        buf.skipBytes(length);
+    }
+
     public static void writeString(String s, ByteBuf out) {
         byte[] bs = CharsetUtils.toUTF8Bytes(s);
         out.writeShort((short) bs.length);
