@@ -62,7 +62,8 @@ public class DefaultAllocationService implements AllocationService {
         PartitionSet partitionSet = cachedMetaInfoManager.getLatestPartitionSet(subject);
 
         if (partitionSet == null) {
-            // 初始化 partition set
+            // 如果用户没有手动指定 partition 信息, 则自动初始化 partition set
+            // 自动初始化的信息分区, 则会使用 subject 作为分区名在 subject 对应的所有 broker 上进行分区生成
             List<Partition> partitions = partitionService.mapPartitions(subject, brokerGroups.size(),
                     brokerGroups.stream().map(BrokerGroup::getGroupName).collect(Collectors.toList()), null,
                     partitionNameResolver);
