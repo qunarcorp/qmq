@@ -18,6 +18,7 @@ package qunar.tc.qmq.meta.startup;
 
 import java.util.ArrayList;
 import java.util.List;
+import javax.servlet.ServletContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -80,6 +81,8 @@ import qunar.tc.qmq.protocol.CommandCode;
 @SuppressWarnings("all")
 public class ServerWrapper implements Disposable {
 
+    private static final int DEFAULT_META_SERVER_PORT = 20880;
+
     private static final Logger LOGGER = LoggerFactory.getLogger(ServerWrapper.class);
 
     private final List<Disposable> resources;
@@ -90,7 +93,10 @@ public class ServerWrapper implements Disposable {
         this.config = config;
     }
 
-    public void start(int metaServerPort) {
+    public void start(ServletContext context) {
+        final int metaServerPort = config.getInt("meta.server.port", DEFAULT_META_SERVER_PORT);
+        context.setAttribute("port", metaServerPort);
+
         JdbcTemplate jdbcTemplate = JdbcTemplateHolder.getOrCreate();
         final Store store = new DatabaseStore();
         final BrokerStore brokerStore = new BrokerStoreImpl(jdbcTemplate);
