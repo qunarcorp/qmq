@@ -61,6 +61,7 @@ public class MessageServiceImpl implements MessageService, Disposable {
     private final RecordStore recordStore;
     private final SlaveMetaSupplier metaSupplier;
 
+
     private final ExecutorService queryExecutorService;
 
     public MessageServiceImpl(DynamicConfig config, MessageStore indexStore, MessageStore deadStore, RecordStore recordStore) {
