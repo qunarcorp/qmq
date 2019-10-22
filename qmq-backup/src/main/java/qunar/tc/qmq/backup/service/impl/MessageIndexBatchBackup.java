@@ -75,13 +75,17 @@ public class MessageIndexBatchBackup extends AbstractBatchBackup<MessageQueryInd
                 final byte[] key = keyGenerator.generateMessageKey(subjectKey, new Date(index.getCreateTime()), index.getMessageId(), brokerGroup, consumerGroup, index.getSequence());
                 final String messageId = index.getMessageId();
                 final byte[] messageIdBytes = Bytes.UTF8(messageId);
+                final String partitionName = index.getPartitionName();
+                final byte[] partitionNameBytes = Bytes.UTF8(partitionName);
 
-                final byte[] value = new byte[20 + brokerGroupLength + messageIdBytes.length];
+
+                final byte[] value = new byte[20 + brokerGroupLength + messageIdBytes.length + partitionNameBytes.length];
                 Bytes.setLong(value, index.getSequence(), 0);
                 Bytes.setLong(value, index.getCreateTime(), 8);
                 Bytes.setInt(value, brokerGroupLength, 16);
                 System.arraycopy(brokerGroupBytes, 0, value, 20, brokerGroupLength);
                 System.arraycopy(messageIdBytes, 0, value, 20 + brokerGroupLength, messageIdBytes.length);
+                System.arraycopy(partitionNameBytes, 0, value, 20 + brokerGroupLength + messageIdBytes.length, partitionNameBytes.length);
 
                 keys[i] = key;
                 values[i] = new byte[][]{value};

@@ -16,10 +16,11 @@
 
 package qunar.tc.qmq.store;
 
+import java.nio.ByteBuffer;
+
+import com.google.common.base.Strings;
 import qunar.tc.qmq.store.buffer.SegmentBuffer;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
-
-import java.nio.ByteBuffer;
 
 /**
  * @author keli.wang
@@ -74,11 +75,30 @@ public class IndexLogVisitor extends AbstractLogVisitor<MessageQueryIndex> {
         }
         String messageId = PayloadHolderUtils.readString(messageIdLen, buffer);
 
-        MessageQueryIndex index = new MessageQueryIndex(subject, messageId, sequence, createTime);
+        String partitionName = subject;
+
+        // partitionName
+        if (buffer.remaining() >= Short.BYTES) {
+            short partitionNameLen = buffer.getShort();
+
+            if (partitionNameLen > 0 && buffer.remaining() < messageIdLen) {
+                return retNoMore();
+            }
+
+            String tmp = PayloadHolderUtils.readString(messageIdLen, buffer);
+            if (!Strings.isNullOrEmpty(tmp)) {
+                partitionName = tmp;
+            }
+        }
+
+
+        MessageQueryIndex index = new MessageQueryIndex(subject, messageId, partitionName, sequence, createTime);
         incrVisitedBufferSize(buffer.position() - startPos);
         index.setCurrentOffset(getStartOffset() + visitedBufferSize());
         return LogVisitorRecord.data(index);
     }
+
+
 
     private LogVisitorRecord<MessageQueryIndex> retNoMore() {
         setVisitedBufferSize(getBufferSize());
