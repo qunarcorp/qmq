@@ -126,7 +126,7 @@ public class ExclusiveMessageReader extends MessageReader {
         }
         releaseRemain(index, filterResult);
         if (retList.isEmpty()) return PullMessageResult.FILTER_EMPTY;
-        return merge(retList, getMessageResult);
+        return merge(retList);
     }
 
     private boolean putAction(GetMessageResult range,
@@ -141,16 +141,7 @@ public class ExclusiveMessageReader extends MessageReader {
         return false;
     }
 
-    /**
-     * 对于独占模式消费，发送给consumer端的sequence是直接使用的consumer log上的sequence，如果使用tag过滤后中间有些消息被过滤掉了，则需要做一些特殊处理。
-     * 举例： 拿到了consumer log sequence 0到100的消息，但是其中10到20的被过滤掉了，则实际返回给consumer的只有90条消息，那么如果这个时候我们返回给consumer
-     * 的begin是 0，则consumer拿到的sequence是 0 - 90，那么下次拉取的时候拉取的sequence是 91，而91到100的消息其实已经拉取过了。
-     * 所以这个时候需要特殊处理，begin应该使用 100 - 90 = 10，那么下次拉取的时候consumer就会从 10 + 90 + 1 = 101的位置开始拉取了。
-     * @param list
-     * @param total
-     * @return
-     */
-    private PullMessageResult merge(List<PullMessageResult> list, GetMessageResult total) {
+    private PullMessageResult merge(List<PullMessageResult> list) {
         if (list.size() == 1) return list.get(0);
 
         List<Buffer> buffers = new ArrayList<>();
@@ -161,7 +152,16 @@ public class ExclusiveMessageReader extends MessageReader {
             messageNum += result.getMessageNum();
             buffers.addAll(result.getBuffers());
         }
-        long begin = total.getNextBeginSequence() - messageNum;
+
+        /*
+         * 对于独占模式消费，发送给consumer端的sequence是直接使用的consumer log上的sequence，如果使用tag过滤后中间有些消息被过滤掉了，则需要做一些特殊处理。
+         * 举例： 拿到了consumer log sequence 0到100的消息，但是其中10到20的被过滤掉了，则实际返回给consumer的只有90条消息，那么如果这个时候我们返回给consumer
+         * 的begin是 0，则consumer拿到的sequence是 0 - 90，那么下次拉取的时候拉取的sequence是 91，而91到100的消息其实已经拉取过了。
+         * 所以这个时候需要特殊处理，begin应该使用 100 - 90 = 10，那么下次拉取的时候consumer就会从 10 + 90 + 1 = 101的位置开始拉取了。
+         */
+        PullMessageResult lastRange = list.get(list.size() - 1);
+        long last = lastRange.getPullLogOffset() + lastRange.getMessageNum();
+        long begin = last - messageNum;
         return new PullMessageResult(begin, buffers, bufferTotalSize, messageNum);
     }
 
