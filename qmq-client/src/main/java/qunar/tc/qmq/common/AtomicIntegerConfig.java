@@ -57,9 +57,4 @@ public class AtomicIntegerConfig extends AtomicConfig<Integer> {
         }
         return Optional.of(v);
     }
-
-    @Override
-    protected void updateValueOnNoConfiged(String key, AtomicReference<Integer> valueRef) {
-        valueRef.set(defaultValue);
-    }
 }
