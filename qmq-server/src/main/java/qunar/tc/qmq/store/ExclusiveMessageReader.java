@@ -85,7 +85,7 @@ public class ExclusiveMessageReader extends MessageReader {
                     }
                     confirmExpiredMessages(partitionName, consumerGroup, pullSequenceFromConsumer, actualSequence, result);
                     if (noPullFilter(pullRequest)) {
-                        final WritePutActionResult writeResult = consumerSequenceManager.putPullActions(partitionName, consumerGroup, consumerId, result);
+                        final WritePutActionResult writeResult = consumerSequenceManager.putPullActions(partitionName, consumerGroup, consumerId, true, result);
                         if (writeResult.isSuccess()) {
                             return new PullMessageResult(actualSequence, result.getBuffers(), result.getBufferTotalSize(), result.getMessageNum());
                         } else {
@@ -132,7 +132,7 @@ public class ExclusiveMessageReader extends MessageReader {
     private boolean putAction(GetMessageResult range,
                               String partitionName, String consumerGroup, String consumerId,
                               List<PullMessageResult> retList) {
-        final WritePutActionResult writeResult = consumerSequenceManager.putPullActions(partitionName, consumerGroup, consumerId, range);
+        final WritePutActionResult writeResult = consumerSequenceManager.putPullActions(partitionName, consumerGroup, consumerId, true, range);
         if (writeResult.isSuccess()) {
             long actualSequence = range.getNextBeginSequence() - range.getMessageNum();
             retList.add(new PullMessageResult(actualSequence, range.getBuffers(), range.getBufferTotalSize(), range.getMessageNum()));
