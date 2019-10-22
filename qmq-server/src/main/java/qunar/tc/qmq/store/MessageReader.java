@@ -19,6 +19,12 @@ public abstract class MessageReader {
 
     public abstract PullMessageResult findMessages(final PullRequest pullRequest);
 
+    protected void releaseRemain(int startIndex, List<GetMessageResult> list) {
+        for (int i = startIndex; i < list.size(); ++i) {
+            list.get(i).release();
+        }
+    }
+
     protected boolean noPullFilter(PullRequest pullRequest) {
         final List<PullFilter> filters = pullRequest.getFilters();
         return filters == null || filters.isEmpty();
@@ -82,21 +88,6 @@ public abstract class MessageReader {
         long expectedBegin = offsetRange.getEnd() - getMessageResult.getMessageNum() + 1;
         if (expectedBegin == offsetRange.getBegin()) return;
         getMessageResult.setConsumerLogRange(new OffsetRange(expectedBegin, offsetRange.getEnd()));
-    }
-
-    protected PullMessageResult merge(List<PullMessageResult> list) {
-        if (list.size() == 1) return list.get(0);
-
-        long begin = list.get(0).getPullLogOffset();
-        List<Buffer> buffers = new ArrayList<>();
-        int bufferTotalSize = 0;
-        int messageNum = 0;
-        for (PullMessageResult result : list) {
-            bufferTotalSize += result.getBufferTotalSize();
-            messageNum += result.getMessageNum();
-            buffers.addAll(result.getBuffers());
-        }
-        return new PullMessageResult(begin, buffers, bufferTotalSize, messageNum);
     }
 
     private void appendEmpty(long end, OffsetRange offsetRange, List<GetMessageResult> list) {

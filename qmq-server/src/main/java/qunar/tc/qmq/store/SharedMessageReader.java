@@ -37,6 +37,7 @@ public class SharedMessageReader extends MessageReader {
      * 共享消费拉取的时候，首先要根据该consumer的ack位置以及pull log的位置，判断是否将已经拉取(也就是存在pull log里的)但是仍未ack的消息重新发送
      * 如果不存在未ack的消息，则会拉取新消息，但是拉取的位置以server端记录的为准，并不参考consumer传递上来的位置，因为共享消费时是多个consumer竞争
      * 消费相同的partition，单个consumer的拉取请求位置只表示自己的位置
+     *
      * @param pullRequest
      * @return
      */
@@ -57,13 +58,13 @@ public class SharedMessageReader extends MessageReader {
     }
 
     private PullMessageResult findNewExistMessages(final PullRequest pullRequest) {
-        final String subject = pullRequest.getPartitionName();
+        final String partitionName = pullRequest.getPartitionName();
         final String consumerGroup = pullRequest.getGroup();
         final String consumerId = pullRequest.getConsumerId();
 
         final long start = System.currentTimeMillis();
         try {
-            ConsumeQueue consumeQueue = storage.locateConsumeQueue(subject, consumerGroup);
+            ConsumeQueue consumeQueue = storage.locateConsumeQueue(partitionName, consumerGroup);
             final GetMessageResult getMessageResult = consumeQueue.pollMessages(pullRequest.getRequestNum());
             switch (getMessageResult.getStatus()) {
                 case SUCCESS:
@@ -73,7 +74,7 @@ public class SharedMessageReader extends MessageReader {
                     }
 
                     if (noPullFilter(pullRequest)) {
-                        final WritePutActionResult writeResult = consumerSequenceManager.putPullActions(subject, consumerGroup, consumerId, getMessageResult);
+                        final WritePutActionResult writeResult = consumerSequenceManager.putPullActions(partitionName, consumerGroup, consumerId, getMessageResult);
                         if (writeResult.isSuccess()) {
                             consumeQueue.setNextSequence(getMessageResult.getNextBeginSequence());
                             return new PullMessageResult(writeResult.getPullLogOffset(), getMessageResult.getBuffers(), getMessageResult.getBufferTotalSize(), getMessageResult.getMessageNum());
@@ -86,18 +87,18 @@ public class SharedMessageReader extends MessageReader {
                     return doPullResultFilter(pullRequest, getMessageResult, consumeQueue);
                 case OFFSET_OVERFLOW:
                     LOGGER.warn("get message result not success, consumer:{}, result:{}", pullRequest, getMessageResult);
-                    QMon.getMessageOverflowCountInc(subject, consumerGroup);
+                    QMon.getMessageOverflowCountInc(partitionName, consumerGroup);
                 default:
                     consumeQueue.setNextSequence(getMessageResult.getNextBeginSequence());
                     return PullMessageResult.EMPTY;
             }
         } finally {
-            QMon.findNewExistMessageTime(subject, consumerGroup, System.currentTimeMillis() - start);
+            QMon.findNewExistMessageTime(partitionName, consumerGroup, System.currentTimeMillis() - start);
         }
     }
 
     private PullMessageResult doPullResultFilter(PullRequest pullRequest, GetMessageResult getMessageResult, ConsumeQueue consumeQueue) {
-        final String subject = pullRequest.getPartitionName();
+        final String partitionName = pullRequest.getPartitionName();
         final String consumerGroup = pullRequest.getGroup();
         final String consumerId = pullRequest.getConsumerId();
 
@@ -107,7 +108,7 @@ public class SharedMessageReader extends MessageReader {
         int index;
         for (index = 0; index < filterResult.size(); ++index) {
             GetMessageResult item = filterResult.get(index);
-            if (!putAction(item, consumeQueue, subject, consumerGroup, consumerId, retList))
+            if (!putAction(item, consumeQueue, partitionName, consumerGroup, consumerId, retList))
                 break;
         }
         releaseRemain(index, filterResult);
@@ -115,22 +116,31 @@ public class SharedMessageReader extends MessageReader {
         return merge(retList);
     }
 
-    private void releaseRemain(int startIndex, List<GetMessageResult> list) {
-        for (int i = startIndex; i < list.size(); ++i) {
-            list.get(i).release();
-        }
-    }
-
     private boolean putAction(GetMessageResult range, ConsumeQueue consumeQueue,
-                              String subject, String consumerGroup, String consumerId,
+                              String partitionName, String consumerGroup, String consumerId,
                               List<PullMessageResult> retList) {
-        final WritePutActionResult writeResult = consumerSequenceManager.putPullActions(subject, consumerGroup, consumerId, range);
+        final WritePutActionResult writeResult = consumerSequenceManager.putPullActions(partitionName, consumerGroup, consumerId, range);
         if (writeResult.isSuccess()) {
             consumeQueue.setNextSequence(range.getNextBeginSequence());
             retList.add(new PullMessageResult(writeResult.getPullLogOffset(), range.getBuffers(), range.getBufferTotalSize(), range.getMessageNum()));
             return true;
         }
         return false;
+    }
+
+    private PullMessageResult merge(List<PullMessageResult> list) {
+        if (list.size() == 1) return list.get(0);
+
+        long begin = list.get(0).getPullLogOffset();
+        List<Buffer> buffers = new ArrayList<>();
+        int bufferTotalSize = 0;
+        int messageNum = 0;
+        for (PullMessageResult result : list) {
+            bufferTotalSize += result.getBufferTotalSize();
+            messageNum += result.getMessageNum();
+            buffers.addAll(result.getBuffers());
+        }
+        return new PullMessageResult(begin, buffers, bufferTotalSize, messageNum);
     }
 
     private PullMessageResult findUnAckMessages(final PullRequest pullRequest) {
@@ -143,10 +153,10 @@ public class SharedMessageReader extends MessageReader {
     }
 
     private PullMessageResult doFindUnAckMessages(final PullRequest pullRequest) {
-        final String subject = pullRequest.getPartitionName();
+        final String partitionName = pullRequest.getPartitionName();
         final String consumerGroup = pullRequest.getGroup();
         final String consumerId = pullRequest.getConsumerId();
-        final ConsumerSequence consumerSequence = consumerSequenceManager.getOrCreateConsumerSequence(subject, consumerGroup, consumerId, false);
+        final ConsumerSequence consumerSequence = consumerSequenceManager.getOrCreateConsumerSequence(partitionName, consumerGroup, consumerId, false);
 
         final long ackSequence = consumerSequence.getAckSequence();
         long pullLogSequenceInConsumer = pullRequest.getPullOffsetLast();
@@ -179,10 +189,10 @@ public class SharedMessageReader extends MessageReader {
                     }
                 }
 
-                final GetMessageResult getMessageResult = storage.getMessage(subject, consumerLogSequence);
+                final GetMessageResult getMessageResult = storage.getMessage(partitionName, consumerLogSequence);
                 if (getMessageResult.getStatus() != GetMessageStatus.SUCCESS || getMessageResult.getMessageNum() == 0) {
                     LOGGER.error("getMessageResult error, consumer:{}, consumerLogSequence:{}, pullLogSequence:{}, getMessageResult:{}", pullRequest, consumerLogSequence, seq, getMessageResult);
-                    QMon.getMessageErrorCountInc(subject, consumerGroup);
+                    QMon.getMessageErrorCountInc(partitionName, consumerGroup);
                     if (firstValidSeq == -1) {
                         continue;
                     } else {
@@ -214,7 +224,7 @@ public class SharedMessageReader extends MessageReader {
                 if (totalSize >= MAX_MEMORY_LIMIT) break;
             } catch (Exception e) {
                 LOGGER.error("error occurs when find messages by pull log offset, request: {}, consumerSequence: {}", pullRequest, consumerSequence, e);
-                QMon.getMessageErrorCountInc(subject, consumerGroup);
+                QMon.getMessageErrorCountInc(partitionName, consumerGroup);
 
                 if (firstValidSeq != -1) {
                     break;
@@ -229,18 +239,18 @@ public class SharedMessageReader extends MessageReader {
             }
         } else {
             LOGGER.error("find lost messages empty, consumer:{}, consumerSequence:{}, pullLogSequence:{}", pullRequest, consumerSequence, pullLogSequenceInServer);
-            QMon.findLostMessageEmptyCountInc(subject, consumerGroup);
+            QMon.findLostMessageEmptyCountInc(partitionName, consumerGroup);
             firstValidSeq = pullLogSequenceInServer;
             consumerSequence.setAckSequence(pullLogSequenceInServer);
 
             // auto ack all deleted pulled message
-            LOGGER.info("auto ack deleted pulled message. subject: {}, consumerGroup: {}, consumerId: {}, firstSeq: {}, lastSeq: {}",
-                    subject, consumerGroup, consumerId, firstLostAckPullLogSeq, firstValidSeq);
-            consumerSequenceManager.putAction(new RangeAckAction(subject, consumerGroup, consumerId, System.currentTimeMillis(), firstLostAckPullLogSeq, firstValidSeq));
+            LOGGER.info("auto ack deleted pulled message. partitionName: {}, consumerGroup: {}, consumerId: {}, firstSeq: {}, lastSeq: {}",
+                    partitionName, consumerGroup, consumerId, firstLostAckPullLogSeq, firstValidSeq);
+            consumerSequenceManager.putAction(new RangeAckAction(partitionName, consumerGroup, consumerId, System.currentTimeMillis(), firstLostAckPullLogSeq, firstValidSeq));
         }
 
         final PullMessageResult result = new PullMessageResult(firstValidSeq, buffers, totalSize, buffers.size());
-        QMon.findLostMessageCountInc(subject, consumerGroup, result.getMessageNum());
+        QMon.findLostMessageCountInc(partitionName, consumerGroup, result.getMessageNum());
         LOGGER.info("found lost ack messages request: {}, consumerSequence: {}, result: {}", pullRequest, consumerSequence, result);
         return result;
     }
