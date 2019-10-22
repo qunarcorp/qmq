@@ -19,18 +19,18 @@ public abstract class MessageReader {
 
     public abstract PullMessageResult findMessages(final PullRequest pullRequest);
 
-    protected void releaseRemain(int startIndex, List<GetMessageResult> list) {
+    void releaseRemain(int startIndex, List<GetMessageResult> list) {
         for (int i = startIndex; i < list.size(); ++i) {
             list.get(i).release();
         }
     }
 
-    protected boolean noPullFilter(PullRequest pullRequest) {
+    boolean noPullFilter(PullRequest pullRequest) {
         final List<PullFilter> filters = pullRequest.getFilters();
         return filters == null || filters.isEmpty();
     }
 
-    protected boolean needKeep(PullRequest request, Buffer message) {
+    boolean needKeep(PullRequest request, Buffer message) {
         return pullMessageFilterChain.needKeep(request, message);
     }
 
@@ -40,10 +40,10 @@ public abstract class MessageReader {
      * [1, 19], [22, 49], [51, 72], [74, 100] 这几个连续的段
      */
     protected List<GetMessageResult> filter(PullRequest request, GetMessageResult input) {
-        List<GetMessageResult> result = new ArrayList<>();
+        final List<GetMessageResult> result = new ArrayList<>();
 
-        List<Buffer> messages = input.getBuffers();
-        OffsetRange offsetRange = input.getConsumerLogRange();
+        final List<Buffer> messages = input.getBuffers();
+        final OffsetRange offsetRange = input.getConsumerLogRange();
 
         GetMessageResult range = null;
         long begin = -1;
@@ -81,9 +81,10 @@ public abstract class MessageReader {
     ------------------------------------
     | - | - | - | + | + | + | + | + | + |
     -------------------------------------
-    shift -> begin=3, end=8
+    end = 8, begin = 0, messageNum = 6
+    shift(end - messageNum + 1) -> begin=3, end=8
      */
-    protected void shiftRight(GetMessageResult getMessageResult) {
+    void shiftRight(GetMessageResult getMessageResult) {
         OffsetRange offsetRange = getMessageResult.getConsumerLogRange();
         long expectedBegin = offsetRange.getEnd() - getMessageResult.getMessageNum() + 1;
         if (expectedBegin == offsetRange.getBegin()) return;
