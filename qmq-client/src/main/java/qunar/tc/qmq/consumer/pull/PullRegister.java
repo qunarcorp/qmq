@@ -220,9 +220,19 @@ public class PullRegister implements ConsumerRegister {
     }
 
     @Override
-    public void unregister(String subject, String consumerGroup) {
+    public void suspend(String subject, String consumerGroup) {
         SwitchWaiter switchWaiter = consumerOnlineStateManager.getSwitchWaiter(subject, consumerGroup);
-        switchWaiter.off(CODE);
+        if (switchWaiter != null) {
+            switchWaiter.off(CODE);
+        }
+    }
+
+    @Override
+    public void resume(String subject, String consumerGroup) {
+        SwitchWaiter switchWaiter = consumerOnlineStateManager.getSwitchWaiter(subject, consumerGroup);
+        if (switchWaiter != null) {
+            switchWaiter.on(CODE);
+        }
     }
 
     public void setClientId(String clientId) {

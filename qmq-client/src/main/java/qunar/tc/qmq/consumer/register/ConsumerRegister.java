@@ -32,7 +32,9 @@ public interface ConsumerRegister {
 
     Future<PullConsumer> registerPullConsumer(String subject, String consumerGroup, boolean isBroadcast, boolean isOrdered);
 
-    void unregister(String subject, String consumerGroup);
+    void suspend(String subject, String consumerGroup);
+
+    void resume(String subject, String consumerGroup);
 
     void destroy();
 }

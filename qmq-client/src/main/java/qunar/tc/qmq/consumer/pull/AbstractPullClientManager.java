@@ -210,8 +210,6 @@ public abstract class AbstractPullClientManager<T extends PullClient> implements
             ConsumeStrategy consumeStrategy, int allocationVersion, long consumptionExpiredTime,
             List<? extends PullClient> clientList, int partitionSetVersion, Object registryParam);
 
-    abstract StatusSource getStatusSource(Object registryParam);
-
     private String createPartitionKey(PartitionProps pp) {
         return createPartitionKey(pp.getBrokerGroup(), pp.getPartitionName());
     }
