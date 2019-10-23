@@ -188,14 +188,6 @@ public class PullRegister implements ConsumerRegister {
         consumerOnlineStateManager.addOnlineStateListener(subject, consumerGroup, (isOnline) -> {
             onClientOnlineStateChange(subject, consumerGroup, isOnline, isBroadcast, isOrdered, pullConsumerManager);
         });
-        metaInfoService.registerHeartbeat(
-                appCode,
-                ClientType.CONSUMER.getCode(),
-                subject,
-                consumerGroup,
-                isBroadcast,
-                isOrdered
-        );
         metaInfoService.registerResponseSubscriber(new PullClientUpdater(subject, consumerGroup) {
             @Override
             void updateClient(ConsumerMetaInfoResponse response) {
@@ -204,6 +196,14 @@ public class PullRegister implements ConsumerRegister {
                 future.set(pullConsumerManager.getPullClient(subject, consumerGroup));
             }
         });
+        metaInfoService.registerHeartbeat(
+                appCode,
+                ClientType.CONSUMER.getCode(),
+                subject,
+                consumerGroup,
+                isBroadcast,
+                isOrdered
+        );
         return future;
     }
 
