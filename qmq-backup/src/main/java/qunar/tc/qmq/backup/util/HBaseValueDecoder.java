@@ -16,6 +16,7 @@
 
 package qunar.tc.qmq.backup.util;
 
+import com.google.common.base.Strings;
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
 import org.jboss.netty.util.CharsetUtil;
@@ -35,6 +36,7 @@ import java.util.Set;
 import static qunar.tc.qmq.backup.service.BackupKeyGenerator.MESSAGE_SUBJECT_LENGTH;
 import static qunar.tc.qmq.backup.service.BackupKeyGenerator.RECORD_SEQUENCE_LENGTH;
 import static qunar.tc.qmq.backup.store.impl.AbstractHBaseStore.RECORDS;
+import static qunar.tc.qmq.backup.store.impl.AbstractHBaseStore.VERSION_2;
 
 /**
  * @author xufeng.deng dennisdxf@gmail.com
@@ -83,27 +85,68 @@ public class HBaseValueDecoder {
         return attributes;
     }
 
-    public static BackupMessageMeta getMessageMeta(byte[] value) {
+    public static BackupMessageMeta getMessageMeta(String version, byte[] value) {
         try {
             if (value != null && value.length > 0) {
-                long sequence = Bytes.getLong(value, 0);
-                long createTime = Bytes.getLong(value, 8);
-                int brokerGroupLength = Bytes.getInt(value, 16);
-                if (brokerGroupLength > 200) {
-                    return null;
+                if (Strings.isNullOrEmpty(version)) {
+                    long sequence = Bytes.getLong(value, 0);
+                    long createTime = Bytes.getLong(value, 8);
+                    int brokerGroupLength = Bytes.getInt(value, 16);
+                    if (brokerGroupLength > 200) {
+                        return null;
+                    }
+                    byte[] brokerGroupBytes = new byte[brokerGroupLength];
+                    System.arraycopy(value, 20, brokerGroupBytes, 0, brokerGroupLength);
+                    int messageIdLength = value.length - 20 - brokerGroupLength;
+                    byte[] messageIdBytes = new byte[messageIdLength];
+                    System.arraycopy(value, 20 + brokerGroupLength, messageIdBytes, 0, messageIdLength);
+
+                    BackupMessageMeta meta = new BackupMessageMeta(sequence, new String(brokerGroupBytes, CharsetUtil.UTF_8), new String(messageIdBytes, CharsetUtil.UTF_8), null);
+                    meta.setCreateTime(createTime);
+                    return meta;
                 }
-                byte[] brokerGroupBytes = new byte[brokerGroupLength];
-                System.arraycopy(value, 20, brokerGroupBytes, 0, brokerGroupLength);
-                int messageIdLength = value.length - 20 - brokerGroupLength;
-                byte[] messageIdBytes = new byte[messageIdLength];
-                System.arraycopy(value, 20 + brokerGroupLength, messageIdBytes, 0, messageIdLength);
-                BackupMessageMeta meta = new BackupMessageMeta(sequence, new String(brokerGroupBytes, CharsetUtil.UTF_8), new String(messageIdBytes, CharsetUtil.UTF_8));
-                meta.setCreateTime(createTime);
-                return meta;
+                else if (VERSION_2.equals(version)) {
+                    long sequence = Bytes.getLong(value, 0);
+                    long createTime = Bytes.getLong(value, 8);
+                    int brokerGroupLength = Bytes.getInt(value, 16);
+                    if (brokerGroupLength > 200) {
+                        return null;
+                    }
+
+                    byte[] brokerGroupBytes = new byte[brokerGroupLength];
+                    System.arraycopy(value, 20, brokerGroupBytes, 0, brokerGroupLength);
+
+                    ReadStringResult messageIdResult = readString(value, 20 + brokerGroupLength);
+
+                    ReadStringResult partitionIdResult = readString(value, messageIdResult.offsetAfterRead);
+
+                    BackupMessageMeta meta = new BackupMessageMeta(sequence, new String(brokerGroupBytes, CharsetUtil.UTF_8), messageIdResult.data, partitionIdResult.data);
+                    meta.setCreateTime(createTime);
+                    return meta;
+                }
             }
         } catch (Exception ignored) {
         }
         return null;
+    }
+
+    private static ReadStringResult readString(byte[] src, int offset) {
+
+        int len = Bytes.getInt(src, offset);
+        byte[] data = new byte[len];
+        System.arraycopy(src, offset + 4, data, 0, len);
+
+        return new ReadStringResult(offset + 4 + len, new String(data, CharsetUtil.UTF_8));
+    }
+
+    private static class ReadStringResult {
+        private final int offsetAfterRead;
+        private final String data;
+
+        private ReadStringResult(int offsetAfterRead, String data) {
+            this.offsetAfterRead = offsetAfterRead;
+            this.data = data;
+        }
     }
 
     public static RecordQueryResult.Record getRecord(List<KeyValue> kvs, byte type) {

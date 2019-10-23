@@ -119,9 +119,10 @@ public class MessageServiceImpl implements MessageService, Disposable {
             queryExecutorService.execute(() -> {
                 try {
                     final String subject = query.getSubject();
+                    final String partitionName = query.getPartitionName();
                     final String brokerGroup = query.getBrokerGroup();
                     final long sequence = query.getSequence();
-                    final BackupMessageMeta meta = new BackupMessageMeta(sequence, brokerGroup, "");
+                    final BackupMessageMeta meta = new BackupMessageMeta(sequence, brokerGroup, "", partitionName);
                     final List<BackupMessage> messages = retrieveMessageWithMeta(brokerGroup, subject, Lists.newArrayList(meta));
                     if (messages.isEmpty()) {
                         future.complete(null);
@@ -148,9 +149,10 @@ public class MessageServiceImpl implements MessageService, Disposable {
             queryExecutorService.execute(() -> {
                 try {
                     final String subject = query.getSubject();
+                    final String partitionName = query.getPartitionName();
                     final String brokerGroup = query.getBrokerGroup();
                     final long sequence = query.getSequence();
-                    final BackupMessageMeta meta = new BackupMessageMeta(sequence, brokerGroup, "");
+                    final BackupMessageMeta meta = new BackupMessageMeta(sequence, brokerGroup, "", partitionName);
                     final byte[] messageBytes = getMessageBytesWithMeta(brokerGroup, subject, Lists.newArrayList(meta));
                     if (messageBytes.length == 0) {
                         future.complete(null);

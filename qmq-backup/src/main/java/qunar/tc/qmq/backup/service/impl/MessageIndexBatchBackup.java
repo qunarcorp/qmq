@@ -33,6 +33,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import static qunar.tc.qmq.backup.config.DefaultBackupConfig.*;
+import static qunar.tc.qmq.backup.store.impl.AbstractHBaseStore.B_VERSION_2;
 import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_ARRAY;
 
 /**
@@ -79,16 +80,17 @@ public class MessageIndexBatchBackup extends AbstractBatchBackup<MessageQueryInd
                 final byte[] partitionNameBytes = Bytes.UTF8(partitionName);
 
 
-                final byte[] value = new byte[20 + brokerGroupLength + messageIdBytes.length + partitionNameBytes.length];
+                final byte[] value = new byte[28 + brokerGroupLength + messageIdBytes.length + partitionNameBytes.length];
                 Bytes.setLong(value, index.getSequence(), 0);
                 Bytes.setLong(value, index.getCreateTime(), 8);
-                Bytes.setInt(value, brokerGroupLength, 16);
-                System.arraycopy(brokerGroupBytes, 0, value, 20, brokerGroupLength);
-                System.arraycopy(messageIdBytes, 0, value, 20 + brokerGroupLength, messageIdBytes.length);
-                System.arraycopy(partitionNameBytes, 0, value, 20 + brokerGroupLength + messageIdBytes.length, partitionNameBytes.length);
+
+                int offset = copyBytes(brokerGroupBytes, value, 16);
+                offset = copyBytes(messageIdBytes, value, offset);
+                offset = copyBytes(partitionNameBytes, value, offset);
+
 
                 keys[i] = key;
-                values[i] = new byte[][]{value};
+                values[i] = new byte[][]{B_VERSION_2, value};
 
                 if (tailIndex == null || tailIndex.compareTo(index) < 0) tailIndex = index;
             } catch (Exception e) {
@@ -99,6 +101,13 @@ public class MessageIndexBatchBackup extends AbstractBatchBackup<MessageQueryInd
         }
         indexStore.batchSave(keys, values);
         if (fi != null) fi.accept(tailIndex);
+    }
+
+    private int copyBytes(byte[] src, byte[] target, int offset) {
+        Bytes.setInt(target, src.length, offset);
+        System.arraycopy(src, 0, target, offset + 4, src.length);
+
+        return offset + 4 + src.length;
     }
 
     private void retry(MessageQueryIndex failMessage, Consumer<MessageQueryIndex> fi) {

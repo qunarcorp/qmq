@@ -31,14 +31,22 @@ import java.util.concurrent.TimeUnit;
 public abstract class AbstractHBaseStore implements KvStore {
     public static final String CONTENT = "c";
     public static final String RECORDS = "r";
+    public static final String VERSION = "v";
+
+
+    public static final String VERSION_2 = "V2";
+    public static final byte[] B_VERSION_2 = Bytes.UTF8(VERSION_2);
+
+
 
     public static final byte[] B_CONTENT = Bytes.UTF8(CONTENT);
     public static final byte[] B_RECORDS = Bytes.UTF8(RECORDS);
+    public static final byte[] B_VERSION = Bytes.UTF8(VERSION);
 
     public static final byte[] B_FAMILY = Bytes.UTF8("m");
     public static final byte[] R_FAMILY = Bytes.UTF8("i");
 
-    public static final byte[][] B_MESSAGE_QUALIFIERS = new byte[][]{B_CONTENT};
+    public static final byte[][] B_MESSAGE_QUALIFIERS = new byte[][]{B_VERSION, B_CONTENT};
     public static final byte[][] B_RECORD_QUALIFIERS = new byte[][]{B_RECORDS};
 
     protected final byte[] table;
