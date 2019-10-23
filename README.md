@@ -66,6 +66,7 @@ qmq的客户端已经发布到maven中央仓库，可以通过下面的方式获
 * [消息备份](docs/cn/backup.md)
 * [在IDE里运行代码](docs/cn/debug.md)
 * [运维](docs/cn/operations.md)
+* [移植](docs/cn/local.md)
 * [支持其他DB](docs/cn/db.md)
 * [开源协议](docs/cn/opensource.md)
 * [技术支持](docs/cn/support.md)
