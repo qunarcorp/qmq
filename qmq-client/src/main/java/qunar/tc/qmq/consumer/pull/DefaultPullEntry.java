@@ -204,6 +204,8 @@ class DefaultPullEntry extends AbstractPullEntry implements PullEntry, Runnable 
             }
             SettableFuture waitOnlineFuture = SettableFuture.create();
             this.waitOnlineFuture = waitOnlineFuture;
+            brokerService.releaseLock(getSubject(), getConsumerGroup(), getPartitionName(), getBrokerGroup(),
+                    getConsumeStrategy());
             return waitOnlineFuture;
         }
     }
@@ -269,7 +271,6 @@ class DefaultPullEntry extends AbstractPullEntry implements PullEntry, Runnable 
     public void offline() {
         synchronized (this.isOnline) {
             this.isOnline.set(false);
-            this.isRunning.set(false);
             super.offline();
         }
     }
@@ -278,12 +279,17 @@ class DefaultPullEntry extends AbstractPullEntry implements PullEntry, Runnable 
     public void online() {
         synchronized (this.isOnline) {
             this.isOnline.set(true);
-            this.isRunning.set(true);
             final SettableFuture future = waitOnlineFuture;
             if (future != null) {
                 future.set(null);
             }
         }
+    }
+
+    @Override
+    public void destroy() {
+        this.isRunning.set(false);
+        super.destroy();
     }
 
     private static final class DoPullParam {
