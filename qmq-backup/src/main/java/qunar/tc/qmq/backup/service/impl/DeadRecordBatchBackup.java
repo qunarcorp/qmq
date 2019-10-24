@@ -87,10 +87,10 @@ public class DeadRecordBatchBackup extends AbstractBatchBackup<MessageQueryIndex
             for (int i = 0; i < messages.size(); ++i) {
                 final MessageQueryIndex message = messages.get(i);
                 try {
-                    final String subject = message.getSubject();
-                    final String realSubject = RetryPartitionUtils.getRealPartitionName(subject);
-                    final String consumerGroup = RetryPartitionUtils.getConsumerGroup(subject);
-                    final byte[] key = keyGenerator.generateDeadRecordKey(RetryPartitionUtils.buildDeadRetryPartitionName(realSubject), message.getMessageId(), consumerGroup);
+                    final String partitionName = message.getPartitionName();
+                    final String realPartitionName = RetryPartitionUtils.getRealPartitionName(partitionName);
+                    final String consumerGroup = RetryPartitionUtils.getConsumerGroup(partitionName);
+                    final byte[] key = keyGenerator.generateDeadRecordKey(RetryPartitionUtils.buildDeadRetryPartitionName(realPartitionName), message.getMessageId(), consumerGroup);
                     final long createTime = message.getCreateTime() + 500; //为了让死消息的action排在最后面
                     final long sequence = message.getSequence();
                     final byte[] consumerGroupBytes = Bytes.UTF8(consumerGroup);

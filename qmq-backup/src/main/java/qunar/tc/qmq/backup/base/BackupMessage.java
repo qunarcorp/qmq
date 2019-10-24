@@ -34,6 +34,8 @@ public class BackupMessage extends BaseMessage {
 
     private transient byte action;
 
+    private String partitionName;
+
     private long sequence;
 
     private String consumerGroup;
@@ -50,6 +52,16 @@ public class BackupMessage extends BaseMessage {
 
     public BackupMessage(String messageId, String subject) {
         super(messageId, subject);
+    }
+
+    @Override
+    public String getPartitionName() {
+        return partitionName;
+    }
+
+    @Override
+    public void setPartitionName(String partitionName) {
+        this.partitionName = partitionName;
     }
 
     public long getTimestamp() {

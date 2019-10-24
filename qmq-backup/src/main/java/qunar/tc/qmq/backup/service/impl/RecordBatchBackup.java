@@ -111,13 +111,12 @@ public class RecordBatchBackup extends AbstractBatchBackup<ActionRecord> {
         try {
             for (int i = 0; i < messages.size(); ++i) {
                 BackupMessage message = messages.get(i);
-                String partitionName = message.getSubject();
+                String partitionName = message.getPartitionName();
                 String subject = metaInfoService.getSubject(partitionName);
                 try {
                     monitorBackupActionQps(subject);
-                    // TODO(zhenwei.liu) 这里需要考虑将 partitionName 往哪里放
                     final String consumerGroup = message.getConsumerGroup();
-                    final byte[] key = keyGenerator.generateRecordKey(subject, message.getSequence(), brokerGroup, consumerGroup, Bytes.UTF8(Byte.toString(message.getAction())));
+                    final byte[] key = keyGenerator.generateRecordKey(partitionName, message.getSequence(), brokerGroup, consumerGroup, Bytes.UTF8(Byte.toString(message.getAction())));
                     final String consumerId = message.getConsumerId();
                     final byte[] consumerIdBytes = Bytes.UTF8(consumerId);
                     final int consumerIdBytesLength = consumerIdBytes.length;
@@ -214,6 +213,7 @@ public class RecordBatchBackup extends AbstractBatchBackup<ActionRecord> {
         String partitionName = action.partitionName();
         String subject = metaInfoService.getSubject(partitionName);
         message.setSubject(subject);
+        message.setPartitionName(partitionName);
         message.setConsumerGroup(action.consumerGroup());
         message.setConsumerId(action.consumerId());
         message.setTimestamp(action.timestamp());
