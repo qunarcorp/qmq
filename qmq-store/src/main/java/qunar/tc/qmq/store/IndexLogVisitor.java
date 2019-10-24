@@ -105,7 +105,9 @@ public class IndexLogVisitor extends AbstractLogVisitor<MessageQueryIndex> {
                 return retNoMore();
             }
 
-            partitionName = readPartitionNameResult.data;
+            if (!Strings.isNullOrEmpty(readPartitionNameResult.data)) {
+                partitionName = readPartitionNameResult.data;
+            }
 
             currentPosition = buffer.position();
             LOG.debug("消息中包含flag: {}，解析到的partitionName为：{}", BackupConstants.SYNC_V2_FLAG, partitionName);

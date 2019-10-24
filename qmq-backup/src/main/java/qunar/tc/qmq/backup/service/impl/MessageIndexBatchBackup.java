@@ -66,6 +66,7 @@ public class MessageIndexBatchBackup extends AbstractBatchBackup<MessageQueryInd
             String subject = index.getSubject();
             monitorBackupIndexQps(subject);
             try {
+                LOGGER.debug("backup msg, msgId: {}, subject: {}, partitionName: {}", index.getMessageId(), index.getSubject(), index.getPartitionName());
                 String realSubject = RetryPartitionUtils.getRealPartitionName(subject);
                 String subjectKey = realSubject;
                 String consumerGroup = null;
