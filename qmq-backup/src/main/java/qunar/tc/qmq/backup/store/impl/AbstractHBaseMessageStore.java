@@ -105,11 +105,11 @@ public abstract class AbstractHBaseMessageStore<T> extends HBaseStore implements
     }
 
     protected T getItem(String subject, String version, byte[] value) {
-        BackupMessageMeta meta = getMessageMeta(version, value);
+        BackupMessageMeta meta = getMessageMeta(subject, version, value);
         final String brokerGroup = meta.getBrokerGroup();
         final long sequence = meta.getSequence();
         final String messageId = meta.getMessageId();
-        return (T)new MessageQueryResult.MessageMeta(subject, messageId, sequence, meta.getCreateTime(), brokerGroup);
+        return (T)new MessageQueryResult.MessageMeta(subject, meta.getPartitionName(), messageId, sequence, meta.getCreateTime(), brokerGroup);
     }
 
     private void makeUp(final BackupQuery query) {

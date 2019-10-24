@@ -52,13 +52,15 @@ public class MessageQueryResult<T> implements Serializable {
 
     public static class MessageMeta {
         private final String subejct;
+        private final String partitionName;
         private final String messageId;
         private final long sequence;
         private final long createTime;
         private final String brokerGroup;
 
-        public MessageMeta(String subject, String messageId, long sequence, long createTime, String brokerGroup) {
+        public MessageMeta(String subject, String partitionName, String messageId, long sequence, long createTime, String brokerGroup) {
             this.subejct = subject;
+            this.partitionName = partitionName;
             this.messageId = messageId;
             this.sequence = sequence;
             this.createTime = createTime;

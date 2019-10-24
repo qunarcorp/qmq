@@ -86,7 +86,7 @@ public class HBaseValueDecoder {
     }
 
 
-    public static BackupMessageMeta getMessageMeta(String version, byte[] value) {
+    public static BackupMessageMeta getMessageMeta(String subject, String version, byte[] value) {
         try {
             if (value != null && value.length > 0) {
                 if (Strings.isNullOrEmpty(version)) {
@@ -102,7 +102,7 @@ public class HBaseValueDecoder {
                     byte[] messageIdBytes = new byte[messageIdLength];
                     System.arraycopy(value, 20 + brokerGroupLength, messageIdBytes, 0, messageIdLength);
 
-                    BackupMessageMeta meta = new BackupMessageMeta(sequence, new String(brokerGroupBytes, CharsetUtil.UTF_8), new String(messageIdBytes, CharsetUtil.UTF_8), null);
+                    BackupMessageMeta meta = new BackupMessageMeta(sequence, new String(brokerGroupBytes, CharsetUtil.UTF_8), new String(messageIdBytes, CharsetUtil.UTF_8), subject);
                     meta.setCreateTime(createTime);
                     return meta;
                 }
@@ -119,9 +119,9 @@ public class HBaseValueDecoder {
 
                     ReadStringResult messageIdResult = readString(value, 20 + brokerGroupLength);
 
-                    ReadStringResult partitionIdResult = readString(value, messageIdResult.offsetAfterRead);
+                    ReadStringResult partitionNameResult = readString(value, messageIdResult.offsetAfterRead);
 
-                    BackupMessageMeta meta = new BackupMessageMeta(sequence, new String(brokerGroupBytes, CharsetUtil.UTF_8), messageIdResult.data, partitionIdResult.data);
+                    BackupMessageMeta meta = new BackupMessageMeta(sequence, new String(brokerGroupBytes, CharsetUtil.UTF_8), messageIdResult.data, partitionNameResult.data);
                     meta.setCreateTime(createTime);
                     return meta;
                 }

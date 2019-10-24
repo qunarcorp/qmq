@@ -175,7 +175,7 @@ public class HBaseRecordStore extends HBaseStore implements RecordStore {
                 KeyValueList<KeyValue> kvl = new KeyValueListImpl(kvs);
                 byte[] value = kvl.getValue(CONTENT);
                 byte[] rowKey = kvl.getKey();
-                BackupMessageMeta meta = getMessageMeta(value);
+                BackupMessageMeta meta = getMessageMeta(subject, null, value);
                 if (meta != null && rowKey.length > CONSUMER_GROUP_INDEX_IN_RETRY_MESSAGE) {
                     byte[] consumerGroupId = new byte[CONSUMER_GROUP_LENGTH];
                     System.arraycopy(rowKey, CONSUMER_GROUP_INDEX_IN_RETRY_MESSAGE, consumerGroupId, 0, CONSUMER_GROUP_LENGTH);
