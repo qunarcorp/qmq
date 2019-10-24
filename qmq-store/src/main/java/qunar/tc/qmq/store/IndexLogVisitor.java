@@ -19,6 +19,8 @@ package qunar.tc.qmq.store;
 import java.nio.ByteBuffer;
 
 import com.google.common.base.Strings;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.common.BackupConstants;
 import qunar.tc.qmq.store.buffer.SegmentBuffer;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
@@ -28,6 +30,8 @@ import qunar.tc.qmq.utils.PayloadHolderUtils;
  * @since 2017/8/21
  */
 public class IndexLogVisitor extends AbstractLogVisitor<MessageQueryIndex> {
+
+    private static final Logger LOG = LoggerFactory.getLogger(IndexLogVisitor.class);
 
     IndexLogVisitor(final LogManager logManager, final long startOffset) {
         super(logManager, startOffset);
@@ -91,6 +95,7 @@ public class IndexLogVisitor extends AbstractLogVisitor<MessageQueryIndex> {
         if (!BackupConstants.SYNC_V2_FLAG.equals(readSyncFlagResult.data)) {
             currentPosition = positionV1;
             buffer.position(positionV1);
+            LOG.debug("消息中没包含flag: {}，属于老消息，回退buffer下标", BackupConstants.SYNC_V2_FLAG);
         } else {
 
             // partitionName
@@ -103,6 +108,7 @@ public class IndexLogVisitor extends AbstractLogVisitor<MessageQueryIndex> {
             partitionName = readPartitionNameResult.data;
 
             currentPosition = buffer.position();
+            LOG.debug("消息中包含flag: {}，解析到的partitionName为：{}", BackupConstants.SYNC_V2_FLAG, partitionName);
         }
 
 
