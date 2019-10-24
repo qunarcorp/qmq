@@ -132,9 +132,7 @@ class DefaultPullEntry extends AbstractPullEntry implements PullEntry, Runnable 
             switch (state.get()) {
                 case PREPARE_PULL:
                     if (!isRunning.get()) {
-                        brokerService
-                                .releaseLock(getSubject(), getConsumerGroup(), getPartitionName(), getBrokerGroup(),
-                                        getConsumeStrategy());
+                        releaseLock();
                         return;
                     }
 
@@ -189,6 +187,12 @@ class DefaultPullEntry extends AbstractPullEntry implements PullEntry, Runnable 
         }
     }
 
+    private void releaseLock() {
+        brokerService
+                .releaseLock(getSubject(), getConsumerGroup(), getPartitionName(), getBrokerGroup(),
+                        getConsumeStrategy());
+    }
+
     private boolean await(ListenableFuture future) {
         if (future == null) {
             return false;
@@ -204,8 +208,7 @@ class DefaultPullEntry extends AbstractPullEntry implements PullEntry, Runnable 
             }
             SettableFuture waitOnlineFuture = SettableFuture.create();
             this.waitOnlineFuture = waitOnlineFuture;
-            brokerService.releaseLock(getSubject(), getConsumerGroup(), getPartitionName(), getBrokerGroup(),
-                    getConsumeStrategy());
+            releaseLock();
             return waitOnlineFuture;
         }
     }
