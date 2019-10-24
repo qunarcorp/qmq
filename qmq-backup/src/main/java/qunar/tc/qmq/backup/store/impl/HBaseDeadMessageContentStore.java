@@ -65,7 +65,7 @@ public class HBaseDeadMessageContentStore extends AbstractHBaseMessageStore<Back
     }
 
     @Override
-    protected BackupMessage getItem(String subject, byte[] value){
+    protected BackupMessage getItem(String subject, String version, byte[] value){
         return getMessage(value);
     }
 }

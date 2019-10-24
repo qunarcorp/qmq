@@ -72,8 +72,9 @@ public abstract class AbstractHBaseMessageStore<T> extends HBaseStore implements
             result = scan(table, keyRegexp, startKey, endKey, maxResults + 1, 0, B_FAMILY, B_MESSAGE_QUALIFIERS, kvs -> {
                 KeyValueList<KeyValue> kvl = new KeyValueListImpl(kvs);
                 messageQueryResult.setNext(new String(kvl.getKey(), CharsetUtil.UTF_8));
+                String version = new String(kvl.getValue(VERSION));
                 byte[] value = kvl.getValue(CONTENT);
-                T item = (T)getItem(subject, value);
+                T item = (T)getItem(subject, version, value);
                 if (item == null) {
                     Metrics.counter("message.content.missing").inc();
                     LOGGER.info("Message content missing");
@@ -103,12 +104,12 @@ public abstract class AbstractHBaseMessageStore<T> extends HBaseStore implements
         }
     }
 
-    protected T getItem(String subject, byte[] value) {
-        BackupMessageMeta meta = getMessageMeta(value);
+    protected T getItem(String subject, String version, byte[] value) {
+        BackupMessageMeta meta = getMessageMeta(subject, version, value);
         final String brokerGroup = meta.getBrokerGroup();
         final long sequence = meta.getSequence();
         final String messageId = meta.getMessageId();
-        return (T)new MessageQueryResult.MessageMeta(subject, messageId, sequence, meta.getCreateTime(), brokerGroup);
+        return (T)new MessageQueryResult.MessageMeta(subject, meta.getPartitionName(), messageId, sequence, meta.getCreateTime(), brokerGroup);
     }
 
     private void makeUp(final BackupQuery query) {

@@ -40,6 +40,8 @@ public class BackupQuery implements Serializable {
      * 消息主题
      */
     private String subject;
+
+    private String partitionName;
     /**
      * 消息id
      */
@@ -85,6 +87,14 @@ public class BackupQuery implements Serializable {
 
     public void setSubject(String subject) {
         this.subject = subject;
+    }
+
+    public String getPartitionName() {
+        return partitionName;
+    }
+
+    public void setPartitionName(String partitionName) {
+        this.partitionName = partitionName;
     }
 
     public String getMessageId() {

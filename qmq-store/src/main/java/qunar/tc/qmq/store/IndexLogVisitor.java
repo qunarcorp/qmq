@@ -16,16 +16,22 @@
 
 package qunar.tc.qmq.store;
 
+import java.nio.ByteBuffer;
+
+import com.google.common.base.Strings;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.common.BackupConstants;
 import qunar.tc.qmq.store.buffer.SegmentBuffer;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
-
-import java.nio.ByteBuffer;
 
 /**
  * @author keli.wang
  * @since 2017/8/21
  */
 public class IndexLogVisitor extends AbstractLogVisitor<MessageQueryIndex> {
+
+    private static final Logger LOG = LoggerFactory.getLogger(IndexLogVisitor.class);
 
     IndexLogVisitor(final LogManager logManager, final long startOffset) {
         super(logManager, startOffset);
@@ -74,11 +80,65 @@ public class IndexLogVisitor extends AbstractLogVisitor<MessageQueryIndex> {
         }
         String messageId = PayloadHolderUtils.readString(messageIdLen, buffer);
 
-        MessageQueryIndex index = new MessageQueryIndex(subject, messageId, sequence, createTime);
-        incrVisitedBufferSize(buffer.position() - startPos);
+        int positionV1 = buffer.position();
+
+        int currentPosition = positionV1;
+
+        String partitionName = subject;
+
+        ReadStringResult readSyncFlagResult = readString(buffer);
+
+        if (readSyncFlagResult.isNoMore) {
+            return retNoMore();
+        }
+
+        if (!BackupConstants.SYNC_V2_FLAG.equals(readSyncFlagResult.data)) {
+            currentPosition = positionV1;
+            buffer.position(positionV1);
+            LOG.debug("消息中没包含flag: {}，属于老消息，回退buffer下标", BackupConstants.SYNC_V2_FLAG);
+        } else {
+
+            // partitionName
+            ReadStringResult readPartitionNameResult = readString(buffer);
+
+            if (readPartitionNameResult.isNoMore) {
+                return retNoMore();
+            }
+
+            if (!Strings.isNullOrEmpty(readPartitionNameResult.data)) {
+                partitionName = readPartitionNameResult.data;
+            }
+
+            currentPosition = buffer.position();
+            LOG.debug("消息中包含flag: {}，解析到的partitionName为：{}", BackupConstants.SYNC_V2_FLAG, partitionName);
+        }
+
+
+        MessageQueryIndex index = new MessageQueryIndex(subject, messageId, partitionName, sequence, createTime);
+        incrVisitedBufferSize(currentPosition - startPos);
         index.setCurrentOffset(getStartOffset() + visitedBufferSize());
         return LogVisitorRecord.data(index);
     }
+
+    private ReadStringResult readString(ByteBuffer buffer) {
+        short len = buffer.getShort();
+        if (len < 0 || buffer.remaining() < len) {
+            return new ReadStringResult(true, null);
+        }
+
+        return new ReadStringResult(false, PayloadHolderUtils.readString(len, buffer));
+    }
+
+    private static class ReadStringResult {
+        private final boolean isNoMore;
+        private final String data;
+
+        private ReadStringResult(boolean isNoMore, String data) {
+            this.isNoMore = isNoMore;
+            this.data = data;
+        }
+    }
+
 
     private LogVisitorRecord<MessageQueryIndex> retNoMore() {
         setVisitedBufferSize(getBufferSize());

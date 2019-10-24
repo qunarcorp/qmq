@@ -29,18 +29,20 @@ public class BackupMessageMeta implements Serializable {
     private final long sequence;
     private final String brokerGroup;
     private final String messageId;
+    private final String partitionName;
 
     private long createTime;
     private String consumerGroupId;
 
-    public BackupMessageMeta(long sequence, String brokerGroup, String messageId) {
+    public BackupMessageMeta(long sequence, String brokerGroup, String messageId, String partitionName) {
         this.sequence = sequence;
         this.brokerGroup = brokerGroup;
         this.messageId = messageId;
+        this.partitionName = partitionName;
     }
 
     public BackupMessageMeta(long sequence, String brokerGroup) {
-        this(sequence, brokerGroup, "");
+        this(sequence, brokerGroup, "", null);
     }
 
     public String getMessageId() {
@@ -69,6 +71,10 @@ public class BackupMessageMeta implements Serializable {
 
     public void setCreateTime(long createTime) {
         this.createTime = createTime;
+    }
+
+    public String getPartitionName() {
+        return partitionName;
     }
 
     @Override

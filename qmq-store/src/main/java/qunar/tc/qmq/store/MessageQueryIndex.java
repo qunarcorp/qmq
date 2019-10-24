@@ -25,6 +25,8 @@ public class MessageQueryIndex implements Comparable<MessageQueryIndex> {
 
     private final String messageId;
 
+    private final String partitionName;
+
     private final long createTime;
 
     private final long sequence;
@@ -33,9 +35,10 @@ public class MessageQueryIndex implements Comparable<MessageQueryIndex> {
 
     private transient long currentOffset;
 
-    MessageQueryIndex(String subject, String messageId, long sequence, long createTime) {
+    MessageQueryIndex(String subject, String messageId, String partitionName, long sequence, long createTime) {
         this.subject = subject;
         this.messageId = messageId;
+        this.partitionName = partitionName;
         this.sequence = sequence;
         this.createTime = createTime;
     }
@@ -46,6 +49,10 @@ public class MessageQueryIndex implements Comparable<MessageQueryIndex> {
 
     public String getMessageId() {
         return messageId;
+    }
+
+    public String getPartitionName() {
+        return partitionName;
     }
 
     public long getSequence() {

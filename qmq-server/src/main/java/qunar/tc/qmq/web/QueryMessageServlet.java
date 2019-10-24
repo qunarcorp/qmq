@@ -102,7 +102,7 @@ public class QueryMessageServlet extends HttpServlet {
                     final ServletOutputStream os = response.getOutputStream();
                     for (RemoteMessageQuery.MessageKey key : keys) {
                         long sequence = key.getSequence();
-                        GetMessageResult result = store.getMessage(subject, sequence);
+                        GetMessageResult result = store.getMessage(key.getPartitionName(), sequence);
                         if (result.getStatus() != GetMessageStatus.SUCCESS) continue;
                         try {
                             final byte[] sequenceBytes = Bytes.long2bytes(sequence);

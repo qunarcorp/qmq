@@ -119,9 +119,10 @@ public class MessageServiceImpl implements MessageService, Disposable {
             queryExecutorService.execute(() -> {
                 try {
                     final String subject = query.getSubject();
+                    final String partitionName = query.getPartitionName();
                     final String brokerGroup = query.getBrokerGroup();
                     final long sequence = query.getSequence();
-                    final BackupMessageMeta meta = new BackupMessageMeta(sequence, brokerGroup, "");
+                    final BackupMessageMeta meta = new BackupMessageMeta(sequence, brokerGroup, "", partitionName);
                     final List<BackupMessage> messages = retrieveMessageWithMeta(brokerGroup, subject, Lists.newArrayList(meta));
                     if (messages.isEmpty()) {
                         future.complete(null);
@@ -148,9 +149,10 @@ public class MessageServiceImpl implements MessageService, Disposable {
             queryExecutorService.execute(() -> {
                 try {
                     final String subject = query.getSubject();
+                    final String partitionName = query.getPartitionName();
                     final String brokerGroup = query.getBrokerGroup();
                     final long sequence = query.getSequence();
-                    final BackupMessageMeta meta = new BackupMessageMeta(sequence, brokerGroup, "");
+                    final BackupMessageMeta meta = new BackupMessageMeta(sequence, brokerGroup, "", partitionName);
                     final byte[] messageBytes = getMessageBytesWithMeta(brokerGroup, subject, Lists.newArrayList(meta));
                     if (messageBytes.length == 0) {
                         future.complete(null);
@@ -235,7 +237,7 @@ public class MessageServiceImpl implements MessageService, Disposable {
     private RemoteMessageQuery getQuery(String subject, List<BackupMessageMeta> metas) {
         final List<RemoteMessageQuery.MessageKey> keys = Lists.newArrayListWithCapacity(metas.size());
         for (BackupMessageMeta meta : metas) {
-            keys.add(new RemoteMessageQuery.MessageKey(meta.getSequence()));
+            keys.add(new RemoteMessageQuery.MessageKey(meta.getPartitionName(), meta.getSequence()));
         }
         return new RemoteMessageQuery(subject, keys);
     }

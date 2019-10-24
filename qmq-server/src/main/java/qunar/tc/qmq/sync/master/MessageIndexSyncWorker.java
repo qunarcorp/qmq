@@ -16,14 +16,19 @@
 
 package qunar.tc.qmq.sync.master;
 
+import com.google.common.base.Strings;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.base.SyncRequest;
+import qunar.tc.qmq.common.BackupConstants;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.store.*;
 import qunar.tc.qmq.store.buffer.SegmentBuffer;
+import qunar.tc.qmq.utils.CharsetUtils;
+import qunar.tc.qmq.utils.Flags;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
 
 import java.nio.ByteBuffer;
@@ -79,8 +84,8 @@ public class MessageIndexSyncWorker extends AbstractLogSyncWorker {
                     if (!writeLong(data.getSequence(), byteBuf)) break;
 
                     ByteBuffer body = data.getPayload();
-                    //skip flag
-                    body.get();
+                    //flag
+                    byte flag = body.get();
 
                     //create time
                     if (!writeLong(body.getLong(), byteBuf)) break;
@@ -104,6 +109,20 @@ public class MessageIndexSyncWorker extends AbstractLogSyncWorker {
                     }
                     if (control == Control.NOSPACE) break;
 
+                    control = skipTags(body, flag);
+
+                    if (control == Control.INVALID) {
+                        nextSyncOffset = visitor.getStartOffset() + visitor.visitedBufferSize();
+                        continue;
+                    }
+                    if (control == Control.NOSPACE) break;
+
+                    control = writeV2Flag(body, byteBuf);
+
+                    if (control == Control.NOSPACE) break;
+
+                    control = copyPartitionName(body, byteBuf);
+
                     nextSyncOffset = visitor.getStartOffset() + visitor.visitedBufferSize();
                 }
 
@@ -126,6 +145,88 @@ public class MessageIndexSyncWorker extends AbstractLogSyncWorker {
         }
     }
 
+    private Control writeV2Flag(ByteBuffer body, ByteBuf to) {
+        return writeString(BackupConstants.SYNC_V2_FLAG, to);
+    }
+
+    private Control copyPartitionName(ByteBuffer body, ByteBuf to) {
+        int bodyLen = body.getInt();
+        if (bodyLen < 0 || body.remaining() < bodyLen) {
+            return Control.INVALID;
+        }
+
+        while (body.remaining() > 0) {
+
+            GetPayloadDataResult keyResult = getString(body);
+            if (keyResult.control != Control.OK) {
+                return keyResult.control;
+            }
+
+            String key = keyResult.data;
+
+            if (BaseMessage.keys.qmq_partitionName.name().equals(key)) {
+                return copyString(body, to);
+            }
+
+        }
+
+        if (!to.isWritable(Short.BYTES + 0)) {
+            return Control.NOSPACE;
+        }
+        PayloadHolderUtils.writeString("", to);;
+
+        return Control.OK;
+    }
+
+    private GetPayloadDataResult getString(ByteBuffer body) {
+        short len = body.getShort();
+        if (len <= 0) {
+            return new GetPayloadDataResult(Control.INVALID, null);
+        }
+        byte[] bs = new byte[len];
+        body.get(bs);
+        String data = CharsetUtils.toUTF8String(bs);
+        return new GetPayloadDataResult(Control.OK, data);
+    }
+
+    private static class GetPayloadDataResult {
+        private final Control control;
+        private final String data;
+
+
+        private GetPayloadDataResult(Control control, String data) {
+            this.control = control;
+            this.data = data;
+        }
+    }
+
+    private Control skipTags(ByteBuffer body, byte flag) {
+        if (!Flags.hasTags(flag)) return Control.OK;
+
+        final byte tagsSize = body.get();
+
+        if (tagsSize < 0) {
+            return Control.INVALID;
+        }
+
+        for (int i = 0; i < tagsSize; i++) {
+            int len = body.getShort();
+            if (len <= 0) {
+                return Control.INVALID;
+            }
+
+            try {
+                body.position(body.position() + len);
+            }
+            catch (IllegalArgumentException e) {
+                //当body.position() + len > body的最大长度时抛出此异常
+                return Control.INVALID;
+            }
+        }
+
+        return Control.OK;
+    }
+
     private boolean writeLong(long value, ByteBuf to) {
         if (!to.isWritable(Long.BYTES)) {
             to.resetWriterIndex();
@@ -139,6 +240,18 @@ public class MessageIndexSyncWorker extends AbstractLogSyncWorker {
         NOSPACE,
         INVALID,
         OK
+    }
+
+    private Control writeString(String str, ByteBuf to) {
+        str = Strings.nullToEmpty(str);
+
+        if (!to.isWritable(Short.BYTES + str.length())) {
+            to.resetWriterIndex();
+            return Control.NOSPACE;
+        }
+        PayloadHolderUtils.writeString(str, to);
+
+        return Control.OK;
     }
 
     private Control copyString(ByteBuffer from, ByteBuf to) {

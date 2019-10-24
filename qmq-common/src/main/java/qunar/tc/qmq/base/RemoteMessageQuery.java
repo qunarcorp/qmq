@@ -59,9 +59,11 @@ public class RemoteMessageQuery implements Serializable {
     }
 
     public static class MessageKey {
+        private String partitionName;
         private long sequence;
 
-        public MessageKey(long sequence) {
+        public MessageKey(String partitionName, long sequence) {
+            this.partitionName = partitionName;
             this.sequence = sequence;
         }
 
@@ -71,6 +73,14 @@ public class RemoteMessageQuery implements Serializable {
 
         public long getSequence() {
             return sequence;
+        }
+
+        public String getPartitionName() {
+            return partitionName;
+        }
+
+        public void setPartitionName(String partitionName) {
+            this.partitionName = partitionName;
         }
 
         @Override
