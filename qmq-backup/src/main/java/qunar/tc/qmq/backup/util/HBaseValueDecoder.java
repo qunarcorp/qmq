@@ -85,6 +85,7 @@ public class HBaseValueDecoder {
         return attributes;
     }
 
+
     public static BackupMessageMeta getMessageMeta(String version, byte[] value) {
         try {
             if (value != null && value.length > 0) {

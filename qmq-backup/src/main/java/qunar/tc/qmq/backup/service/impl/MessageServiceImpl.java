@@ -237,7 +237,7 @@ public class MessageServiceImpl implements MessageService, Disposable {
     private RemoteMessageQuery getQuery(String subject, List<BackupMessageMeta> metas) {
         final List<RemoteMessageQuery.MessageKey> keys = Lists.newArrayListWithCapacity(metas.size());
         for (BackupMessageMeta meta : metas) {
-            keys.add(new RemoteMessageQuery.MessageKey(meta.getSequence()));
+            keys.add(new RemoteMessageQuery.MessageKey(meta.getPartitionName(), meta.getSequence()));
         }
         return new RemoteMessageQuery(subject, keys);
     }
