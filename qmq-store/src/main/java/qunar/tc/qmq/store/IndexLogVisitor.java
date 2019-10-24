@@ -19,6 +19,7 @@ package qunar.tc.qmq.store;
 import java.nio.ByteBuffer;
 
 import com.google.common.base.Strings;
+import qunar.tc.qmq.common.BackupConstants;
 import qunar.tc.qmq.store.buffer.SegmentBuffer;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
 
@@ -75,29 +76,60 @@ public class IndexLogVisitor extends AbstractLogVisitor<MessageQueryIndex> {
         }
         String messageId = PayloadHolderUtils.readString(messageIdLen, buffer);
 
+        int positionV1 = buffer.position();
+
+        int currentPosition = positionV1;
+
         String partitionName = subject;
 
-        // partitionName
-        if (buffer.remaining() >= Short.BYTES) {
-            short partitionNameLen = buffer.getShort();
+        ReadStringResult readSyncFlagResult = readString(buffer);
 
-            if (partitionNameLen > 0 && buffer.remaining() < messageIdLen) {
+        if (readSyncFlagResult.isNoMore) {
+            return retNoMore();
+        }
+
+        if (!BackupConstants.SYNC_V2_FLAG.equals(readSyncFlagResult.data)) {
+            currentPosition = positionV1;
+            buffer.position(positionV1);
+        } else {
+
+            // partitionName
+            ReadStringResult readPartitionNameResult = readString(buffer);
+
+            if (readPartitionNameResult.isNoMore) {
                 return retNoMore();
             }
 
-            String tmp = PayloadHolderUtils.readString(messageIdLen, buffer);
-            if (!Strings.isNullOrEmpty(tmp)) {
-                partitionName = tmp;
-            }
+            partitionName = readPartitionNameResult.data;
+
+            currentPosition = buffer.position();
         }
 
 
         MessageQueryIndex index = new MessageQueryIndex(subject, messageId, partitionName, sequence, createTime);
-        incrVisitedBufferSize(buffer.position() - startPos);
+        incrVisitedBufferSize(currentPosition - startPos);
         index.setCurrentOffset(getStartOffset() + visitedBufferSize());
         return LogVisitorRecord.data(index);
     }
 
+    private ReadStringResult readString(ByteBuffer buffer) {
+        short len = buffer.getShort();
+        if (len < 0 || buffer.remaining() < len) {
+            return new ReadStringResult(true, null);
+        }
+
+        return new ReadStringResult(false, PayloadHolderUtils.readString(len, buffer));
+    }
+
+    private static class ReadStringResult {
+        private final boolean isNoMore;
+        private final String data;
+
+        private ReadStringResult(boolean isNoMore, String data) {
+            this.isNoMore = isNoMore;
+            this.data = data;
+        }
+    }
 
 
     private LogVisitorRecord<MessageQueryIndex> retNoMore() {

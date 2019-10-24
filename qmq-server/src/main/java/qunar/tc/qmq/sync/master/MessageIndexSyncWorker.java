@@ -16,12 +16,14 @@
 
 package qunar.tc.qmq.sync.master;
 
+import com.google.common.base.Strings;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.base.SyncRequest;
+import qunar.tc.qmq.common.BackupConstants;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.store.*;
 import qunar.tc.qmq.store.buffer.SegmentBuffer;
@@ -115,6 +117,10 @@ public class MessageIndexSyncWorker extends AbstractLogSyncWorker {
                     }
                     if (control == Control.NOSPACE) break;
 
+                    control = writeV2Flag(body, byteBuf);
+
+                    if (control == Control.NOSPACE) break;
+
                     control = getPartitionName(body, byteBuf);
 
                     nextSyncOffset = visitor.getStartOffset() + visitor.visitedBufferSize();
@@ -137,6 +143,10 @@ public class MessageIndexSyncWorker extends AbstractLogSyncWorker {
                 return new ByteBufSegmentBuffer(nextSyncOffset);
             }
         }
+    }
+
+    private Control writeV2Flag(ByteBuffer body, ByteBuf to) {
+        return writeString(BackupConstants.SYNC_V2_FLAG, to);
     }
 
     private Control getPartitionName(ByteBuffer body, ByteBuf to) {
@@ -194,12 +204,24 @@ public class MessageIndexSyncWorker extends AbstractLogSyncWorker {
         if (!Flags.hasTags(flag)) return Control.OK;
 
         final byte tagsSize = body.get();
+
+        if (tagsSize < 0) {
+            return Control.INVALID;
+        }
+
         for (int i = 0; i < tagsSize; i++) {
             int len = body.getShort();
             if (len <= 0) {
                 return Control.INVALID;
             }
-            body.position(body.position() + len);
+
+            try {
+                body.position(body.position() + len);
+            }
+            catch (IllegalArgumentException e) {
+                //当body.position() + len > body的最大长度时抛出此异常
+                return Control.INVALID;
+            }
         }
 
         return Control.OK;
@@ -218,6 +240,18 @@ public class MessageIndexSyncWorker extends AbstractLogSyncWorker {
         NOSPACE,
         INVALID,
         OK
+    }
+
+    private Control writeString(String str, ByteBuf to) {
+        str = Strings.nullToEmpty(str);
+
+        if (!to.isWritable(Short.BYTES + str.length())) {
+            to.resetWriterIndex();
+            return Control.NOSPACE;
+        }
+        PayloadHolderUtils.writeString(str, to);
+
+        return Control.OK;
     }
 
     private Control copyString(ByteBuffer from, ByteBuf to) {
