@@ -121,7 +121,7 @@ public class MessageIndexSyncWorker extends AbstractLogSyncWorker {
 
                     if (control == Control.NOSPACE) break;
 
-                    control = getPartitionName(body, byteBuf);
+                    control = copyPartitionName(body, byteBuf);
 
                     nextSyncOffset = visitor.getStartOffset() + visitor.visitedBufferSize();
                 }
@@ -149,7 +149,7 @@ public class MessageIndexSyncWorker extends AbstractLogSyncWorker {
         return writeString(BackupConstants.SYNC_V2_FLAG, to);
     }
 
-    private Control getPartitionName(ByteBuffer body, ByteBuf to) {
+    private Control copyPartitionName(ByteBuffer body, ByteBuf to) {
         int bodyLen = body.getInt();
         if (bodyLen < 0 || body.remaining() < bodyLen) {
             return Control.INVALID;
