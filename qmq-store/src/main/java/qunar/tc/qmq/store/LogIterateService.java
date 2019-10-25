@@ -16,19 +16,19 @@
 
 package qunar.tc.qmq.store;
 
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.LongAdder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.monitor.QMon;
 import qunar.tc.qmq.store.event.FixedExecOrderEventBus;
-
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.LongAdder;
 
 /**
  * @author keli.wang
  * @since 2019-06-18
  */
 public class LogIterateService<T> implements AutoCloseable {
+
     private static final Logger LOGGER = LoggerFactory.getLogger(LogIterateService.class);
 
     private final String name;
@@ -40,7 +40,8 @@ public class LogIterateService<T> implements AutoCloseable {
     private final LongAdder iterateFrom;
     private volatile boolean stop = false;
 
-    public LogIterateService(final String name, final long dispatcherPauseMills, final Visitable<T> visitable, final long checkpoint, final FixedExecOrderEventBus dispatcher) {
+    public LogIterateService(final String name, final long dispatcherPauseMills, final Visitable<T> visitable,
+            final long checkpoint, final FixedExecOrderEventBus dispatcher) {
         this.name = name;
         this.dispatcherPauseMills = dispatcherPauseMills;
         this.visitable = visitable;
@@ -48,7 +49,10 @@ public class LogIterateService<T> implements AutoCloseable {
         this.dispatcherThread = new Thread(new Dispatcher());
         this.dispatcherThread.setName(name);
         this.iterateFrom = new LongAdder();
-        this.iterateFrom.add(initialMessageIterateFrom(visitable, checkpoint));
+        long initialOffset = initialMessageIterateFrom(visitable, checkpoint);
+        LOGGER.info("initial log iterate offset name {} min offset {} max offset {} checkpoint {} init offset {}", name,
+                visitable.getMinOffset(), visitable.getMaxOffset(), checkpoint, initialOffset);
+        this.iterateFrom.add(initialOffset);
 
         QMon.replayLag(name + "Lag", () -> (double) replayLogLag());
     }
@@ -96,6 +100,7 @@ public class LogIterateService<T> implements AutoCloseable {
     }
 
     private class Dispatcher implements Runnable {
+
         @Override
         public void run() {
             while (!stop) {

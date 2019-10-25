@@ -30,6 +30,7 @@ import qunar.tc.qmq.protocol.CommandCode;
 import qunar.tc.qmq.protocol.Datagram;
 import qunar.tc.qmq.protocol.RemotingHeader;
 import qunar.tc.qmq.util.RemotingBuilder;
+import qunar.tc.qmq.utils.Crc32;
 import qunar.tc.qmq.utils.Flags;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
 
@@ -57,9 +58,13 @@ public class NettySender implements Sender {
                 // 模拟消息序列化, 写入 out
                 ByteBuffer in = record.getRecord();
 
-                // write crc32
-                long crc = in.getLong();
-                out.writeLong(crc);
+                // skip crc
+                in.getLong();
+                int crcIndex = out.writerIndex();
+                out.ensureWritable(8);
+                out.writerIndex(crcIndex + 8);
+
+                int messageStart = out.writerIndex();
 
                 // write flag
                 byte flag = in.get();
@@ -115,9 +120,14 @@ public class NettySender implements Sender {
                 // write body length
                 int bodyLen = out.writerIndex() - bodyStartIndex;
                 int messageEndIndex = out.writerIndex();
+                int messageLen = messageEndIndex - messageStart;
 
                 out.writerIndex(bodyLenIndex);
                 out.writeInt(bodyLen);
+
+                // write crc
+                out.writerIndex(crcIndex);
+                out.writeLong(messageCrc(out, messageStart, messageLen));
 
                 // reset index to the end
                 out.writerIndex(messageEndIndex);
@@ -126,6 +136,10 @@ public class NettySender implements Sender {
         });
         requestDatagram.getHeader().setVersion(RemotingHeader.getScheduleTimeVersion());
         return client.sendSync(groupSender.getBrokerGroupInfo().getMaster(), requestDatagram, 5 * 1000);
+    }
+
+    private long messageCrc(ByteBuf out, int messageStart, int messageLength) {
+        return Crc32.crc32(out.nioBuffer(messageStart, messageLength), 0, messageLength);
     }
 
     private void writeAttribute(ByteBuf buf, String key, String val) {
