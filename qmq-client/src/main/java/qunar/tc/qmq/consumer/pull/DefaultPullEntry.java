@@ -16,15 +16,6 @@
 
 package qunar.tc.qmq.consumer.pull;
 
-import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_GROUP_ARRAY;
-
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.Executor;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
@@ -37,6 +28,13 @@ import qunar.tc.qmq.config.PullSubjectsConfig;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.QmqCounter;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
+
+import java.util.List;
+import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_GROUP_ARRAY;
 
 /**
  * @author yiqun.fan create on 17-8-18.
@@ -54,8 +52,6 @@ class DefaultPullEntry extends AbstractPullEntry {
     private final AtomicReference<Integer> pullTimeout;
     private final AtomicReference<Integer> ackNosendLimit;
 
-    private final Set<String> brokersOfWaitAck = new HashSet<>();
-
     private final AtomicBoolean isRunning = new AtomicBoolean(true);
     private final SwitchWaiter onlineSwitcher;
     private final QmqCounter pullRunCounter;
@@ -63,18 +59,6 @@ class DefaultPullEntry extends AbstractPullEntry {
     private final String logType;
     private final PullStrategy pullStrategy;
     private final String brokerGroupName;
-
-    private DefaultPullEntry() {
-        super("", "", null, null, null);
-        brokerGroupName = null;
-        pushConsumer = null;
-        pullBatchSize = pullTimeout = ackNosendLimit = null;
-        pullRunCounter = null;
-        pauseCounter = null;
-        logType = "PullEntry=";
-        pullStrategy = null;
-        onlineSwitcher = null;
-    }
 
     DefaultPullEntry(String brokerGroupName, PushConsumer pushConsumer, PullService pullService, AckService ackService,
                      BrokerService brokerService, PullStrategy pullStrategy, SwitchWaiter switchWaiter) {
@@ -173,9 +157,10 @@ class DefaultPullEntry extends AbstractPullEntry {
             param.ackSendInfo = ackService.getAckSendInfo(param.broker, pushConsumer.subject(), pushConsumer.group());
             if (param.ackSendInfo.getToSendNum() > ackNosendLimit.get()) {
                 pause("wait ack", PAUSETIME_OF_CLEAN_LAST_MESSAGE);
-                break;
+                continue;
             }
-            param.ackSendInfo = null;
+
+            break;
         }
         return isRunning.get() && param.ackSendInfo != null;
     }
@@ -209,7 +194,6 @@ class DefaultPullEntry extends AbstractPullEntry {
     }
 
     private static final class DoPullParam {
-
         private volatile AckSendInfo ackSendInfo = null;
         private volatile BrokerGroupInfo broker = null;
     }
