@@ -24,6 +24,7 @@ import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
@@ -76,7 +77,7 @@ class DefaultPullEntry extends AbstractPullEntry {
     }
 
     DefaultPullEntry(String brokerGroupName, PushConsumer pushConsumer, PullService pullService, AckService ackService,
-            BrokerService brokerService, PullStrategy pullStrategy, SwitchWaiter switchWaiter) {
+                     BrokerService brokerService, PullStrategy pullStrategy, SwitchWaiter switchWaiter) {
         super(pushConsumer.subject(), pushConsumer.group(), pullService, ackService, brokerService);
         this.brokerGroupName = brokerGroupName;
         String subject = pushConsumer.subject();
@@ -165,18 +166,16 @@ class DefaultPullEntry extends AbstractPullEntry {
         while (isRunning.get()) {
             param.broker = getBrokerGroup();
             if (BrokerGroupInfo.isInvalid(param.broker)) {
-                brokersOfWaitAck.clear();
                 pause("noavaliable broker", PAUSETIME_OF_NOAVAILABLE_BROKER);
                 continue;
             }
 
             param.ackSendInfo = ackService.getAckSendInfo(param.broker, pushConsumer.subject(), pushConsumer.group());
-            if (param.ackSendInfo.getToSendNum() <= ackNosendLimit.get()) {
-                brokersOfWaitAck.clear();
+            if (param.ackSendInfo.getToSendNum() > ackNosendLimit.get()) {
+                pause("wait ack", PAUSETIME_OF_CLEAN_LAST_MESSAGE);
                 break;
             }
             param.ackSendInfo = null;
-            brokersOfWaitAck.add(param.broker.getGroupName());
         }
         return isRunning.get() && param.ackSendInfo != null;
     }
