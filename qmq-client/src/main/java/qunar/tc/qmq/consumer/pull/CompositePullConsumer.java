@@ -9,6 +9,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.util.CollectionUtils;
 import qunar.tc.qmq.CompositePullClient;
 import qunar.tc.qmq.ConsumeStrategy;
@@ -24,6 +26,11 @@ import qunar.tc.qmq.metainfoclient.ConsumerOnlineStateManager;
  */
 public class CompositePullConsumer<T extends PullConsumer> extends AbstractCompositePullClient<T> implements
         PullConsumer, CompositePullClient<T> {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(CompositePullConsumer.class);
+
+    private static final long SLEEP_ROUND_MS = 10;
+    private static final long MAX_SLEEP_ROUND_MS = 100;
 
     public CompositePullConsumer(
             String subject,
@@ -60,32 +67,66 @@ public class CompositePullConsumer<T extends PullConsumer> extends AbstractCompo
 
     @Override
     public List<Message> pull(int size) {
-        List<Message> result = Lists.newArrayListWithCapacity(size);
-        int left = size;
-        for (PullConsumer consumer : getComponents()) {
-            List<Message> pullResult = consumer.pull(left);
-            result.addAll(pullResult);
-            left = left - pullResult.size();
-            if (left <= 0) {
-                break;
-            }
-        }
-        return result;
+        return pull(size, MAX_PULL_TIMEOUT_MILLIS);
     }
 
     @Override
     public List<Message> pull(int size, long timeoutMillis) {
+        return pull(size, timeoutMillis, true);
+    }
+
+    @Override
+    public List<Message> pull(int size, long timeoutMillis, boolean waitIfNotComplete) {
+        long sleepMs = SLEEP_ROUND_MS;
         List<Message> result = Lists.newArrayListWithCapacity(size);
-        for (PullConsumer consumer : getComponents()) {
-            long start = System.currentTimeMillis();
-            result.addAll(consumer.pull(size, timeoutMillis));
-            if (result.size() >= size) {
-                break;
+        int left = size;
+        while (result.size() < size) { // 无限拉, 直到超时或拉满
+            boolean emptyRound = true;
+            for (PullConsumer consumer : getComponents()) {
+                long start = System.currentTimeMillis();
+                // 这里超时时间必须设为 -1, 否则 server 端会被挂起
+                List<Message> pullResult = consumer.pull(left, -1, false);
+                if (!CollectionUtils.isEmpty(pullResult)) {
+                    result.addAll(pullResult);
+                    left -= pullResult.size();
+                    emptyRound = false;
+                }
+                if (result.size() >= size) {
+                    // 拉满
+                    return result;
+                }
+
+                if (timeoutMillis > 0) { // <0 为没有超时时间
+                    long elapsed = System.currentTimeMillis() - start;
+                    long timeLeft = timeoutMillis - elapsed;
+                    if (timeLeft <= 0) {
+                        // 超时
+                        return result;
+                    }
+                }
             }
-            long elapsed = System.currentTimeMillis() - start;
-            timeoutMillis = timeoutMillis - elapsed;
-            if (timeoutMillis <= 0) {
-                break;
+
+            if (timeoutMillis < 0) {
+                // 没有超时时间且全部遍历完则直接返回
+                return result;
+            }
+
+            if (emptyRound) {
+                // 拉完如果没有消息则 sleep 时间翻倍
+                sleepMs = Math.min(sleepMs * 2, MAX_SLEEP_ROUND_MS);
+            } else {
+                sleepMs = SLEEP_ROUND_MS;
+            }
+
+            if (!waitIfNotComplete) {
+                return result;
+            }
+
+            try {
+                Thread.sleep(sleepMs);
+                timeoutMillis -= sleepMs;
+            } catch (InterruptedException e) {
+                // ignore
             }
         }
         return result;
@@ -109,28 +150,49 @@ public class CompositePullConsumer<T extends PullConsumer> extends AbstractCompo
         } else {
             PullConsumer consumer = components.get(0);
             ListenableFuture<List<Message>> future = (ListenableFuture<List<Message>>) consumer
-                    .pullFuture(size, timeoutMillis, isResetCreateTime);
+                    .pullFuture(size, -1, isResetCreateTime);
             return chainNextPullFuture(size, timeoutMillis, isResetCreateTime, System.currentTimeMillis(), future,
-                    new AtomicInteger(0));
+                    new AtomicInteger(0), SLEEP_ROUND_MS);
         }
     }
 
     private ListenableFuture<List<Message>> chainNextPullFuture(int size, long timeoutMillis, boolean isResetCreateTime,
-            long startMills, ListenableFuture<List<Message>> future, AtomicInteger currentConsumerIdx) {
+            long startMills, ListenableFuture<List<Message>> future, AtomicInteger currentConsumerIdx, final long sleepRoundMs) {
         return Futures.transform(future, new AsyncFunction<List<Message>, List<Message>>() {
             @Override
             public ListenableFuture<List<Message>> apply(List<Message> messages) throws Exception {
                 int messageLeft = size - messages.size();
                 long elapsed = System.currentTimeMillis() - startMills;
-                long timeoutLeft = timeoutMillis - elapsed;
-                if (currentConsumerIdx.get() == (getComponents().size() - 1) || messageLeft <= 0 || timeoutLeft <= 0) {
-                    // 最后一个 Consumer / 消息条数够了 / 超时, 则直接返回
-                    return future;
+                long timeoutLeft = timeoutMillis < 0 ? timeoutMillis : timeoutMillis - elapsed;
+                if (messageLeft <= 0 || (timeoutMillis > 0 && timeoutLeft <= 0)) {
+                    // timeout < 0 代表没有超时时间
+                    // 消息条数够了 / 超时, 则直接返回
+                     return future;
                 }
-                PullConsumer nextConsumer = getComponents().get(currentConsumerIdx.incrementAndGet());
+                List<T> components = getComponents();
+                int nextIndex = currentConsumerIdx.incrementAndGet() % components.size();
+                long sleepTime = sleepRoundMs;
+
+                if (nextIndex == 0) {
+                    // 说明已经查过一轮
+                    if (timeoutMillis < 0) {
+                        return future;
+                    } else {
+                        // 继续循环
+                        if (!CollectionUtils.isEmpty(messages)) {
+                            sleepTime = Math.min(sleepRoundMs * 2, MAX_SLEEP_ROUND_MS);
+                        } else {
+                            sleepTime = SLEEP_ROUND_MS;
+                        }
+                        Thread.sleep(sleepTime);
+                        timeoutLeft -= sleepTime;
+                    }
+                }
+
+                PullConsumer nextConsumer = components.get(nextIndex);
                 // 还不够
                 ListenableFuture<List<Message>> nextFuture = (ListenableFuture<List<Message>>) nextConsumer
-                        .pullFuture(messageLeft, timeoutLeft, isResetCreateTime);
+                        .pullFuture(messageLeft, -1, isResetCreateTime);
                 nextFuture = Futures.transform(nextFuture, (Function<List<Message>, List<Message>>) nextResult -> {
                     // 合并下一个 future 和当前 future 的消息
                     if (nextResult == null) {
@@ -142,7 +204,7 @@ public class CompositePullConsumer<T extends PullConsumer> extends AbstractCompo
                     return result;
                 });
                 return chainNextPullFuture(messageLeft, timeoutLeft, isResetCreateTime, System.currentTimeMillis(),
-                        nextFuture, currentConsumerIdx);
+                        nextFuture, currentConsumerIdx, sleepTime);
             }
         });
     }

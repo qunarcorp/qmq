@@ -28,6 +28,7 @@ import static qunar.tc.qmq.test.client.MessageTestUtils.strictGenerateMessageFil
 import com.google.common.collect.Maps;
 import java.io.FileWriter;
 import java.io.PrintWriter;
+import java.lang.management.ManagementFactory;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -41,6 +42,7 @@ import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ListenerHolder;
 import qunar.tc.qmq.Message;
 import qunar.tc.qmq.NeedRetryException;
+import qunar.tc.qmq.PullConsumer;
 import qunar.tc.qmq.SubscribeParam;
 import qunar.tc.qmq.common.OrderStrategy;
 import qunar.tc.qmq.common.OrderStrategyManager;
@@ -447,7 +449,8 @@ public class ConsumerTest extends ProducerTest {
         consumerProvider.destroy();
         pw.close();
 
-        checkExclusiveBestTriedConsumeMessageExceptionFile(bestTriedGenerateMessageFile, exclusiveBestTriedConsumerMessageFile);
+        checkExclusiveBestTriedConsumeMessageExceptionFile(bestTriedGenerateMessageFile,
+                exclusiveBestTriedConsumerMessageFile);
 
         List<Message> savedMessages = replayMessages(exclusiveBestTriedConsumerMessageFile);
         for (Message savedMessage : savedMessages) {
@@ -461,8 +464,8 @@ public class ConsumerTest extends ProducerTest {
     }
 
     /**
-     * 测试消息没有 ACK 时的行为, best tried 模式下未 ack 消息在 client 断开后会进入 %retry% 阶段
-     * 测试需要配合 testExclusiveBestTriedConsumeNoAck2() 执行最终的消息验证
+     * 测试消息没有 ACK 时的行为, best tried 模式下未 ack 消息在 client 断开后会进入 %retry% 阶段 测试需要配合 testExclusiveBestTriedConsumeNoAck2()
+     * 执行最终的消息验证
      */
     @Test
     public void testExclusiveBestTriedConsumeNoAck1() throws Exception {
@@ -676,6 +679,99 @@ public class ConsumerTest extends ProducerTest {
 
         checkSharedStrictConsumeMessageFile(delayGenerateMessageFile, sharedStrictConsumerMessageFile);
     }
+
+    @Test
+    public void testSyncPullConsumer() throws Exception {
+        LOGGER.info("pid {}", ManagementFactory.getRuntimeMXBean().getName());
+        MessageConsumerProvider consumerProvider = initConsumer("pull-consumer-test-0");
+        testSendSharedBestTriedMessages();
+
+        int receiveCount = 0;
+        PullConsumer pullConsumer = consumerProvider
+                .getOrCreatePullConsumer(SHARED_BEST_TRIED_MESSAGE_SUBJECT, SHARED_CONSUMER_GROUP, false);
+        for (int i = 0; i < 11; i++) {
+            int batchSize = 10;
+            List<Message> messages = pullConsumer.pull(batchSize, 3000);
+            LOGGER.info("pull batch start {}", (i * batchSize));
+            for (Message message : messages) {
+                LOGGER.info("receive message {}", message.getMessageId());
+                message.ack(10, null);
+                receiveCount++;
+            }
+        }
+
+        assertEquals(receiveCount, 100);
+    }
+
+    @Test
+    public void testSyncPullConsumer2() throws Exception {
+        LOGGER.info("pid {}", ManagementFactory.getRuntimeMXBean().getName());
+        MessageConsumerProvider consumerProvider = initConsumer("pull-consumer-test-0");
+        testSendSharedBestTriedMessages();
+
+        int receiveCount = 0;
+        PullConsumer pullConsumer = consumerProvider
+                .getOrCreatePullConsumer(SHARED_BEST_TRIED_MESSAGE_SUBJECT, SHARED_CONSUMER_GROUP, false);
+        for (int i = 0; i < 2; i++) {
+            int batchSize = 1000;
+            List<Message> messages = pullConsumer.pull(batchSize, 3000);
+            LOGGER.info("pull batch start {}", (i * batchSize));
+            for (Message message : messages) {
+                LOGGER.info("receive message {}", message.getMessageId());
+                message.ack(10, null);
+                receiveCount++;
+            }
+        }
+
+        assertEquals(receiveCount, 100);
+    }
+
+    @Test
+    public void testAsyncPullConsumer1() throws Exception {
+        LOGGER.info("pid {}", ManagementFactory.getRuntimeMXBean().getName());
+        MessageConsumerProvider consumerProvider = initConsumer("pull-consumer-test-0");
+        testSendSharedBestTriedMessages();
+
+        int receiveCount = 0;
+        PullConsumer pullConsumer = consumerProvider
+                .getOrCreatePullConsumer(SHARED_BEST_TRIED_MESSAGE_SUBJECT, SHARED_CONSUMER_GROUP, false);
+        for (int i = 0; i < 12; i++) {
+            int batchSize = 10;
+            List<Message> messages = pullConsumer.pullFuture(batchSize, 3000).get();
+            LOGGER.info("pull batch start {}", (i * batchSize));
+            for (Message message : messages) {
+                LOGGER.info("receive message {}", message.getMessageId());
+                message.ack(10, null);
+                receiveCount++;
+            }
+        }
+
+        assertEquals(receiveCount, 100);
+    }
+
+    @Test
+    public void testAsyncPullConsumer2() throws Exception {
+        LOGGER.info("pid {}", ManagementFactory.getRuntimeMXBean().getName());
+        MessageConsumerProvider consumerProvider = initConsumer("pull-consumer-test-0");
+        testSendSharedBestTriedMessages();
+
+        int receiveCount = 0;
+        PullConsumer pullConsumer = consumerProvider
+                .getOrCreatePullConsumer(SHARED_BEST_TRIED_MESSAGE_SUBJECT, SHARED_CONSUMER_GROUP, false);
+        for (int i = 0; i < 2; i++) {
+            int batchSize = 1000;
+            List<Message> messages = pullConsumer.pullFuture(batchSize, 3000).get();
+            LOGGER.info("pull batch start {}", (i * batchSize));
+            for (Message message : messages) {
+                LOGGER.info("receive message {}", message.getMessageId());
+                message.ack(10, null);
+                receiveCount++;
+            }
+        }
+
+        assertEquals(receiveCount, 100);
+    }
+
 
 
     /**

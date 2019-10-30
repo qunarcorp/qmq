@@ -19,6 +19,7 @@ package qunar.tc.qmq.processor;
 import qunar.tc.qmq.base.PullMessageResult;
 import qunar.tc.qmq.concurrent.ActorSystem;
 import qunar.tc.qmq.monitor.QMon;
+import qunar.tc.qmq.protocol.consumer.PullRequest;
 import qunar.tc.qmq.store.MessageStoreWrapper;
 import qunar.tc.qmq.utils.ConsumerGroupUtils;
 import qunar.tc.qmq.utils.ObjectUtils;
@@ -65,7 +66,9 @@ class PullMessageWorker implements ActorSystem.Processor<PullMessageProcessor.Pu
             return true;
         }
 
-        final PullMessageResult pullMessageResult = store.findMessages(entry.pullRequest);
+        PullRequest request = entry.pullRequest;
+        final PullMessageResult pullMessageResult = store.findMessages(request);
+        System.out.println("receive pull request for " + request.getPartitionName());
 
         if (pullMessageResult == PullMessageResult.FILTER_EMPTY ||
                 pullMessageResult.isReject() ||
@@ -73,6 +76,7 @@ class PullMessageWorker implements ActorSystem.Processor<PullMessageProcessor.Pu
                 || entry.isPullOnce()
                 || entry.isTimeout()) {
             entry.processMessageResult(pullMessageResult);
+            System.out.println("pull result for " + request.getPartitionName() + " " + pullMessageResult.getMessageNum());
             return true;
         }
 
@@ -80,6 +84,7 @@ class PullMessageWorker implements ActorSystem.Processor<PullMessageProcessor.Pu
         if (entry.setTimerOnDemand()) {
             QMon.suspendRequestCountInc(entry.subject, entry.group);
             subscribe(entry.subject, entry.group);
+            System.out.println("pull result for " + request.getPartitionName() + " " + pullMessageResult.getMessageNum());
             return false;
         }
 

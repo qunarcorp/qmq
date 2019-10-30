@@ -52,6 +52,7 @@ public class MessageConsumptionTask {
     public void run() {
         String subject = message.getSubject();
         OrderStrategy orderStrategy = OrderStrategyCache.getStrategy(subject);
+        Throwable ex = null;
         try {
             processMessage();
             if (!message.isAutoAck() && message.isNotAcked()) {
@@ -62,13 +63,17 @@ public class MessageConsumptionTask {
         } catch (NeedRetryException e) {
             // 如果非 RetryImmediately 会抛出 NeedRetry 异常
             if (!localRetry(message, e)) {
-                throw e;
+                ex = e;
             }
         } catch (Throwable t) {
+            ex = t;
             handleFailCounter.inc();
             LOGGER.error("message 处理失败. subject={}, msgId={}, times={}, maxRetryNum={}",
                     message.getSubject(), message.getMessageId(), message.times(), message.getMaxRetryNum(), t);
-            orderStrategy.onConsumeFailed(message, messageExecutor, t);
+        } finally {
+            if (ex != null) {
+                orderStrategy.onConsumeFailed(message, messageExecutor, ex);
+            }
         }
     }
 
