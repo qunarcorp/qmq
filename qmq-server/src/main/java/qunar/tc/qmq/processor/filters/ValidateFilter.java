@@ -28,8 +28,10 @@ class ValidateFilter implements ReceiveFilter {
     @Override
     public void invoke(Invoker invoker, ReceivingMessage message) {
         Preconditions.checkNotNull(message, "message not null");
-        Preconditions.checkArgument(!Strings.isNullOrEmpty(message.getMessageId()), "message id should not be empty");
-        Preconditions.checkArgument(!Strings.isNullOrEmpty(message.getSubject()), "message subject should not be empty");
+        Preconditions.checkArgument(!Strings.isNullOrEmpty(message.getMessageId()),
+                "message id should not be empty subject %s", message.getSubject());
+        Preconditions.checkArgument(!Strings.isNullOrEmpty(message.getSubject()),
+                "message subject should not be empty id %s", message.getMessageId());
         invoker.invoke(message);
     }
 }
