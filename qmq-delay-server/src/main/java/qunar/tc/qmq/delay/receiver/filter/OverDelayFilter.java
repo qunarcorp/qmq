@@ -16,10 +16,11 @@
 
 package qunar.tc.qmq.delay.receiver.filter;
 
+import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.delay.base.ReceivedDelayMessage;
 import qunar.tc.qmq.delay.receiver.Invoker;
-
-import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -27,15 +28,25 @@ import java.util.concurrent.TimeUnit;
  * @since 2018-08-01 16:26
  */
 public class OverDelayFilter implements Filter {
-    public static final long TWO_YEAR_MILLIS = TimeUnit.DAYS.toMillis(365 * 2);
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(OverDelayFilter.class);
+    private static final long TWO_YEAR_MILLIS = TimeUnit.DAYS.toMillis(365 * 2);
 
     @Override
     public void invoke(Invoker invoker, ReceivedDelayMessage message) {
         if (message.getScheduleTime() > (System.currentTimeMillis() + TWO_YEAR_MILLIS)) {
-            throw new OverDelayException("messageOverDelay");
+            LOGGER.warn("receive message schedule time over 2 years, reset to 2 year, subject {}, messageId {}",
+                    message.getSubject(), message.getMessageId());
+            adjustScheduleTime(message);
         }
 
         invoker.invoke(message);
     }
+
+    private void adjustScheduleTime(final ReceivedDelayMessage message) {
+        long now = System.currentTimeMillis();
+        message.adjustScheduleTime(now + TWO_YEAR_MILLIS);
+    }
+
 
 }
