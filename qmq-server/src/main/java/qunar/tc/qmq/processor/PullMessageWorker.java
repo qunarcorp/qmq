@@ -68,7 +68,6 @@ class PullMessageWorker implements ActorSystem.Processor<PullMessageProcessor.Pu
 
         PullRequest request = entry.pullRequest;
         final PullMessageResult pullMessageResult = store.findMessages(request);
-        System.out.println("receive pull request for " + request.getPartitionName());
 
         if (pullMessageResult == PullMessageResult.FILTER_EMPTY ||
                 pullMessageResult.isReject() ||
@@ -76,7 +75,6 @@ class PullMessageWorker implements ActorSystem.Processor<PullMessageProcessor.Pu
                 || entry.isPullOnce()
                 || entry.isTimeout()) {
             entry.processMessageResult(pullMessageResult);
-            System.out.println("pull result for " + request.getPartitionName() + " " + pullMessageResult.getMessageNum());
             return true;
         }
 
