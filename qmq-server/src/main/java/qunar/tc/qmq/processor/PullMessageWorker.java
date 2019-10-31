@@ -82,7 +82,6 @@ class PullMessageWorker implements ActorSystem.Processor<PullMessageProcessor.Pu
         if (entry.setTimerOnDemand()) {
             QMon.suspendRequestCountInc(entry.subject, entry.group);
             subscribe(entry.subject, entry.group);
-            System.out.println("pull result for " + request.getPartitionName() + " " + pullMessageResult.getMessageNum());
             return false;
         }
 
