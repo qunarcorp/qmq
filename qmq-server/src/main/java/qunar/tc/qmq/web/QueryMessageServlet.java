@@ -102,6 +102,7 @@ public class QueryMessageServlet extends HttpServlet {
                     final ServletOutputStream os = response.getOutputStream();
                     for (RemoteMessageQuery.MessageKey key : keys) {
                         long sequence = key.getSequence();
+                        LOGGER.info("查询subject:{}, partitionName：{} 详情", subject, key.getPartitionName());
                         GetMessageResult result = store.getMessage(key.getPartitionName(), sequence);
                         if (result.getStatus() != GetMessageStatus.SUCCESS) continue;
                         try {
