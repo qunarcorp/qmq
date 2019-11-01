@@ -123,15 +123,13 @@ public class MessageIndexSyncWorker extends AbstractLogSyncWorker {
                     }
                     if (control == Control.NOSPACE) break;
 
-                    control = skipTags(body, flag);
-
                     if (control == Control.INVALID) {
                         nextSyncOffset = visitor.getStartOffset() + visitor.visitedBufferSize();
                         continue;
                     }
                     if (control == Control.NOSPACE) break;
 
-                    control = writeV2Flag(body, byteBuf);
+                    control = writeV2Flag(byteBuf);
 
                     if (control == Control.NOSPACE) break;
 
@@ -159,38 +157,10 @@ public class MessageIndexSyncWorker extends AbstractLogSyncWorker {
         }
     }
 
-    private Control writeV2Flag(ByteBuffer body, ByteBuf to) {
+    private Control writeV2Flag(ByteBuf to) {
         return writeString(BackupConstants.SYNC_V2_FLAG, to);
     }
 
-    private Control copyPartitionName(ByteBuffer body, ByteBuf to) {
-        int bodyLen = body.getInt();
-        if (bodyLen < 0 || body.remaining() < bodyLen) {
-            return Control.INVALID;
-        }
-
-        while (body.remaining() > 0) {
-
-            GetPayloadDataResult keyResult = getString(body);
-            if (keyResult.control != Control.OK) {
-                return keyResult.control;
-            }
-
-            String key = keyResult.data;
-
-            if (BaseMessage.keys.qmq_partitionName.name().equals(key)) {
-                return copyString(body, to);
-            }
-
-        }
-
-        if (!to.isWritable(Short.BYTES + 0)) {
-            return Control.NOSPACE;
-        }
-        PayloadHolderUtils.writeString("", to);;
-
-        return Control.OK;
-    }
 
     private GetPayloadDataResult getString(ByteBuffer body) {
         short len = body.getShort();
