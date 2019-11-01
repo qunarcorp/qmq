@@ -89,7 +89,7 @@ public class DeadMessageContentBatchBackup extends AbstractBatchBackup<MessageQu
 
                 try {
                     monitorDeadMessageQps(subject);
-                    LOGGER.info("backup dead msg content, subject: {}", subject);
+                    LOGGER.info("backup dead msg content, subject: {}, partitionName: {}", subject, index.getPartitionName());
                     final String realSubject = RetryPartitionUtils.getRealPartitionName(subject);
                     final String messageId = index.getMessageId();
                     final String consumerGroup = getConsumerGroup(subject);
