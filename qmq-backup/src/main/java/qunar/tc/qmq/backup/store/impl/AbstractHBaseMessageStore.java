@@ -72,7 +72,8 @@ public abstract class AbstractHBaseMessageStore<T> extends HBaseStore implements
             result = scan(table, keyRegexp, startKey, endKey, maxResults + 1, 0, B_FAMILY, B_MESSAGE_QUALIFIERS, kvs -> {
                 KeyValueList<KeyValue> kvl = new KeyValueListImpl(kvs);
                 messageQueryResult.setNext(new String(kvl.getKey(), CharsetUtil.UTF_8));
-                String version = new String(kvl.getValue(VERSION));
+                byte[] versionByte = kvl.getValue(VERSION);
+                String version = versionByte == null ? "" : new String(versionByte);
                 byte[] value = kvl.getValue(CONTENT);
                 T item = (T)getItem(subject, version, value);
                 if (item == null) {
