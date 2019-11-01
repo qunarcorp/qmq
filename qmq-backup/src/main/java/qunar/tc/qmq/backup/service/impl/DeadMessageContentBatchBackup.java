@@ -82,6 +82,7 @@ public class DeadMessageContentBatchBackup extends AbstractBatchBackup<MessageQu
                 query.setSubject(subject);
                 query.setBrokerGroup(new String(brokerGroupBytes, CharsetUtil.UTF_8));
                 query.setSequence(index.getSequence());
+                query.setPartitionName(index.getPartitionName());
 
                 CompletableFuture<byte[]> future = messageService.findMessageBytes(query);
 
