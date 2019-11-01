@@ -23,6 +23,11 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import io.netty.buffer.ByteBuf;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.LinkedBlockingDeque;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.base.MessageHeader;
@@ -32,29 +37,24 @@ import qunar.tc.qmq.delay.DelayLogFacade;
 import qunar.tc.qmq.delay.base.ReceivedDelayMessage;
 import qunar.tc.qmq.delay.base.ReceivedResult;
 import qunar.tc.qmq.delay.monitor.QMon;
-import qunar.tc.qmq.delay.receiver.filter.OverDelayException;
 import qunar.tc.qmq.delay.receiver.filter.ReceiveFilterChain;
 import qunar.tc.qmq.delay.store.model.RawMessageExtend;
-import qunar.tc.qmq.protocol.*;
+import qunar.tc.qmq.protocol.CommandCode;
+import qunar.tc.qmq.protocol.Datagram;
+import qunar.tc.qmq.protocol.PayloadHolder;
+import qunar.tc.qmq.protocol.RemotingCommand;
 import qunar.tc.qmq.protocol.producer.MessageProducerCode;
 import qunar.tc.qmq.sync.DelaySyncRequest;
 import qunar.tc.qmq.util.RemotingBuilder;
 import qunar.tc.qmq.utils.CharsetUtils;
 import qunar.tc.qmq.utils.RetryPartitionUtils;
 
-import java.util.ArrayList;
-import java.util.Deque;
-import java.util.List;
-import java.util.Objects;
-import java.util.concurrent.LinkedBlockingDeque;
-
-import static qunar.tc.qmq.delay.receiver.filter.OverDelayFilter.TWO_YEAR_MILLIS;
-
 /**
  * @author xufeng.deng dennisdxf@gmail.com
  * @since 2018-07-26 14:46
  */
 public class Receiver {
+
     private static final Logger LOGGER = LoggerFactory.getLogger(Receiver.class);
 
     private final DelayLogFacade facade;
@@ -76,16 +76,13 @@ public class Receiver {
 
             final ReceivedDelayMessage receivedDelayMessage = new ReceivedDelayMessage(message, cmd.getReceiveTime());
             futures.add(receivedDelayMessage.getPromise());
-            try {
-                invoker.invoke(receivedDelayMessage);
-            } catch (OverDelayException e) {
-                overDelay(receivedDelayMessage);
-            }
+            invoker.invoke(receivedDelayMessage);
         }
 
         return Futures.transform(Futures.allAsList(futures)
                 , (Function<? super List<ReceivedResult>, ? extends Datagram>) results -> {
-                    return RemotingBuilder.buildResponseDatagram(CommandCode.SUCCESS, cmd.getHeader(), new SendResultPayloadHolder(results));
+                    return RemotingBuilder.buildResponseDatagram(CommandCode.SUCCESS, cmd.getHeader(),
+                            new SendResultPayloadHolder(results));
                 });
     }
 
@@ -116,7 +113,8 @@ public class Receiver {
     }
 
     private void monitorMessageReceived(long receiveTime, String subject) {
-        if (RetryPartitionUtils.isRetryPartitionName(subject) || RetryPartitionUtils.isDeadRetryPartitionName(subject)) {
+        if (RetryPartitionUtils.isRetryPartitionName(subject) || RetryPartitionUtils
+                .isDeadRetryPartitionName(subject)) {
             QMon.receivedRetryMessagesCountInc(subject);
         }
         QMon.receivedMessagesCountInc(subject);
@@ -140,7 +138,8 @@ public class Receiver {
 
     private void notAllowed(ReceivedDelayMessage message) {
         QMon.rejectReceivedMessageCountInc(message.getSubject());
-        end(message, new ReceivedResult(message.getMessageId(), MessageProducerCode.SUBJECT_NOT_ASSIGNED, "message rejected"));
+        end(message, new ReceivedResult(message.getMessageId(), MessageProducerCode.SUBJECT_NOT_ASSIGNED,
+                "message rejected"));
     }
 
     private boolean isSubjectIllegal(final String subject) {
@@ -168,7 +167,8 @@ public class Receiver {
 
     private void brokerReadOnly(ReceivedDelayMessage message) {
         QMon.delayBrokerReadOnlyMessageCountInc(message.getSubject());
-        end(message, new ReceivedResult(message.getMessageId(), MessageProducerCode.BROKER_READ_ONLY, "BROKER_READ_ONLY"));
+        end(message,
+                new ReceivedResult(message.getMessageId(), MessageProducerCode.BROKER_READ_ONLY, "BROKER_READ_ONLY"));
     }
 
     private void offer(ReceivedDelayMessage message, ReceivedResult result) {
@@ -185,19 +185,9 @@ public class Receiver {
         waitSlaveSyncQueue.addLast(new ReceiveEntry(message, result));
     }
 
-    private void overDelay(final ReceivedDelayMessage message) {
-        LOGGER.warn("received delay message over delay,message:{}", message);
-        QMon.overDelay(message.getSubject());
-        adjustScheduleTime(message);
-    }
-
-    private void adjustScheduleTime(final ReceivedDelayMessage message) {
-        long now = System.currentTimeMillis();
-        message.adjustScheduleTime(now + TWO_YEAR_MILLIS);
-    }
-
     private void error(ReceivedDelayMessage message, Throwable e) {
-        LOGGER.error("delay broker receive message error,subject:{} ,id:{} ,msg:{}", message.getSubject(), message.getMessageId(), message, e);
+        LOGGER.error("delay broker receive message error,subject:{} ,id:{} ,msg:{}", message.getSubject(),
+                message.getMessageId(), message, e);
         QMon.receiveFailedCuntInc(message.getSubject());
         end(message, new ReceivedResult(message.getMessageId(), MessageProducerCode.STORE_ERROR, "store error"));
     }
@@ -208,11 +198,12 @@ public class Receiver {
         } catch (Throwable e) {
             LOGGER.error("send response failed id:{} ,msg:{}", message.getMessageId(), message);
         } finally {
-			QMon.processTime(message.getSubject(), System.currentTimeMillis() - message.getReceivedTime());
-		}
+            QMon.processTime(message.getSubject(), System.currentTimeMillis() - message.getReceivedTime());
+        }
     }
 
     public static class SendResultPayloadHolder implements PayloadHolder {
+
         private final List<ReceivedResult> results;
 
         SendResultPayloadHolder(List<ReceivedResult> results) {
@@ -247,6 +238,7 @@ public class Receiver {
     }
 
     private static class ReceiveEntry {
+
         final ReceivedDelayMessage message;
         final ReceivedResult result;
 

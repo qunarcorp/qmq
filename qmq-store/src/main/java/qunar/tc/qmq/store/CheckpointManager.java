@@ -182,8 +182,7 @@ public class CheckpointManager implements AutoCloseable {
         try {
             updateMaxPulledMessageSequence(action);
             updateConsumerMaxPullLogSequence(action);
-            if (offset > 0)
-                actionCheckpoint.setOffset(offset);
+            actionCheckpoint.setOffset(offset);
         } finally {
             actionCheckpointGuard.unlock();
         }
@@ -285,23 +284,11 @@ public class CheckpointManager implements AutoCloseable {
         }
     }
 
-    /**
-     * 更新ack的checkpoint
-     * 因为现在取消了独占消费拉取消息时候写pull action log，所以独占消费就没有回放的action log了，这就导致在ack的时候就没有这个ConsumerProgress的
-     * 但是pull一定是先于ack的，所以如果是共享消费更新ack的时候一定是有ConsumerProgress的，如果没有则说明是独占消费
-     *
-     * @FIXME(zhaohui.yu) 这里实现的比较恶心，更好的做法现在想到的是将pull和acK的checkpoint分开维护
-     * @param partitionName
-     * @param consumerGroup
-     * @param consumerId
-     * @param maxSequence
-     */
     private void updateConsumerMaxAckedPullLogSequence(final String partitionName, final String consumerGroup, final String consumerId, final long maxSequence) {
         ConsumerProgress consumer = getConsumerProgress(partitionName, consumerGroup, consumerId);
-        if (consumer == null) {
-            consumer = getOrCreateConsumerProgress(partitionName, consumerGroup, consumerId, true);
+        if (consumer != null) {
+            consumer.setAck(maxSequence);
         }
-        consumer.setAck(maxSequence);
     }
 
     private ConsumerProgress getConsumerProgress(final String partitionName, final String consumerGroup, final String consumerId) {

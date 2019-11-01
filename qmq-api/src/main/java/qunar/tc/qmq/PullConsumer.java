@@ -76,6 +76,8 @@ public interface PullConsumer extends AutoCloseable, PullClient {
      */
     List<Message> pull(int size, long timeoutMillis);
 
+    List<Message> pull(int size, long timeoutMillis, boolean waitIfNotComplete);
+
     /**
      * 返回的Future不支持cancel()方法，调用cancel()会抛出UnsupportedOperationException异常。
      * 如果调用Future的get方法发生超时，必须在之后调用get()直到isDone()返回true。

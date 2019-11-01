@@ -132,9 +132,7 @@ class DefaultPullEntry extends AbstractPullEntry implements PullEntry, Runnable 
             switch (state.get()) {
                 case PREPARE_PULL:
                     if (!isRunning.get()) {
-                        brokerService
-                                .releaseLock(getSubject(), getConsumerGroup(), getPartitionName(), getBrokerGroup(),
-                                        getConsumeStrategy());
+                        releaseLock();
                         return;
                     }
 
@@ -189,6 +187,12 @@ class DefaultPullEntry extends AbstractPullEntry implements PullEntry, Runnable 
         }
     }
 
+    private void releaseLock() {
+        brokerService
+                .releaseLock(getSubject(), getConsumerGroup(), getPartitionName(), getBrokerGroup(),
+                        getConsumeStrategy());
+    }
+
     private boolean await(ListenableFuture future) {
         if (future == null) {
             return false;
@@ -204,6 +208,7 @@ class DefaultPullEntry extends AbstractPullEntry implements PullEntry, Runnable 
             }
             SettableFuture waitOnlineFuture = SettableFuture.create();
             this.waitOnlineFuture = waitOnlineFuture;
+            releaseLock();
             return waitOnlineFuture;
         }
     }
@@ -269,7 +274,6 @@ class DefaultPullEntry extends AbstractPullEntry implements PullEntry, Runnable 
     public void offline() {
         synchronized (this.isOnline) {
             this.isOnline.set(false);
-            this.isRunning.set(false);
             super.offline();
         }
     }
@@ -278,12 +282,17 @@ class DefaultPullEntry extends AbstractPullEntry implements PullEntry, Runnable 
     public void online() {
         synchronized (this.isOnline) {
             this.isOnline.set(true);
-            this.isRunning.set(true);
             final SettableFuture future = waitOnlineFuture;
             if (future != null) {
                 future.set(null);
             }
         }
+    }
+
+    @Override
+    public void destroy() {
+        this.isRunning.set(false);
+        super.destroy();
     }
 
     private static final class DoPullParam {

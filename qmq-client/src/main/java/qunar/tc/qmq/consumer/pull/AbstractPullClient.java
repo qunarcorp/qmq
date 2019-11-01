@@ -1,5 +1,6 @@
 package qunar.tc.qmq.consumer.pull;
 
+import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ConsumeStrategy;

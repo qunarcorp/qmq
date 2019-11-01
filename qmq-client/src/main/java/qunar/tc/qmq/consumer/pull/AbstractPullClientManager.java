@@ -57,16 +57,20 @@ public abstract class AbstractPullClientManager<T extends PullClient> implements
             ConsumeStrategy consumeStrategy = consumerAllocation.getConsumeStrategy();
 
             if (oldCompositeClient != null) {
+
+                int oldAllocationVersion = oldCompositeClient.getConsumerAllocationVersion();
+                int oldPartitionVersion = oldCompositeClient.getPartitionSetVersion();
+
+                if (oldAllocationVersion > newAllocationVersion) {
+                    return;
+                }
+
                 // 刷新超时时间等信息
                 oldCompositeClient.setConsumptionExpiredTime(consumptionExpiredTime);
                 oldCompositeClient.setConsumeStrategy(consumeStrategy);
 
-                if (oldCompositeClient.getConsumerAllocationVersion() > newAllocationVersion) {
-                    return;
-                }
-
-                if (oldCompositeClient.getConsumerAllocationVersion() == newAllocationVersion &&
-                        oldCompositeClient.getPartitionSetVersion() >= newPartitionSetVersion) {
+                if (oldAllocationVersion == newAllocationVersion &&
+                        oldPartitionVersion >= newPartitionSetVersion) {
                     return;
                 }
             }
@@ -209,8 +213,6 @@ public abstract class AbstractPullClientManager<T extends PullClient> implements
     abstract CompositePullClient doCreateCompositePullClient(String subject, String consumerGroup,
             ConsumeStrategy consumeStrategy, int allocationVersion, long consumptionExpiredTime,
             List<? extends PullClient> clientList, int partitionSetVersion, Object registryParam);
-
-    abstract StatusSource getStatusSource(Object registryParam);
 
     private String createPartitionKey(PartitionProps pp) {
         return createPartitionKey(pp.getBrokerGroup(), pp.getPartitionName());

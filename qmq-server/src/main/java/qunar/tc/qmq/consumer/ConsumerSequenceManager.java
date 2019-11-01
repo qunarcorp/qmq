@@ -89,18 +89,20 @@ public class ConsumerSequenceManager {
 
     /**
      * 只有共享模式消费才需要记录pull log了
-     * @param subject 消息主题(实际应该是partition name)
-     * @param consumerGroup 消费者分组
-     * @param consumerId 消费者唯一id
+     *
+     * @param subject          消息主题(实际应该是partition name)
+     * @param consumerGroup    消费者分组
+     * @param consumerId       消费者唯一id
      * @param getMessageResult 从Storage里查出来的消息
      * @return
      */
     public WritePutActionResult putPullActions(final String subject,
                                                final String consumerGroup,
                                                final String consumerId,
+                                               final boolean isExclusiveConsume,
                                                final GetMessageResult getMessageResult) {
         final OffsetRange consumerLogRange = getMessageResult.getConsumerLogRange();
-        final ConsumerSequence consumerSequence = getOrCreateConsumerSequence(subject, consumerGroup, consumerId, false);
+        final ConsumerSequence consumerSequence = getOrCreateConsumerSequence(subject, consumerGroup, consumerId, isExclusiveConsume);
 
         if (consumerLogRange.getEnd() - consumerLogRange.getBegin() + 1 != getMessageResult.getMessageNum()) {
             LOGGER.debug("consumer offset range error, subject:{}, consumerGroup:{}, consumerId:{}, isExclusiveConsume:{}, getMessageResult:{}",
@@ -117,7 +119,7 @@ public class ConsumerSequenceManager {
             final long lastPullSequence = consumerSequence.getPullSequence() + getMessageResult.getMessageNum();
 
             final Action action = new PullAction(subject, consumerGroup, consumerId,
-                    System.currentTimeMillis(), false,
+                    System.currentTimeMillis(), isExclusiveConsume,
                     firstPullSequence, lastPullSequence,
                     firstConsumerLogSequence, lastConsumerLogSequence);
 
@@ -139,10 +141,11 @@ public class ConsumerSequenceManager {
         final String consumerGroup = ackEntry.getConsumerGroup();
         final String consumerId = ackEntry.getConsumerId();
         final long lastPullSequence = ackEntry.getLastPullLogOffset();
+        final boolean exclusiveConsume = ackEntry.isExclusiveConsume();
+
         long firstPullSequence = ackEntry.getFirstPullLogOffset();
 
-        final ConsumerSequence consumerSequence = getOrCreateConsumerSequence(partitionName, consumerGroup, consumerId, ackEntry.isExclusiveConsume());
-
+        final ConsumerSequence consumerSequence = getOrCreateConsumerSequence(partitionName, consumerGroup, consumerId, exclusiveConsume);
         consumerSequence.ackLock();
         final long confirmedAckSequence = consumerSequence.getAckSequence();
         try {
@@ -163,7 +166,7 @@ public class ConsumerSequenceManager {
                 final long firstNotAckedPullSequence = confirmedAckSequence + 1;
                 final long lastLostPullSequence = firstPullSequence - 1;
                 //如果是独占消费，put need retry也是没有意义的
-                if (!ackEntry.isExclusiveConsume()) {
+                if (!exclusiveConsume) {
                     LOGGER.error("lost ack count, ackEntry:{}, consumerSequence:{}", ackEntry, consumerSequence);
                     putNeedRetryMessages(partitionName, consumerGroup, consumerId, firstNotAckedPullSequence, lastLostPullSequence);
                 }
@@ -172,7 +175,7 @@ public class ConsumerSequenceManager {
             }
 
             //如果是独占消费，则ack sequence是维护在consumerGroup层级的，而共享消费维护在consumerId层级
-            String exclusiveKey = ackEntry.isExclusiveConsume() ? consumerGroup : consumerId;
+            final String exclusiveKey = exclusiveConsume ? consumerGroup : consumerId;
             final Action rangeAckAction = new RangeAckAction(partitionName, consumerGroup, exclusiveKey, System.currentTimeMillis(), firstPullSequence, lastPullSequence);
             if (!putAction(rangeAckAction))
                 return false;

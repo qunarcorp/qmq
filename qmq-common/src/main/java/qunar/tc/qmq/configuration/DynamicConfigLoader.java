@@ -16,6 +16,8 @@
 
 package qunar.tc.qmq.configuration;
 
+import qunar.tc.qmq.configuration.local.LocalDynamicConfigFactory;
+
 import java.util.ServiceLoader;
 
 /**
@@ -32,6 +34,10 @@ public final class DynamicConfigLoader {
         for (DynamicConfigFactory factory : factories) {
             instance = factory;
             break;
+        }
+
+        if (instance == null) {
+            instance = new LocalDynamicConfigFactory();
         }
 
         FACTORY = instance;

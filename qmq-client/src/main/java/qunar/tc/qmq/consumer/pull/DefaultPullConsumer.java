@@ -96,6 +96,7 @@ class DefaultPullConsumer extends AbstractPullConsumer {
         }
 
         if (localBuffer.size() == 0) {
+            // 本地 buffer == 0, 生成新的拉取请求
             int fetchSize = Math.max(size, preFetchSize);
             PullMessageFuture future = new PullMessageFuture(size, fetchSize, timeout, isResetCreateTime);
             requestQueue.offer(future);
@@ -103,6 +104,7 @@ class DefaultPullConsumer extends AbstractPullConsumer {
         }
 
         if (localBuffer.size() >= size) {
+            // 本地 buffer > 需要拉取的 size, 直接使用本地并返回
             List<Message> messages = new ArrayList<>(size);
             localBuffer.drainTo(messages, size);
             if (messages.size() > 0) {
@@ -112,6 +114,8 @@ class DefaultPullConsumer extends AbstractPullConsumer {
                 return future;
             }
         }
+
+        // 本地 + 拉取
         int fetchSize = Math.max(preFetchSize, size - localBuffer.size());
         PullMessageFuture future = new PullMessageFuture(size, fetchSize, timeout, isResetCreateTime);
         requestQueue.offer(future);
@@ -127,24 +131,19 @@ class DefaultPullConsumer extends AbstractPullConsumer {
         }
     }
 
-    // TODO(zhenwei.liu) pullConsumer 的 pull 方法需要改为拉取非阻塞, 只拉一次就好, 阻塞的事情交给外层来做
     private void doPull(PullMessageFuture request) {
         List<Message> messages = Lists.newArrayListWithCapacity(request.getFetchSize());
+        // 这里不再使用循环拉取及设置超时, 由外部控制循环拉取数量和超时
         try {
             if (request.isResetCreateTime()) {
                 request.resetCreateTime();
             }
 
-            do {
-                int fetchSize = request.getFetchSize() - messages.size();
-                if (fetchSize <= 0) {
-                    break;
-                }
-                PlainPullEntry.PlainPullResult result = pullEntry.pull(fetchSize, request.getTimeout(), messages);
-                if (result == PlainPullEntry.PlainPullResult.NO_BROKER) {
-                    break;
-                }
-            } while (messages.size() < request.getFetchSize() && !request.isExpired());
+            int fetchSize = request.getFetchSize() - messages.size();
+            if (fetchSize <= 0) {
+                return;
+            }
+            pullEntry.pull(fetchSize, request.getTimeout(), messages);
         } catch (Exception e) {
             LOGGER.error("DefaultPullConsumer doPull exception. subject={}, group={}", getSubject(), getConsumerGroup(),
                     e);
@@ -166,15 +165,18 @@ class DefaultPullConsumer extends AbstractPullConsumer {
         List<Message> result = new ArrayList<>(expectedSize);
         int bufferSize = localBuffer.size();
         if (bufferSize > 0) {
+            // 从 local buffer 获取
             localBuffer.drainTo(result, Math.min(expectedSize, bufferSize));
         }
         int need = expectedSize - result.size();
         if (need <= 0) {
+            // local buffer 消息已经足够
             localBuffer.addAll(messages);
             future.set(result);
             return;
         }
 
+        // local buffer 消息不够
         result.addAll(head(messages, need));
         localBuffer.addAll(tail(messages, need));
         future.set(result);

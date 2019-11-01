@@ -15,21 +15,19 @@
  */
 package qunar.tc.qmq.consumer.handler;
 
+import java.util.concurrent.Executor;
 import qunar.tc.qmq.ListenerHolder;
 import qunar.tc.qmq.MessageListener;
 import qunar.tc.qmq.SubscribeParam;
 import qunar.tc.qmq.consumer.register.ConsumerRegister;
 import qunar.tc.qmq.consumer.register.RegistParam;
 
-import java.util.concurrent.Executor;
-
-import static qunar.tc.qmq.StatusSource.CODE;
-
 /**
  * @author miao.yang susing@gmail.com
  * @date 2012-12-28
  */
 public class MessageDistributor {
+
     private final ConsumerRegister register;
 
     private String clientId;
@@ -38,20 +36,20 @@ public class MessageDistributor {
         this.register = register;
     }
 
-    public ListenerHolder addListener(final String subject, final String consumerGroup, MessageListener listener, Executor executor, SubscribeParam subscribeParam) {
+    public ListenerHolder addListener(final String subject, final String consumerGroup, MessageListener listener,
+            Executor executor, SubscribeParam subscribeParam) {
         final RegistParam registParam = new RegistParam(executor, listener, subscribeParam, clientId);
         register.registerPullEntry(subject, consumerGroup, registParam);
         return new ListenerHolder() {
 
             @Override
             public void stopListen() {
-                register.unregister(subject, consumerGroup);
+                register.suspend(subject, consumerGroup);
             }
 
             @Override
             public void resumeListen() {
-                registParam.setActionSrc(CODE);
-                register.registerPullEntry(subject, consumerGroup, registParam);
+                register.resume(subject, consumerGroup);
             }
         };
     }

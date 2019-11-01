@@ -188,14 +188,6 @@ public class PullRegister implements ConsumerRegister {
         consumerOnlineStateManager.addOnlineStateListener(subject, consumerGroup, (isOnline) -> {
             onClientOnlineStateChange(subject, consumerGroup, isOnline, isBroadcast, isOrdered, pullConsumerManager);
         });
-        metaInfoService.registerHeartbeat(
-                appCode,
-                ClientType.CONSUMER.getCode(),
-                subject,
-                consumerGroup,
-                isBroadcast,
-                isOrdered
-        );
         metaInfoService.registerResponseSubscriber(new PullClientUpdater(subject, consumerGroup) {
             @Override
             void updateClient(ConsumerMetaInfoResponse response) {
@@ -204,6 +196,14 @@ public class PullRegister implements ConsumerRegister {
                 future.set(pullConsumerManager.getPullClient(subject, consumerGroup));
             }
         });
+        metaInfoService.registerHeartbeat(
+                appCode,
+                ClientType.CONSUMER.getCode(),
+                subject,
+                consumerGroup,
+                isBroadcast,
+                isOrdered
+        );
         return future;
     }
 
@@ -220,9 +220,19 @@ public class PullRegister implements ConsumerRegister {
     }
 
     @Override
-    public void unregister(String subject, String consumerGroup) {
+    public void suspend(String subject, String consumerGroup) {
         SwitchWaiter switchWaiter = consumerOnlineStateManager.getSwitchWaiter(subject, consumerGroup);
-        switchWaiter.off(CODE);
+        if (switchWaiter != null) {
+            switchWaiter.off(CODE);
+        }
+    }
+
+    @Override
+    public void resume(String subject, String consumerGroup) {
+        SwitchWaiter switchWaiter = consumerOnlineStateManager.getSwitchWaiter(subject, consumerGroup);
+        if (switchWaiter != null) {
+            switchWaiter.on(CODE);
+        }
     }
 
     public void setClientId(String clientId) {

@@ -27,7 +27,7 @@ public class ClientTest {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientTest.class);
 
-    private static final String TEST_SUBJECT = "old.test.subject";
+    private static final String TEST_SUBJECT = "old.test.subject2";
     private static final String TEST_CONSUMER_GROUP = "old.consumer.group";
     private static final String META_SERVER = "http://127.0.0.1:8080/meta/address";
 

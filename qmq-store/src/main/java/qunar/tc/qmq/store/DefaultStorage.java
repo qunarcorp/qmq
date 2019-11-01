@@ -18,6 +18,15 @@ package qunar.tc.qmq.store;
 
 import com.google.common.collect.Table;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import java.io.File;
+import java.nio.ByteBuffer;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.base.RawMessage;
@@ -30,22 +39,13 @@ import qunar.tc.qmq.store.buffer.SegmentBuffer;
 import qunar.tc.qmq.store.event.FixedExecOrderEventBus;
 import qunar.tc.qmq.store.result.Result;
 
-import java.io.File;
-import java.nio.ByteBuffer;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-
 
 /**
  * @author keli.wang
  * @since 2017/7/4
  */
 public class DefaultStorage implements Storage {
+
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultStorage.class);
 
     private static final int DEFAULT_FLUSH_INTERVAL = 500; // ms
@@ -86,8 +86,10 @@ public class DefaultStorage implements Storage {
 
         final int tabletSize = MessageLog.PER_SEGMENT_FILE_SIZE / 4;
         this.sortedMessagesTable = new SortedMessagesTable(new File(config.getSMTStorePath()), tabletSize);
-        final EvictedMemTableHandler evictedCallback = new EvictedMemTableHandler(sortedMessagesTable, consumerLogManager, checkpointManager);
-        this.memTableManager = new MessageMemTableManager(config, tabletSize - sortedMessagesTable.getTabletMetaSize(), evictedCallback);
+        final EvictedMemTableHandler evictedCallback = new EvictedMemTableHandler(sortedMessagesTable,
+                consumerLogManager, checkpointManager);
+        this.memTableManager = new MessageMemTableManager(config, tabletSize - sortedMessagesTable.getTabletMetaSize(),
+                evictedCallback);
 
         // must init after offset manager created
         this.consumeQueueManager = new ConsumeQueueManager(this);
@@ -97,20 +99,27 @@ public class DefaultStorage implements Storage {
         this.actionEventBus.subscribe(ActionEvent.class, new PullLogBuilder(this));
         this.actionEventBus.subscribe(ActionEvent.class, new MaxSequencesUpdater(checkpointManager));
         this.actionEventBus.subscribe(ActionEvent.class, pullLogFlusher);
-        this.actionLogIterateService = new LogIterateService<>("ReplayActionLog", config.getLogDispatcherPauseMillis(), actionLog, checkpointManager.getActionCheckpointOffset(), actionEventBus);
+        this.actionLogIterateService = new LogIterateService<>("ReplayActionLog", config.getLogDispatcherPauseMillis(),
+                actionLog, checkpointManager.getActionCheckpointOffset(), actionEventBus);
 
         this.consumerLogFlusher = new ConsumerLogFlusher(config, checkpointManager, consumerLogManager);
         this.messageEventBus = new FixedExecOrderEventBus();
         if (config.isSMTEnable()) {
-            this.messageEventBus.subscribe(MessageLogRecord.class, new BuildMessageMemTableEventListener(config, memTableManager, sortedMessagesTable));
-            this.messageEventBus.subscribe(MessageLogRecord.class, event -> messageEventBus.post(new ConsumerLogWroteEvent(event.getSubject(), true)));
+            this.messageEventBus.subscribe(MessageLogRecord.class,
+                    new BuildMessageMemTableEventListener(config, memTableManager, sortedMessagesTable));
+            this.messageEventBus.subscribe(MessageLogRecord.class,
+                    event -> messageEventBus.post(new ConsumerLogWroteEvent(event.getSubject(), true)));
         } else {
-            this.messageEventBus.subscribe(MessageLogRecord.class, new BuildConsumerLogEventListener(consumerLogManager));
+            this.messageEventBus
+                    .subscribe(MessageLogRecord.class, new BuildConsumerLogEventListener(consumerLogManager));
             this.messageEventBus.subscribe(MessageLogRecord.class, consumerLogFlusher);
         }
-        this.messageLogIterateService = new LogIterateService<>("ReplayMessageLog", config.getLogDispatcherPauseMillis(), messageLog, checkpointManager.getMessageCheckpointOffset(), messageEventBus);
+        this.messageLogIterateService = new LogIterateService<>("ReplayMessageLog",
+                config.getLogDispatcherPauseMillis(), messageLog, checkpointManager.getMessageCheckpointOffset(),
+                messageEventBus);
 
-        this.logCleanerExecutor = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder().setNameFormat("log-cleaner-%d").build());
+        this.logCleanerExecutor = Executors
+                .newSingleThreadScheduledExecutor(new ThreadFactoryBuilder().setNameFormat("log-cleaner-%d").build());
 
         this.messageLogFlushService = new PeriodicFlushService(new MessageLogFlushProvider());
         this.actionLogFlushService = new PeriodicFlushService(new ActionLogFlushProvider());
@@ -174,7 +183,9 @@ public class DefaultStorage implements Storage {
     }
 
     private void safeClose(AutoCloseable closeable) {
-        if (closeable == null) return;
+        if (closeable == null) {
+            return;
+        }
         try {
             closeable.close();
         } catch (Exception ignore) {
@@ -205,11 +216,13 @@ public class DefaultStorage implements Storage {
     }
 
     @Override
-    public GetMessageResult pollMessages(String partitionName, long consumerLogSequence, int maxMessages, MessageFilter filter) {
+    public GetMessageResult pollMessages(String partitionName, long consumerLogSequence, int maxMessages,
+            MessageFilter filter) {
         return pollMessages(partitionName, consumerLogSequence, maxMessages, filter, false);
     }
 
-    private GetMessageResult pollMessages(String partitionName, long beginSequence, int maxMessages, MessageFilter filter, boolean strictly) {
+    private GetMessageResult pollMessages(String partitionName, long beginSequence, int maxMessages,
+            MessageFilter filter, boolean strictly) {
         if (config.isSMTEnable()) {
             final GetMessageResult result = pollFromMemTable(partitionName, beginSequence, maxMessages, filter);
             switch (result.getStatus()) {
@@ -226,7 +239,8 @@ public class DefaultStorage implements Storage {
         return pollFromConsumerLog(partitionName, beginSequence, maxMessages, filter, strictly);
     }
 
-    private GetMessageResult pollFromMemTable(String partitionName, long beginSequence, int maxMessages, MessageFilter filter) {
+    private GetMessageResult pollFromMemTable(String partitionName, long beginSequence, int maxMessages,
+            MessageFilter filter) {
         final Iterator<MessageMemTable> iter = memTableManager.iterator();
         while (iter.hasNext()) {
             final MessageMemTable table = iter.next();
@@ -246,7 +260,8 @@ public class DefaultStorage implements Storage {
         return result;
     }
 
-    private GetMessageResult pollFromConsumerLog(String partitionName, long consumerLogSequence, int maxMessages, MessageFilter filter, boolean strictly) {
+    private GetMessageResult pollFromConsumerLog(String partitionName, long consumerLogSequence, int maxMessages,
+            MessageFilter filter, boolean strictly) {
         final GetMessageResult result = new GetMessageResult();
 
         if (maxMessages <= 0) {
@@ -318,7 +333,9 @@ public class DefaultStorage implements Storage {
                 if (unit.getType() == ConsumerLog.PayloadType.MESSAGE_LOG_INDEX) {
                     final ConsumerLog.MessageLogIndex index = (ConsumerLog.MessageLogIndex) unit.getIndex();
 
-                    if (!filter.filter(index::getTimestamp)) break;
+                    if (!filter.filter(index::getTimestamp)) {
+                        break;
+                    }
 
                     if (!readFromMessageLog(partitionName, index, result)) {
                         if (result.getMessageNum() > 0) {
@@ -352,8 +369,10 @@ public class DefaultStorage implements Storage {
         return result;
     }
 
-    private boolean readFromMessageLog(final String subject, final ConsumerLog.MessageLogIndex index, final GetMessageResult result) {
-        final SegmentBuffer messageBuffer = messageLog.getMessage(index.getWroteOffset(), index.getWroteBytes(), index.getHeaderSize());
+    private boolean readFromMessageLog(final String subject, final ConsumerLog.MessageLogIndex index,
+            final GetMessageResult result) {
+        final SegmentBuffer messageBuffer = messageLog
+                .getMessage(index.getWroteOffset(), index.getWroteBytes(), index.getHeaderSize());
         if (messageBuffer != null && messageBuffer.retain()) {
             result.addBuffer(messageBuffer);
             return true;
@@ -365,8 +384,10 @@ public class DefaultStorage implements Storage {
         }
     }
 
-    private boolean readFromSMT(final long tabletId, final int position, final int size, final GetMessageResult result) {
-        final Result<SortedMessagesTable.GetMessageStatus, SegmentBuffer> getResult = sortedMessagesTable.getMessage(tabletId, position, size);
+    private boolean readFromSMT(final long tabletId, final int position, final int size,
+            final GetMessageResult result) {
+        final Result<SortedMessagesTable.GetMessageStatus, SegmentBuffer> getResult = sortedMessagesTable
+                .getMessage(tabletId, position, size);
         switch (getResult.getStatus()) {
             case SUCCESS:
                 result.addBuffer(getResult.getData());
@@ -419,7 +440,8 @@ public class DefaultStorage implements Storage {
     }
 
     @Override
-    public List<PutMessageResult> putPullLogs(String subject, String group, String consumerId, List<PullLogMessage> messages) {
+    public List<PutMessageResult> putPullLogs(String subject, String group, String consumerId,
+            List<PullLogMessage> messages) {
         final PullLog pullLog = pullLogManager.getOrCreate(subject, group, consumerId);
         return pullLog.putPullLogMessages(messages);
     }
@@ -534,6 +556,7 @@ public class DefaultStorage implements Storage {
     }
 
     private class BuildConsumerLogEventListener implements FixedExecOrderEventBus.Listener<MessageLogRecord> {
+
         private final ConsumerLogManager consumerLogManager;
         private final Map<String, Long> offsets;
 
@@ -555,10 +578,14 @@ public class DefaultStorage implements Storage {
 
             final ConsumerLog consumerLog = consumerLogManager.getOrCreateConsumerLog(event.getSubject());
             if (consumerLog.nextSequence() != event.getSequence()) {
-                LOGGER.error("next sequence not equals to max sequence. subject: {}, received seq: {}, received offset: {}, diff: {}",
-                        event.getSubject(), event.getSequence(), event.getWroteOffset(), event.getSequence() - consumerLog.nextSequence());
+                LOGGER.error(
+                        "next sequence not equals to max sequence. subject: {}, received seq: {}, received offset: {}, consumer log sequence {} diff: {}",
+                        event.getSubject(), event.getSequence(), event.getWroteOffset(), consumerLog.nextSequence(),
+                        event.getSequence() - consumerLog.nextSequence());
             }
-            final boolean success = consumerLog.writeMessageLogIndex(event.getSequence(), event.getWroteOffset(), event.getWroteBytes(), event.getHeaderSize());
+            final boolean success = consumerLog
+                    .writeMessageLogIndex(event.getSequence(), event.getWroteOffset(), event.getWroteBytes(),
+                            event.getHeaderSize());
             checkpointManager.updateMessageReplayState(event);
             messageEventBus.post(new ConsumerLogWroteEvent(event.getSubject(), success));
         }
@@ -579,6 +606,7 @@ public class DefaultStorage implements Storage {
     }
 
     private class MessageLogFlushProvider implements PeriodicFlushService.FlushProvider {
+
         @Override
         public int getInterval() {
             return DEFAULT_FLUSH_INTERVAL;
@@ -620,6 +648,7 @@ public class DefaultStorage implements Storage {
     }
 
     private class ActionLogFlushProvider implements PeriodicFlushService.FlushProvider {
+
         @Override
         public int getInterval() {
             return DEFAULT_FLUSH_INTERVAL;

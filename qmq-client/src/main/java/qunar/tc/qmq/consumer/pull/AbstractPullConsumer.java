@@ -96,6 +96,11 @@ abstract class AbstractPullConsumer extends AbstractPullClient implements PullCo
     }
 
     @Override
+    public List<Message> pull(int size, long timeoutMillis, boolean waitIfNotComplete) {
+        return newFuture(size, checkAndGetTimeout(timeoutMillis), false).get();
+    }
+
+    @Override
     public ListenableFuture<List<Message>> pullFuture(int size) {
         return newFuture(size, MAX_PULL_TIMEOUT_MILLIS, false);
     }

@@ -4,11 +4,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.base.ConsumerSequence;
 import qunar.tc.qmq.base.PullMessageResult;
+import qunar.tc.qmq.base.WritePutActionResult;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.consumer.ConsumerSequenceManager;
 import qunar.tc.qmq.monitor.QMon;
 import qunar.tc.qmq.order.ExclusiveConsumerLockManager;
 import qunar.tc.qmq.protocol.consumer.PullRequest;
+import qunar.tc.qmq.store.buffer.Buffer;
 import qunar.tc.qmq.utils.RetryPartitionUtils;
 
 import java.util.ArrayList;
@@ -83,7 +85,13 @@ public class ExclusiveMessageReader extends MessageReader {
                     }
                     confirmExpiredMessages(partitionName, consumerGroup, pullSequenceFromConsumer, actualSequence, result);
                     if (noPullFilter(pullRequest)) {
-                        return new PullMessageResult(actualSequence, result.getBuffers(), result.getBufferTotalSize(), result.getMessageNum());
+                        final WritePutActionResult writeResult = consumerSequenceManager.putPullActions(partitionName, consumerGroup, consumerId, true, result);
+                        if (writeResult.isSuccess()) {
+                            return new PullMessageResult(actualSequence, result.getBuffers(), result.getBufferTotalSize(), result.getMessageNum());
+                        } else {
+                            result.release();
+                            return PullMessageResult.EMPTY;
+                        }
                     }
 
                     return doPullResultFilter(pullRequest, result);
@@ -102,11 +110,66 @@ public class ExclusiveMessageReader extends MessageReader {
         return PullMessageResult.EMPTY;
     }
 
-    private GetMessageResult pollMessages(String subject, long sequence, int maxMessages) {
-        if (RetryPartitionUtils.isRetryPartitionName(subject)) {
-            return storage.pollMessages(subject, sequence, maxMessages, this::isDelayReached);
+    private PullMessageResult doPullResultFilter(PullRequest pullRequest, GetMessageResult getMessageResult) {
+        final String partitionName = pullRequest.getPartitionName();
+        final String consumerGroup = pullRequest.getGroup();
+        final String consumerId = pullRequest.getConsumerId();
+
+        shiftRight(getMessageResult);
+        List<GetMessageResult> filterResult = filter(pullRequest, getMessageResult);
+        List<PullMessageResult> retList = new ArrayList<>();
+        int index;
+        for (index = 0; index < filterResult.size(); ++index) {
+            GetMessageResult item = filterResult.get(index);
+            if (!putAction(item, partitionName, consumerGroup, consumerId, retList))
+                break;
+        }
+        releaseRemain(index, filterResult);
+        if (retList.isEmpty()) return PullMessageResult.FILTER_EMPTY;
+        return merge(retList);
+    }
+
+    private boolean putAction(GetMessageResult range,
+                              String partitionName, String consumerGroup, String consumerId,
+                              List<PullMessageResult> retList) {
+        final WritePutActionResult writeResult = consumerSequenceManager.putPullActions(partitionName, consumerGroup, consumerId, true, range);
+        if (writeResult.isSuccess()) {
+            long actualSequence = range.getNextBeginSequence() - range.getMessageNum();
+            retList.add(new PullMessageResult(actualSequence, range.getBuffers(), range.getBufferTotalSize(), range.getMessageNum()));
+            return true;
+        }
+        return false;
+    }
+
+    private PullMessageResult merge(List<PullMessageResult> list) {
+        if (list.size() == 1) return list.get(0);
+
+        List<Buffer> buffers = new ArrayList<>();
+        int bufferTotalSize = 0;
+        int messageNum = 0;
+        for (PullMessageResult result : list) {
+            bufferTotalSize += result.getBufferTotalSize();
+            messageNum += result.getMessageNum();
+            buffers.addAll(result.getBuffers());
+        }
+
+        /*
+         * 对于独占模式消费，发送给consumer端的sequence是直接使用的consumer log上的sequence，如果使用tag过滤后中间有些消息被过滤掉了，则需要做一些特殊处理。
+         * 举例： 拿到了consumer log sequence 0到100的消息，但是其中10到20的被过滤掉了，则实际返回给consumer的只有90条消息，那么如果这个时候我们返回给consumer
+         * 的begin是 0，则consumer拿到的sequence是 0 - 90，那么下次拉取的时候拉取的sequence是 91，而91到100的消息其实已经拉取过了。
+         * 所以这个时候需要特殊处理，begin应该使用 100 - 90 = 10，那么下次拉取的时候consumer就会从 10 + 90 + 1 = 101的位置开始拉取了。
+         */
+        PullMessageResult lastRange = list.get(list.size() - 1);
+        long last = lastRange.getPullLogOffset() + lastRange.getMessageNum();
+        long begin = last - messageNum;
+        return new PullMessageResult(begin, buffers, bufferTotalSize, messageNum);
+    }
+
+    private GetMessageResult pollMessages(String partitionName, long sequence, int maxMessages) {
+        if (RetryPartitionUtils.isRetryPartitionName(partitionName)) {
+            return storage.pollMessages(partitionName, sequence, maxMessages, this::isDelayReached);
         } else {
-            return storage.pollMessages(subject, sequence, maxMessages);
+            return storage.pollMessages(partitionName, sequence, maxMessages);
         }
     }
 
@@ -115,33 +178,21 @@ public class ExclusiveMessageReader extends MessageReader {
         return entry.getTimestamp() + delayMillis <= System.currentTimeMillis();
     }
 
-    private PullMessageResult doPullResultFilter(PullRequest pullRequest, GetMessageResult getMessageResult) {
-        shiftRight(getMessageResult);
-        List<GetMessageResult> filterResult = filter(pullRequest, getMessageResult);
-        List<PullMessageResult> retList = new ArrayList<>();
-        for (GetMessageResult result : filterResult) {
-            long begin = result.getNextBeginSequence() - result.getMessageNum();
-            retList.add(new PullMessageResult(begin, result.getBuffers(), result.getBufferTotalSize(), result.getMessageNum()));
-        }
-        if (retList.isEmpty()) return PullMessageResult.FILTER_EMPTY;
-        return merge(retList);
-    }
-
     /**
      * requestSequence是期望开始拉取的位置，而actualSequence是从Storage拉取出的消息实际的开始位置，如果actualSequence比requestSequence大
      * 那么只能说明，这段消息已经过期被删除了，导致无法拉取到。
      *
-     * @param subject         消息主题
+     * @param partitionName   消息分区名称
      * @param consumerGroup   消费组
      * @param requestSequence 期望开始拉取的位置
      * @param actualSequence  实际开始拉取的位置
      * @param result          拉取到的消息集合
      */
-    private void confirmExpiredMessages(String subject, String consumerGroup, long requestSequence, long actualSequence, GetMessageResult result) {
+    private void confirmExpiredMessages(String partitionName, String consumerGroup, long requestSequence, long actualSequence, GetMessageResult result) {
         long delta = actualSequence - requestSequence;
         if (delta > 0) {
-            QMon.expiredMessagesCountInc(subject, consumerGroup, delta);
-            LOGGER.error("next sequence skipped. subject: {}, group: {}, nextSequence: {}, result: {}", subject, consumerGroup, requestSequence, result);
+            QMon.expiredMessagesCountInc(partitionName, consumerGroup, delta);
+            LOGGER.error("next sequence skipped. partitionName: {}, group: {}, nextSequence: {}, result: {}", partitionName, consumerGroup, requestSequence, result);
         }
     }
 }

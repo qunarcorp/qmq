@@ -287,7 +287,9 @@ class AckSendQueue implements TimerTask {
             inSending.set(false);
             return;
         }
-
+        if (!brokerGroup.isAvailable()) {
+            return;
+        }
         ackService.sendAck(brokerGroup, subject, currentPartitionName, consumerGroup, consumeStrategy, sendEntry,
                 new AckService.SendAckCallback() {
                     @Override
@@ -405,6 +407,9 @@ class AckSendQueue implements TimerTask {
                 if (brokerGroup == null) {
                     LOGGER.debug("lost broker group: {}. partitionName={}, consumeGroup={}", brokerGroupName,
                             currentPartitionName, consumerGroup);
+                    return;
+                }
+                if (!brokerGroup.isAvailable()) {
                     return;
                 }
                 if (!stopped.get()) {
