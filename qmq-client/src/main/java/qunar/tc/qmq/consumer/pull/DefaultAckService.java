@@ -24,6 +24,7 @@ import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
+import qunar.tc.qmq.common.MessageGroupResolver;
 import qunar.tc.qmq.consumer.pull.exception.AckException;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.QmqCounter;
@@ -59,9 +60,9 @@ class DefaultAckService implements AckService {
 
     private String clientId;
 
-    DefaultAckService(BrokerService brokerService, SendMessageBack sendMessageBack) {
+    DefaultAckService(BrokerService brokerService, SendMessageBack sendMessageBack, MessageGroupResolver messageGroupResolver) {
         this.brokerService = brokerService;
-        this.delayMessageService = new DelayMessageService(brokerService, sendMessageBack);
+        this.delayMessageService = new DelayMessageService(brokerService, sendMessageBack, messageGroupResolver);
     }
 
     @Override

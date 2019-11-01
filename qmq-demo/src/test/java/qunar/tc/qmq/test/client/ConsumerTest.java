@@ -29,8 +29,10 @@ import com.google.common.collect.Maps;
 import java.io.FileWriter;
 import java.io.PrintWriter;
 import java.lang.management.ManagementFactory;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -41,6 +43,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ListenerHolder;
 import qunar.tc.qmq.Message;
+import qunar.tc.qmq.MessageListener;
 import qunar.tc.qmq.NeedRetryException;
 import qunar.tc.qmq.PullConsumer;
 import qunar.tc.qmq.SubscribeParam;
@@ -56,7 +59,7 @@ import qunar.tc.qmq.utils.RetryPartitionUtils;
 public class ConsumerTest extends ProducerTest {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ConsumerTest.class);
-    private static final ExecutorService executor = Executors.newFixedThreadPool(3);
+    private static final ExecutorService executor = Executors.newCachedThreadPool();
 
     public MessageConsumerProvider initConsumer(String clinetId) {
         setClientId(clinetId);
@@ -772,6 +775,30 @@ public class ConsumerTest extends ProducerTest {
         assertEquals(receiveCount, 100);
     }
 
+    @Test
+    public void testNeedRetryExceptionDelayMessage() throws Exception {
+        String subject = "test.need.retry.delay";
+        Message message = producerProvider.generateMessage(subject);
+        producerProvider.sendMessage(message);
+        MessageConsumerProvider consumerProvider = initConsumer(subject + "-consumer");
+        CountDownLatch latch = new CountDownLatch(1);
+        consumerProvider.addListener(subject, "test-group", new MessageListener() {
+
+            private Map<String, Boolean> failMap = Maps.newConcurrentMap();
+
+            @Override
+            public void onMessage(Message msg) {
+                if (failMap.putIfAbsent(msg.getMessageId(), true) != null) {
+                    LOGGER.info("receive delay retry {}", msg.getMessageId());
+                    latch.countDown();
+                } else {
+                    LOGGER.info("receive first msg {}", msg.getMessageId());
+                    throw new NeedRetryException(new Date(System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(5)), "test delay retry");
+                }
+            }
+        }, executor);
+        latch.await();
+    }
 
 
     /**
