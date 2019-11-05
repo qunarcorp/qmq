@@ -21,8 +21,8 @@ import qunar.tc.qmq.producer.tx.spring.SpringTransactionProvider;
 public class ProducerTest {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ProducerTest.class);
-    private static DataSource dataSource;
-    private static MessageProducerProvider producerProvider;
+    static DataSource dataSource;
+    static MessageProducerProvider producerProvider;
 
     @BeforeClass
     public static void initProducer() throws Exception {

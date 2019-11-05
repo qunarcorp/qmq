@@ -141,11 +141,11 @@ public class ConsumerSequenceManager {
         final String consumerGroup = ackEntry.getConsumerGroup();
         final String consumerId = ackEntry.getConsumerId();
         final long lastPullSequence = ackEntry.getLastPullLogOffset();
-        final boolean exclusiveConsume = ackEntry.isExclusiveConsume();
+        final boolean isExclusiveConsume = ackEntry.isExclusiveConsume();
 
         long firstPullSequence = ackEntry.getFirstPullLogOffset();
 
-        final ConsumerSequence consumerSequence = getOrCreateConsumerSequence(partitionName, consumerGroup, consumerId, exclusiveConsume);
+        final ConsumerSequence consumerSequence = getOrCreateConsumerSequence(partitionName, consumerGroup, consumerId, isExclusiveConsume);
         consumerSequence.ackLock();
         final long confirmedAckSequence = consumerSequence.getAckSequence();
         try {
@@ -166,7 +166,7 @@ public class ConsumerSequenceManager {
                 final long firstNotAckedPullSequence = confirmedAckSequence + 1;
                 final long lastLostPullSequence = firstPullSequence - 1;
                 //如果是独占消费，put need retry也是没有意义的
-                if (!exclusiveConsume) {
+                if (!isExclusiveConsume) {
                     LOGGER.error("lost ack count, ackEntry:{}, consumerSequence:{}", ackEntry, consumerSequence);
                     putNeedRetryMessages(partitionName, consumerGroup, consumerId, firstNotAckedPullSequence, lastLostPullSequence);
                 }
@@ -174,9 +174,8 @@ public class ConsumerSequenceManager {
                 QMon.consumerLostAckCountInc(partitionName, consumerGroup, (int) lostAckCount);
             }
 
-            //如果是独占消费，则ack sequence是维护在consumerGroup层级的，而共享消费维护在consumerId层级
-            final String exclusiveKey = exclusiveConsume ? consumerGroup : consumerId;
-            final Action rangeAckAction = new RangeAckAction(partitionName, consumerGroup, exclusiveKey, System.currentTimeMillis(), firstPullSequence, lastPullSequence);
+            final Action rangeAckAction = new RangeAckAction(partitionName, consumerGroup, consumerId,
+                    System.currentTimeMillis(), isExclusiveConsume, firstPullSequence, lastPullSequence);
             if (!putAction(rangeAckAction))
                 return false;
 

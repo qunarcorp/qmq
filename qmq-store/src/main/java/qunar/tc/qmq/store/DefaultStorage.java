@@ -110,8 +110,7 @@ public class DefaultStorage implements Storage {
             this.messageEventBus.subscribe(MessageLogRecord.class,
                     event -> messageEventBus.post(new ConsumerLogWroteEvent(event.getSubject(), true)));
         } else {
-            this.messageEventBus
-                    .subscribe(MessageLogRecord.class, new BuildConsumerLogEventListener(consumerLogManager));
+            this.messageEventBus.subscribe(MessageLogRecord.class, new BuildConsumerLogEventListener(consumerLogManager));
             this.messageEventBus.subscribe(MessageLogRecord.class, consumerLogFlusher);
         }
         this.messageLogIterateService = new LogIterateService<>("ReplayMessageLog",

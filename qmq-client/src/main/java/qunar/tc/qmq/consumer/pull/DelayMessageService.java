@@ -17,25 +17,26 @@
 package qunar.tc.qmq.consumer.pull;
 
 import com.google.common.util.concurrent.SettableFuture;
+import java.util.Date;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ClientType;
+import qunar.tc.qmq.MessageGroup;
 import qunar.tc.qmq.base.BaseMessage;
+import qunar.tc.qmq.base.BaseMessage.keys;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
-import qunar.tc.qmq.broker.BrokerLoadBalance;
 import qunar.tc.qmq.broker.BrokerService;
-import qunar.tc.qmq.broker.impl.BrokerLoadBalanceFactory;
+import qunar.tc.qmq.common.MessageGroupResolver;
 import qunar.tc.qmq.consumer.pull.exception.SendMessageBackException;
 import qunar.tc.qmq.service.exceptions.MessageException;
-
-import java.util.Date;
-import java.util.List;
 
 /**
  * @author yiqun.fan create on 17-10-11.
  */
 class DelayMessageService {
+
     private static final Logger LOGGER = LoggerFactory.getLogger(DelayMessageService.class);
 
     private static final int SEND_SUCCESS = 1;
@@ -44,16 +45,20 @@ class DelayMessageService {
 
     private final BrokerService brokerService;
     private final SendMessageBack sendMessageBack;
-    private final BrokerLoadBalance brokerLoadBalance;
+    private final MessageGroupResolver messageGroupResolver;
 
-    DelayMessageService(BrokerService brokerService, SendMessageBack sendMessageBack) {
+    DelayMessageService(BrokerService brokerService, SendMessageBack sendMessageBack,
+            MessageGroupResolver messageGroupResolver) {
         this.brokerService = brokerService;
         this.sendMessageBack = sendMessageBack;
-        brokerLoadBalance = BrokerLoadBalanceFactory.get();
+        this.messageGroupResolver = messageGroupResolver;
     }
 
-    boolean sendDelayMessage(int nextRetryCount, long nextRetryTime, BaseMessage message, String group) throws MessageException {
-        if (!needSendDelay(nextRetryCount, message)) return false;
+    boolean sendDelayMessage(int nextRetryCount, long nextRetryTime, BaseMessage message, String group)
+            throws MessageException {
+        if (!needSendDelay(nextRetryCount, message)) {
+            return false;
+        }
         message.setProperty(BaseMessage.keys.qmq_consumerGroupName, group);
         message.setDelayTime(new Date(nextRetryTime));
         return send(message) == SEND_SUCCESS;
@@ -61,28 +66,30 @@ class DelayMessageService {
 
     /**
      * 500 ms以下的不走delay message
-     *
-     * @param nextRetryCount
-     * @param message
-     * @return
      */
     private boolean needSendDelay(int nextRetryCount, BaseMessage message) {
         return message.getMaxRetryNum() >= nextRetryCount;
     }
 
     private int send(BaseMessage message) {
-        BrokerClusterInfo brokerCluster = brokerService.getProducerBrokerCluster(ClientType.DELAY_PRODUCER, message.getSubject());
+        BrokerClusterInfo brokerCluster = brokerService
+                .getProducerBrokerCluster(ClientType.DELAY_PRODUCER, message.getSubject());
         List<BrokerGroupInfo> groups = brokerCluster.getGroups();
-        if (groups == null || groups.isEmpty()) return NO_BROKER;
+        if (groups == null || groups.isEmpty()) {
+            return NO_BROKER;
+        }
 
-        BrokerGroupInfo lastSentBrokerGroup = null;
         int result = SEND_FAIL;
         for (int i = 0; i < groups.size(); i++) {
             try {
-                BrokerGroupInfo brokerGroup = brokerLoadBalance.loadBalance(brokerCluster.getGroups(), lastSentBrokerGroup);
-                result = doSend(message, brokerGroup);
-                lastSentBrokerGroup = brokerGroup;
-                if (SEND_SUCCESS == result) return result;
+                // 发送到 delay 的消息需要重新将 partition 信息改为 subject
+                resetDelayMessage(message);
+                MessageGroup messageGroup = messageGroupResolver.resolveAvailableGroup(message);
+                BrokerGroupInfo brokerGroupInfo = brokerCluster.getGroupByName(messageGroup.getBrokerGroup());
+                result = doSend(message, brokerGroupInfo);
+                if (SEND_SUCCESS == result) {
+                    return result;
+                }
 
                 LOGGER.warn("retry send delay message. {}", result);
             } catch (Exception e) {
@@ -90,6 +97,20 @@ class DelayMessageService {
             }
         }
         return result;
+    }
+
+    private void resetDelayMessage(BaseMessage message) {
+        // 重置 subject
+        String subject = message.getStringProperty(keys.qmq_subject);
+        message.setSubject(subject);
+
+        // 删除不必要字段
+        // DELAY 消息在 delay-server 再来设置这些属性
+        message.removeProperty(BaseMessage.keys.qmq_subject);
+        message.removeProperty(BaseMessage.keys.qmq_logicPartition);
+        message.removeProperty(BaseMessage.keys.qmq_partitionName);
+        message.removeProperty(BaseMessage.keys.qmq_partitionBroker);
+        message.removeProperty(BaseMessage.keys.qmq_partitionVersion);
     }
 
     private int doSend(BaseMessage message, BrokerGroupInfo brokerGroup) {

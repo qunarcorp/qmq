@@ -39,6 +39,7 @@ public class MaxSequencesUpdater implements FixedExecOrderEventBus.Listener<Acti
                 manager.updateActionReplayState(offset, (PullAction) event.getAction());
                 break;
             case RANGE_ACK:
+            case RANGE_ACK2:
                 manager.updateActionReplayState(offset, (RangeAckAction) event.getAction());
                 break;
         }

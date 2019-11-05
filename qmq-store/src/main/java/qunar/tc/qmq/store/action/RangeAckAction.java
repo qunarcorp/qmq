@@ -29,15 +29,18 @@ public class RangeAckAction implements Action {
     private final String consumerGroup;
     private final String consumerId;
     private final long timestamp;
+    private final boolean isExclusiveConsume;
 
     private final long firstSequence;
     private final long lastSequence;
 
-    public RangeAckAction(String partitionName, String consumerGroup, String consumerId, long timestamp, long firstSequence, long lastSequence) {
+    public RangeAckAction(String partitionName, String consumerGroup, String consumerId,
+                          long timestamp, boolean isExclusiveConsume, long firstSequence, long lastSequence) {
         this.partitionName = partitionName;
         this.consumerGroup = consumerGroup;
         this.consumerId = consumerId;
         this.timestamp = timestamp;
+        this.isExclusiveConsume = isExclusiveConsume;
 
         this.firstSequence = firstSequence;
         this.lastSequence = lastSequence;
@@ -45,7 +48,7 @@ public class RangeAckAction implements Action {
 
     @Override
     public ActionType type() {
-        return ActionType.RANGE_ACK;
+        return ActionType.RANGE_ACK2;
     }
 
     @Override
@@ -66,6 +69,10 @@ public class RangeAckAction implements Action {
     @Override
     public long timestamp() {
         return timestamp;
+    }
+
+    public boolean isExclusiveConsume() {
+        return isExclusiveConsume;
     }
 
     public long getFirstSequence() {

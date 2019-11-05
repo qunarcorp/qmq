@@ -59,7 +59,7 @@ public class PullActionReaderWriter implements ActionReaderWriter {
         final String consumerId = PayloadHolderUtils.readString(from);
 
         final long timestamp = from.getLong();
-        final boolean broadcast = fromByte(from.get());
+        final boolean isExclusiveConsume = fromByte(from.get());
 
         final long firstSequence = from.getLong();
         final long lastSequence = from.getLong();
@@ -67,7 +67,7 @@ public class PullActionReaderWriter implements ActionReaderWriter {
         final long firstMessageSequence = from.getLong();
         final long lastMessageSequence = from.getLong();
 
-        return new PullAction(subject, group, consumerId, timestamp, broadcast, firstSequence, lastSequence, firstMessageSequence, lastMessageSequence);
+        return new PullAction(subject, group, consumerId, timestamp, isExclusiveConsume, firstSequence, lastSequence, firstMessageSequence, lastMessageSequence);
     }
 
     private byte toByte(final boolean bool) {
