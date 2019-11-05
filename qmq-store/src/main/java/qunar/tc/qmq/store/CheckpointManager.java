@@ -255,17 +255,19 @@ public class CheckpointManager implements AutoCloseable {
         try {
             final String partitionName = action.partitionName();
             final String consumerGroup = action.consumerGroup();
-            //if exclusive consume, consumerId == consumerGroup
             final String consumerId = action.consumerId();
+            final boolean isExclusiveConsume = action.isExclusiveConsume();
 
-            final long maxSequence = getConsumerMaxAckedPullLogSequence(partitionName, consumerGroup, consumerId);
+            final String exclusiveKey = isExclusiveConsume ? action.consumerGroup() : action.consumerId();
+
+            final long maxSequence = getConsumerMaxAckedPullLogSequence(partitionName, consumerGroup, exclusiveKey);
             if (maxSequence + 1 < action.getFirstSequence()) {
                 LOGGER.warn("Maybe lost ack. Last acked sequence: {}. Current start acked sequence {} {}:{}:{}", maxSequence, action.getFirstSequence(), partitionName, consumerGroup, consumerId);
             }
 
             final long lastSequence = action.getLastSequence();
             if (maxSequence < lastSequence) {
-                updateConsumerMaxAckedPullLogSequence(partitionName, consumerGroup, consumerId, lastSequence);
+                updateConsumerMaxAckedPullLogSequence(partitionName, consumerGroup, exclusiveKey, lastSequence);
             }
 
             actionCheckpoint.setOffset(offset);

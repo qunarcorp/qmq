@@ -21,7 +21,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.base.ConsumerSequence;
 import qunar.tc.qmq.configuration.DynamicConfig;
-import qunar.tc.qmq.metainfoclient.MetaInfoService;
 import qunar.tc.qmq.monitor.QMon;
 import qunar.tc.qmq.store.Action;
 import qunar.tc.qmq.store.action.RangeAckAction;
@@ -90,7 +89,7 @@ class RetryTask {
                 consumerSequenceManager.putNeedRetryMessages(subscriber.getPartitionName(), subscriber.getConsumerGroup(), subscriber.getConsumerId(), firstNotAckedSequence, firstNotAckedSequence);
 
                 // put ack action
-                final Action action = new RangeAckAction(subscriber.getPartitionName(), subscriber.getConsumerGroup(), subscriber.getConsumerId(), System.currentTimeMillis(), firstNotAckedSequence, firstNotAckedSequence);
+                final Action action = new RangeAckAction(subscriber.getPartitionName(), subscriber.getConsumerGroup(), subscriber.getConsumerId(), System.currentTimeMillis(), false, firstNotAckedSequence, firstNotAckedSequence);
                 if (consumerSequenceManager.putAction(action)) {
                     consumerSequence.setAckSequence(firstNotAckedSequence);
                     QMon.consumerAckTimeoutErrorCountInc(subscriber.getConsumerId(), 1);

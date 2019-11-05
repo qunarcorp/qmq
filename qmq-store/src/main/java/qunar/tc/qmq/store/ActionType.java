@@ -19,6 +19,7 @@ package qunar.tc.qmq.store;
 import com.google.common.collect.ImmutableMap;
 import qunar.tc.qmq.store.action.ForeverOfflineActionReaderWriter;
 import qunar.tc.qmq.store.action.PullActionReaderWriter;
+import qunar.tc.qmq.store.action.RangeAck2ActionReaderWriter;
 import qunar.tc.qmq.store.action.RangeAckActionReaderWriter;
 
 import java.util.HashMap;
@@ -31,7 +32,8 @@ import java.util.Map;
 public enum ActionType {
     PULL((byte) 0, new PullActionReaderWriter()),
     RANGE_ACK((byte) 1, new RangeAckActionReaderWriter()),
-    FOREVER_OFFLINE((byte) 2, new ForeverOfflineActionReaderWriter());
+    FOREVER_OFFLINE((byte) 2, new ForeverOfflineActionReaderWriter()),
+    RANGE_ACK2((byte)3, new RangeAck2ActionReaderWriter());
 
     private static final ImmutableMap<Byte, ActionType> INSTANCES;
 

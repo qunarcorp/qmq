@@ -246,7 +246,7 @@ public class SharedMessageReader extends MessageReader {
             // auto ack all deleted pulled message
             LOGGER.info("auto ack deleted pulled message. partitionName: {}, consumerGroup: {}, consumerId: {}, firstSeq: {}, lastSeq: {}",
                     partitionName, consumerGroup, consumerId, firstLostAckPullLogSeq, firstValidSeq);
-            consumerSequenceManager.putAction(new RangeAckAction(partitionName, consumerGroup, consumerId, System.currentTimeMillis(), firstLostAckPullLogSeq, firstValidSeq));
+            consumerSequenceManager.putAction(new RangeAckAction(partitionName, consumerGroup, consumerId, System.currentTimeMillis(), false, firstLostAckPullLogSeq, firstValidSeq));
         }
 
         final PullMessageResult result = new PullMessageResult(firstValidSeq, buffers, totalSize, buffers.size());

@@ -21,12 +21,16 @@ import qunar.tc.qmq.store.ActionReaderWriter;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
 
 import java.nio.ByteBuffer;
+import java.util.Objects;
 
 /**
  * @author keli.wang
  * @since 2017/8/20
  */
-public class RangeAckActionReaderWriter implements ActionReaderWriter {
+public class RangeAck2ActionReaderWriter implements ActionReaderWriter {
+    private static final byte TRUE_BYTE = (byte) 1;
+    private static final byte FALSE_BYTE = (byte) 0;
+
     @Override
     public int write(ByteBuffer to, Action action) {
         final int startIndex = to.position();
@@ -35,7 +39,10 @@ public class RangeAckActionReaderWriter implements ActionReaderWriter {
         PayloadHolderUtils.writeString(rangeAck.partitionName(), to);
         PayloadHolderUtils.writeString(rangeAck.consumerGroup(), to);
         PayloadHolderUtils.writeString(rangeAck.consumerId(), to);
-        to.putLong(action.timestamp());
+
+        to.putLong(rangeAck.timestamp());
+        to.put(toByte(rangeAck.isExclusiveConsume()));
+
         to.putLong(rangeAck.getFirstSequence());
         to.putLong(rangeAck.getLastSequence());
         return to.position() - startIndex;
@@ -47,9 +54,19 @@ public class RangeAckActionReaderWriter implements ActionReaderWriter {
         final String consumerGroup = PayloadHolderUtils.readString(from);
         final String consumerId = PayloadHolderUtils.readString(from);
         final long timestamp = from.getLong();
+        final boolean isExclusiveConsume = fromByte(from.get());
+
         final long firstSequence = from.getLong();
         final long lastSequence = from.getLong();
 
-        return new RangeAckAction(partitionName, consumerGroup, consumerId, timestamp, false, firstSequence, lastSequence);
+        return new RangeAckAction(partitionName, consumerGroup, consumerId, timestamp, isExclusiveConsume, firstSequence, lastSequence);
+    }
+
+    private byte toByte(final boolean bool) {
+        return bool ? TRUE_BYTE : FALSE_BYTE;
+    }
+
+    private boolean fromByte(final byte b) {
+        return Objects.equals(b, TRUE_BYTE);
     }
 }
