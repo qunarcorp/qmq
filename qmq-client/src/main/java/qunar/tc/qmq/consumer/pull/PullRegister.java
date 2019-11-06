@@ -172,9 +172,6 @@ public class PullRegister implements ConsumerRegister {
 
             @Override
             void updateClient(ConsumerMetaInfoResponse response) {
-                if (subject != response.getSubject()) {
-                    return;
-                }
                 pullEntryManager.updateClient(response, param);
                 final PullEntry pullClient = pullEntryManager.getPullClient(subject, consumerGroup);
                 future.set(pullClient);
