@@ -86,7 +86,7 @@ public class PullRegister implements ConsumerRegister {
             String respSubject = response.getSubject();
             String respConsumerGroup = response.getConsumerGroup();
 
-            if (Objects.equals(respSubject, subject) || Objects.equals(respConsumerGroup, consumerGroup)) {
+            if (Objects.equals(respSubject, subject) && Objects.equals(respConsumerGroup, consumerGroup)) {
                 updateClient((ConsumerMetaInfoResponse) response);
 
                 // update online state
@@ -172,6 +172,9 @@ public class PullRegister implements ConsumerRegister {
 
             @Override
             void updateClient(ConsumerMetaInfoResponse response) {
+                if (subject != response.getSubject()) {
+                    return;
+                }
                 pullEntryManager.updateClient(response, param);
                 final PullEntry pullClient = pullEntryManager.getPullClient(subject, consumerGroup);
                 future.set(pullClient);
