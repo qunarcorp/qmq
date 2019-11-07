@@ -34,6 +34,8 @@ public class PullMessageResult {
     public static final PullMessageResult EMPTY = new PullMessageResult(-1, new ArrayList<>(), 0, 0);
     public static final PullMessageResult FILTER_EMPTY = new PullMessageResult(-1, new ArrayList<>(), 0, 0);
 
+    public static final PullMessageResult WAIT_PULLLOG_REPLAY = new PullMessageResult(-2, new ArrayList<>(), 0, 0);
+
     public PullMessageResult(long pullLogOffset, List<Buffer> buffers, int bufferTotalSize, int messageNum) {
         this.pullLogOffset = pullLogOffset;
         this.buffers = buffers;

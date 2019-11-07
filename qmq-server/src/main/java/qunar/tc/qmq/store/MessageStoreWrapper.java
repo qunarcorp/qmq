@@ -18,6 +18,7 @@ package qunar.tc.qmq.store;
 
 import java.util.ArrayList;
 import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.base.ConsumerSequence;
@@ -86,6 +87,10 @@ public class MessageStoreWrapper {
             final PullMessageResult unAckMessages = findUnAckMessages(pullRequest);
             if (unAckMessages.getMessageNum() > 0) {
                 return unAckMessages;
+            }
+
+            if (PullMessageResult.WAIT_PULLLOG_REPLAY == unAckMessages) {
+                return PullMessageResult.EMPTY;
             }
 
             return findNewExistMessages(pullRequest);
@@ -263,6 +268,7 @@ public class MessageStoreWrapper {
     private PullMessageResult findUnAckMessages(final PullRequest pullRequest) {
         final long start = System.currentTimeMillis();
         try {
+            if (pullRequest.isBroadcast()) return PullMessageResult.EMPTY;
             return doFindUnAckMessages(pullRequest);
         } finally {
             QMon.findLostMessagesTime(pullRequest.getSubject(), pullRequest.getGroup(), System.currentTimeMillis() - start);
@@ -284,6 +290,12 @@ public class MessageStoreWrapper {
         final long pullLogSequenceInServer = consumerSequence.getPullSequence();
         if (pullLogSequenceInServer <= pullLogSequenceInConsumer) {
             return PullMessageResult.EMPTY;
+        }
+
+        //pull log是异步回放action log得到的，如果这个时候pull log还没回放出来，则会有问题
+        long pullLogReplaySequence = storage.getPullLogReplayState(subject, group, consumerId);
+        if (pullLogReplaySequence < pullLogSequenceInServer) {
+            return PullMessageResult.WAIT_PULLLOG_REPLAY;
         }
 
         LOG.warn("consumer need find lost ack messages, pullRequest: {}, consumerSequence: {}", pullRequest, consumerSequence);

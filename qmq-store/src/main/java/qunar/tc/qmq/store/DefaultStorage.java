@@ -425,6 +425,12 @@ public class DefaultStorage implements Storage {
     }
 
     @Override
+    public long getPullLogReplayState(String subject, String group, String consumerId) {
+        PullLog pullLog = pullLogManager.getOrCreate(subject, group, consumerId);
+        return pullLog.getMaxOffset();
+    }
+
+    @Override
     public CheckpointManager getCheckpointManager() {
         return checkpointManager;
     }

@@ -61,6 +61,8 @@ public interface Storage extends Disposable {
 
     List<PutMessageResult> putPullLogs(final String subject, final String group, final String consumerId, final List<PullLogMessage> messages);
 
+    long getPullLogReplayState(final String subject, final String group, final String consumerId);
+
     CheckpointManager getCheckpointManager();
 
     ConsumerGroupProgress getConsumerGroupProgress(final String subject, final String group);
