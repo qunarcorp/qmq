@@ -44,8 +44,6 @@ import qunar.tc.qmq.meta.BrokerCluster;
 import qunar.tc.qmq.meta.BrokerGroup;
 import qunar.tc.qmq.meta.BrokerState;
 import qunar.tc.qmq.meta.ProducerAllocation;
-import qunar.tc.qmq.metainfoclient.ConsumerOnlineStateManager;
-import qunar.tc.qmq.metainfoclient.DefaultConsumerOnlineStateManager;
 import qunar.tc.qmq.metainfoclient.MetaInfo;
 import qunar.tc.qmq.metainfoclient.MetaInfoService;
 import qunar.tc.qmq.netty.client.NettyClient;
@@ -65,7 +63,8 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BrokerServiceImpl.class);
 
-    private Map<String, SettableFuture<ProducerAllocation>> producerAllocationMap = Maps.newConcurrentMap();
+    private Map<String, SettableFuture<AtomicReference<ProducerAllocation>>> producerAllocationMap = Maps
+            .newConcurrentMap();
     private final ConcurrentMap<String, SettableFuture<AtomicReference<BrokerClusterInfo>>> clusterMap = new ConcurrentHashMap<>();
 
     private final MetaInfoService metaInfoService;
@@ -279,22 +278,25 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
 
     }
 
-    private <T extends Versionable> void updatePartitionCache(String key, Map<String, SettableFuture<T>> map,
+    private <T extends Versionable> void updatePartitionCache(String key,
+            Map<String, SettableFuture<AtomicReference<T>>> map,
             T newVal) {
         if (newVal == null) {
             return;
         }
         synchronized (key.intern()) {
-            SettableFuture<T> future = map.computeIfAbsent(key, k -> SettableFuture.create());
-            // 旧的存在, 对比版本
+            SettableFuture<AtomicReference<T>> future = map.computeIfAbsent(key, k -> SettableFuture.create());
             if (!future.isDone()) {
-                future.set(newVal);
+                future.set(new AtomicReference<>(newVal));
             } else {
                 try {
-                    T oldVal = future.get();
+                    AtomicReference<T> ref = future.get();
+                    T oldVal = ref.get();
                     int oldVersion = oldVal.getVersion();
                     int newVersion = newVal.getVersion();
-                    future.set(newVersion > oldVersion ? newVal : oldVal);
+                    if (newVersion > oldVersion) {
+                        ref.set(newVal);
+                    }
                 } catch (Throwable t) {
                     throw new RuntimeException(t);
                 }
@@ -357,11 +359,11 @@ public class BrokerServiceImpl implements BrokerService, ClientMetaManager {
     @Override
     public ProducerAllocation getProducerAllocation(ClientType clientType, String subject) {
         String producerKey = createProducerPartitionMappingKey(clientType, subject);
-        SettableFuture<ProducerAllocation> future = producerAllocationMap
+        SettableFuture<AtomicReference<ProducerAllocation>> future = producerAllocationMap
                 .computeIfAbsent(producerKey, key -> SettableFuture.create());
         registerHeartbeat(clientType, subject, "", false, false);
         try {
-            return future.get();
+            return future.get().get();
         } catch (Throwable t) {
             throw new RuntimeException(t);
         }
