@@ -271,17 +271,18 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
             int clientTypeCode = request.getClientTypeCode();
             ClientType clientType = ClientType.of(clientTypeCode);
             String subject = request.getSubject();
+            String realSubject = RetryPartitionUtils.getRealPartitionName(request.getSubject());
             String consumerGroup = request.getConsumerGroup();
 
             if (clientType.isProducer()) {
                 ProducerAllocation producerAllocation = allocationService
-                        .getProducerAllocation(clientType, subject, brokerCluster.getBrokerGroups());
+                        .getProducerAllocation(clientType, realSubject, brokerCluster.getBrokerGroups());
                 return new ProducerMetaInfoResponse(updateTime, subject, consumerGroup, clientState, clientTypeCode,
                         brokerCluster, producerAllocation);
             } else if (clientType.isConsumer()) {
                 String clientId = request.getClientId();
                 ConsumerAllocation consumerAllocation = allocationService
-                        .getConsumerAllocation(subject, consumerGroup, clientId, authExpireTime, consumeStrategy,
+                        .getConsumerAllocation(realSubject, consumerGroup, clientId, authExpireTime, consumeStrategy,
                                 brokerCluster.getBrokerGroups());
                 return new ConsumerMetaInfoResponse(updateTime, subject, consumerGroup, clientState, clientTypeCode,
                         brokerCluster, consumerAllocation);
