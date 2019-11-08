@@ -94,3 +94,4 @@ qmq的客户端已经发布到maven中央仓库，可以通过下面的方式获
 ![便利蜂](docs/images/logo/bianlifeng.png)
 ![金汇金融](docs/images/logo/jinhui365.png)
 ![必贝证券](docs/images/logo/bbae.svg)
+![嵩云科技](docs/images/logo/soonchina.png)
