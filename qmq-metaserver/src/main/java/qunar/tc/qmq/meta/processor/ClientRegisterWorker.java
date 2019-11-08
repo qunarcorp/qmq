@@ -56,6 +56,7 @@ import qunar.tc.qmq.protocol.consumer.ConsumerMetaInfoResponse;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
 import qunar.tc.qmq.protocol.producer.ProducerMetaInfoResponse;
 import qunar.tc.qmq.util.RemotingBuilder;
+import qunar.tc.qmq.utils.RetryPartitionUtils;
 import qunar.tc.qmq.utils.SubjectUtils;
 
 /**
@@ -118,7 +119,8 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
     private MetaInfoResponse handleClientRegister(RemotingHeader header, MetaInfoRequest request) {
         int clientRequestType = request.getRequestType();
 
-        String subject = request.getSubject();
+        // 由于旧版本客户端还会发送 retry 的 subject 过来, 需要特殊处理
+        String subject = RetryPartitionUtils.getRealPartitionName(request.getSubject());
         if (SubjectUtils.isInValid(subject)) {
             return buildResponse(header, request, -2, OnOfflineState.OFFLINE, new BrokerCluster(new ArrayList<>()),
                     ConsumeStrategy.SHARED, Long.MIN_VALUE);
@@ -190,7 +192,6 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
 
     private ConsumeStrategy getConsumeStrategy(MetaInfoRequest request) {
         // 第一次上线判断旧的 consumer 的 consumeStrategy, 只能沿用老的策略
-
         String subject = request.getSubject();
         int requestType = request.getRequestType();
         String clientId = request.getClientId();
