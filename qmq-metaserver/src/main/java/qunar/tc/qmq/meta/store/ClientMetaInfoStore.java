@@ -31,7 +31,7 @@ public interface ClientMetaInfoStore {
 
     List<ClientMetaInfo> queryConsumer(String subject);
 
-    ClientMetaInfo queryConsumer(String subject, String clientId);
+    ClientMetaInfo queryConsumer(String subject, String consumerGroup, String clientId);
 
     /**
      * 获取在指定时间之后更新过的 client

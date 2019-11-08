@@ -19,9 +19,6 @@ package qunar.tc.qmq.meta.store.impl;
 import com.google.common.base.Strings;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.dao.support.DataAccessUtils;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -39,15 +36,15 @@ import qunar.tc.qmq.meta.store.ClientMetaInfoStore;
 public class ClientMetaInfoStoreImpl implements ClientMetaInfoStore {
 
     private static final String QUERY_CONSUMER_SQL = "SELECT subject_info, consume_strategy, online_status, client_type, consumer_group, client_id, app_code, room FROM client_meta_info WHERE subject_info=? AND client_type=?";
-    private static final String QUERY_CONSUMER_BY_SUBJECT_CLIENT_SQL = "SELECT subject_info, consume_strategy, online_status, client_type, consumer_group, client_id, app_code, room FROM client_meta_info WHERE subject_info=? AND client_id = ? AND client_type=?";
+    private static final String QUERY_CONSUMER_BY_SUBJECT_CLIENT_SQL = "SELECT subject_info, consume_strategy, online_status, client_type, consumer_group, client_id, app_code, room FROM client_meta_info WHERE subject_info=? AND consumer_group = ? AND client_id = ? AND client_type=?";
     private static final String QUERY_CLIENT_AFTER_DATE_SQL =
             "SELECT subject_info, consume_strategy, online_status, client_type, consumer_group, client_id, app_code, room "
                     + "from client_meta_info "
                     + "where client_type=? and online_status = ? and consume_strategy = ? and update_time > ?";
     private static final String QUERY_CLIENT_AFTER_DATE_BY_SUBJECT_AND_CGROUP_SQL =
             "SELECT subject_info, consume_strategy, online_status, client_type, consumer_group, client_id, app_code, room "
-            + "from client_meta_info "
-            + "where subject_info = ? and consumer_group = ? and client_type=? and online_status = ? and consume_strategy = ? and update_time > ?";
+                    + "from client_meta_info "
+                    + "where subject_info = ? and consumer_group = ? and client_type=? and online_status = ? and consume_strategy = ? and update_time > ?";
     private static final String UPDATE_CLIENT_STATE_SQL = "update client_meta_info set update_time = now(), online_status = ?, consume_strategy = ? where subject_info = ? and client_type = ? and consumer_group = ? and client_id = ?";
 
     private final JdbcTemplate jdbcTemplate = JdbcTemplateHolder.getOrCreate();
@@ -83,14 +80,13 @@ public class ClientMetaInfoStoreImpl implements ClientMetaInfoStore {
     }
 
     @Override
-    public ClientMetaInfo queryConsumer(String subject, String clientId) {
+    public ClientMetaInfo queryConsumer(String subject, String consumerGroup, String clientId) {
         return DataAccessUtils.singleResult(
-                jdbcTemplate.query(QUERY_CONSUMER_BY_SUBJECT_CLIENT_SQL, clientMetaInfoRowMapper, subject, clientId,
-                        ClientType.CONSUMER.getCode())
+                jdbcTemplate
+                        .query(QUERY_CONSUMER_BY_SUBJECT_CLIENT_SQL, clientMetaInfoRowMapper, subject, consumerGroup,
+                                clientId, ClientType.CONSUMER.getCode())
         );
     }
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(ClientMetaInfoStoreImpl.class);
 
     @Override
     public List<ClientMetaInfo> queryClientsUpdateAfterDate(ClientType clientType, OnOfflineState onlineStatus,
