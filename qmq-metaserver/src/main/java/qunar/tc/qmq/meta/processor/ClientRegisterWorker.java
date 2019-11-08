@@ -195,10 +195,11 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
         String subject = request.getSubject();
         int requestType = request.getRequestType();
         String clientId = request.getClientId();
+        String consumerGroup = request.getConsumerGroup();
 
         ConsumeStrategy consumeStrategy;
         if (requestType == ClientRequestType.ONLINE.getCode()) {
-            ClientMetaInfo consumerState = clientMetaInfoStore.queryConsumer(subject, clientId);
+            ClientMetaInfo consumerState = clientMetaInfoStore.queryConsumer(subject, consumerGroup, clientId);
             if (consumerState != null && consumerState.getConsumeStrategy() != null) {
                 consumeStrategy = consumerState.getConsumeStrategy();
             } else {
