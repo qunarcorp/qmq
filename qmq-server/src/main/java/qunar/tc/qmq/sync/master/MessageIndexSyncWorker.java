@@ -16,6 +16,8 @@
 
 package qunar.tc.qmq.sync.master;
 
+import static qunar.tc.qmq.constants.BrokerConstants.META_SERVER_ENDPOINT;
+
 import com.google.common.base.Strings;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -25,6 +27,8 @@ import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.base.SyncRequest;
 import qunar.tc.qmq.common.BackupConstants;
 import qunar.tc.qmq.configuration.DynamicConfig;
+import qunar.tc.qmq.metainfoclient.DefaultMetaInfoService;
+import qunar.tc.qmq.metainfoclient.MetaInfoService;
 import qunar.tc.qmq.store.*;
 import qunar.tc.qmq.store.buffer.SegmentBuffer;
 import qunar.tc.qmq.utils.CharsetUtils;
@@ -41,9 +45,12 @@ public class MessageIndexSyncWorker extends AbstractLogSyncWorker {
     private final int batchSize;
     private final Storage storage;
 
+    private final MetaInfoService metaInfoService;
+
     MessageIndexSyncWorker(Storage storage, DynamicConfig config) {
         super(config);
         this.storage = storage;
+        metaInfoService = new DefaultMetaInfoService(config.getString(META_SERVER_ENDPOINT));
         this.batchSize = config.getInt("sync.batch.size", 100000);
     }
 
@@ -93,8 +100,15 @@ public class MessageIndexSyncWorker extends AbstractLogSyncWorker {
                     //skip expireTime
                     body.getLong();
 
-                    //subject
-                    Control control = copyString(body, byteBuf);
+                    //partitionName
+                    GetPayloadDataResult partitionNameResult = getString(body);
+                    if (partitionNameResult.control == Control.INVALID) {
+                        nextSyncOffset = visitor.getStartOffset() + visitor.visitedBufferSize();
+                        continue;
+                    }
+
+                    String subject = metaInfoService.getSubject(partitionNameResult.data);
+                    Control control = writeString(subject, byteBuf);
                     if (control == Control.INVALID) {
                         nextSyncOffset = visitor.getStartOffset() + visitor.visitedBufferSize();
                         continue;
@@ -109,19 +123,17 @@ public class MessageIndexSyncWorker extends AbstractLogSyncWorker {
                     }
                     if (control == Control.NOSPACE) break;
 
-                    control = skipTags(body, flag);
-
                     if (control == Control.INVALID) {
                         nextSyncOffset = visitor.getStartOffset() + visitor.visitedBufferSize();
                         continue;
                     }
                     if (control == Control.NOSPACE) break;
 
-                    control = writeV2Flag(body, byteBuf);
+                    control = writeV2Flag(byteBuf);
 
                     if (control == Control.NOSPACE) break;
 
-                    control = copyPartitionName(body, byteBuf);
+                    control = writeString(partitionNameResult.data, byteBuf);
 
                     nextSyncOffset = visitor.getStartOffset() + visitor.visitedBufferSize();
                 }
@@ -145,38 +157,10 @@ public class MessageIndexSyncWorker extends AbstractLogSyncWorker {
         }
     }
 
-    private Control writeV2Flag(ByteBuffer body, ByteBuf to) {
+    private Control writeV2Flag(ByteBuf to) {
         return writeString(BackupConstants.SYNC_V2_FLAG, to);
     }
 
-    private Control copyPartitionName(ByteBuffer body, ByteBuf to) {
-        int bodyLen = body.getInt();
-        if (bodyLen < 0 || body.remaining() < bodyLen) {
-            return Control.INVALID;
-        }
-
-        while (body.remaining() > 0) {
-
-            GetPayloadDataResult keyResult = getString(body);
-            if (keyResult.control != Control.OK) {
-                return keyResult.control;
-            }
-
-            String key = keyResult.data;
-
-            if (BaseMessage.keys.qmq_partitionName.name().equals(key)) {
-                return copyString(body, to);
-            }
-
-        }
-
-        if (!to.isWritable(Short.BYTES + 0)) {
-            return Control.NOSPACE;
-        }
-        PayloadHolderUtils.writeString("", to);;
-
-        return Control.OK;
-    }
 
     private GetPayloadDataResult getString(ByteBuffer body) {
         short len = body.getShort();

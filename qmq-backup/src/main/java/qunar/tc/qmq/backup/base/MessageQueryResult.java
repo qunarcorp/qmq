@@ -86,6 +86,10 @@ public class MessageQueryResult<T> implements Serializable {
         public String getBrokerGroup() {
             return brokerGroup;
         }
+
+        public String getPartitionName() {
+            return partitionName;
+        }
     }
 
 }

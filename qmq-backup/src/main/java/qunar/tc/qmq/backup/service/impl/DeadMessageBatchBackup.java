@@ -91,6 +91,7 @@ public class DeadMessageBatchBackup extends AbstractBatchBackup<MessageQueryInde
                 String subject = index.getSubject();
                 try {
                     monitorDeadMessageQps(subject);
+                    LOGGER.debug("backup dead msg index, msgId: {}, subject: {}, partitionName: {}", index.getMessageId(), index.getSubject(), index.getPartitionName());
 
                     final String realSubject = RetryPartitionUtils.getRealPartitionName(subject);
                     final String messageId = index.getMessageId();
