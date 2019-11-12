@@ -83,7 +83,6 @@ class DelayMessageService {
         for (int i = 0; i < groups.size(); i++) {
             try {
                 // 发送到 delay 的消息需要重新将 partition 信息改为 subject
-                resetDelayMessage(message);
                 MessageGroup messageGroup = messageGroupResolver.resolveAvailableGroup(message);
                 BrokerGroupInfo brokerGroupInfo = brokerCluster.getGroupByName(messageGroup.getBrokerGroup());
                 result = doSend(message, brokerGroupInfo);
@@ -97,20 +96,6 @@ class DelayMessageService {
             }
         }
         return result;
-    }
-
-    private void resetDelayMessage(BaseMessage message) {
-        // 重置 subject
-        String subject = message.getStringProperty(keys.qmq_subject);
-        message.setSubject(subject);
-
-        // 删除不必要字段
-        // DELAY 消息在 delay-server 再来设置这些属性
-        message.removeProperty(BaseMessage.keys.qmq_subject);
-        message.removeProperty(BaseMessage.keys.qmq_logicPartition);
-        message.removeProperty(BaseMessage.keys.qmq_partitionName);
-        message.removeProperty(BaseMessage.keys.qmq_partitionBroker);
-        message.removeProperty(BaseMessage.keys.qmq_partitionVersion);
     }
 
     private int doSend(BaseMessage message, BrokerGroupInfo brokerGroup) {

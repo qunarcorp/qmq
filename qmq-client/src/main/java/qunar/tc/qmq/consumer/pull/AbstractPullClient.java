@@ -1,6 +1,5 @@
 package qunar.tc.qmq.consumer.pull;
 
-import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ConsumeStrategy;
@@ -129,6 +128,10 @@ public abstract class AbstractPullClient implements PullClient {
     @Override
     public void destroy() {
         LOGGER.info("关闭 Consumer {} {} {} {}", getSubject(), getPartitionName(), getBrokerGroup(), getConsumerGroup());
-        offline();
+        afterOnline();
     }
+
+    abstract void afterOnline();
+
+    abstract void afterOffline();
 }

@@ -29,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.Message;
+import qunar.tc.qmq.StatusSource;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.broker.impl.SwitchWaiter;
 import qunar.tc.qmq.config.PullSubjectsConfig;
@@ -204,7 +205,6 @@ class DefaultPullConsumer extends AbstractPullConsumer {
     @Override
     public void startPull(ExecutorService executor) {
         executor.submit(() -> {
-
             PullMessageFuture future;
             SwitchWaiter switchWaiter = consumerOnlineStateManager.getSwitchWaiter(getSubject(), getConsumerGroup());
             while (!isStop) {
@@ -229,11 +229,6 @@ class DefaultPullConsumer extends AbstractPullConsumer {
     }
 
     @Override
-    public void offline() {
-        pullEntry.offline();
-    }
-
-    @Override
     public void destroy() {
         close();
         super.destroy();
@@ -241,6 +236,27 @@ class DefaultPullConsumer extends AbstractPullConsumer {
 
     @Override
     public void online() {
-        pullEntry.online();
+        SwitchWaiter switchWaiter = consumerOnlineStateManager.getSwitchWaiter(getSubject(), getConsumerGroup());
+        if (switchWaiter != null) {
+            switchWaiter.on(StatusSource.CODE);
+        }
+    }
+
+    @Override
+    public void offline() {
+        SwitchWaiter switchWaiter = consumerOnlineStateManager.getSwitchWaiter(getSubject(), getConsumerGroup());
+        if (switchWaiter != null) {
+            switchWaiter.off(StatusSource.CODE);
+        }
+    }
+
+    @Override
+    void afterOnline() {
+        pullEntry.afterOnline();
+    }
+
+    @Override
+    void afterOffline() {
+        pullEntry.afterOffline();
     }
 }

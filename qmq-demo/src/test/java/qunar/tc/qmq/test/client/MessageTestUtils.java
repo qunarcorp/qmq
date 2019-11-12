@@ -306,8 +306,10 @@ public class MessageTestUtils {
     private static void checkMessagesGroupOrder(List<Message> sendMessages) {
         Map<String, List<Message>> groupSendMessages = Maps.newConcurrentMap();
         for (Message sendMessage : sendMessages) {
-            String key = sendMessage.getStringProperty(keys.qmq_partitionBroker.name()) + ":" + sendMessage
-                    .getPartitionName();
+            if(sendMessage.getOrderKey() == null) {
+                return;
+            }
+            String key = sendMessage.getOrderKey();
             List<Message> messages = groupSendMessages.computeIfAbsent(key, k -> Lists.newArrayList());
             messages.add(sendMessage);
         }

@@ -41,6 +41,8 @@ public class BaseMessage implements Message, Serializable {
 
     String subject;
 
+    String partitionName;
+
     private final Set<String> tags = new CopyOnWriteArraySet<>();
 
     transient boolean isBigMessage = false;
@@ -60,12 +62,8 @@ public class BaseMessage implements Message, Serializable {
         qmq_env,
         qmq_subEnv,
         qmq_orderKey,
-        qmq_orderStrategy,
         qmq_logicPartition,
-        qmq_partitionName,
-        qmq_subject,
         qmq_partitionVersion,
-        qmq_partitionBroker
     }
 
     private static final Set<String> keyNames = Sets.newHashSet();
@@ -96,6 +94,7 @@ public class BaseMessage implements Message, Serializable {
 
     public BaseMessage(BaseMessage message) {
         this(message.getMessageId(), message.getSubject());
+        this.partitionName = message.getPartitionName();
         this.tags.addAll(message.getTags());
         this.attrs = new HashMap<>(message.attrs);
     }
@@ -121,7 +120,7 @@ public class BaseMessage implements Message, Serializable {
 
     @Override
     public String getPartitionName() {
-        return getStringProperty(keys.qmq_partitionName);
+        return partitionName;
     }
 
     public void setMessageId(String messageId) {
@@ -133,7 +132,7 @@ public class BaseMessage implements Message, Serializable {
     }
 
     public void setPartitionName(String partitionName) {
-        this.setProperty(keys.qmq_partitionName, partitionName);
+        this.partitionName = partitionName;
     }
 
     @Override

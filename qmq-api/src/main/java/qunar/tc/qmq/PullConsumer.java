@@ -27,6 +27,10 @@ public interface PullConsumer extends AutoCloseable, PullClient {
     long MAX_PULL_TIMEOUT_MILLIS = Long.MAX_VALUE / 2;  // 最长拉取超时时间
     boolean DEFAULT_RESET_CREATE_TIME = false;
 
+    void online();
+
+    void offline();
+
     /**
      * 设置true时，每条消息(包括可靠)只消费一次，拉取后自动ack，无需调用ack方法。
      * 设置false时，可靠消息不会自动ack，需要调用ack方法，非可靠不需要。

@@ -220,4 +220,14 @@ public class CompositePullConsumer<T extends PullConsumer> extends AbstractCompo
             consumer.close();
         }
     }
+
+    @Override
+    public void online() {
+        getComponents().forEach(PullConsumer::online);
+    }
+
+    @Override
+    public void offline() {
+        getComponents().forEach(PullConsumer::offline);
+    }
 }

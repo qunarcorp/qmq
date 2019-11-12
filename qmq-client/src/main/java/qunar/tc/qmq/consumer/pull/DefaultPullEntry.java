@@ -128,6 +128,9 @@ class DefaultPullEntry extends AbstractPullEntry implements PullEntry, Runnable 
 
     @Override
     public void run() {
+        Thread thread = Thread.currentThread();
+        String oldThreadName = thread.getName();
+        thread.setName(String.format("qmq-pull-entry-%s-%s", getPartitionName(), getBrokerGroup()));
         try {
             switch (state.get()) {
                 case PREPARE_PULL:
@@ -184,6 +187,8 @@ class DefaultPullEntry extends AbstractPullEntry implements PullEntry, Runnable 
             }
         } catch (Throwable t) {
             LOGGER.error("pull error subject {} consumerGroup {}", getSubject(), getConsumerGroup(), t);
+        } finally {
+            thread.setName(oldThreadName);
         }
     }
 
@@ -271,15 +276,15 @@ class DefaultPullEntry extends AbstractPullEntry implements PullEntry, Runnable 
     }
 
     @Override
-    public void offline() {
+    public void afterOffline() {
         synchronized (this.isOnline) {
             this.isOnline.set(false);
-            super.offline();
+            super.afterOffline();
         }
     }
 
     @Override
-    public void online() {
+    public void afterOnline() {
         synchronized (this.isOnline) {
             this.isOnline.set(true);
             final SettableFuture future = waitOnlineFuture;

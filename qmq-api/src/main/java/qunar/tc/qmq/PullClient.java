@@ -41,10 +41,6 @@ public interface PullClient {
 
     String getConsumerId();
 
-    void online();
-
-    void offline();
-
     boolean isBroadcast();
 
     boolean isOrdered();

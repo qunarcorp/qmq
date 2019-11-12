@@ -77,7 +77,10 @@ public class DefaultConsumerOnlineStateManager implements ConsumerOnlineStateMan
     @Override
     public SwitchWaiter registerConsumer(String subject, String consumerGroup) {
         String key = createKey(subject, consumerGroup);
-        return stateMap.computeIfAbsent(key, k -> new SwitchWaiter(healthCheckOnline));
+        SwitchWaiter switchWaiter = stateMap.computeIfAbsent(key, k -> new SwitchWaiter(healthCheckOnline));
+        // 为了避免上一个调用了 off(CODE), 手动上线
+        switchWaiter.on(StatusSource.CODE);
+        return switchWaiter;
     }
 
     @Override

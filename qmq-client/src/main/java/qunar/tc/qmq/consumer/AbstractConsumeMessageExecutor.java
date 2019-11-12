@@ -77,21 +77,28 @@ public abstract class AbstractConsumeMessageExecutor implements ConsumeMessageEx
     }
 
     private void processMessages() {
-        while (started.get()) {
-            PulledMessage message;
-            try {
-                message = messageQueue.take();
-            } catch (InterruptedException e) {
-                LOGGER.error("获取 queue 消息被中断 subject {} group {} {}", subject, consumerGroup, e.getMessage());
-                continue;
+        Thread thread = Thread.currentThread();
+        String oldThreadName = thread.getName();
+        thread.setName(String.format("qmq-consume-executor-%s-%s", partitionName, getConsumerGroup()));
+        try {
+            while (started.get()) {
+                PulledMessage message;
+                try {
+                    message = messageQueue.take();
+                } catch (InterruptedException e) {
+                    LOGGER.error("获取 queue 消息被中断 subject {} group {} {}", subject, consumerGroup, e.getMessage());
+                    continue;
+                }
+                try {
+                    processMessage(message);
+                } catch (Throwable t) {
+                    requeueFirst(message);
+                    LOGGER.error("消息处理异常 subject {} consumerGroup {} messageId {}", subject, consumerGroup, message.getMessageId(), t);
+                }
             }
-            try {
-                processMessage(message);
-            } catch (Throwable t) {
-                requeueFirst(message);
-                LOGGER.error("消息处理异常 subject {} consumerGroup {} messageId {}", subject, consumerGroup, message.getMessageId(), t);
-            }
-
+        } finally {
+            LOGGER.warn("消息处理任务退出, subject {} consumerGroup {}", subject, consumerGroup);
+            thread.setName(oldThreadName);
         }
     }
 

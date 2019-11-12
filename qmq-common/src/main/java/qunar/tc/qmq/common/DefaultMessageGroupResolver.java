@@ -73,10 +73,8 @@ public class DefaultMessageGroupResolver implements MessageGroupResolver {
 
         if (clientType != ClientType.DELAY_PRODUCER) {
             // DELAY 消息在 delay-server 再来设置这些属性
-            message.setProperty(BaseMessage.keys.qmq_subject, subject);
+            message.setPartitionName(partitionName);
             message.setProperty(BaseMessage.keys.qmq_logicPartition, logicalPartition);
-            message.setProperty(BaseMessage.keys.qmq_partitionName, partitionName);
-            message.setProperty(BaseMessage.keys.qmq_partitionBroker, brokerGroup);
             message.setProperty(BaseMessage.keys.qmq_partitionVersion, producerAllocation.getVersion());
         }
 
@@ -114,11 +112,9 @@ public class DefaultMessageGroupResolver implements MessageGroupResolver {
                         producerAllocation.getLogical2SubjectLocation().asMapOfRanges().values()
                 );
         String partitionName = props.get(0).getPartitionName();
-
         if (clientType != ClientType.DELAY_PRODUCER) {
             // DELAY 消息在 delay-server 再来设置这些属性
-            message.setProperty(BaseMessage.keys.qmq_partitionName, partitionName);
-            message.setProperty(BaseMessage.keys.qmq_partitionBroker, brokerGroupName);
+            message.setPartitionName(partitionName);
         }
         return new MessageGroup(clientType, subject, partitionName, brokerGroupName);
     }

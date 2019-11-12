@@ -84,55 +84,8 @@ public class NettySender implements Sender {
                 // skip message subject
                 PayloadHolderUtils.skipString(in);
 
-                // write messageId
-                PayloadHolderUtils.writeString(record.getMessageId(), out);
-
-                // skip messageId
-                PayloadHolderUtils.skipString(in);
-
-                // write tags
-                if (Flags.hasTags(flag)) {
-                    int tagNum = in.get();
-                    out.writeByte(tagNum);
-                    for (int i = 0; i < tagNum; i++) {
-                        int tagLen = in.getShort();
-                        byte[] tagBytes = new byte[tagLen];
-                        in.get(tagBytes);
-                        PayloadHolderUtils.writeShortBytes(tagBytes, out);
-                    }
-                }
-
-                // write body length
-                int bodyLenIndex = out.writerIndex();
-                int oldBodyLen = in.getInt();
-                out.writerIndex(bodyLenIndex + 4);
-                int bodyStartIndex = out.writerIndex();
-
-                // write attributes
-                byte[] oldBodyBytes = new byte[oldBodyLen];
-                in.get(oldBodyBytes);
-                out.writeBytes(oldBodyBytes);
-
-                // 补充 partition 信息
-                writeAttribute(out, BaseMessage.keys.qmq_subject.name(), messageGroup.getSubject());
-                writeAttribute(out, BaseMessage.keys.qmq_partitionName.name(), messageGroup.getPartitionName());
-                writeAttribute(out, BaseMessage.keys.qmq_partitionBroker.name(), messageGroup.getBrokerGroup());
-
-                // write body length
-                int bodyLen = out.writerIndex() - bodyStartIndex;
-                int messageEndIndex = out.writerIndex();
-                int messageLen = messageEndIndex - messageStart;
-
-                out.writerIndex(bodyLenIndex);
-                out.writeInt(bodyLen);
-
-                // write crc
-                out.writerIndex(crcIndex);
-                out.writeLong(messageCrc(out, messageStart, messageLen));
-
-                // reset index to the end
-                out.writerIndex(messageEndIndex);
-
+                // copy left bytes
+                out.writeBytes(in);
             }
         });
         requestDatagram.getHeader().setVersion(RemotingHeader.getScheduleTimeVersion());

@@ -139,7 +139,7 @@ class PlainPullEntry extends AbstractPullEntry {
     }
 
     @Override
-    public void online() {
+    public void afterOnline() {
 
     }
 

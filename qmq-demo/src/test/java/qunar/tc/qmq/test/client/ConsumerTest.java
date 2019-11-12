@@ -201,65 +201,65 @@ public class ConsumerTest extends ProducerTest {
         }
     }
 
-    @Test
-    public void testSharedBestTriedConsumeNoAck1() throws Exception {
-        MessageConsumerProvider consumerProvider = initConsumer("shared-best-tried-consumer-1");
-        testSendSharedBestTriedMessages();
-
-        SubscribeParam param = new SubscribeParam.SubscribeParamBuilder().create();
-        PrintWriter pw = new PrintWriter(new FileWriter(sharedBestTriedConsumerMessageFile));
-        final ListenerHolder listener = consumerProvider
-                .addListener(SHARED_BEST_TRIED_MESSAGE_SUBJECT, SHARED_CONSUMER_GROUP,
-                        msg -> {
-                            // 不自动 ack, 直到收到 retry 消息.
-                            msg.autoAck(false);
-                            String messageId = msg.getMessageId();
-                            // 不 ack 消息实际上是 bug, 只有等到客户端连接断开, 才能出发 broker 的 retry 逻辑
-                            LOGGER.info("message process not ack msg: {}", messageId);
-                            // retry 至少会延迟 5s
-                            saveMessage(msg, pw);
-                            renewWaitTimestamp(5);
-                        }, executor, param);
-
-        waitUntilNoNewMessage();
-        listener.stopListen();
-        consumerProvider.destroy();
-        pw.close();
-    }
+//    @Test
+//    public void testSharedBestTriedConsumeNoAck1() throws Exception {
+//        MessageConsumerProvider consumerProvider = initConsumer("shared-best-tried-consumer-1");
+//        testSendSharedBestTriedMessages();
+//
+//        SubscribeParam param = new SubscribeParam.SubscribeParamBuilder().create();
+//        PrintWriter pw = new PrintWriter(new FileWriter(sharedBestTriedConsumerMessageFile));
+//        final ListenerHolder listener = consumerProvider
+//                .addListener(SHARED_BEST_TRIED_MESSAGE_SUBJECT, SHARED_CONSUMER_GROUP,
+//                        msg -> {
+//                            // 不自动 ack, 直到收到 retry 消息.
+//                            msg.autoAck(false);
+//                            String messageId = msg.getMessageId();
+//                            // 不 ack 消息实际上是 bug, 只有等到客户端连接断开, 才能出发 broker 的 retry 逻辑
+//                            LOGGER.info("message process not ack msg: {}", messageId);
+//                            // retry 至少会延迟 5s
+//                            saveMessage(msg, pw);
+//                            renewWaitTimestamp(5);
+//                        }, executor, param);
+//
+//        waitUntilNoNewMessage();
+//        listener.stopListen();
+//        consumerProvider.destroy();
+//        pw.close();
+//    }
 
     /**
      * 用于测试 broker 连接断开后未 ack 的消息是否能再次收到
      */
-    @Test
-    public void testSharedBestTriedConsumeNoAck2() throws Exception {
-        MessageConsumerProvider consumerProvider = initConsumer("shared-best-tried-consumer-1");
-        SubscribeParam param = new SubscribeParam.SubscribeParamBuilder().create();
-        List<Message> lastMessages = replayMessages(sharedBestTriedConsumerMessageFile);
-        PrintWriter pw = new PrintWriter(new FileWriter(sharedBestTriedConsumerMessageFile));
-
-        final ListenerHolder listener = consumerProvider
-                .addListener(SHARED_BEST_TRIED_MESSAGE_SUBJECT, SHARED_CONSUMER_GROUP,
-                        msg -> {
-                            String messageId = msg.getMessageId();
-                            LOGGER.info("message process ack msg: {}", messageId);
-                            saveMessage(msg, pw);
-                            // retry 至少会延迟 5s
-                            renewWaitTimestamp(5);
-                        }, executor, param);
-
-        waitUntilNoNewMessage();
-        listener.stopListen();
-        consumerProvider.destroy();
-        pw.close();
-
-        List<Message> currentMessages = replayMessages(sharedBestTriedConsumerMessageFile);
-
-        assertEquals(lastMessages.size(), currentMessages.size());
-        assertEquals(
-                lastMessages.stream().map(Message::getMessageId).collect(Collectors.toSet()),
-                currentMessages.stream().map(Message::getMessageId).collect(Collectors.toSet())
-        );
-    }
+//    @Test
+//    public void testSharedBestTriedConsumeNoAck2() throws Exception {
+//        MessageConsumerProvider consumerProvider = initConsumer("shared-best-tried-consumer-1");
+//        SubscribeParam param = new SubscribeParam.SubscribeParamBuilder().create();
+//        List<Message> lastMessages = replayMessages(sharedBestTriedConsumerMessageFile);
+//        PrintWriter pw = new PrintWriter(new FileWriter(sharedBestTriedConsumerMessageFile));
+//
+//        final ListenerHolder listener = consumerProvider
+//                .addListener(SHARED_BEST_TRIED_MESSAGE_SUBJECT, SHARED_CONSUMER_GROUP,
+//                        msg -> {
+//                            String messageId = msg.getMessageId();
+//                            LOGGER.info("message process ack msg: {}", messageId);
+//                            saveMessage(msg, pw);
+//                            // retry 至少会延迟 5s
+//                            renewWaitTimestamp(5);
+//                        }, executor, param);
+//
+//        waitUntilNoNewMessage();
+//        listener.stopListen();
+//        consumerProvider.destroy();
+//        pw.close();
+//
+//        List<Message> currentMessages = replayMessages(sharedBestTriedConsumerMessageFile);
+//
+//        assertEquals(lastMessages.size(), currentMessages.size());
+//        assertEquals(
+//                lastMessages.stream().map(Message::getMessageId).collect(Collectors.toSet()),
+//                currentMessages.stream().map(Message::getMessageId).collect(Collectors.toSet())
+//        );
+//    }
 
     private boolean isChosenMessage(Message message) {
         return message.getMessageId().hashCode() % 10 == 0;
@@ -470,68 +470,68 @@ public class ConsumerTest extends ProducerTest {
      * 测试消息没有 ACK 时的行为, best tried 模式下未 ack 消息在 client 断开后会进入 %retry% 阶段 测试需要配合 testExclusiveBestTriedConsumeNoAck2()
      * 执行最终的消息验证
      */
-    @Test
-    public void testExclusiveBestTriedConsumeNoAck1() throws Exception {
-        MessageConsumerProvider consumerProvider = initConsumer("exclusive-best-tried-consumer-0");
-        testSendOrderedBestTriedMessages();
-
-        SubscribeParam param = new SubscribeParam.SubscribeParamBuilder()
-                .setOrdered(true)
-                .create();
-        PrintWriter pw = new PrintWriter(new FileWriter(exclusiveBestTriedConsumerMessageFile));
-        final ListenerHolder listener = consumerProvider
-                .addListener(EXCLUSIVE_BEST_TRIED_MESSAGE_SUBJECT, EXCLUSIVE_CONSUMER_GROUP,
-                        msg -> {
-                            // 不自动 ack, 直到收到 retry 消息.
-                            msg.autoAck(false);
-                            String messageId = msg.getMessageId();
-                            // 不 ack 消息实际上是 bug, 只有等到客户端连接断开, 才能出发 broker 的 retry 逻辑
-                            LOGGER.info("message process not ack msg: {}", messageId);
-                            // retry 至少会延迟 5s
-                            saveMessage(msg, pw);
-                            renewWaitTimestamp(5);
-                        }, executor, param);
-
-        waitUntilNoNewMessage();
-        listener.stopListen();
-        consumerProvider.destroy();
-        pw.close();
-    }
+//    @Test
+//    public void testExclusiveBestTriedConsumeNoAck1() throws Exception {
+//        MessageConsumerProvider consumerProvider = initConsumer("exclusive-best-tried-consumer-0");
+//        testSendOrderedBestTriedMessages();
+//
+//        SubscribeParam param = new SubscribeParam.SubscribeParamBuilder()
+//                .setOrdered(true)
+//                .create();
+//        PrintWriter pw = new PrintWriter(new FileWriter(exclusiveBestTriedConsumerMessageFile));
+//        final ListenerHolder listener = consumerProvider
+//                .addListener(EXCLUSIVE_BEST_TRIED_MESSAGE_SUBJECT, EXCLUSIVE_CONSUMER_GROUP,
+//                        msg -> {
+//                            // 不自动 ack, 直到收到 retry 消息.
+//                            msg.autoAck(false);
+//                            String messageId = msg.getMessageId();
+//                            // 不 ack 消息实际上是 bug, 只有等到客户端连接断开, 才能触发 broker 的 retry 逻辑
+//                            LOGGER.info("message process not ack msg: {}", messageId);
+//                            // retry 至少会延迟 5s
+//                            saveMessage(msg, pw);
+//                            renewWaitTimestamp(5);
+//                        }, executor, param);
+//
+//        waitUntilNoNewMessage();
+//        listener.stopListen();
+//        consumerProvider.destroy();
+//        pw.close();
+//    }
 
     /**
      * 用于测试 broker 连接断开后未 ack 的消息是否能再次收到
      */
-    @Test
-    public void testExclusiveBestTriedConsumeNoAck2() throws Exception {
-        MessageConsumerProvider consumerProvider = initConsumer("exclusive-best-tried-consumer-0");
-        SubscribeParam param = new SubscribeParam.SubscribeParamBuilder()
-                .setOrdered(true)
-                .create();
-        List<Message> lastMessages = replayMessages(exclusiveBestTriedConsumerMessageFile);
-        PrintWriter pw = new PrintWriter(new FileWriter(exclusiveBestTriedConsumerMessageFile));
-
-        final ListenerHolder listener = consumerProvider
-                .addListener(EXCLUSIVE_BEST_TRIED_MESSAGE_SUBJECT, EXCLUSIVE_CONSUMER_GROUP,
-                        msg -> {
-                            String messageId = msg.getMessageId();
-                            LOGGER.info("message process ack msg: {}", messageId);
-                            saveMessage(msg, pw);
-                            renewWaitTimestamp(5);
-                        }, executor, param);
-
-        waitUntilNoNewMessage();
-        listener.stopListen();
-        consumerProvider.destroy();
-        pw.close();
-
-        List<Message> currentMessages = replayMessages(exclusiveBestTriedConsumerMessageFile);
-
-        assertEquals(lastMessages.size(), currentMessages.size());
-        assertEquals(
-                lastMessages.stream().map(Message::getMessageId).collect(Collectors.toSet()),
-                currentMessages.stream().map(Message::getMessageId).collect(Collectors.toSet())
-        );
-    }
+//    @Test
+//    public void testExclusiveBestTriedConsumeNoAck2() throws Exception {
+//        MessageConsumerProvider consumerProvider = initConsumer("exclusive-best-tried-consumer-0");
+//        SubscribeParam param = new SubscribeParam.SubscribeParamBuilder()
+//                .setOrdered(true)
+//                .create();
+//        List<Message> lastMessages = replayMessages(exclusiveBestTriedConsumerMessageFile);
+//        PrintWriter pw = new PrintWriter(new FileWriter(exclusiveBestTriedConsumerMessageFile));
+//
+//        final ListenerHolder listener = consumerProvider
+//                .addListener(EXCLUSIVE_BEST_TRIED_MESSAGE_SUBJECT, EXCLUSIVE_CONSUMER_GROUP,
+//                        msg -> {
+//                            String messageId = msg.getMessageId();
+//                            LOGGER.info("message process ack msg: {}", messageId);
+//                            saveMessage(msg, pw);
+//                            renewWaitTimestamp(5);
+//                        }, executor, param);
+//
+//        waitUntilNoNewMessage();
+//        listener.stopListen();
+//        consumerProvider.destroy();
+//        pw.close();
+//
+//        List<Message> currentMessages = replayMessages(exclusiveBestTriedConsumerMessageFile);
+//
+//        assertEquals(lastMessages.size(), currentMessages.size());
+//        assertEquals(
+//                lastMessages.stream().map(Message::getMessageId).collect(Collectors.toSet()),
+//                currentMessages.stream().map(Message::getMessageId).collect(Collectors.toSet())
+//        );
+//    }
 
     @Test
     public void testExclusiveStrictConsumeSuccess() throws Exception {
@@ -574,7 +574,7 @@ public class ConsumerTest extends ProducerTest {
         final ListenerHolder listener = consumerProvider
                 .addListener(EXCLUSIVE_STRICT_MESSAGE_SUBJECT, EXCLUSIVE_CONSUMER_GROUP,
                         msg -> {
-                            // 消费异常, strict 会使用本地重试, 且保证顺序一直
+                            // 消费异常, strict 会使用本地重试, 且保证顺序一致
                             String messageId = msg.getMessageId();
                             AtomicInteger counter = exceptionMessageMap
                                     .computeIfAbsent(messageId, k -> new AtomicInteger());
@@ -726,6 +726,7 @@ public class ConsumerTest extends ProducerTest {
             }
         }
 
+        pullConsumer.offline();
         assertEquals(receiveCount, 100);
     }
 

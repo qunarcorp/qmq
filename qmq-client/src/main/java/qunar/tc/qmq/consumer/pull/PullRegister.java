@@ -156,7 +156,7 @@ public class PullRegister implements ConsumerRegister {
     }
 
     @Override
-    public Future<PullEntry> registerPullEntry(String subject, String consumerGroup, RegistParam param) {
+    public synchronized Future<PullEntry> registerPullEntry(String subject, String consumerGroup, RegistParam param) {
         checkDuplicatedConsumer(subject, consumerGroup);
         SettableFuture<PullEntry> future = SettableFuture.create();
         boolean isOrdered = param.isOrdered();
@@ -181,7 +181,7 @@ public class PullRegister implements ConsumerRegister {
     }
 
     @Override
-    public Future<PullConsumer> registerPullConsumer(String subject, String consumerGroup, boolean isBroadcast,
+    public synchronized Future<PullConsumer> registerPullConsumer(String subject, String consumerGroup, boolean isBroadcast,
             boolean isOrdered) {
         checkDuplicatedConsumer(subject, consumerGroup);
         SettableFuture<PullConsumer> future = SettableFuture.create();
@@ -314,13 +314,13 @@ public class PullRegister implements ConsumerRegister {
                     "consumer online, subject {} consumerGroup {} consumeStrategy {} broadcast {} ordered {} clientId {} partitions {}",
                     subject, consumerGroup, consumeStrategy, isBroadcast, isOrdered, clientId,
                     pullClient.getPartitionName());
-            pullClient.online();
+            ((AbstractPullClient)pullClient).afterOnline();
         } else {
             // 触发 Consumer 下线清理操作
             LOGGER.info(
                     "consumer offline, Subject {} ConsumerGroup {} consumeStrategy {} Broadcast {} ordered {} clientId {}",
                     subject, consumerGroup, consumeStrategy, isBroadcast, isOrdered, clientId);
-            pullClient.offline();
+            ((AbstractPullClient)pullClient).afterOffline();
         }
 
         // 下线主动触发心跳

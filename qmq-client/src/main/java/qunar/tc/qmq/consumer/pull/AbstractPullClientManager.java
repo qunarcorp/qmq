@@ -97,7 +97,7 @@ public abstract class AbstractPullClientManager<T extends PullClient> implements
             T finalClient = clientMap.get(clientKey);
             SwitchWaiter switchWaiter = consumerOnlineStateManager.getSwitchWaiter(subject, consumerGroup);
             if (switchWaiter.isOnline()) {
-                finalClient.online();
+                ((AbstractPullClient) finalClient).afterOnline();
             }
         }
     }

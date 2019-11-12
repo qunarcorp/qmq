@@ -49,11 +49,8 @@ public class DefaultMessageGroupResolverTest {
         assertNotNull(messageGroup.getPartitionName());
         assertNotNull(messageGroup.getBrokerGroup());
 
-        assertEquals(message.getProperty(BaseMessage.keys.qmq_subject), TEST_SUBJECT);
         assertEquals(message.getProperty(BaseMessage.keys.qmq_partitionVersion), TEST_VERSION);
         assertNotNull(message.getProperty(BaseMessage.keys.qmq_logicPartition));
-        assertNotNull(message.getProperty(BaseMessage.keys.qmq_partitionName));
-        assertNotNull(message.getProperty(BaseMessage.keys.qmq_partitionBroker));
     }
 
     @Test
@@ -66,11 +63,8 @@ public class DefaultMessageGroupResolverTest {
         assertNotNull(messageGroup.getPartitionName());
         assertNotNull(messageGroup.getBrokerGroup());
 
-        assertEquals(message.getProperty(BaseMessage.keys.qmq_subject), TEST_SUBJECT);
         assertEquals(message.getProperty(BaseMessage.keys.qmq_partitionVersion), TEST_VERSION);
         assertNotNull(message.getProperty(BaseMessage.keys.qmq_logicPartition));
-        assertNotNull(message.getProperty(BaseMessage.keys.qmq_partitionName));
-        assertNotNull(message.getProperty(BaseMessage.keys.qmq_partitionBroker));
     }
 
     @Test
@@ -94,10 +88,7 @@ public class DefaultMessageGroupResolverTest {
         assertEquals(newMessageGroup.getPartitionName(), TEST_PARTITION_1);
         assertEquals(newMessageGroup.getBrokerGroup(), TEST_BROKER_GROUP_1);
 
-        assertEquals(message.getProperty(BaseMessage.keys.qmq_subject), TEST_SUBJECT);
         assertEquals(message.getProperty(BaseMessage.keys.qmq_partitionVersion), TEST_VERSION);
-        assertEquals(message.getProperty(BaseMessage.keys.qmq_partitionName), TEST_PARTITION_1);
-        assertEquals(message.getProperty(BaseMessage.keys.qmq_partitionBroker), TEST_BROKER_GROUP_1);
         assertNotNull(message.getProperty(BaseMessage.keys.qmq_logicPartition));
     }
 
@@ -126,10 +117,7 @@ public class DefaultMessageGroupResolverTest {
         assertEquals(newMessageGroup.getPartitionName(), TEST_PARTITION_2);
         assertEquals(newMessageGroup.getBrokerGroup(), TEST_BROKER_GROUP_2);
 
-        assertEquals(message.getProperty(BaseMessage.keys.qmq_subject), TEST_SUBJECT);
         assertEquals(message.getProperty(BaseMessage.keys.qmq_partitionVersion), TEST_VERSION);
-        assertEquals(message.getProperty(BaseMessage.keys.qmq_partitionName), TEST_PARTITION_2);
-        assertEquals(message.getProperty(BaseMessage.keys.qmq_partitionBroker), TEST_BROKER_GROUP_2);
         assertNotNull(message.getProperty(BaseMessage.keys.qmq_logicPartition));
     }
 }

@@ -20,6 +20,7 @@ package qunar.tc.qmq;
  * @date 2012-12-26
  */
 public interface ListenerHolder {
+
     void stopListen();
 
     void resumeListen();

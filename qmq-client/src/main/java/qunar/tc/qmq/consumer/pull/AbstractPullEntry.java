@@ -198,7 +198,7 @@ abstract class AbstractPullEntry extends AbstractPullClient implements PullEntry
     }
 
     @Override
-    public void offline() {
+    public void afterOffline() {
         try {
             ackSendQueue.trySendAck(3000);
             brokerService.releaseLock(getSubject(), getConsumerGroup(), getPartitionName(), getBrokerGroup(),

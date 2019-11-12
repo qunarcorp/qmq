@@ -2,6 +2,8 @@ package qunar.tc.qmq.consumer.pull;
 
 import java.util.List;
 import java.util.concurrent.ExecutorService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.CompositePullClient;
 import qunar.tc.qmq.ConsumeStrategy;
 import qunar.tc.qmq.PullClient;
@@ -15,6 +17,8 @@ import qunar.tc.qmq.metainfoclient.ConsumerOnlineStateManager;
  * @since 2019-09-27
  */
 public class PullConsumerManager extends AbstractPullClientManager<PullConsumer> {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(PullConsumerManager.class);
 
     private PullService pullService;
     private AckService ackService;
@@ -61,6 +65,7 @@ public class PullConsumerManager extends AbstractPullClientManager<PullConsumer>
                 partitionSetVersion,
                 getConsumerOnlineStateManager());
         pullConsumer.startPull(partitionExecutor);
+        LOGGER.info("创建 pull client {} {} {} {}", subject, partitionName, brokerGroup, consumerGroup);
         return pullConsumer;
     }
 

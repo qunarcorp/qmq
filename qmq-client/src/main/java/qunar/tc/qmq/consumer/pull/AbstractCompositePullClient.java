@@ -33,7 +33,6 @@ public abstract class AbstractCompositePullClient<T extends PullClient> extends 
         return Joiner.on("|").join(components.stream().map(PullClient::getPartitionName).collect(Collectors.toList()));
     }
 
-
     @Override
     public List<T> getComponents() {
         return components;
@@ -59,16 +58,16 @@ public abstract class AbstractCompositePullClient<T extends PullClient> extends 
     }
 
     @Override
-    public void online() {
+    public void afterOnline() {
         for (T component : components) {
-            doIgnoreException(component::online);
+            doIgnoreException(((AbstractPullClient)component)::afterOnline);
         }
     }
 
     @Override
-    public void offline() {
+    public void afterOffline() {
         for (T component : components) {
-            doIgnoreException(component::offline);
+            doIgnoreException(((AbstractPullClient)component)::afterOffline);
         }
     }
 

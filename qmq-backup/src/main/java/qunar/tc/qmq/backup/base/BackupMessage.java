@@ -54,16 +54,6 @@ public class BackupMessage extends BaseMessage {
         super(messageId, subject);
     }
 
-    @Override
-    public String getPartitionName() {
-        return partitionName;
-    }
-
-    @Override
-    public void setPartitionName(String partitionName) {
-        this.partitionName = partitionName;
-    }
-
     public long getTimestamp() {
         return timestamp;
     }
