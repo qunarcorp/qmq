@@ -75,6 +75,11 @@ public final class PayloadHolderUtils {
         return CharsetUtils.toUTF8String(bs);
     }
 
+    public static void writeShortBytes(byte[] bs, ByteBuf out) {
+        out.writeShort((short) bs.length);
+        out.writeBytes(bs);
+    }
+
     public static void writeBytes(byte[] bs, ByteBuf out) {
         out.writeInt(bs.length);
         out.writeBytes(bs);

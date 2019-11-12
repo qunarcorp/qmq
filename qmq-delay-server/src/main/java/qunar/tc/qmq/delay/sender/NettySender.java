@@ -93,11 +93,12 @@ public class NettySender implements Sender {
                 // write tags
                 if (Flags.hasTags(flag)) {
                     int tagNum = in.get();
+                    out.writeByte(tagNum);
                     for (int i = 0; i < tagNum; i++) {
                         int tagLen = in.getShort();
                         byte[] tagBytes = new byte[tagLen];
                         in.get(tagBytes);
-                        out.writeBytes(tagBytes);
+                        PayloadHolderUtils.writeShortBytes(tagBytes, out);
                     }
                 }
 
