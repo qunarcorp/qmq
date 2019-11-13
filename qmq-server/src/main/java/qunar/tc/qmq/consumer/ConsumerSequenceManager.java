@@ -74,17 +74,18 @@ public class ConsumerSequenceManager {
                 return;
             }
 
-            consumers.values().forEach(consumer -> putConsumer(result, consumer));
+            consumers.values().forEach(consumer -> putConsumer(result, consumer, progress.isExclusiveConsume()));
         });
     }
 
-    private void putConsumer(final ConcurrentMap<String, ConcurrentMap<ConsumerGroup, ConsumerSequence>> result, final ConsumerProgress consumer) {
+    private void putConsumer(final ConcurrentMap<String, ConcurrentMap<ConsumerGroup, ConsumerSequence>> result, final ConsumerProgress consumer, final boolean isExclusiveConsume) {
         final String consumerId = consumer.getConsumerId();
-        ConcurrentMap<ConsumerGroup, ConsumerSequence> consumerSequences = result.computeIfAbsent(consumerId, (k) -> new ConcurrentHashMap<>());
+        final String group = consumer.getGroup();
+        final String key = isExclusiveConsume ? group : consumerId;
+        ConcurrentMap<ConsumerGroup, ConsumerSequence> consumerSequences = result.computeIfAbsent(key, (k) -> new ConcurrentHashMap<>());
         final ConsumerSequence consumerSequence = new ConsumerSequence(consumer.getPull(), consumer.getAck());
-        final ConsumerGroup consumerGroup = new ConsumerGroup(consumer.getSubject(), consumer.getGroup());
+        final ConsumerGroup consumerGroup = new ConsumerGroup(consumer.getSubject(), group);
         consumerSequences.putIfAbsent(consumerGroup, consumerSequence);
-
     }
 
     /**
@@ -274,8 +275,9 @@ public class ConsumerSequenceManager {
         QMon.putNeedRetryMessagesCountInc(partitionName, consumerGroup, needRetryMessages.size());
     }
 
-    public ConsumerSequence getConsumerSequence(String partitionName, String consumerGroup, String consumerId) {
-        final ConcurrentMap<ConsumerGroup, ConsumerSequence> consumerSequences = this.sequences.get(consumerId);
+    public ConsumerSequence getConsumerSequence(String partitionName, String consumerGroup, String consumerId, boolean isExclusiveConsume) {
+        String key = isExclusiveConsume ? consumerGroup : consumerId;
+        final ConcurrentMap<ConsumerGroup, ConsumerSequence> consumerSequences = this.sequences.get(key);
         if (consumerSequences == null) {
             return null;
         }

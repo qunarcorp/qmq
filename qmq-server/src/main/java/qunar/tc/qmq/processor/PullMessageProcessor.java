@@ -116,7 +116,7 @@ public class PullMessageProcessor extends AbstractRequestProcessor implements Fi
         final String partitionName = pullRequest.getPartitionName();
         final String group = pullRequest.getGroup();
         final String consumerId = pullRequest.getConsumerId();
-        subscriberStatusChecker.addSubscriber(partitionName, group, consumerId);
+        subscriberStatusChecker.addSubscriber(partitionName, group, consumerId, pullRequest.isExclusiveConsume());
         subscriberStatusChecker.heartbeat(partitionName, group, consumerId);
     }
 

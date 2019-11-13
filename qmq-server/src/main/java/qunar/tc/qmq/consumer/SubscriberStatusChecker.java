@@ -103,7 +103,7 @@ public class SubscriberStatusChecker implements ActorSystem.Processor<Subscriber
             progress.getConsumers().values().forEach(consumer -> {
                 final String groupAndSubject = GroupAndPartition
                         .groupAndPartition(consumer.getSubject(), consumer.getGroup());
-                addSubscriber(groupAndSubject, consumer.getConsumerId());
+                addSubscriber(groupAndSubject, consumer.getConsumerId(), progress.isExclusiveConsume());
             });
         });
     }
@@ -168,12 +168,12 @@ public class SubscriberStatusChecker implements ActorSystem.Processor<Subscriber
         return m.get(consumerId);
     }
 
-    public void addSubscriber(String partitionName, String group, String consumerId) {
+    public void addSubscriber(String partitionName, String group, String consumerId, boolean isExclusiveConsume) {
         final String groupAndSubject = GroupAndPartition.groupAndPartition(partitionName, group);
-        addSubscriber(groupAndSubject, consumerId);
+        addSubscriber(groupAndSubject, consumerId, isExclusiveConsume);
     }
 
-    private void addSubscriber(String groupAndSubject, String consumerId) {
+    private void addSubscriber(String groupAndSubject, String consumerId, boolean isExclusiveConsume) {
         ConcurrentMap<String, Subscriber> m = subscribers.get(groupAndSubject);
         if (m == null) {
             m = new ConcurrentHashMap<>();
@@ -184,12 +184,12 @@ public class SubscriberStatusChecker implements ActorSystem.Processor<Subscriber
         }
 
         if (!m.containsKey(consumerId)) {
-            m.putIfAbsent(consumerId, createSubscriber(groupAndSubject, consumerId));
+            m.putIfAbsent(consumerId, createSubscriber(groupAndSubject, consumerId, isExclusiveConsume));
         }
     }
 
-    private Subscriber createSubscriber(String groupAndSubject, String consumerId) {
-        final Subscriber subscriber = new Subscriber(this, groupAndSubject, consumerId);
+    private Subscriber createSubscriber(String groupAndSubject, String consumerId, boolean isExclusiveConsume) {
+        final Subscriber subscriber = new Subscriber(this, groupAndSubject, consumerId, isExclusiveConsume);
         final RetryTask retryTask = new RetryTask(config, consumerSequenceManager, subscriber);
         final OfflineTask offlineTask = new OfflineTask(consumerSequenceManager, subscriber);
         subscriber.setRetryTask(retryTask);

@@ -64,7 +64,7 @@ class RetryTask {
     void run() {
         if (cancel) return;
 
-        final ConsumerSequence consumerSequence = consumerSequenceManager.getConsumerSequence(subscriber.getPartitionName(), subscriber.getConsumerGroup(), subscriber.getConsumerId());
+        final ConsumerSequence consumerSequence = consumerSequenceManager.getConsumerSequence(subscriber.getPartitionName(), subscriber.getConsumerGroup(), subscriber.getConsumerId(), subscriber.isExclusiveConsume());
         if (consumerSequence == null) {
             return;
         }

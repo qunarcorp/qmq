@@ -38,6 +38,7 @@ class Subscriber {
     private final String partitionName;
     private final String consumerGroup;
     private final String consumerId;
+    private final boolean isExclusiveConsume;
 
     private RetryTask retryTask;
     private OfflineTask offlineTask;
@@ -45,9 +46,10 @@ class Subscriber {
 
     private final AtomicBoolean processed = new AtomicBoolean(false);
 
-    Subscriber(SubscriberStatusChecker checker, String name, String consumerId) {
+    Subscriber(SubscriberStatusChecker checker, String name, String consumerId, boolean isExclusiveConsume) {
         this.checker = checker;
         this.name = name;
+        this.isExclusiveConsume = isExclusiveConsume;
 
         final GroupAndPartition groupAndPartition = GroupAndPartition.parse(name);
         this.consumerGroup = groupAndPartition.getGroup();
@@ -71,6 +73,10 @@ class Subscriber {
 
     public String getConsumerId() {
         return consumerId;
+    }
+
+    public boolean isExclusiveConsume() {
+        return isExclusiveConsume;
     }
 
     void setRetryTask(RetryTask retryTask) {

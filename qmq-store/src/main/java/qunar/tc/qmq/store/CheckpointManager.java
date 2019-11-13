@@ -20,6 +20,11 @@ import com.google.common.base.Charsets;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
 import io.netty.buffer.ByteBuf;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.meta.BrokerRole;
@@ -27,17 +32,12 @@ import qunar.tc.qmq.monitor.QMon;
 import qunar.tc.qmq.store.action.PullAction;
 import qunar.tc.qmq.store.action.RangeAckAction;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
-
 /**
  * @author keli.wang
  * @since 2017/8/21
  */
 public class CheckpointManager implements AutoCloseable {
+
     private static final Logger LOGGER = LoggerFactory.getLogger(CheckpointManager.class);
 
     private final MessageCheckpointSerde messageCheckpointSerde;
@@ -125,18 +125,23 @@ public class CheckpointManager implements AutoCloseable {
 
     private long loadIndexIterateCheckpoint() {
         Snapshot<Long> snapshot = indexIterateCheckpointStore.latestSnapshot();
-        if (snapshot == null) return 0;
+        if (snapshot == null) {
+            return 0;
+        }
         return snapshot.getData();
     }
 
     private long loadSyncActionCheckpoint() {
         Snapshot<Long> snapshot = syncActionCheckpointStore.latestSnapshot();
-        if (snapshot == null) return 0;
+        if (snapshot == null) {
+            return 0;
+        }
         return snapshot.getData();
     }
 
 
-    private boolean needSyncCheckpoint(final BrokerRole role, final MessageCheckpoint messageCheckpoint, final ActionCheckpoint actionCheckpoint) {
+    private boolean needSyncCheckpoint(final BrokerRole role, final MessageCheckpoint messageCheckpoint,
+            final ActionCheckpoint actionCheckpoint) {
         if (role != BrokerRole.SLAVE) {
             return false;
         }
@@ -195,17 +200,21 @@ public class CheckpointManager implements AutoCloseable {
         final long maxSequence = getMaxPulledMessageSequence(partitionName, consumerGroup);
         if (maxSequence + 1 < action.getFirstMessageSequence()) {
             long num = action.getFirstMessageSequence() - maxSequence;
-            LOGGER.warn("Maybe lost message. Last message sequence: {}. Current start sequence {} {}:{}", maxSequence, action.getFirstMessageSequence(), partitionName, consumerGroup);
+            LOGGER.warn("Maybe lost message. Last message sequence: {}. Current start sequence {} {}:{}", maxSequence,
+                    action.getFirstMessageSequence(), partitionName, consumerGroup);
             QMon.maybeLostMessagesCountInc(partitionName, consumerGroup, num);
         }
         final long lastMessageSequence = action.getLastMessageSequence();
         if (maxSequence < lastMessageSequence) {
-            updateMaxPulledMessageSequence(partitionName, consumerGroup, action.isExclusiveConsume(), lastMessageSequence);
+            updateMaxPulledMessageSequence(partitionName, consumerGroup, action.isExclusiveConsume(),
+                    lastMessageSequence);
         }
     }
 
-    private void updateMaxPulledMessageSequence(final String partitionName, final String consumerGroup, final boolean isExclusiveConsume, final long maxSequence) {
-        final ConsumerGroupProgress progress = getOrCreateConsumerGroupProgress(partitionName, consumerGroup, isExclusiveConsume);
+    private void updateMaxPulledMessageSequence(final String partitionName, final String consumerGroup,
+            final boolean isExclusiveConsume, final long maxSequence) {
+        final ConsumerGroupProgress progress = getOrCreateConsumerGroupProgress(partitionName, consumerGroup,
+                isExclusiveConsume);
         progress.setPull(maxSequence);
     }
 
@@ -214,19 +223,25 @@ public class CheckpointManager implements AutoCloseable {
         final String consumerGroup = action.consumerGroup();
         final String consumerId = action.consumerId();
 
-        final long maxSequence = getConsumerMaxPullLogSequence(partitionName, consumerGroup, consumerId);
+        final long maxSequence = getConsumerMaxPullLogSequence(partitionName, consumerGroup, consumerId,
+                action.isExclusiveConsume());
         if (maxSequence + 1 < action.getFirstSequence()) {
-            LOGGER.warn("Pull log not continuous. Last pull log sequence: {}. Current start pull log sequence {} {}:{}:{}", maxSequence, action.getFirstSequence(), partitionName, consumerGroup, consumerId);
+            LOGGER.warn(
+                    "Pull log not continuous. Last pull log sequence: {}. Current start pull log sequence {} {}:{}:{}",
+                    maxSequence, action.getFirstSequence(), partitionName, consumerGroup, consumerId);
         }
 
         final long lastSequence = action.getLastSequence();
         if (maxSequence < lastSequence) {
-            updateConsumerMaxPullLogSequence(partitionName, consumerGroup, consumerId, action.isExclusiveConsume(), lastSequence);
+            updateConsumerMaxPullLogSequence(partitionName, consumerGroup, consumerId, action.isExclusiveConsume(),
+                    lastSequence);
         }
     }
 
-    private long getConsumerMaxPullLogSequence(final String partitionName, final String consumerGroup, final String consumerId) {
-        final ConsumerProgress consumer = getConsumerProgress(partitionName, consumerGroup, consumerId);
+    private long getConsumerMaxPullLogSequence(final String partitionName, final String consumerGroup,
+            final String consumerId, final boolean isExclusiveConsume) {
+        final ConsumerProgress consumer = getConsumerProgress(partitionName, consumerGroup, consumerId,
+                isExclusiveConsume);
         if (consumer == null) {
             return -1;
         } else {
@@ -234,13 +249,17 @@ public class CheckpointManager implements AutoCloseable {
         }
     }
 
-    private void updateConsumerMaxPullLogSequence(final String partitionName, final String consumerGroup, final String consumerId, final boolean isExclusiveConsume, final long maxSequence) {
-        final ConsumerProgress consumer = getOrCreateConsumerProgress(partitionName, consumerGroup, consumerId, isExclusiveConsume);
+    private void updateConsumerMaxPullLogSequence(final String partitionName, final String consumerGroup,
+            final String consumerId, final boolean isExclusiveConsume, final long maxSequence) {
+        final ConsumerProgress consumer = getOrCreateConsumerProgress(partitionName, consumerGroup, consumerId,
+                isExclusiveConsume);
         consumer.setPull(maxSequence);
     }
 
-    private ConsumerProgress getOrCreateConsumerProgress(final String partitionName, final String consumerGroup, final String consumerId, final boolean isExclusiveConsume) {
-        final ConsumerGroupProgress progress = getOrCreateConsumerGroupProgress(partitionName, consumerGroup, isExclusiveConsume);
+    private ConsumerProgress getOrCreateConsumerProgress(final String partitionName, final String consumerGroup,
+            final String consumerId, final boolean isExclusiveConsume) {
+        final ConsumerGroupProgress progress = getOrCreateConsumerGroupProgress(partitionName, consumerGroup,
+                isExclusiveConsume);
 
         String exclusiveKey = isExclusiveConsume ? consumerGroup : consumerId;
         final Map<String, ConsumerProgress> consumers = progress.getConsumers();
@@ -260,14 +279,17 @@ public class CheckpointManager implements AutoCloseable {
 
             final String exclusiveKey = isExclusiveConsume ? action.consumerGroup() : action.consumerId();
 
-            final long maxSequence = getConsumerMaxAckedPullLogSequence(partitionName, consumerGroup, exclusiveKey);
+            final long maxSequence = getConsumerMaxAckedPullLogSequence(partitionName, consumerGroup, exclusiveKey,
+                    isExclusiveConsume);
             if (maxSequence + 1 < action.getFirstSequence()) {
-                LOGGER.warn("Maybe lost ack. Last acked sequence: {}. Current start acked sequence {} {}:{}:{}", maxSequence, action.getFirstSequence(), partitionName, consumerGroup, consumerId);
+                LOGGER.warn("Maybe lost ack. Last acked sequence: {}. Current start acked sequence {} {}:{}:{}",
+                        maxSequence, action.getFirstSequence(), partitionName, consumerGroup, consumerId);
             }
 
             final long lastSequence = action.getLastSequence();
             if (maxSequence < lastSequence) {
-                updateConsumerMaxAckedPullLogSequence(partitionName, consumerGroup, exclusiveKey, lastSequence);
+                updateConsumerMaxAckedPullLogSequence(partitionName, consumerGroup, exclusiveKey, lastSequence,
+                        isExclusiveConsume);
             }
 
             actionCheckpoint.setOffset(offset);
@@ -277,8 +299,10 @@ public class CheckpointManager implements AutoCloseable {
     }
 
     private long getConsumerMaxAckedPullLogSequence(
-            final String partitionName, final String consumerGroup, final String consumerId) {
-        final ConsumerProgress consumer = getConsumerProgress(partitionName, consumerGroup, consumerId);
+            final String partitionName, final String consumerGroup, final String consumerId,
+            final boolean isExclusiveConsume) {
+        final ConsumerProgress consumer = getConsumerProgress(partitionName, consumerGroup, consumerId,
+                isExclusiveConsume);
         if (consumer == null) {
             return -1;
         } else {
@@ -286,14 +310,16 @@ public class CheckpointManager implements AutoCloseable {
         }
     }
 
-    private void updateConsumerMaxAckedPullLogSequence(final String partitionName, final String consumerGroup, final String consumerId, final long maxSequence) {
-        ConsumerProgress consumer = getConsumerProgress(partitionName, consumerGroup, consumerId);
+    private void updateConsumerMaxAckedPullLogSequence(final String partitionName, final String consumerGroup,
+            final String consumerId, final long maxSequence, final boolean isExclusiveConsume) {
+        ConsumerProgress consumer = getConsumerProgress(partitionName, consumerGroup, consumerId, isExclusiveConsume);
         if (consumer != null) {
             consumer.setAck(maxSequence);
         }
     }
 
-    private ConsumerProgress getConsumerProgress(final String partitionName, final String consumerGroup, final String consumerId) {
+    private ConsumerProgress getConsumerProgress(final String partitionName, final String consumerGroup,
+            final String consumerId, final boolean isExclusiveConsume) {
         final ConsumerGroupProgress progress = actionCheckpoint.getProgresses().get(partitionName, consumerGroup);
         if (progress == null) {
             return null;
@@ -304,13 +330,16 @@ public class CheckpointManager implements AutoCloseable {
             return null;
         }
 
-        return consumers.get(consumerId);
+        String key = isExclusiveConsume ? consumerGroup : consumerId;
+        return consumers.get(key);
     }
 
-    private ConsumerGroupProgress getOrCreateConsumerGroupProgress(final String partitionName, final String consumerGroup, final boolean isExclusiveConsume) {
+    private ConsumerGroupProgress getOrCreateConsumerGroupProgress(final String partitionName,
+            final String consumerGroup, final boolean isExclusiveConsume) {
         final Table<String, String, ConsumerGroupProgress> progresses = actionCheckpoint.getProgresses();
         if (!progresses.contains(partitionName, consumerGroup)) {
-            final ConsumerGroupProgress progress = new ConsumerGroupProgress(partitionName, consumerGroup, isExclusiveConsume, -1, new HashMap<>());
+            final ConsumerGroupProgress progress = new ConsumerGroupProgress(partitionName, consumerGroup,
+                    isExclusiveConsume, -1, new HashMap<>());
             progresses.put(partitionName, consumerGroup, progress);
 
         }
@@ -380,7 +409,8 @@ public class CheckpointManager implements AutoCloseable {
     private MessageCheckpoint duplicateMessageCheckpoint() {
         messageCheckpointGuard.lock();
         try {
-            return new MessageCheckpoint(messageCheckpoint.getOffset(), new HashMap<>(messageCheckpoint.getMaxSequences()));
+            return new MessageCheckpoint(messageCheckpoint.getOffset(),
+                    new HashMap<>(messageCheckpoint.getMaxSequences()));
         } finally {
             messageCheckpointGuard.unlock();
         }
@@ -402,7 +432,9 @@ public class CheckpointManager implements AutoCloseable {
                 }
                 final String partitionName = progress.getPartitionName();
                 final String consumerGroup = progress.getConsumerGroup();
-                progresses.put(partitionName, consumerGroup, new ConsumerGroupProgress(partitionName, consumerGroup, progress.isExclusiveConsume(), progress.getPull(), consumersCopy));
+                progresses.put(partitionName, consumerGroup,
+                        new ConsumerGroupProgress(partitionName, consumerGroup, progress.isExclusiveConsume(),
+                                progress.getPull(), consumersCopy));
             }
             final long offset = actionCheckpoint.getOffset();
             return new ActionCheckpoint(offset, progresses);
@@ -452,7 +484,9 @@ public class CheckpointManager implements AutoCloseable {
     void updateMessageIndexCheckpoint(final long msgOffset) {
         indexCheckpointGuard.lock();
         try {
-            if (msgOffset <= indexCheckpoint.getMsgOffset()) return;
+            if (msgOffset <= indexCheckpoint.getMsgOffset()) {
+                return;
+            }
             indexCheckpoint.setMsgOffset(msgOffset);
         } finally {
             indexCheckpointGuard.unlock();
@@ -462,7 +496,9 @@ public class CheckpointManager implements AutoCloseable {
     void updateIndexCheckpoint(final long msgOffset, final long indexOffset) {
         indexCheckpointGuard.lock();
         try {
-            if (msgOffset <= indexCheckpoint.getMsgOffset()) return;
+            if (msgOffset <= indexCheckpoint.getMsgOffset()) {
+                return;
+            }
             indexCheckpoint.setMsgOffset(msgOffset);
             indexCheckpoint.setIndexOffset(indexOffset);
         } finally {
@@ -493,7 +529,9 @@ public class CheckpointManager implements AutoCloseable {
     }
 
     public void saveIndexIterateCheckpointSnapshot(final Snapshot<Long> snapshot) {
-        if (snapshot.getVersion() <= 0) return;
+        if (snapshot.getVersion() <= 0) {
+            return;
+        }
         indexIterateCheckpointStore.saveSnapshot(snapshot);
     }
 
@@ -511,7 +549,9 @@ public class CheckpointManager implements AutoCloseable {
 
     public void saveSyncActionCheckpointSnapshot() {
         long actionCheckpoint = syncActionCheckpoint.longValue();
-        if (actionCheckpoint <= 0) return;
+        if (actionCheckpoint <= 0) {
+            return;
+        }
         syncActionCheckpointStore.saveSnapshot(new Snapshot<>(actionCheckpoint, actionCheckpoint));
     }
 
@@ -571,6 +611,7 @@ public class CheckpointManager implements AutoCloseable {
     }
 
     private static class IndexCheckpointSerde implements Serde<IndexCheckpoint> {
+
         private static final String SLASH = "/";
 
         @Override
