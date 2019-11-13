@@ -100,7 +100,7 @@ public class ProducerTest {
 
     @Test
     public void testSendDelayMessages() throws Exception {
-        int messageCount = 2;
+        int messageCount = 20;
         List<Message> messages = MessageTestUtils
                 .generateMessages(producerProvider, MessageTestUtils.DELAY_MESSAGE_SUBJECT, messageCount);
         for (Message message : messages) {

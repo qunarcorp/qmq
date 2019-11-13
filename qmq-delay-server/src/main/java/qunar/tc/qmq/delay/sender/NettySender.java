@@ -86,6 +86,16 @@ public class NettySender implements Sender {
 
                 // copy left bytes
                 out.writeBytes(in);
+
+                int messageEndIndex = out.writerIndex();
+                int messageLen = messageEndIndex - messageStart;
+
+                // write crc
+                out.writerIndex(crcIndex);
+                out.writeLong(messageCrc(out, messageStart, messageLen));
+
+                // reset index to the end
+                out.writerIndex(messageEndIndex);
             }
         });
         requestDatagram.getHeader().setVersion(RemotingHeader.getScheduleTimeVersion());
