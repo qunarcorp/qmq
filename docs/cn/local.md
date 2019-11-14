@@ -6,6 +6,55 @@
 
 作为开源产品，我们更希望的是大家一起贡献；比如发现代码bug，或者有新的优化，我们更希望大家直接发PR到开源仓库上，所以我们更希望的是大家直接采用qmq的开源分支，而不是fork自己的分支改动，因为一旦做出这样的改动之后，不仅仅是你修的bug很难合并到开源分支，而且开源分支修的bug也很难合并到内部的fork分支。
 但是每个公司的情况和运维环境千差万别，比如监控平台不同，配置中心也可能不同，DB也可能不一样，为此qmq采用了SPI的机制，将一些可能存在定制的地方抽取接口，然后只需要提供实现即可，不用对qmq的源码进行任何修改。
+
+## 引用
+你可以通过内嵌的方式，引用qmq服务端的各jar包，然后将其放置在合适的容器里。比如我们公司发布系统只支持发布tomcat里的应用，那么我就可以创建几个web应用，分别用来承载qmq的服务端各应用，然后再web里启动。
+
+### qmq metaserver
+```xml
+<dependency>
+    <groupId>com.qunar.qmq</groupId>
+    <artifactId>qmq-metaserver</artifactId>
+    <version>1.1.19</version>
+</dependency>
+```
+
+### qmq server
+```xml
+<dependency>
+    <groupId>com.qunar.qmq</groupId>
+    <artifactId>qmq-server</artifactId>
+    <version>1.1.19</version>
+</dependency>
+```
+
+### qmq delay server
+```xml
+<dependency>
+    <groupId>com.qunar.qmq</groupId>
+    <artifactId>qmq-delay-server</artifactId>
+    <version>1.1.19</version>
+</dependency>
+```
+
+### qmq watchdog
+```xml
+<dependency>
+    <groupId>com.qunar.qmq</groupId>
+    <artifactId>qmq-watchdog</artifactId>
+    <version>1.1.19</version>
+</dependency>
+```
+
+### qmq backup
+```xml
+<dependency>
+    <groupId>com.qunar.qmq</groupId>
+    <artifactId>qmq-backup</artifactId>
+    <version>1.1.19</version>
+</dependency>
+```
+
 下面对哪些SPI做一些说明，如果你觉得有哪些地方还可以提取为SPI可以向我们发送PR：
 
 ## 配置
