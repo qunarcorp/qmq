@@ -94,3 +94,4 @@ qmq的客户端已经发布到maven中央仓库，可以通过下面的方式获
 ![金汇金融](docs/images/logo/jinhui365.png)
 ![必贝证券](docs/images/logo/bbae.svg)
 <img src="docs/images/logo/soonchina.png" title="嵩云科技" width="126" height="43">
+![易宝支付](docs/images/logo/yeepay.png)
