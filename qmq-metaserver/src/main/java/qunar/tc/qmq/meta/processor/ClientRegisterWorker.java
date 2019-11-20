@@ -150,7 +150,7 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
             }
 
             return buildResponse(header, request, offlineStateManager.getLastUpdateTimestamp(), onlineState,
-                    new BrokerCluster(filteredBrokerGroups), consumeStrategy, expiredTimestamp());
+                    new BrokerCluster(filteredBrokerGroups), consumeStrategy, expiredTimestamp(clientRequestType, request.getOnlineState().code()));
         } catch (Exception e) {
             LOGGER.error("handle client register exception. {} {} {}", request.getSubject(),
                     request.getClientTypeCode(), request.getClientId(), e);
@@ -292,7 +292,10 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
         }
     }
 
-    public long expiredTimestamp() {
+    private long expiredTimestamp(int requestType, int onOfflineState) {
+        if (requestType == ClientRequestType.SWITCH_STATE.getCode() && onOfflineState == OnOfflineState.OFFLINE.code()) {
+            return Long.MIN_VALUE;
+        }
         return System.currentTimeMillis() + EXCLUSIVE_CONSUMER_LOCK_LEASE_MILLS;
     }
 
