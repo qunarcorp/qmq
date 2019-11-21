@@ -281,13 +281,10 @@ class AckSendQueue implements TimerTask {
 
     private void doSendAck(final AckSendEntry sendEntry) {
         BrokerGroupInfo brokerGroup = getBrokerGroup();
-        if (brokerGroup == null) {
-            LOGGER.debug("lost broker group: {}. partition={}, consumeGroup={}", brokerGroupName, currentPartitionName,
+        if (brokerGroup == null || !brokerGroup.isAvailable()) {
+            LOGGER.debug("broker is null or not available group: {}. partition={}, consumeGroup={}", brokerGroupName, currentPartitionName,
                     consumerGroup);
             inSending.set(false);
-            return;
-        }
-        if (!brokerGroup.isAvailable()) {
             return;
         }
         ackService.sendAck(brokerGroup, subject, currentPartitionName, consumerGroup, consumeStrategy, sendEntry,

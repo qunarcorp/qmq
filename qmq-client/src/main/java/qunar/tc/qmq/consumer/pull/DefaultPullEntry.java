@@ -297,6 +297,7 @@ class DefaultPullEntry extends AbstractPullEntry implements PullEntry, Runnable 
     @Override
     public void destroy() {
         this.isRunning.set(false);
+        consumeMessageExecutor.destroy();
         super.destroy();
     }
 

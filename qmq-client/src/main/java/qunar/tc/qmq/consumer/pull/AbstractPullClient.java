@@ -128,7 +128,7 @@ public abstract class AbstractPullClient implements PullClient {
     @Override
     public void destroy() {
         LOGGER.info("关闭 Consumer {} {} {} {}", getSubject(), getPartitionName(), getBrokerGroup(), getConsumerGroup());
-        afterOnline();
+        afterOffline();
     }
 
     abstract void afterOnline();
