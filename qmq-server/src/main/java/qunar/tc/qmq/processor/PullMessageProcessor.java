@@ -316,6 +316,10 @@ public class PullMessageProcessor extends AbstractRequestProcessor implements Fi
                 ctx.writeAndFlush(RemotingBuilder.buildEmptyResponseDatagram(CommandCode.BROKER_REJECT, requestHeader));
                 return;
             }
+            if (pullMessageResult == PullMessageResult.ACQUIRE_LOCK_FAILED) {
+                ctx.writeAndFlush(RemotingBuilder.buildEmptyResponseDatagram(CommandCode.ACQUIRE_LOCK_FAILED, requestHeader));
+                return;
+            }
             if (pullMessageResult.getMessageNum() <= 0) {
                 processNoMessageResult();
                 return;

@@ -16,6 +16,8 @@
 
 package qunar.tc.qmq.processor;
 
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import qunar.tc.qmq.base.PullMessageResult;
 import qunar.tc.qmq.concurrent.ActorSystem;
 import qunar.tc.qmq.monitor.QMon;
@@ -23,9 +25,6 @@ import qunar.tc.qmq.protocol.consumer.PullRequest;
 import qunar.tc.qmq.store.MessageStoreWrapper;
 import qunar.tc.qmq.utils.ConsumerGroupUtils;
 import qunar.tc.qmq.utils.ObjectUtils;
-
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 
 /**
  * @author yunfeng.yang
@@ -51,7 +50,8 @@ class PullMessageWorker implements ActorSystem.Processor<PullMessageProcessor.Pu
     }
 
     @Override
-    public boolean process(PullMessageProcessor.PullEntry entry, ActorSystem.Actor<PullMessageProcessor.PullEntry> self) {
+    public boolean process(PullMessageProcessor.PullEntry entry,
+            ActorSystem.Actor<PullMessageProcessor.PullEntry> self) {
         QMon.pullQueueTime(entry.subject, entry.group, entry.pullBegin);
 
         //开始处理请求的时候就过期了，那么就直接不处理了，也不返回任何东西给客户端，客户端等待超时
@@ -70,10 +70,11 @@ class PullMessageWorker implements ActorSystem.Processor<PullMessageProcessor.Pu
         final PullMessageResult pullMessageResult = store.findMessages(request);
 
         if (pullMessageResult == PullMessageResult.FILTER_EMPTY ||
+                pullMessageResult == PullMessageResult.ACQUIRE_LOCK_FAILED ||
                 pullMessageResult.isReject() ||
-                pullMessageResult.getMessageNum() > 0
-                || entry.isPullOnce()
-                || entry.isTimeout()) {
+                pullMessageResult.getMessageNum() > 0 ||
+                entry.isPullOnce() ||
+                entry.isTimeout()) {
             entry.processMessageResult(pullMessageResult);
             return true;
         }
@@ -101,7 +102,9 @@ class PullMessageWorker implements ActorSystem.Processor<PullMessageProcessor.Pu
 
     void remindNewMessages(final String subject) {
         final ConcurrentMap<String, Object> map = this.subscribers.get(subject);
-        if (map == null) return;
+        if (map == null) {
+            return;
+        }
 
         for (String group : map.keySet()) {
             map.remove(group);
