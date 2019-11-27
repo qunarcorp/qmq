@@ -40,6 +40,10 @@
             <groupId>${project.groupId}</groupId>
             <artifactId>qmq-tools</artifactId>
         </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>qmq-backup</artifactId>
+        </dependency>
     </dependencies>
 
     <profiles>

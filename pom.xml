@@ -97,6 +97,13 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-bom</artifactId>
+                <version>4.0.46.Final</version>
+                <scope>import</scope>
+                <type>pom</type>
+            </dependency>
+            <dependency>
                 <groupId>${project.groupId}</groupId>
                 <artifactId>qmq-api</artifactId>
                 <version>${project.version}</version>
@@ -163,6 +170,11 @@
             </dependency>
             <dependency>
                 <groupId>${project.groupId}</groupId>
+                <artifactId>qmq-backup</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>${project.groupId}</groupId>
                 <artifactId>qmq-tools</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -212,11 +224,6 @@
                 <groupId>com.google.guava</groupId>
                 <artifactId>guava</artifactId>
                 <version>18.0</version>
-            </dependency>
-            <dependency>
-                <groupId>io.netty</groupId>
-                <artifactId>netty-all</artifactId>
-                <version>4.0.46.Final</version>
             </dependency>
 
             <dependency>
