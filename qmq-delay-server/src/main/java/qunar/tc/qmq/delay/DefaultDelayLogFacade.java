@@ -193,7 +193,7 @@ public class DefaultDelayLogFacade implements DelayLogFacade {
     public long initialMessageIterateFrom() {
         long iterateOffset = offsetManager.getIterateOffset();
         if (iterateOffset <= 0) {
-            return getMessageLogMaxOffset();
+            return getMessageLogMinOffset();
         }
         if (iterateOffset > getMessageLogMaxOffset()) {
             return getMessageLogMaxOffset();
