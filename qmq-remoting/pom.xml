@@ -9,7 +9,7 @@
     </parent>
 
     <artifactId>qmq-remoting</artifactId>
-    <name>qmq remoting</name>
+    <name>qmq-remoting</name>
     <description>qmq network module</description>
 
     <dependencies>

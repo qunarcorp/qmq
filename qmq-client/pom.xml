@@ -9,7 +9,7 @@
     </parent>
 
     <artifactId>qmq-client</artifactId>
-    <name>qmq client</name>
+    <name>qmq-client</name>
     <description>qmq client</description>
 
     <properties>
