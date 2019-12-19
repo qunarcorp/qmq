@@ -18,6 +18,8 @@ package qunar.tc.qmq.store;
 
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.Map;
@@ -28,6 +30,9 @@ import java.util.Optional;
  * @since 2017/7/31
  */
 public class ConsumeQueueManager {
+
+    private final Logger LOGGER = LoggerFactory.getLogger(ConsumeQueueManager.class);
+
     private final Table<String, String, ConsumeQueue> queues;
     private final Storage storage;
 
@@ -41,8 +46,12 @@ public class ConsumeQueueManager {
             Optional<Long> lastMaxSequence = getLastMaxSequence(subject, group);
 
             OffsetBound subjectConsumerLogBound = storage.getSubjectConsumerLogBound(subject);
+            long maxSequence = subjectConsumerLogBound == null ? 0 : subjectConsumerLogBound.getMaxOffset();
+            if (!lastMaxSequence.isPresent()) {
+                LOGGER.info("发现新的group：{} 订阅了subject: {},从最新的消息开始消费, 最新的sequence为：{}！", group, subject, maxSequence);
+            }
             final long nextSequence = lastMaxSequence.map(seq -> seq + 1)
-                    .orElse(subjectConsumerLogBound == null ? 0 : subjectConsumerLogBound.getMaxOffset());
+                    .orElse(maxSequence);
             queues.put(subject, group, new ConsumeQueue(storage, subject, group, nextSequence));
         }
         return queues.get(subject, group);
