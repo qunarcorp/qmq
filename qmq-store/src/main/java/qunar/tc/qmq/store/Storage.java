@@ -96,4 +96,6 @@ public interface Storage extends Disposable {
     Table<String, String, PullLog> allPullLogs();
 
     void destroyPullLog(final String subject, final String group, final String consumerId);
+
+    OffsetBound getSubjectConsumerLogBound(String subject);
 }

@@ -500,6 +500,13 @@ public class DefaultStorage implements Storage {
     }
 
     @Override
+    public OffsetBound getSubjectConsumerLogBound(String subject) {
+        ConsumerLog consumerLog = consumerLogManager.getConsumerLog(subject);
+
+        return consumerLog == null ? null : consumerLog.getOffsetBound();
+    }
+
+    @Override
     public ConsumeQueue locateConsumeQueue(String subject, String group) {
         return consumeQueueManager.getOrCreate(subject, group);
     }

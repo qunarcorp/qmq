@@ -38,7 +38,11 @@ public class ConsumeQueueManager {
 
     public synchronized ConsumeQueue getOrCreate(final String subject, final String group) {
         if (!queues.contains(subject, group)) {
-            final long nextSequence = getLastMaxSequence(subject, group).map(seq -> seq + 1).orElse(0L);
+            Optional<Long> lastMaxSequence = getLastMaxSequence(subject, group);
+
+            OffsetBound subjectConsumerLogBound = storage.getSubjectConsumerLogBound(subject);
+            final long nextSequence = lastMaxSequence.map(seq -> seq + 1)
+                    .orElse(subjectConsumerLogBound == null ? 0 : subjectConsumerLogBound.getMaxOffset());
             queues.put(subject, group, new ConsumeQueue(storage, subject, group, nextSequence));
         }
         return queues.get(subject, group);
