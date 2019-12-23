@@ -195,7 +195,9 @@ public class CheckpointManager implements AutoCloseable {
         final long maxSequence = getMaxPulledMessageSequence(subject, group);
         if (maxSequence + 1 < action.getFirstMessageSequence()) {
             long num = action.getFirstMessageSequence() - maxSequence;
-            LOG.warn("Maybe lost message. Last message sequence: {}. Current start sequence {} {}:{}", maxSequence, action.getFirstMessageSequence(), subject, group);
+            //这个地方本来是用来判断某个consumer group拉取的消息的consumer log sequence的连续性的，因为不连续就可能有消息丢了
+            //但是如果使用了基于tag的过滤，那么这个sequence本来就可能是不连续的
+            LOG.debug("Skipped messages: last message sequence: {}, current start sequence {} {}:{}:{}", maxSequence, action.getFirstMessageSequence(), subject, group, action.consumerId());
             QMon.maybeLostMessagesCountInc(subject, group, num);
         }
         final long lastMessageSequence = action.getLastMessageSequence();
@@ -258,7 +260,7 @@ public class CheckpointManager implements AutoCloseable {
 
             final long maxSequence = getConsumerMaxAckedPullLogSequence(subject, group, consumerId);
             if (maxSequence + 1 < action.getFirstSequence()) {
-                LOG.warn("Maybe lost ack. Last acked sequence: {}. Current start acked sequence {} {}:{}:{}", maxSequence, action.getFirstSequence(), subject, group, consumerId);
+                LOG.debug("Skipped ack: last acked sequence: {}, current start acked sequence {} {}:{}:{}", maxSequence, action.getFirstSequence(), subject, group, consumerId);
             }
 
             final long lastSequence = action.getLastSequence();

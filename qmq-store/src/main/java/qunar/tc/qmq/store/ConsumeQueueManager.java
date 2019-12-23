@@ -45,14 +45,15 @@ public class ConsumeQueueManager {
         if (!queues.contains(subject, group)) {
             Optional<Long> lastMaxSequence = getLastMaxSequence(subject, group);
 
-            OffsetBound subjectConsumerLogBound = storage.getSubjectConsumerLogBound(subject);
-            long maxSequence = subjectConsumerLogBound == null ? 0 : subjectConsumerLogBound.getMaxOffset();
-            if (!lastMaxSequence.isPresent()) {
+            if (lastMaxSequence.isPresent()) {
+                queues.put(subject, group, new ConsumeQueue(storage, subject, group, lastMaxSequence.get() + 1));
+            } else {
+                OffsetBound consumerLogBound = storage.getSubjectConsumerLogBound(subject);
+                long maxSequence = consumerLogBound == null ? 0 : consumerLogBound.getMaxOffset();
+                queues.put(subject, group, new ConsumeQueue(storage, subject, group, maxSequence));
+
                 LOGGER.info("发现新的group：{} 订阅了subject: {},从最新的消息开始消费, 最新的sequence为：{}！", group, subject, maxSequence);
             }
-            final long nextSequence = lastMaxSequence.map(seq -> seq + 1)
-                    .orElse(maxSequence);
-            queues.put(subject, group, new ConsumeQueue(storage, subject, group, nextSequence));
         }
         return queues.get(subject, group);
     }
