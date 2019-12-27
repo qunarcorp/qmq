@@ -27,12 +27,14 @@ import qunar.tc.qmq.meta.BrokerCluster;
 import qunar.tc.qmq.meta.BrokerGroup;
 import qunar.tc.qmq.meta.BrokerState;
 import qunar.tc.qmq.meta.cache.CachedOfflineStateManager;
+import qunar.tc.qmq.meta.monitor.QMon;
 import qunar.tc.qmq.meta.route.ReadonlyBrokerGroupManager;
 import qunar.tc.qmq.meta.route.SubjectRouter;
 import qunar.tc.qmq.meta.spi.ClientRegisterAuthFactory;
 import qunar.tc.qmq.meta.spi.pojo.ClientRegisterAuthInfo;
 import qunar.tc.qmq.meta.store.Store;
 import qunar.tc.qmq.meta.utils.ClientLogUtils;
+import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.protocol.CommandCode;
 import qunar.tc.qmq.protocol.Datagram;
 import qunar.tc.qmq.protocol.PayloadHolder;
@@ -98,6 +100,7 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
             authInfo.setClientType(ClientType.of(request.getClientTypeCode()));
 
             if (!ClientRegisterAuthFactory.getClientRegisterAuthService().auth(authInfo)) {
+				QMon.clientRegisterAuthFailCountInc(realSubject, authInfo.getConsumerGroup(), authInfo.getClientType().name());
                 return buildResponse(request, -2, OnOfflineState.OFFLINE, new BrokerCluster(new ArrayList<>()));
             }
 
