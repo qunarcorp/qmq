@@ -77,7 +77,7 @@ public class DefaultSubjectRouter implements SubjectRouter {
 
         List<String> newAssignedBrokers;
         if (assignedBrokers == null || assignedBrokers.size() == 0) {
-            newAssignedBrokers = assignNewBrokers(subjectInfo, clientTypeCode);
+            newAssignedBrokers = assignNewBrokers(subjectInfo);
         } else {
             newAssignedBrokers = reAssignBrokers(subjectInfo, assignedBrokers, clientTypeCode);
         }
@@ -96,10 +96,7 @@ public class DefaultSubjectRouter implements SubjectRouter {
         return subjectInfo;
     }
 
-    private List<String> assignNewBrokers(SubjectInfo subjectInfo, int clientTypeCode) {
-        if (clientTypeCode == ClientType.CONSUMER.getCode()) {
-            return Collections.emptyList();
-        }
+    private List<String> assignNewBrokers(SubjectInfo subjectInfo) {
 
         String subject = subjectInfo.getName();
         final List<String> brokerGroupNames = findAvailableBrokerGroupNames(subjectInfo.getTag());
