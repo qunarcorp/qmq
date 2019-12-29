@@ -38,6 +38,11 @@ class ActionLogSyncWorker extends AbstractLogSyncWorker {
     }
 
     @Override
+    protected long getCurrentMaxOffset() {
+        return storage.getMaxActionLogOffset();
+    }
+
+    @Override
     protected SegmentBuffer getSyncLog(SyncRequest syncRequest) {
         long startSyncOffset = syncRequest.getActionLogOffset();
         long minActionLogOffset = storage.getMinActionLogOffset();

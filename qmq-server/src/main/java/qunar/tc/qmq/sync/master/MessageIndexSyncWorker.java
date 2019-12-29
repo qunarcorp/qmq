@@ -43,6 +43,11 @@ public class MessageIndexSyncWorker extends AbstractLogSyncWorker {
     }
 
     @Override
+    protected long getCurrentMaxOffset() {
+        return storage.getMaxMessageOffset();
+    }
+
+    @Override
     protected SegmentBuffer getSyncLog(SyncRequest syncRequest) {
         final long originalOffset = syncRequest.getMessageLogOffset();
         long startSyncOffset = originalOffset;

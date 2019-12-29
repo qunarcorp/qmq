@@ -42,18 +42,18 @@ public class ConsumeQueueManager {
     }
 
     public synchronized ConsumeQueue getOrCreate(final String subject, final String group) {
-        if (!queues.contains(subject, group)) {
-            Optional<Long> lastMaxSequence = getLastMaxSequence(subject, group);
+        ConsumeQueue consumeQueue = queues.get(subject, group);
+        if (consumeQueue != null) return consumeQueue;
 
-            if (lastMaxSequence.isPresent()) {
-                queues.put(subject, group, new ConsumeQueue(storage, subject, group, lastMaxSequence.get() + 1));
-            } else {
-                OffsetBound consumerLogBound = storage.getSubjectConsumerLogBound(subject);
-                long maxSequence = consumerLogBound == null ? 0 : consumerLogBound.getMaxOffset();
-                queues.put(subject, group, new ConsumeQueue(storage, subject, group, maxSequence));
+        Optional<Long> lastMaxSequence = getLastMaxSequence(subject, group);
+        if (lastMaxSequence.isPresent()) {
+            queues.put(subject, group, new ConsumeQueue(storage, subject, group, lastMaxSequence.get() + 1));
+        } else {
+            OffsetBound consumerLogBound = storage.getSubjectConsumerLogBound(subject);
+            long maxSequence = consumerLogBound == null ? 0 : consumerLogBound.getMaxOffset();
+            queues.put(subject, group, new ConsumeQueue(storage, subject, group, maxSequence));
 
-                LOGGER.info("发现新的group：{} 订阅了subject: {},从最新的消息开始消费, 最新的sequence为：{}！", group, subject, maxSequence);
-            }
+            LOGGER.info("发现新的group：{} 订阅了subject: {},从最新的消息开始消费, 最新的sequence为：{}！", group, subject, maxSequence);
         }
         return queues.get(subject, group);
     }

@@ -77,6 +77,10 @@ class SyncLogProcessor implements NettyRequestProcessor, Disposable {
         return null;
     }
 
+    long getMessageLastCaughtUpTime() {
+        return messageLogSyncWorker.getLastCaughtUpTime();
+    }
+
     @Override
     public boolean rejectRequest() {
         return false;

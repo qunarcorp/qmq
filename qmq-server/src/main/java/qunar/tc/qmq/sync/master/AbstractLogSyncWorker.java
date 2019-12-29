@@ -51,17 +51,19 @@ abstract class AbstractLogSyncWorker implements SyncProcessor {
 
     private final DynamicConfig config;
     private volatile LogSegment currentSegment;
+    private volatile long lastCaughtUpTime;
 
     AbstractLogSyncWorker(final DynamicConfig config) {
         this.config = config;
         this.currentSegment = null;
+        this.lastCaughtUpTime = System.currentTimeMillis();
     }
 
     @Override
     public void process(SyncRequestEntry entry) {
         final SyncRequest syncRequest = entry.getSyncRequest();
-        final SegmentBuffer result = getSyncLog(syncRequest);
-		if (result == null) {
+        final SegmentBuffer result = getSyncLogAndUpdateCaughtUpTime(syncRequest);
+        if (result == null) {
             final long timeout = config.getLong("message.sync.timeout.ms", 10L);
             ServerTimerUtil.newTimeout(new SyncRequestTimeoutTask(entry, this), timeout, TimeUnit.MILLISECONDS);
             return;
@@ -84,6 +86,17 @@ abstract class AbstractLogSyncWorker implements SyncProcessor {
 
         processSyncLog(entry, result);
     }
+
+    private SegmentBuffer getSyncLogAndUpdateCaughtUpTime(SyncRequest request) {
+        final long currentMaxOffset = getCurrentMaxOffset();
+        final SegmentBuffer result = getSyncLog(request);
+        if (result == null || result.getStartOffset() + result.getSize() >= currentMaxOffset) {
+            lastCaughtUpTime = System.currentTimeMillis();
+        }
+        return result;
+    }
+
+    protected abstract long getCurrentMaxOffset();
 
     protected abstract SegmentBuffer getSyncLog(SyncRequest syncRequest);
 
@@ -147,6 +160,10 @@ abstract class AbstractLogSyncWorker implements SyncProcessor {
             currentSegment = segment;
         }
         return retain;
+    }
+
+    public long getLastCaughtUpTime() {
+        return lastCaughtUpTime;
     }
 
     private static class SyncLogPayloadHolder implements PayloadHolder {

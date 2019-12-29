@@ -38,6 +38,7 @@ import qunar.tc.qmq.protocol.Datagram;
 import qunar.tc.qmq.store.*;
 import qunar.tc.qmq.sync.*;
 import qunar.tc.qmq.sync.master.MasterSyncNettyServer;
+import qunar.tc.qmq.sync.master.SyncLagChecker;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -73,6 +74,7 @@ public class ServerWrapper implements Disposable {
     private BrokerRegisterService brokerRegisterService;
 
     private SubscriberStatusChecker subscriberStatusChecker;
+    private SyncLagChecker syncLagChecker;
 
     private NettyServer nettyServer;
 
@@ -90,6 +92,7 @@ public class ServerWrapper implements Disposable {
         startServeSync();
         startServerHandlers();
         startConsumerChecker();
+        startSyncLagChecker();
         addToResources();
         if (autoOnline)
             online();
@@ -229,6 +232,13 @@ public class ServerWrapper implements Disposable {
         this.nettyServer.registerProcessor(CommandCode.ACK_REQUEST, ackMessageProcessor);
         this.nettyServer.registerProcessor(CommandCode.CONSUME_MANAGE, consumerManageProcessor);
         this.nettyServer.start();
+    }
+
+    private void startSyncLagChecker() {
+        this.syncLagChecker = new SyncLagChecker(config, masterSyncNettyServer, brokerRegisterService);
+        if (BrokerConfig.getBrokerRole() == BrokerRole.MASTER) {
+            syncLagChecker.start();
+        }
     }
 
     private void addToResources() {

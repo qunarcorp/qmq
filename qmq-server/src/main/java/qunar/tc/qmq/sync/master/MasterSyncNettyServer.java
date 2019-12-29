@@ -43,6 +43,10 @@ public class MasterSyncNettyServer implements Disposable {
         syncLogProcessor.registerSyncEvent(listener);
     }
 
+    public long getMessageLastCaughtUpTime() {
+        return syncLogProcessor.getMessageLastCaughtUpTime();
+    }
+
     public void start() {
         nettyServer.registerProcessor(CommandCode.SYNC_LOG_REQUEST, syncLogProcessor);
         nettyServer.registerProcessor(CommandCode.SYNC_CHECKPOINT_REQUEST, syncCheckpointProcessor);
