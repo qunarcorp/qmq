@@ -18,7 +18,6 @@ package qunar.tc.qmq.meta.route.impl;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.meta.BrokerGroup;
 import qunar.tc.qmq.meta.BrokerState;
@@ -62,14 +61,14 @@ public class DefaultSubjectRouter implements SubjectRouter {
     public List<BrokerGroup> route(final String subject, final MetaInfoRequest request) {
         try {
             QMon.clientSubjectRouteCountInc(subject);
-            return doRoute(subject, request.getClientTypeCode());
+            return doRoute(subject);
         } catch (Throwable e) {
             LOG.error("find subject route error", e);
             return Collections.emptyList();
         }
     }
 
-    private List<BrokerGroup> doRoute(String subject, int clientTypeCode) {
+    private List<BrokerGroup> doRoute(String subject) {
         SubjectInfo subjectInfo = getOrCreateSubjectInfo(subject);
 
         //query assigned brokers
@@ -79,7 +78,7 @@ public class DefaultSubjectRouter implements SubjectRouter {
         if (assignedBrokers == null || assignedBrokers.size() == 0) {
             newAssignedBrokers = assignNewBrokers(subjectInfo);
         } else {
-            newAssignedBrokers = reAssignBrokers(subjectInfo, assignedBrokers, clientTypeCode);
+            newAssignedBrokers = reAssignBrokers(subjectInfo, assignedBrokers);
         }
 
         return selectExistedBrokerGroups(newAssignedBrokers);
@@ -97,7 +96,6 @@ public class DefaultSubjectRouter implements SubjectRouter {
     }
 
     private List<String> assignNewBrokers(SubjectInfo subjectInfo) {
-
         String subject = subjectInfo.getName();
         final List<String> brokerGroupNames = findAvailableBrokerGroupNames(subjectInfo.getTag());
         final List<String> loadBalanceSelect = loadBalance.select(subject, brokerGroupNames, minGroupNum);
@@ -109,11 +107,7 @@ public class DefaultSubjectRouter implements SubjectRouter {
         return findOrUpdateInStore(subjectInfo);
     }
 
-    private List<String> reAssignBrokers(SubjectInfo subjectInfo, List<String> assignedBrokers, int clientTypeCode) {
-        if (clientTypeCode == ClientType.CONSUMER.getCode()) {
-            return assignedBrokers;
-        }
-
+    private List<String> reAssignBrokers(SubjectInfo subjectInfo, List<String> assignedBrokers) {
         if (assignedBrokers.size() >= minGroupNum) {
             return assignedBrokers;
         }

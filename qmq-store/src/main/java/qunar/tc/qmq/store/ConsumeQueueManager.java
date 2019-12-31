@@ -16,14 +16,14 @@
 
 package qunar.tc.qmq.store;
 
-import com.google.common.collect.HashBasedTable;
-import com.google.common.collect.Table;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * @author keli.wang
@@ -33,37 +33,35 @@ public class ConsumeQueueManager {
 
     private final Logger LOGGER = LoggerFactory.getLogger(ConsumeQueueManager.class);
 
-    private final Table<String, String, ConsumeQueue> queues;
+    private final ConcurrentMap<String, ConcurrentMap<String, ConsumeQueue>> queues;
     private final Storage storage;
 
     public ConsumeQueueManager(final Storage storage) {
-        this.queues = HashBasedTable.create();
+        this.queues = new ConcurrentHashMap<>();
         this.storage = storage;
     }
 
-    public synchronized ConsumeQueue getOrCreate(final String subject, final String group) {
-        if (!queues.contains(subject, group)) {
-            Optional<Long> lastMaxSequence = getLastMaxSequence(subject, group);
-
+    public ConsumeQueue getOrCreate(final String subject, final String group) {
+        ConcurrentMap<String, ConsumeQueue> consumeQueues = queues.computeIfAbsent(subject, s -> new ConcurrentHashMap<>());
+        return consumeQueues.computeIfAbsent(group, g -> {
+            Optional<Long> lastMaxSequence = getLastMaxSequence(subject, g);
             if (lastMaxSequence.isPresent()) {
-                queues.put(subject, group, new ConsumeQueue(storage, subject, group, lastMaxSequence.get() + 1));
+                return new ConsumeQueue(storage, subject, g, lastMaxSequence.get() + 1);
             } else {
                 OffsetBound consumerLogBound = storage.getSubjectConsumerLogBound(subject);
                 long maxSequence = consumerLogBound == null ? 0 : consumerLogBound.getMaxOffset();
-                queues.put(subject, group, new ConsumeQueue(storage, subject, group, maxSequence));
-
-                LOGGER.info("发现新的group：{} 订阅了subject: {},从最新的消息开始消费, 最新的sequence为：{}！", group, subject, maxSequence);
+                LOGGER.info("发现新的group：{} 订阅了subject: {},从最新的消息开始消费, 最新的sequence为：{}！", g, subject, maxSequence);
+                return new ConsumeQueue(storage, subject, g, maxSequence);
             }
-        }
-        return queues.get(subject, group);
+        });
     }
 
-    public synchronized Map<String, ConsumeQueue> getBySubject(final String subject) {
-        if (queues.containsRow(subject)) {
-            return queues.row(subject);
-        } else {
-            return Collections.emptyMap();
+    public Map<String, ConsumeQueue> getBySubject(final String subject) {
+        ConcurrentMap<String, ConsumeQueue> consumeQueues = queues.get(subject);
+        if (consumeQueues != null) {
+            return consumeQueues;
         }
+        return Collections.emptyMap();
     }
 
     private Optional<Long> getLastMaxSequence(final String subject, final String group) {
@@ -81,7 +79,11 @@ public class ConsumeQueueManager {
     }
 
     synchronized void disableLagMonitor(String subject, String group) {
-        final ConsumeQueue consumeQueue = queues.get(subject, group);
+        ConcurrentMap<String, ConsumeQueue> consumeQueues = queues.get(subject);
+        if (consumeQueues == null) {
+            return;
+        }
+        ConsumeQueue consumeQueue = consumeQueues.get(group);
         if (consumeQueue == null) {
             return;
         }

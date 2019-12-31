@@ -48,6 +48,11 @@ class MessageLogSyncWorker extends AbstractLogSyncWorker implements Disposable {
     }
 
     @Override
+    protected long getCurrentMaxOffset() {
+        return storage.getMaxMessageOffset();
+    }
+
+    @Override
     protected SegmentBuffer getSyncLog(SyncRequest syncRequest) {
         messageLogSyncEventBus.post(syncRequest);
         long startSyncOffset = syncRequest.getMessageLogOffset();

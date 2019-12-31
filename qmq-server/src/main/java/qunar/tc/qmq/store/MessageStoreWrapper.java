@@ -162,8 +162,16 @@ public class MessageStoreWrapper {
             if (!putAction(item, consumeQueue, subject, group, consumerId, isBroadcast, retList)) break;
         }
         releaseRemain(index, filterResult);
-        if (retList.isEmpty()) return PullMessageResult.FILTER_EMPTY;
+        if (isEmptyAfterFilter(retList)) return PullMessageResult.FILTER_EMPTY;
         return merge(retList);
+    }
+
+    private boolean isEmptyAfterFilter(List<PullMessageResult> retList) {
+        if (retList.isEmpty()) {
+            return true;
+        } else {
+            return retList.size() == 1 && retList.get(0).getMessageNum() == 0;
+        }
     }
 
     /**

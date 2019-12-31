@@ -189,6 +189,26 @@ public class BrokerRegisterService implements Disposable {
         return request;
     }
 
+    public void unmarkReadonly() {
+        if (brokerState != BrokerState.R.getCode()) {
+            return;
+        }
+        updateBrokerState(BrokerState.RW);
+    }
+
+    public void markReadonly() {
+        if (brokerState != BrokerState.RW.getCode()) {
+            return;
+        }
+        updateBrokerState(BrokerState.R);
+    }
+
+    private void updateBrokerState(final BrokerState newState) {
+        LOG.info("update broker state from {} to {}", BrokerState.codeOf(brokerState), newState);
+        brokerState = newState.getCode();
+        heartbeat();
+    }
+
     @Override
     public void destroy() {
         heartbeatScheduler.shutdown();
