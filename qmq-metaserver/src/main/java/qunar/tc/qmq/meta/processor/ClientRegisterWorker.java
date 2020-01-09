@@ -91,7 +91,6 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
         final int clientRequestType = request.getRequestType();
 
         try {
-
             ClientRegisterAuthInfo authInfo = new ClientRegisterAuthInfo();
             authInfo.setAppCode(request.getAppCode());
             authInfo.setSubject(realSubject);
@@ -99,8 +98,8 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
             authInfo.setClientId(request.getClientId());
             authInfo.setClientType(ClientType.of(request.getClientTypeCode()));
 
-            if (!ClientRegisterAuthFactory.getClientRegisterAuthService().auth(authInfo)) {
-				QMon.clientRegisterAuthFailCountInc(realSubject, authInfo.getConsumerGroup(), authInfo.getClientType().name());
+            if (!ClientRegisterAuthFactory.auth(authInfo)) {
+                QMon.clientRegisterAuthFailCountInc(realSubject, authInfo.getConsumerGroup(), authInfo.getClientType().name());
                 return buildResponse(request, -2, OnOfflineState.OFFLINE, new BrokerCluster(new ArrayList<>()));
             }
 
