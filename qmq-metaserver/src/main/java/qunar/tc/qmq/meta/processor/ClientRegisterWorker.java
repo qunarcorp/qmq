@@ -34,7 +34,6 @@ import qunar.tc.qmq.meta.spi.ClientRegisterAuthFactory;
 import qunar.tc.qmq.meta.spi.pojo.ClientRegisterAuthInfo;
 import qunar.tc.qmq.meta.store.Store;
 import qunar.tc.qmq.meta.utils.ClientLogUtils;
-import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.protocol.CommandCode;
 import qunar.tc.qmq.protocol.Datagram;
 import qunar.tc.qmq.protocol.PayloadHolder;
