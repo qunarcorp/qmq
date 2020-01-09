@@ -21,15 +21,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.base.OnOfflineState;
+import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.concurrent.ActorSystem;
 import qunar.tc.qmq.meta.BrokerCluster;
 import qunar.tc.qmq.meta.BrokerGroup;
 import qunar.tc.qmq.meta.BrokerState;
 import qunar.tc.qmq.meta.cache.CachedOfflineStateManager;
+import qunar.tc.qmq.meta.monitor.QMon;
 import qunar.tc.qmq.meta.route.ReadonlyBrokerGroupManager;
 import qunar.tc.qmq.meta.route.SubjectRouter;
+import qunar.tc.qmq.meta.spi.ClientRegisterAuthFactory;
+import qunar.tc.qmq.meta.spi.pojo.ClientRegisterAuthInfo;
 import qunar.tc.qmq.meta.store.Store;
 import qunar.tc.qmq.meta.utils.ClientLogUtils;
+import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.protocol.CommandCode;
 import qunar.tc.qmq.protocol.Datagram;
 import qunar.tc.qmq.protocol.PayloadHolder;
@@ -86,11 +91,25 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
         final int clientRequestType = request.getRequestType();
 
         try {
+
+            ClientRegisterAuthInfo authInfo = new ClientRegisterAuthInfo();
+            authInfo.setAppCode(request.getAppCode());
+            authInfo.setSubject(realSubject);
+            authInfo.setConsumerGroup(request.getConsumerGroup());
+            authInfo.setClientId(request.getClientId());
+            authInfo.setClientType(ClientType.of(request.getClientTypeCode()));
+
+            if (!ClientRegisterAuthFactory.getClientRegisterAuthService().auth(authInfo)) {
+				QMon.clientRegisterAuthFailCountInc(realSubject, authInfo.getConsumerGroup(), authInfo.getClientType().name());
+                return buildResponse(request, -2, OnOfflineState.OFFLINE, new BrokerCluster(new ArrayList<>()));
+            }
+
             if (ClientRequestType.ONLINE.getCode() == clientRequestType) {
                 store.insertClientMetaInfo(request);
             }
 
             final List<BrokerGroup> brokerGroups = subjectRouter.route(realSubject, request);
+
             List<BrokerGroup> removedReadonlyGroups = readonlyBrokerGroupManager.disableReadonlyBrokerGroup(realSubject, request.getClientTypeCode(), brokerGroups);
             final List<BrokerGroup> filteredBrokerGroups = filterBrokerGroups(removedReadonlyGroups);
             final OnOfflineState clientState = offlineStateManager.queryClientState(request.getClientId(), request.getSubject(), request.getConsumerGroup());
