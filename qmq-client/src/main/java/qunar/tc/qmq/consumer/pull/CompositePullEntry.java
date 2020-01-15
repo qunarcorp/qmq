@@ -25,15 +25,15 @@ public class CompositePullEntry implements PullEntry {
     private final SwitchWaiter onlineSwitcher = new SwitchWaiter(false);
     private final AtomicBoolean isStarted = new AtomicBoolean(false);
 
-    private final PushConsumer pushConsumer;
+    private final PushConsumerParam pushConsumerParam;
     private final PullService pullService;
     private final AckService ackService;
     private final BrokerService brokerService;
     private final PullStrategy pullStrategy;
 
-    public CompositePullEntry(PushConsumer pushConsumer, PullService pullService, AckService ackService,
+    public CompositePullEntry(PushConsumerParam pushConsumerParam, PullService pullService, AckService ackService,
             BrokerService brokerService, PullStrategy pullStrategy) {
-        this.pushConsumer = pushConsumer;
+        this.pushConsumerParam = pushConsumerParam;
         this.pullService = pullService;
         this.ackService = ackService;
         this.brokerService = brokerService;
@@ -42,12 +42,12 @@ public class CompositePullEntry implements PullEntry {
 
     @Override
     public String getSubject() {
-        return pushConsumer.subject();
+        return pushConsumerParam.getSubject();
     }
 
     @Override
     public String getConsumerGroup() {
-        return pushConsumer.group();
+        return pushConsumerParam.getGroup();
     }
 
     @Override
@@ -76,6 +76,7 @@ public class CompositePullEntry implements PullEntry {
                             String brokerGroupName = brokerGroup.getGroupName();
                             pullEntryMap.computeIfAbsent(brokerGroupName,
                                     bgn -> {
+                                        PushConsumer pushConsumer = new PushConsumerImpl(pushConsumerParam.getSubject(), pushConsumerParam.getGroup(), pushConsumerParam.getRegistParam());
                                         DefaultPullEntry pullEntry = new DefaultPullEntry(brokerGroupName,
                                                 pushConsumer, pullService, ackService,
                                                 brokerService, pullStrategy, onlineSwitcher);
