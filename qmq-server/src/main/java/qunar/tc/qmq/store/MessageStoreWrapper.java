@@ -16,18 +16,9 @@
 
 package qunar.tc.qmq.store;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.base.ConsumerSequence;
-import qunar.tc.qmq.base.MessageHeader;
-import qunar.tc.qmq.base.PullMessageResult;
-import qunar.tc.qmq.base.RawMessage;
-import qunar.tc.qmq.base.ReceiveResult;
-import qunar.tc.qmq.base.ReceivingMessage;
-import qunar.tc.qmq.base.WritePutActionResult;
+import qunar.tc.qmq.base.*;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.consumer.ConsumerSequenceManager;
 import qunar.tc.qmq.monitor.QMon;
@@ -36,6 +27,9 @@ import qunar.tc.qmq.protocol.consumer.PullRequest;
 import qunar.tc.qmq.protocol.producer.MessageProducerCode;
 import qunar.tc.qmq.store.action.RangeAckAction;
 import qunar.tc.qmq.store.buffer.Buffer;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * @author yunfeng.yang
@@ -276,7 +270,6 @@ public class MessageStoreWrapper {
     private PullMessageResult findUnAckMessages(final PullRequest pullRequest) {
         final long start = System.currentTimeMillis();
         try {
-            if (pullRequest.isBroadcast()) return PullMessageResult.EMPTY;
             return doFindUnAckMessages(pullRequest);
         } finally {
             QMon.findLostMessagesTime(pullRequest.getSubject(), pullRequest.getGroup(), System.currentTimeMillis() - start);
@@ -300,9 +293,7 @@ public class MessageStoreWrapper {
             return PullMessageResult.EMPTY;
         }
 
-        //pull log是异步回放action log得到的，如果这个时候pull log还没回放出来，则会有问题
-        long pullLogReplaySequence = storage.getPullLogReplayState(subject, group, consumerId);
-        if (pullLogReplaySequence < pullLogSequenceInServer) {
+        if (isPullLogReplayDelay(pullRequest, pullLogSequenceInServer)) {
             return PullMessageResult.WAIT_PULLLOG_REPLAY;
         }
 
@@ -390,6 +381,14 @@ public class MessageStoreWrapper {
         QMon.findLostMessageCountInc(subject, group, result.getMessageNum());
         LOG.info("found lost ack messages request: {}, consumerSequence: {}, result: {}", pullRequest, consumerSequence, result);
         return result;
+    }
+
+    //pull log是异步回放action log得到的，如果这个时候pull log还没回放出来，则会有问题
+    private boolean isPullLogReplayDelay(PullRequest pullRequest, long pullLogSequenceInServer) {
+        //广播消息没有pull log回放
+        if (pullRequest.isBroadcast()) return false;
+        long pullLogReplaySequence = storage.getPullLogReplayState(pullRequest.getSubject(), pullRequest.getGroup(), pullRequest.getConsumerId());
+        return pullLogReplaySequence < pullLogSequenceInServer;
     }
 
     private long getConsumerLogSequence(PullRequest pullRequest, long offset) {
