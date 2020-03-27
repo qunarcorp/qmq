@@ -16,6 +16,9 @@
 
 package qunar.tc.qmq.consumer.pull;
 
+import com.google.common.util.concurrent.AbstractFuture;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
@@ -24,14 +27,16 @@ import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.common.StatusSource;
 import qunar.tc.qmq.common.SwitchWaiter;
+import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.config.PullSubjectsConfig;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.QmqCounter;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
 
 import java.util.List;
-import java.util.concurrent.Executor;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_GROUP_ARRAY;
@@ -39,9 +44,12 @@ import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_GROUP_ARRAY;
 /**
  * @author yiqun.fan create on 17-8-18.
  */
-class DefaultPullEntry extends AbstractPullEntry {
+class DefaultPullEntry extends AbstractPullEntry implements Runnable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PullEntry.class);
+
+    private static final ScheduledExecutorService DELAY_SCHEDULER = Executors
+            .newSingleThreadScheduledExecutor(new NamedThreadFactory("qmq-delay-scheduler"));
 
     private static final long PAUSETIME_OF_CLEAN_LAST_MESSAGE = 200;
     private static final long PAUSETIME_OF_NOAVAILABLE_BROKER = 100;
@@ -56,12 +64,13 @@ class DefaultPullEntry extends AbstractPullEntry {
     private final SwitchWaiter onlineSwitcher;
     private final QmqCounter pullRunCounter;
     private final QmqCounter pauseCounter;
-    private final String logType;
     private final PullStrategy pullStrategy;
     private final String brokerGroupName;
 
+    private final Executor executor;
+
     DefaultPullEntry(String brokerGroupName, PushConsumer pushConsumer, PullService pullService, AckService ackService,
-                     BrokerService brokerService, PullStrategy pullStrategy, SwitchWaiter switchWaiter) {
+                     BrokerService brokerService, PullStrategy pullStrategy, SwitchWaiter switchWaiter, Executor executor) {
         super(pushConsumer.subject(), pushConsumer.group(), pullService, ackService, brokerService);
         this.brokerGroupName = brokerGroupName;
         String subject = pushConsumer.subject();
@@ -73,12 +82,11 @@ class DefaultPullEntry extends AbstractPullEntry {
         this.ackNosendLimit = PullSubjectsConfig.get().getAckNosendLimit(realSubject);
         this.pullStrategy = pullStrategy;
         this.onlineSwitcher = switchWaiter;
+        this.executor = executor;
 
         String[] values = new String[]{subject, group};
         this.pullRunCounter = Metrics.counter("qmq_pull_run_count", SUBJECT_GROUP_ARRAY, values);
         this.pauseCounter = Metrics.counter("qmq_pull_pause_count", SUBJECT_GROUP_ARRAY, values);
-
-        this.logType = "PullEntry=" + subject;
     }
 
     @Override
@@ -103,66 +111,136 @@ class DefaultPullEntry extends AbstractPullEntry {
 
     @Override
     public void startPull(Executor executor) {
-        executor.execute(this::pullInLoop);
+        executor.execute(this);
     }
 
-    private void pullInLoop() {
-        final DoPullParam doPullParam = new DoPullParam();
+    private static final int PREPARE_PULL = 0;
+    private static final int PULL_DONE = 1;
 
-        while (isRunning.get()) {
-            try {
-                if (!preparePull()) {
-                    LOGGER.debug(logType, "preparePull false. subject={}, group={}", pushConsumer.subject(),
-                            pushConsumer.group());
-                    continue;
-                }
+    private final AtomicInteger state = new AtomicInteger();
+    private volatile PullParam pullParam;
+    private volatile PullService.PullResultFuture pullFuture;
 
-                if (!resetDoPullParam(doPullParam)) {
-                    LOGGER.debug(logType, "buildDoPullParam false. subject={}, group={}", pushConsumer.subject(),
-                            pushConsumer.group());
-                    continue;
-                }
+    @Override
+    public void run() {
+        Thread thread = Thread.currentThread();
+        String oldThreadName = thread.getName();
+        thread.setName("qmq-pull-entry-" + getBrokerGroup());
+        try {
+            switch (state.get()) {
+                case PREPARE_PULL:
+                    if (!isRunning.get()) {
+                        return;
+                    }
 
-                if (isRunning.get() && onlineSwitcher.waitOn()) {
-                    doPull(doPullParam);
-                }
-            } catch (Exception e) {
-                LOGGER.error("PullEntry run exception", e);
+                    if (await(waitOnline())) {
+                        return;
+                    }
+
+                    if (await(preparePull())) {
+                        return;
+                    }
+
+                    if (await(resetDoPullParam())) {
+                        return;
+                    }
+
+                    AckSendInfo ackSendInfo = ackService.getAckSendInfo(getBrokerGroup(), getSubject(), getConsumerGroup());
+                    pullParam = buildPullParam(pushConsumer.consumeParam(), getBrokerGroup(), ackSendInfo, pullBatchSize.get(),
+                            pullTimeout.get());
+                    pullFuture = pullService.pullAsync(pullParam);
+                    state.set(PULL_DONE);
+                    pullFuture.addListener(this, executor);
+                    break;
+                case PULL_DONE:
+                    final PullParam thisPullParam = pullParam;
+                    try {
+                        PullResult pullResult = pullFuture.get();
+                        List<PulledMessage> messages = handlePullResult(thisPullParam, pullResult, pushConsumer);
+                        getBrokerGroup().markSuccess();
+                        pullStrategy.record(messages.size() > 0);
+                        pushConsumer.push(messages);
+                    } catch (ExecutionException e) {
+                        markFailed(getBrokerGroup());
+                        Throwable cause = e.getCause();
+                        //超时异常暂时不打印日志了
+                        if (!(cause instanceof TimeoutException)) {
+                            LOGGER.error("pull message exception. {}", thisPullParam, e);
+                        }
+                    } catch (Exception e) {
+                        markFailed(getBrokerGroup());
+                        LOGGER.error("pull message exception. {}", thisPullParam, e);
+                    } finally {
+                        state.set(PREPARE_PULL);
+                        run();
+                    }
+                    break;
             }
+        } catch (Throwable t) {
+            LOGGER.error("pull error subject {} consumerGroup {}", getSubject(), getConsumerGroup(), t);
+        } finally {
+            thread.setName(oldThreadName);
         }
     }
 
-    private boolean preparePull() {
-        pullRunCounter.inc();
-        if (!pushConsumer.cleanLocalBuffer()) {
-            pause("wait consumer", PAUSETIME_OF_CLEAN_LAST_MESSAGE);
+    private boolean await(ListenableFuture future) {
+        if (future == null) {
             return false;
         }
-
-        if (!pullStrategy.needPull()) {
-            pause("wait consumer", PAUSETIME_OF_NOMESSAGE);
-            return false;
-        }
+        future.addListener(this, executor);
         return true;
     }
 
-    private boolean resetDoPullParam(DoPullParam param) {
-        while (isRunning.get()) {
-            param.broker = getBrokerGroup();
-            if (BrokerGroupInfo.isInvalid(param.broker)) {
-                pause("noavaliable broker", PAUSETIME_OF_NOAVAILABLE_BROKER);
-                continue;
+    private ListenableFuture waitOnline() {
+        synchronized (onlineSwitcher) {
+            if (onlineSwitcher.isOnline()) {
+                return null;
             }
-
-            param.ackSendInfo = ackService.getAckSendInfo(param.broker, pushConsumer.subject(), pushConsumer.group());
-            if (param.ackSendInfo.getToSendNum() > ackNosendLimit.get()) {
-                pause("wait ack", PAUSETIME_OF_CLEAN_LAST_MESSAGE);
-                continue;
-            }
-
-            break;
+            return SettableFuture.create();
         }
-        return isRunning.get() && param.ackSendInfo != null;
+    }
+
+    private ListenableFuture preparePull() {
+        pullRunCounter.inc();
+        if (pushConsumer.cleanLocalBuffer()) {
+            return delay("wait consumer", PAUSETIME_OF_CLEAN_LAST_MESSAGE);
+        }
+
+        if (!pullStrategy.needPull()) {
+            return delay("wait consumer", PAUSETIME_OF_NOMESSAGE);
+        }
+        return null;
+    }
+
+    private ListenableFuture resetDoPullParam() {
+        BrokerGroupInfo brokerGroup = getBrokerGroup();
+        if (BrokerGroupInfo.isInvalid(brokerGroup)) {
+            return delay("no available broker", PAUSETIME_OF_NOAVAILABLE_BROKER);
+        }
+
+        AckSendInfo ackSendInfo = ackService.getAckSendInfo(brokerGroup, pushConsumer.subject(), pushConsumer.group());
+        if (ackSendInfo.getToSendNum() > ackNosendLimit.get()) {
+            return delay("wait ack", PAUSETIME_OF_NOAVAILABLE_BROKER);
+        }
+        return null;
+    }
+
+    private ListenableFuture delay(String log, long timeMillis) {
+        final String subject = getSubject();
+        final String consumerGroup = getConsumerGroup();
+        this.pauseCounter.inc();
+        LOGGER.debug("pull pause {} ms, {}. subject={}, consumerGroup={}", timeMillis, log, subject, consumerGroup);
+        RunnableSettableFuture future = new RunnableSettableFuture();
+        DELAY_SCHEDULER.schedule(future, timeMillis, TimeUnit.MILLISECONDS);
+        return future;
+    }
+
+    private static class RunnableSettableFuture extends AbstractFuture implements Runnable {
+
+        @Override
+        public void run() {
+            super.set(null);
+        }
     }
 
     private BrokerGroupInfo getBrokerGroup() {
@@ -172,29 +250,5 @@ class DefaultPullEntry extends AbstractPullEntry {
 
     private BrokerClusterInfo getBrokerCluster() {
         return brokerService.getClusterBySubject(ClientType.CONSUMER, pushConsumer.subject(), pushConsumer.group());
-    }
-
-    private void doPull(DoPullParam param) {
-        List<PulledMessage> messages = pull(pushConsumer.consumeParam(), param.broker, pullBatchSize.get(),
-                pullTimeout.get(), pushConsumer);
-        pullStrategy.record(messages.size() > 0);
-        pushConsumer.push(messages);
-    }
-
-    private void pause(String log, long timeMillis) {
-        final String subject = pushConsumer.subject();
-        final String group = pushConsumer.group();
-        this.pauseCounter.inc();
-        LOGGER.debug(logType, "pull pause {} ms, {}. subject={}, group={}", timeMillis, log, subject, group);
-        try {
-            Thread.sleep(timeMillis);
-        } catch (Exception e) {
-            LOGGER.info("PullEntry pause exception. log={}", log, e);
-        }
-    }
-
-    private static final class DoPullParam {
-        private volatile AckSendInfo ackSendInfo = null;
-        private volatile BrokerGroupInfo broker = null;
     }
 }

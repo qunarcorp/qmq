@@ -84,7 +84,7 @@ public class SwitchWaiter {
         return true;
     }
 
-    private boolean isOnline() {
+    public boolean isOnline() {
         return this.state == 7;
     }
 }

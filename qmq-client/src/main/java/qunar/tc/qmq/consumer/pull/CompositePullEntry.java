@@ -1,9 +1,11 @@
 package qunar.tc.qmq.consumer.pull;
 
 import com.google.common.collect.Maps;
+
 import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
@@ -32,7 +34,7 @@ public class CompositePullEntry implements PullEntry {
     private final PullStrategy pullStrategy;
 
     public CompositePullEntry(PushConsumerParam pushConsumerParam, PullService pullService, AckService ackService,
-            BrokerService brokerService, PullStrategy pullStrategy) {
+                              BrokerService brokerService, PullStrategy pullStrategy) {
         this.pushConsumerParam = pushConsumerParam;
         this.pullService = pullService;
         this.ackService = ackService;
@@ -79,7 +81,7 @@ public class CompositePullEntry implements PullEntry {
                                         PushConsumer pushConsumer = new PushConsumerImpl(pushConsumerParam.getSubject(), pushConsumerParam.getGroup(), pushConsumerParam.getRegistParam());
                                         DefaultPullEntry pullEntry = new DefaultPullEntry(brokerGroupName,
                                                 pushConsumer, pullService, ackService,
-                                                brokerService, pullStrategy, onlineSwitcher);
+                                                brokerService, pullStrategy, onlineSwitcher, executor);
                                         pullEntry.startPull(executor);
                                         return pullEntry;
                                     });

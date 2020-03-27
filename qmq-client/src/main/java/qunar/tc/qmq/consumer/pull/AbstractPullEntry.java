@@ -45,7 +45,7 @@ abstract class AbstractPullEntry implements PullEntry {
 
     private static final int MAX_MESSAGE_RETRY_THRESHOLD = 5;
 
-    private final PullService pullService;
+    protected final PullService pullService;
 
     final BrokerService brokerService;
     final AckService ackService;
@@ -92,7 +92,7 @@ abstract class AbstractPullEntry implements PullEntry {
         return Collections.emptyList();
     }
 
-    private void markFailed(BrokerGroupInfo group) {
+    protected void markFailed(BrokerGroupInfo group) {
         pullFailCounter.inc();
         group.markFailed();
         loadBalance.timeout(group);
@@ -112,7 +112,7 @@ abstract class AbstractPullEntry implements PullEntry {
         loadBalance.fetchedMessages(group);
     }
 
-    private PullParam buildPullParam(ConsumeParam consumeParam, BrokerGroupInfo pullBrokerGroup, AckSendInfo ackSendInfo, int pullSize, int pullTimeout) {
+    protected PullParam buildPullParam(ConsumeParam consumeParam, BrokerGroupInfo pullBrokerGroup, AckSendInfo ackSendInfo, int pullSize, int pullTimeout) {
         return new PullParam.PullParamBuilder()
                 .setConsumeParam(consumeParam)
                 .setBrokerGroup(pullBrokerGroup)
@@ -124,7 +124,7 @@ abstract class AbstractPullEntry implements PullEntry {
                 .create();
     }
 
-    private List<PulledMessage> handlePullResult(final PullParam pullParam, final PullResult pullResult, final AckHook ackHook) {
+    protected List<PulledMessage> handlePullResult(final PullParam pullParam, final PullResult pullResult, final AckHook ackHook) {
         if (pullResult.getResponseCode() == CommandCode.BROKER_REJECT) {
             pullResult.getBrokerGroup().setAvailable(false);
             brokerService.refresh(ClientType.CONSUMER, pullParam.getSubject(), pullParam.getGroup());

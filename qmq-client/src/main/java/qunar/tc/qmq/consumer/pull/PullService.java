@@ -62,6 +62,12 @@ class PullService {
         return result.get();
     }
 
+    PullResultFuture pullAsync(final PullParam pullParam) {
+        final PullResultFuture result = new PullResultFuture(pullParam.getBrokerGroup());
+        pull(pullParam, result);
+        return result;
+    }
+
     private void pull(final PullParam pullParam, final PullCallback callback) {
         final PullRequest request = buildPullRequest(pullParam);
         Datagram datagram = RemotingBuilder.buildRequestDatagram(CommandCode.PULL_MESSAGE, new PullRequestPayloadHolder(request));
@@ -229,7 +235,7 @@ class PullService {
         }
     }
 
-    private static final class PullResultFuture extends AbstractFuture<PullResult> implements PullCallback {
+    public static final class PullResultFuture extends AbstractFuture<PullResult> implements PullCallback {
         private final BrokerGroupInfo brokerGroup;
 
         PullResultFuture(BrokerGroupInfo brokerGroup) {
