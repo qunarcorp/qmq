@@ -67,6 +67,8 @@ class DefaultPullEntry extends AbstractPullEntry implements Runnable {
     private final PullStrategy pullStrategy;
     private final String brokerGroupName;
 
+    private volatile SettableFuture<Boolean> onlineFuture;
+
     private final Executor executor;
 
     DefaultPullEntry(String brokerGroupName, PushConsumer pushConsumer, PullService pullService, AckService ackService,
@@ -90,26 +92,6 @@ class DefaultPullEntry extends AbstractPullEntry implements Runnable {
     }
 
     @Override
-    public String getSubject() {
-        return pushConsumer.subject();
-    }
-
-    @Override
-    public String getConsumerGroup() {
-        return pushConsumer.group();
-    }
-
-    public void online(StatusSource src) {
-    }
-
-    public void offline(StatusSource src) {
-    }
-
-    public void destroy() {
-        isRunning.set(false);
-    }
-
-    @Override
     public void startPull(Executor executor) {
         executor.execute(this);
     }
@@ -117,7 +99,8 @@ class DefaultPullEntry extends AbstractPullEntry implements Runnable {
     private static final int PREPARE_PULL = 0;
     private static final int PULL_DONE = 1;
 
-    private final AtomicInteger state = new AtomicInteger();
+    private final AtomicInteger state = new AtomicInteger(PREPARE_PULL);
+
     private volatile PullParam pullParam;
     private volatile PullService.PullResultFuture pullFuture;
 
@@ -146,8 +129,7 @@ class DefaultPullEntry extends AbstractPullEntry implements Runnable {
                     }
 
                     AckSendInfo ackSendInfo = ackService.getAckSendInfo(getBrokerGroup(), getSubject(), getConsumerGroup());
-                    pullParam = buildPullParam(pushConsumer.consumeParam(), getBrokerGroup(), ackSendInfo, pullBatchSize.get(),
-                            pullTimeout.get());
+                    pullParam = buildPullParam(pushConsumer.consumeParam(), getBrokerGroup(), ackSendInfo, pullBatchSize.get(), pullTimeout.get());
                     pullFuture = pullService.pullAsync(pullParam);
                     state.set(PULL_DONE);
                     pullFuture.addListener(this, executor);
@@ -196,7 +178,10 @@ class DefaultPullEntry extends AbstractPullEntry implements Runnable {
             if (onlineSwitcher.isOnline()) {
                 return null;
             }
-            return SettableFuture.create();
+
+            final SettableFuture<Boolean> future = SettableFuture.create();
+            this.onlineFuture = future;
+            return future;
         }
     }
 
@@ -233,6 +218,34 @@ class DefaultPullEntry extends AbstractPullEntry implements Runnable {
         RunnableSettableFuture future = new RunnableSettableFuture();
         DELAY_SCHEDULER.schedule(future, timeMillis, TimeUnit.MILLISECONDS);
         return future;
+    }
+
+    @Override
+    public String getSubject() {
+        return pushConsumer.subject();
+    }
+
+    @Override
+    public String getConsumerGroup() {
+        return pushConsumer.group();
+    }
+
+    @Override
+    public void online(StatusSource src) {
+        synchronized (onlineSwitcher) {
+            final SettableFuture<Boolean> future = this.onlineFuture;
+            if (future == null) return;
+            future.set(true);
+        }
+    }
+
+    @Override
+    public void offline(StatusSource src) {
+    }
+
+    @Override
+    public void destroy() {
+        isRunning.set(false);
     }
 
     private static class RunnableSettableFuture extends AbstractFuture implements Runnable {

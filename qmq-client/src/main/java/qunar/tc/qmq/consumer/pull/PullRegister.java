@@ -21,11 +21,13 @@ import static qunar.tc.qmq.common.StatusSource.HEALTHCHECKER;
 import static qunar.tc.qmq.common.StatusSource.OPS;
 
 import com.google.common.base.Strings;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReentrantLock;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.PullConsumer;
@@ -108,8 +110,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
             if (RetrySubjectUtils.isDeadRetrySubject(subject)) {
                 return;
             }
-            registPullEntry(RetrySubjectUtils.buildRetrySubject(subject, group), group, param,
-                    new WeightPullStrategy());
+            registPullEntry(RetrySubjectUtils.buildRetrySubject(subject, group), group, param, new WeightPullStrategy());
         }
     }
 
@@ -134,11 +135,9 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
 
     }
 
-    private PullEntry createAndSubmitPullEntry(String subject, String consumerGroup, RegistParam param,
-            PullStrategy pullStrategy) {
+    private PullEntry createAndSubmitPullEntry(String subject, String consumerGroup, RegistParam param, PullStrategy pullStrategy) {
         PushConsumerParam pushConsumerParam = new PushConsumerParam(subject, consumerGroup, param);
-        PullEntry pullEntry = new CompositePullEntry(pushConsumerParam, pullService, ackService, brokerService,
-                pullStrategy);
+        PullEntry pullEntry = new CompositePullEntry(pushConsumerParam, pullService, ackService, brokerService, pullStrategy);
         String subscribeKey = MapKeyBuilder.buildSubscribeKey(subject, consumerGroup);
         pullEntry.startPull(pullExecutor);
         pullEntryMap.put(subscribeKey, pullEntry);
