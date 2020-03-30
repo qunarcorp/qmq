@@ -132,7 +132,7 @@ class DefaultPullEntry extends AbstractPullEntry implements Runnable {
                     pullParam = buildPullParam(pushConsumer.consumeParam(), getBrokerGroup(), ackSendInfo, pullBatchSize.get(), pullTimeout.get());
                     pullFuture = pullService.pullAsync(pullParam);
                     state.set(PULL_DONE);
-                    pullFuture.addListener(this, executor);
+                    await(pullFuture);
                     break;
                 case PULL_DONE:
                     final PullParam thisPullParam = pullParam;
