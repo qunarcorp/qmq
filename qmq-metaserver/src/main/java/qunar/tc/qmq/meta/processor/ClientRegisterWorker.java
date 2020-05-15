@@ -92,7 +92,7 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
         try {
             ClientRegisterAuthInfo authInfo = new ClientRegisterAuthInfo();
             authInfo.setAppCode(request.getAppCode());
-            authInfo.setSubject(realSubject);
+            authInfo.setSubject(request.getSubject());
             authInfo.setConsumerGroup(request.getConsumerGroup());
             authInfo.setClientId(request.getClientId());
             authInfo.setClientType(ClientType.of(request.getClientTypeCode()));
