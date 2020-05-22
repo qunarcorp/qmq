@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.consumer.pull;
@@ -40,22 +40,21 @@ import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_GROUP_ARRAY;
 /**
  * @author yiqun.fan create on 17-11-2.
  */
-abstract class AbstractPullEntry {
+abstract class AbstractPullEntry implements PullEntry {
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractPullEntry.class);
 
     private static final int MAX_MESSAGE_RETRY_THRESHOLD = 5;
 
-    private final PullService pullService;
+    protected final PullService pullService;
 
     final BrokerService brokerService;
     final AckService ackService;
 
     private final AtomicReference<Integer> pullRequestTimeout;
 
-    final WeightLoadBalance loadBalance;
-
     private final QmqCounter pullWorkCounter;
     private final QmqCounter pullFailCounter;
+    protected final WeightLoadBalance loadBalance;
 
     AbstractPullEntry(String subject, String group, PullService pullService, AckService ackService, BrokerService brokerService) {
         this.pullService = pullService;
@@ -93,7 +92,7 @@ abstract class AbstractPullEntry {
         return Collections.emptyList();
     }
 
-    private void markFailed(BrokerGroupInfo group) {
+    protected void markFailed(BrokerGroupInfo group) {
         pullFailCounter.inc();
         group.markFailed();
         loadBalance.timeout(group);
@@ -113,7 +112,7 @@ abstract class AbstractPullEntry {
         loadBalance.fetchedMessages(group);
     }
 
-    private PullParam buildPullParam(ConsumeParam consumeParam, BrokerGroupInfo pullBrokerGroup, AckSendInfo ackSendInfo, int pullSize, int pullTimeout) {
+    protected PullParam buildPullParam(ConsumeParam consumeParam, BrokerGroupInfo pullBrokerGroup, AckSendInfo ackSendInfo, int pullSize, int pullTimeout) {
         return new PullParam.PullParamBuilder()
                 .setConsumeParam(consumeParam)
                 .setBrokerGroup(pullBrokerGroup)
@@ -125,7 +124,7 @@ abstract class AbstractPullEntry {
                 .create();
     }
 
-    private List<PulledMessage> handlePullResult(final PullParam pullParam, final PullResult pullResult, final AckHook ackHook) {
+    protected List<PulledMessage> handlePullResult(final PullParam pullParam, final PullResult pullResult, final AckHook ackHook) {
         if (pullResult.getResponseCode() == CommandCode.BROKER_REJECT) {
             pullResult.getBrokerGroup().setAvailable(false);
             brokerService.refresh(ClientType.CONSUMER, pullParam.getSubject(), pullParam.getGroup());

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,12 +11,11 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.delay.store.log;
 
-import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.delay.ScheduleIndex;
@@ -49,25 +48,26 @@ public class ScheduleSetSegment extends AbstractDelaySegment<ScheduleSetSequence
 
     ScheduleSetRecord recover(long offset, int size) {
         // 交给gc，不能给每个segment分配一个局部buffer
-        ByteBuffer recoverBuffer = ByteBuffer.allocate(size);
+        ByteBuffer result = ByteBuffer.allocateDirect(size);
         try {
-            int bytes = fileChannel.read(recoverBuffer, offset);
+            int bytes = fileChannel.read(result, offset);
             if (bytes != size) {
+                DirectBufCloser.close(result);
                 LOGGER.error("schedule set segment recovered failed,need read more bytes,segment:{},offset:{},size:{}, readBytes:{}, segmentTotalSize:{}", fileName, offset, size, bytes, fileChannel.size());
                 return null;
             }
-            recoverBuffer.flip();
-            long scheduleTime = recoverBuffer.getLong();
-            long sequence = recoverBuffer.getLong();
-            recoverBuffer.getInt();
+            result.flip();
+            long scheduleTime = result.getLong();
+            long sequence = result.getLong();
+            result.getInt();
 
-            int messageIdSize = recoverBuffer.getInt();
+            int messageIdSize = result.getInt();
             byte[] messageId = new byte[messageIdSize];
-            recoverBuffer.get(messageId);
-            int subjectSize = recoverBuffer.getInt();
+            result.get(messageId);
+            int subjectSize = result.getInt();
             byte[] subject = new byte[subjectSize];
-            recoverBuffer.get(subject);
-            return new ScheduleSetRecord(new String(messageId, StandardCharsets.UTF_8), new String(subject, StandardCharsets.UTF_8), scheduleTime, offset, size, sequence, recoverBuffer.slice());
+            result.get(subject);
+            return new ScheduleSetRecord(new String(messageId, StandardCharsets.UTF_8), new String(subject, StandardCharsets.UTF_8), scheduleTime, offset, size, sequence, result.slice());
         } catch (Throwable e) {
             LOGGER.error("schedule set segment recovered error,segment:{}, offset-size:{} {}", fileName, offset, size, e);
             return null;
@@ -82,18 +82,17 @@ public class ScheduleSetSegment extends AbstractDelaySegment<ScheduleSetSequence
         }
     }
 
-    public LogVisitor<ByteBuf> newVisitor(long from, int singleMessageLimitSize) {
+    public LogVisitor<ScheduleIndex> newVisitor(long from, int singleMessageLimitSize) {
         return new ScheduleIndexVisitor(from, fileChannel, singleMessageLimitSize);
     }
 
     long doValidate(int singleMessageLimitSize) {
         LOGGER.info("validate schedule log {}", getSegmentBaseOffset());
-        LogVisitor<ByteBuf> visitor = newVisitor(0, singleMessageLimitSize);
+        LogVisitor<ScheduleIndex> visitor = newVisitor(0, singleMessageLimitSize);
         try {
             while (true) {
-                Optional<ByteBuf> optionalRecord = visitor.nextRecord();
+                Optional<ScheduleIndex> optionalRecord = visitor.nextRecord();
                 if (optionalRecord.isPresent()) {
-                    ScheduleIndex.release(optionalRecord.get());
                     continue;
                 }
                 break;

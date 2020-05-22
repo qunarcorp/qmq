@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,12 +11,11 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.delay;
 
-import io.netty.buffer.ByteBuf;
 import qunar.tc.qmq.delay.base.LongHashSet;
 import qunar.tc.qmq.delay.base.ReceivedDelayMessage;
 import qunar.tc.qmq.delay.base.ReceivedResult;
@@ -27,7 +26,7 @@ import qunar.tc.qmq.delay.store.model.LogRecord;
 import qunar.tc.qmq.delay.store.model.ScheduleSetRecord;
 import qunar.tc.qmq.delay.store.visitor.LogVisitor;
 import qunar.tc.qmq.delay.wheel.WheelLoadCursor;
-import qunar.tc.qmq.store.SegmentBuffer;
+import qunar.tc.qmq.store.buffer.SegmentBuffer;
 import qunar.tc.qmq.sync.DelaySyncRequest;
 
 import java.nio.ByteBuffer;
@@ -49,35 +48,33 @@ public interface DelayLogFacade {
 
     SegmentBuffer getMessageLogs(long startSyncOffset);
 
-    SegmentBuffer getDispatchLogs(int segmentBaseOffset, long dispatchLogOffset);
+    SegmentBuffer getDispatchLogs(long segmentBaseOffset, long dispatchLogOffset);
 
     long getMessageLogMaxOffset();
 
-    long getDispatchLogMaxOffset(int dispatchSegmentBaseOffset);
+    long getDispatchLogMaxOffset(long dispatchSegmentBaseOffset);
 
     DelaySyncRequest.DispatchLogSyncRequest getDispatchLogSyncMaxRequest();
 
     boolean appendMessageLogData(long startOffset, ByteBuffer buffer);
 
-    boolean appendDispatchLogData(long startOffset, int baseOffset, ByteBuffer body);
+    boolean appendDispatchLogData(long startOffset, long baseOffset, ByteBuffer body);
 
-    List<ScheduleSetRecord> recoverLogRecord(List<ByteBuf> pureRecords);
+    List<ScheduleSetRecord> recoverLogRecord(List<ScheduleIndex> indexList);
 
     void appendDispatchLog(LogRecord record);
 
     DispatchLogSegment latestDispatchSegment();
 
-    DispatchLogSegment lowerDispatchSegment(int latestOffset);
+    DispatchLogSegment lowerDispatchSegment(long latestOffset);
 
-    ScheduleSetSegment loadScheduleLogSegment(int segmentBaseOffset);
+    ScheduleSetSegment loadScheduleLogSegment(long segmentBaseOffset);
 
-    WheelLoadCursor.Cursor loadUnDispatch(ScheduleSetSegment setSegment, LongHashSet dispatchedSet, Consumer<ByteBuf> refresh);
+    WheelLoadCursor.Cursor loadUnDispatch(ScheduleSetSegment setSegment, LongHashSet dispatchedSet, Consumer<ScheduleIndex> refresh);
 
-    int higherScheduleBaseOffset(int index);
+    long higherScheduleBaseOffset(long index);
 
-    LogVisitor<LogRecord> newMessageLogVisitor(long start);
-
-    AppendLogResult<ByteBuf> appendScheduleLog(LogRecord event);
+    AppendLogResult<ScheduleIndex> appendScheduleLog(LogRecord event);
 
     long initialMessageIterateFrom();
 
@@ -85,5 +82,5 @@ public interface DelayLogFacade {
 
     void blockUntilReplayDone();
 
-    int higherDispatchLogBaseOffset(int segmentBaseOffset);
+    long higherDispatchLogBaseOffset(long segmentBaseOffset);
 }

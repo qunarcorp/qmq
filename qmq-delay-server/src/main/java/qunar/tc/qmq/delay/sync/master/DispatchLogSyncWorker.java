@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.delay.sync.master;
@@ -24,7 +24,7 @@ import qunar.tc.qmq.protocol.CommandCode;
 import qunar.tc.qmq.protocol.Datagram;
 import qunar.tc.qmq.protocol.PayloadHolder;
 import qunar.tc.qmq.protocol.RemotingHeader;
-import qunar.tc.qmq.store.SegmentBuffer;
+import qunar.tc.qmq.store.buffer.SegmentBuffer;
 import qunar.tc.qmq.sync.DelaySyncRequest;
 import qunar.tc.qmq.util.RemotingBuilder;
 
@@ -39,10 +39,12 @@ import static qunar.tc.qmq.delay.store.log.ScheduleOffsetResolver.resolveSegment
  */
 public class DispatchLogSyncWorker extends AbstractLogSyncWorker {
 
-    private static final int GREENWICH_MEAN_FIRST_YEAR = 1970010108;
+    private static final long GREENWICH_MEAN_FIRST_YEAR = 197001010801L;
+    private final int segmentScale;
 
-    public DispatchLogSyncWorker(DelayLogFacade delayLogFacade, DynamicConfig config) {
+    DispatchLogSyncWorker(int scale, DelayLogFacade delayLogFacade, DynamicConfig config) {
         super(delayLogFacade, config);
+        this.segmentScale = scale;
     }
 
     @Override
@@ -53,10 +55,10 @@ public class DispatchLogSyncWorker extends AbstractLogSyncWorker {
 
     @Override
     protected SegmentBuffer getSyncLog(DelaySyncRequest delaySyncRequest) {
-        int nowSegment = resolveSegment(System.currentTimeMillis());
+        long nowSegment = resolveSegment(System.currentTimeMillis(), segmentScale);
 
         SyncOffset syncOffset = resolveOffset(delaySyncRequest);
-        int segmentBaseOffset = syncOffset.getBaseOffset();
+        long segmentBaseOffset = syncOffset.getBaseOffset();
         if (syncOffset.getBaseOffset() == -1) return null;
 
         long maxDispatchLogOffset = delayLogFacade.getDispatchLogMaxOffset(segmentBaseOffset);
@@ -69,7 +71,7 @@ public class DispatchLogSyncWorker extends AbstractLogSyncWorker {
         if (segmentBaseOffset < nowSegment && dispatchLogOffset >= maxDispatchLogOffset) {
             if (maxDispatchLogOffset == 0) return null;
 
-            int nextSegmentBaseOffset = delayLogFacade.higherDispatchLogBaseOffset(segmentBaseOffset);
+            long nextSegmentBaseOffset = delayLogFacade.higherDispatchLogBaseOffset(segmentBaseOffset);
             if (nextSegmentBaseOffset < 0) {
                 return null;
             }
@@ -94,9 +96,9 @@ public class DispatchLogSyncWorker extends AbstractLogSyncWorker {
     }
 
     private SyncOffset resolveOffset(final DelaySyncRequest delaySyncRequest) {
-        int segmentBaseOffset = delaySyncRequest.getDispatchSegmentBaseOffset();
+        long segmentBaseOffset = delaySyncRequest.getDispatchSegmentBaseOffset();
         long offset = delaySyncRequest.getDispatchLogOffset();
-        int lastSegmentBaseOffset = delaySyncRequest.getLastDispatchSegmentBaseOffset();
+        long lastSegmentBaseOffset = delaySyncRequest.getLastDispatchSegmentBaseOffset();
         long lastOffset = delaySyncRequest.getLastDispatchSegmentOffset();
 
         // sync the first time
@@ -125,7 +127,7 @@ public class DispatchLogSyncWorker extends AbstractLogSyncWorker {
         long startOffset = result.getStartOffset();
         ByteBuffer buffer = result.getBuffer();
         int size = result.getSize();
-        int segmentBaseOffset = ((SegmentBufferExtend) result).getBaseOffset();
+        long segmentBaseOffset = ((SegmentBufferExtend) result).getBaseOffset();
 
         if (size > batchSize) {
             buffer.limit(batchSize);
@@ -146,10 +148,10 @@ public class DispatchLogSyncWorker extends AbstractLogSyncWorker {
     public static class SyncDispatchLogPayloadHolder implements PayloadHolder {
         private final int size;
         private final long startOffset;
-        private final int segmentBaseOffset;
+        private final long segmentBaseOffset;
         private final ByteBuffer buffer;
 
-        public SyncDispatchLogPayloadHolder(int size, long startOffset, int segmentBaseOffset, ByteBuffer buffer) {
+        SyncDispatchLogPayloadHolder(int size, long startOffset, long segmentBaseOffset, ByteBuffer buffer) {
             this.size = size;
             this.startOffset = startOffset;
             this.segmentBaseOffset = segmentBaseOffset;
@@ -160,7 +162,7 @@ public class DispatchLogSyncWorker extends AbstractLogSyncWorker {
         public void writeBody(ByteBuf out) {
             out.writeInt(size);
             out.writeLong(startOffset);
-            out.writeInt(segmentBaseOffset);
+            out.writeLong(segmentBaseOffset);
             if (buffer != null) {
                 out.writeBytes(buffer);
             }
@@ -168,15 +170,15 @@ public class DispatchLogSyncWorker extends AbstractLogSyncWorker {
     }
 
     private static class SyncOffset {
-        private final int baseOffset;
+        private final long baseOffset;
         private final long offset;
 
-        SyncOffset(int baseOffset, long offset) {
+        SyncOffset(long baseOffset, long offset) {
             this.baseOffset = baseOffset;
             this.offset = offset;
         }
 
-        public int getBaseOffset() {
+        public long getBaseOffset() {
             return baseOffset;
         }
 

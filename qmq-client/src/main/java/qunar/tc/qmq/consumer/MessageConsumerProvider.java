@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 package qunar.tc.qmq.consumer;
 
@@ -20,6 +20,7 @@ import com.google.common.base.Strings;
 import qunar.tc.qmq.*;
 import qunar.tc.qmq.common.ClientIdProvider;
 import qunar.tc.qmq.common.ClientIdProviderFactory;
+import qunar.tc.qmq.common.EnvProvider;
 import qunar.tc.qmq.config.NettyClientConfigManager;
 import qunar.tc.qmq.consumer.handler.MessageDistributor;
 import qunar.tc.qmq.consumer.pull.PullConsumerFactory;
@@ -35,10 +36,6 @@ import java.util.concurrent.Executor;
  * @date 2012-12-28
  */
 public class MessageConsumerProvider implements MessageConsumer {
-
-    private static final int MAX_CONSUMER_GROUP_LEN = 50;
-    private static final int MAX_PREFIX_LEN = 100;
-
     private MessageDistributor distributor;
 
     private final PullConsumerFactory pullConsumerFactory;
@@ -46,11 +43,17 @@ public class MessageConsumerProvider implements MessageConsumer {
     private volatile boolean inited = false;
 
     private ClientIdProvider clientIdProvider;
+    private EnvProvider envProvider;
 
     private final PullRegister pullRegister;
     private String appCode;
     private String metaServer;
     private int destroyWaitInSeconds;
+
+    private int maxSubjectLen = 100;
+    private int maxConsumerGroupLen = 100;
+
+    private boolean autoOnline = true;
 
     public MessageConsumerProvider() {
         this.clientIdProvider = ClientIdProviderFactory.createDefault();
@@ -73,27 +76,29 @@ public class MessageConsumerProvider implements MessageConsumer {
             String clientId = this.clientIdProvider.get();
             this.pullRegister.setDestroyWaitInSeconds(destroyWaitInSeconds);
             this.pullRegister.setMetaServer(metaServer);
+            this.pullRegister.setEnvProvider(envProvider);
             this.pullRegister.setClientId(clientId);
+            this.pullRegister.setAppCode(appCode);
             this.pullRegister.init();
 
             distributor = new MessageDistributor(pullRegister);
             distributor.setClientId(clientId);
 
-            pullRegister.setAutoOnline(true);
+            pullRegister.setAutoOnline(autoOnline);
             inited = true;
         }
     }
 
     @Override
     public ListenerHolder addListener(String subject, String consumerGroup, MessageListener listener, Executor executor) {
-        return addListener(subject, consumerGroup, listener, executor, SubscribeParam.DEFAULT);
+        return addListener(subject, consumerGroup, listener, executor, new SubscribeParam.SubscribeParamBuilder().create());
     }
 
     @Override
     public ListenerHolder addListener(String subject, String consumerGroup, MessageListener listener, Executor executor, SubscribeParam subscribeParam) {
         init();
-        Preconditions.checkArgument(subject != null && subject.length() <= MAX_PREFIX_LEN, "subjectPrefix长度不允许超过" + MAX_PREFIX_LEN + "个字符");
-        Preconditions.checkArgument(consumerGroup == null || consumerGroup.length() <= MAX_CONSUMER_GROUP_LEN, "consumerGroup长度不允许超过" + MAX_CONSUMER_GROUP_LEN + "个字符");
+        Preconditions.checkArgument(subject != null && subject.length() <= maxSubjectLen, "subject长度不允许超过" + maxSubjectLen + "个字符");
+        Preconditions.checkArgument(consumerGroup == null || consumerGroup.length() <= maxConsumerGroupLen, "consumerGroup长度不允许超过" + maxConsumerGroupLen + "个字符");
 
         Preconditions.checkArgument(!subject.contains("${"), "请确保subject已经正确解析: " + subject);
         Preconditions.checkArgument(consumerGroup == null || !consumerGroup.contains("${"), "请确保consumerGroup已经正确解析: " + consumerGroup);
@@ -125,20 +130,67 @@ public class MessageConsumerProvider implements MessageConsumer {
         return pullConsumerFactory.getOrCreateDefault(subject, group, isBroadcast);
     }
 
+    /**
+     * QMQ需要每个consumer实例有一个全局唯一并且不频繁变更的client id
+     * QMQ默认会根据部署的路径和hostname生成一个唯一id，如果当前运行环境不能提供唯一id，可以通过ClientIdProvider定制自己的client id
+     *
+     * @param clientIdProvider @see DefaultClientIdProvider
+     */
     public void setClientIdProvider(ClientIdProvider clientIdProvider) {
         this.clientIdProvider = clientIdProvider;
     }
 
+    /**
+     * QMQ提供环境隔离的功能，允许将producer的环境P和consumer的环境C绑定到一起，绑定之后，C环境的consumer只会收到P环境的producer发出的消息。
+     *
+     * @param envProvider 当前client环境provider
+     * @see qunar.tc.qmq.common.EnvProvider
+     */
+    public void setEnvProvider(EnvProvider envProvider) {
+        this.envProvider = envProvider;
+    }
+
+    /**
+     * 为了方便维护应用与消息主题之间的关系，每个应用提供一个唯一的标识
+     *
+     * @param appCode
+     */
     public void setAppCode(String appCode) {
         this.appCode = appCode;
     }
 
+    /**
+     * 用于发现meta server集群的地址
+     * 格式: http://<meta server address>/meta/address
+     *
+     * @param metaServer
+     */
     public void setMetaServer(String metaServer) {
         this.metaServer = metaServer;
     }
 
     public void setDestroyWaitInSeconds(int destroyWaitInSeconds) {
         this.destroyWaitInSeconds = destroyWaitInSeconds;
+    }
+
+    public void setAutoOnline(boolean autoOnline){
+        this.autoOnline = autoOnline;
+    }
+
+    public void online() {
+        this.pullRegister.online();
+    }
+
+    public void offline() {
+        this.pullRegister.offline();
+    }
+
+    public void setMaxConsumerGroupLen(int maxConsumerGroupLen) {
+        this.maxConsumerGroupLen = maxConsumerGroupLen;
+    }
+
+    public void setMaxSubjectLen(int maxSubjectLen) {
+        this.maxSubjectLen = maxSubjectLen;
     }
 
     @PreDestroy

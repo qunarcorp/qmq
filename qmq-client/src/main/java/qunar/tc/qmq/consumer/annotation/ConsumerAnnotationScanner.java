@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.consumer.annotation;
@@ -67,7 +67,7 @@ class ConsumerAnnotationScanner implements BeanPostProcessor, ApplicationContext
             if (annotation == null) continue;
 
             if (!Modifier.isPublic(method.getModifiers())) {
-                throw new RuntimeException("标记QmqConsumer的方法必须是public的");
+                throw new RuntimeException("标记@QmqConsumer的方法必须是public的");
             }
 
             String methodName = method.getName();
@@ -85,7 +85,7 @@ class ConsumerAnnotationScanner implements BeanPostProcessor, ApplicationContext
             String subject = resolve(annotation.subject());
 
             if (Strings.isNullOrEmpty(subject)) {
-                String err = String.format("使用@QmqConsumer,必须提供prefix, class:%s method:%s", beanName, methodName);
+                String err = String.format("使用@QmqConsumer,必须提供subject, class:%s method:%s", beanName, methodName);
                 logger.error(err);
                 throw new RuntimeException(err);
             }

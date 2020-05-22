@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.constants;
@@ -34,14 +34,31 @@ public class BrokerConstants {
     public static final String CONSUMER_LOG_RETENTION_HOURS = "consumerlog.retention.hours";
     public static final int DEFAULT_CONSUMER_LOG_RETENTION_HOURS = 72; // 3 days
 
+    public static final String CONSUMER_LOG_V2_ENABLE = "consumerlog.v2.enable";
+
+    public static final String SMT_RETENTION_HOURS = "smt.retention.hours";
+    public static final int DEFAULT_SMT_RETENTION_HOURS = 72; // 3 days
+
+    public static final String SMT_ENABLE = "smt.enable";
+
     public static final String RETRY_DELAY_SECONDS = "message.retry.delay.seconds";
     public static final int DEFAULT_RETRY_DELAY_SECONDS = 5;
     public static final String LOG_RETENTION_CHECK_INTERVAL_SECONDS = "log.retention.check.interval.seconds";
     public static final int DEFAULT_LOG_RETENTION_CHECK_INTERVAL_SECONDS = 60;
     public static final String ENABLE_DELETE_EXPIRED_LOGS = "log.expired.delete.enable";
 
+    // for messages mem table
+    public static final String MAX_RESERVED_MEMTABLE = "memtable.max_reserved";
+    public static final int DEFAULT_MAX_RESERVED_MEMTABLE = 2;
+
+    public static final String MAX_ACTIVE_MEMTABLE = "memtable.max_active";
+    public static final int DEFAULT_MAX_ACTIVE_MEMTABLE = 4;
+
+    public static final String LOG_DISPATCHER_PAUSE_MILLIS = "log_dispatcher.pause.millis";
+
     // slave
     public static final long DEFAULT_HEARTBEAT_SLEEP_TIMEOUT_MS = 1000L;
+
 
     public static String PULL_LOG_RETENTION_HOURS = "pulllog.retention.hours";
     public static int DEFAULT_PULL_LOG_RETENTION_HOURS = 72; // 3 days

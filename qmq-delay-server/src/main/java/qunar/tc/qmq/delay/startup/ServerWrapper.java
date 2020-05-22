@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,13 +11,12 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.delay.startup;
 
 import com.google.common.base.Preconditions;
-import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.broker.BrokerService;
@@ -75,19 +74,21 @@ public class ServerWrapper implements Disposable {
     private Integer listenPort;
     private Receiver receiver;
     private DynamicConfig config;
+    private DefaultStoreConfiguration storeConfig;
 
-    public void start() {
-        init();
-        register();
-        startServer();
-        sync();
-        online();
-    }
+	public void start(boolean autoOnline) {
+		init();
+		register();
+		startServer();
+		sync();
+		if (autoOnline)
+			online();
+	}
 
-    private void online() {
-        BrokerConfig.markAsWritable();
-        brokerRegisterService.healthSwitch(true);
-    }
+	public void online() {
+		BrokerConfig.markAsWritable();
+		brokerRegisterService.healthSwitch(true);
+	}
 
     private void init() {
         this.config = DynamicConfigLoader.load("delay.properties");
@@ -97,7 +98,7 @@ public class ServerWrapper implements Disposable {
                 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(), new NamedThreadFactory("send-message-processor"));
 
         final Sender sender = new NettySender();
-        final DefaultStoreConfiguration storeConfig = new DefaultStoreConfiguration(config);
+        storeConfig = new DefaultStoreConfiguration(config);
         this.facade = new DefaultDelayLogFacade(storeConfig, this::iterateCallback);
 
         MetaInfoService metaInfoService = new MetaInfoService();
@@ -114,11 +115,11 @@ public class ServerWrapper implements Disposable {
         this.processor = new ReceivedDelayMessageProcessor(receiver);
     }
 
-    private boolean iterateCallback(final ByteBuf buf) {
-        long scheduleTime = ScheduleIndex.scheduleTime(buf);
-        long offset = ScheduleIndex.offset(buf);
+    private boolean iterateCallback(final ScheduleIndex index) {
+        long scheduleTime = index.getScheduleTime();
+        long offset = index.getOffset();
         if (wheelTickManager.canAdd(scheduleTime, offset)) {
-            wheelTickManager.addWHeel(buf);
+            wheelTickManager.addWHeel(index);
             return true;
         }
 
@@ -132,7 +133,7 @@ public class ServerWrapper implements Disposable {
     }
 
     private void sync() {
-        this.syncNettyServer = new MasterSyncNettyServer(config, facade);
+        this.syncNettyServer = new MasterSyncNettyServer(storeConfig.getSegmentScale(), config, facade);
         this.syncNettyServer.registerSyncEvent(receiver);
         this.syncNettyServer.start();
 
@@ -174,7 +175,7 @@ public class ServerWrapper implements Disposable {
         wheelTickManager.shutdown();
     }
 
-    private void offline() {
+    public void offline() {
         for (int i = 0; i < 3; ++i) {
             try {
                 brokerRegisterService.healthSwitch(false);

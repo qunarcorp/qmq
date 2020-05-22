@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.metrics.prometheus;
@@ -21,10 +21,7 @@ import io.prometheus.client.Collector;
 import io.prometheus.client.GaugeMetricFamily;
 import io.prometheus.client.SimpleCollector;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class PrometheusQmqGauge extends SimpleCollector<PrometheusQmqGauge.Child> implements Collector.Describable {
 
@@ -52,7 +49,9 @@ public class PrometheusQmqGauge extends SimpleCollector<PrometheusQmqGauge.Child
 
     @Override
     public List<MetricFamilySamples> describe() {
-        return Collections.singletonList(new GaugeMetricFamily(fullname, help, labelNames));
+        List<MetricFamilySamples> list = new ArrayList<>();
+        list.add(new GaugeMetricFamily(fullname, help, labelNames));
+        return list;
     }
 
     public static class Builder extends SimpleCollector.Builder<Builder, PrometheusQmqGauge> {

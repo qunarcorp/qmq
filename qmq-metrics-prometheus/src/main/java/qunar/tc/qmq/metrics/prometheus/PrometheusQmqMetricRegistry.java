@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.metrics.prometheus;
@@ -20,15 +20,17 @@ import com.google.common.base.Supplier;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import io.prometheus.client.Collector;
-import io.prometheus.client.Gauge;
-import io.prometheus.client.SimpleCollector;
-import io.prometheus.client.Summary;
+import io.prometheus.client.*;
+import io.prometheus.client.bridge.Graphite;
+import io.prometheus.client.exporter.HTTPServer;
+import qunar.tc.qmq.configuration.DynamicConfig;
+import qunar.tc.qmq.configuration.DynamicConfigLoader;
 import qunar.tc.qmq.metrics.QmqCounter;
 import qunar.tc.qmq.metrics.QmqMeter;
 import qunar.tc.qmq.metrics.QmqMetricRegistry;
 import qunar.tc.qmq.metrics.QmqTimer;
 
+import java.io.IOException;
 import java.util.Arrays;
 
 /**
@@ -36,6 +38,7 @@ import java.util.Arrays;
  * @since 2018/11/22
  */
 public class PrometheusQmqMetricRegistry implements QmqMetricRegistry {
+
     private static final LoadingCache<Key, Collector> CACHE = CacheBuilder.newBuilder()
             .build(new CacheLoader<Key, Collector>() {
                 @Override
@@ -43,6 +46,27 @@ public class PrometheusQmqMetricRegistry implements QmqMetricRegistry {
                     return key.create();
                 }
             });
+
+    public PrometheusQmqMetricRegistry() {
+        DynamicConfig config = DynamicConfigLoader.load("qmq.prometheus.properties", false);
+        String type = config.getString("monitor.type", "prometheus");
+        if ("prometheus".equals(type)) {
+            String action = config.getString("monitor.action", "pull");
+            if ("pull".equals(action)) {
+                try {
+                    HTTPServer server = new HTTPServer(config.getInt("monitor.port", 3333));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        } else if ("graphite".equals(type)) {
+            String host = config.getString("graphite.host");
+            int port = config.getInt("graphite.port");
+            Graphite graphite = new Graphite(host, port);
+            graphite.start(CollectorRegistry.defaultRegistry, 60);
+        }
+
+    }
 
     @SuppressWarnings("unchecked")
     private static <M extends Collector> M cacheFor(Key<M> key) {
@@ -75,9 +99,9 @@ public class PrometheusQmqMetricRegistry implements QmqMetricRegistry {
 
     @Override
     public void remove(final String name, final String[] tags, final String[] values) {
-        // TODO(keli.wang): only remove child collectors for now, may we should remove whole metric in the future
-        final SimpleCollector collector = cacheFor(new SimpleCollectorKey(name, tags));
-        collector.remove(values);
+        final Collector collector = CACHE.getIfPresent(new SimpleCollectorKey(name, tags));
+        if (collector == null) return;
+        CollectorRegistry.defaultRegistry.unregister(collector);
     }
 
     private static abstract class Key<M extends Collector> {
@@ -121,7 +145,7 @@ public class PrometheusQmqMetricRegistry implements QmqMetricRegistry {
 
         @Override
         public SimpleCollector create() {
-            throw new UnsupportedOperationException("cannot create simple collector");
+            return null;
         }
     }
 
@@ -132,7 +156,7 @@ public class PrometheusQmqMetricRegistry implements QmqMetricRegistry {
 
         @Override
         public PrometheusQmqGauge create() {
-            return PrometheusQmqGauge.build().name(name).labelNames(tags).create().register();
+            return PrometheusQmqGauge.build().name(name).help(name).labelNames(tags).create().register();
         }
     }
 
@@ -143,7 +167,7 @@ public class PrometheusQmqMetricRegistry implements QmqMetricRegistry {
 
         @Override
         public Gauge create() {
-            return Gauge.build().name(name).labelNames(tags).create().register();
+            return Gauge.build().name(name).help(name).labelNames(tags).create().register();
         }
     }
 
@@ -155,7 +179,7 @@ public class PrometheusQmqMetricRegistry implements QmqMetricRegistry {
 
         @Override
         public Summary create() {
-            return Summary.build().name(name).labelNames(tags).create().register();
+            return Summary.build().name(name).help(name).labelNames(tags).create().register();
         }
     }
 
@@ -169,6 +193,7 @@ public class PrometheusQmqMetricRegistry implements QmqMetricRegistry {
         public Summary create() {
             return Summary.build()
                     .name(name)
+                    .help(name)
                     .labelNames(tags)
                     .quantile(0.5, 0.05)
                     .quantile(0.75, 0.05)

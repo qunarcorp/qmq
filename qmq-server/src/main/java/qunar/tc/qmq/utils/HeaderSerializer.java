@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,44 +11,38 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.utils;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import qunar.tc.qmq.protocol.RemotingHeader;
-
-import java.nio.ByteBuffer;
 
 import static qunar.tc.qmq.protocol.RemotingHeader.*;
 
 public class HeaderSerializer {
-    public static ByteBuffer serialize(RemotingHeader header, int payloadSize, int additional) {
-        short headerLength = MIN_HEADER_SIZE;
-        if (header.getVersion() >= RemotingHeader.VERSION_3) {
-            headerLength += REQUEST_CODE_LEN;
-        }
-
-        int bufferLength = TOTAL_SIZE_LEN + HEADER_SIZE_LEN + headerLength + additional;
-        ByteBuffer buffer = ByteBuffer.allocate(bufferLength);
+    public static ByteBuf serialize(RemotingHeader header, int payloadSize, int additional) {
+        short headerSize = MIN_HEADER_SIZE;
+        int bufferLength = TOTAL_SIZE_LEN + HEADER_SIZE_LEN + headerSize + additional;
+        ByteBuf buffer = ByteBufAllocator.DEFAULT.ioBuffer(bufferLength);
         // total len
-        int total = HEADER_SIZE_LEN + headerLength + payloadSize;
-        buffer.putInt(total);
-        // header len
-        buffer.putShort(headerLength);
+        int total = HEADER_SIZE_LEN + headerSize + payloadSize;
+        buffer.writeInt(total);
+        // header size
+        buffer.writeShort(headerSize);
         // magic code
-        buffer.putInt(header.getMagicCode());
+        buffer.writeInt(header.getMagicCode());
         // code
-        buffer.putShort(header.getCode());
+        buffer.writeShort(header.getCode());
         // version
-        buffer.putShort(header.getVersion());
+        buffer.writeShort(header.getVersion());
         // opaque
-        buffer.putInt(header.getOpaque());
+        buffer.writeInt(header.getOpaque());
         // flag
-        buffer.putInt(header.getFlag());
-        if (header.getVersion() >= RemotingHeader.VERSION_3) {
-            buffer.putShort(header.getRequestCode());
-        }
+        buffer.writeInt(header.getFlag());
+        buffer.writeShort(header.getRequestCode());
         return buffer;
     }
 }

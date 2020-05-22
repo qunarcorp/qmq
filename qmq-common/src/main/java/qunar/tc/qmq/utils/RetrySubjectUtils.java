@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.utils;
@@ -87,5 +87,20 @@ public final class RetrySubjectUtils {
         } else {
             return new String[]{parts.get(1), parts.get(2)};
         }
+    }
+
+    public static String getConsumerGroup(final String subject) {
+        if (!isDeadRetrySubject(subject) && !isRetrySubject(subject)) return "";
+        final List<String> parts = RETRY_SUBJECT_SPLITTER.splitToList(subject);
+        if (parts.size() != 3) return "";
+        else return parts.get(2);
+    }
+
+    public static String buildRetrySubject(final String subject) {
+        return RETRY_SUBJECT_JOINER.join(RETRY_SUBJECT_PREFIX, subject);
+    }
+
+    public static String buildDeadRetrySubject(final String subject) {
+        return RETRY_SUBJECT_JOINER.join(DEAD_RETRY_SUBJECT_PREFIX, subject);
     }
 }

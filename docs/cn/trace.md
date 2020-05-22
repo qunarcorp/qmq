@@ -1,10 +1,10 @@
 [上一页](monitor.md)
-[回目录](../../readme.md)
+[回目录](../../README.md)
 [下一页](producer.md)
 
 # Trace
 
-消息队列服务的参与方众多，生产者发出消息后，可能存在很多的consumer订阅。如果一项消息驱动的业务出现问题，那么在定位问题时能有全链路跟踪埋点，将会启动事半功倍的效果，QMQ通过接入[OpenTracing](https://opentracing.io/)规范，提供了完善的trace机制。
+消息队列服务的参与方众多，生产者发出消息后，可能存在很多的consumer订阅。如果某消息驱动的业务出现问题，定位起来将非常麻烦，如果在定位问题时能有全链路跟踪埋点，将会起到事半功倍的效果，QMQ通过接入[OpenTracing](https://opentracing.io/)规范，提供了完善的trace机制。
 
 ## 接入自己的trace系统
 
@@ -23,5 +23,5 @@
 消费者消费完成消息后发送ack回server时候会添加该埋点
 
 [上一页](monitor.md)
-[回目录](../../readme.md)
+[回目录](../../README.md)
 [下一页](producer.md)

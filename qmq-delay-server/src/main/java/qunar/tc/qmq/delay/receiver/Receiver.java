@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,12 +11,13 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.delay.receiver;
 
 import com.google.common.base.CharMatcher;
+import com.google.common.base.Function;
 import com.google.common.eventbus.Subscribe;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -82,10 +83,9 @@ public class Receiver {
             }
         }
 
-        final short version = cmd.getHeader().getVersion();
         return Futures.transform(Futures.allAsList(futures)
-                , results -> RemotingBuilder.buildResponseDatagram(CommandCode.SUCCESS
-                        , cmd.getHeader(), new SendResultPayloadHolder(results, version)));
+                , (Function<? super List<ReceivedResult>, ? extends Datagram>) results -> RemotingBuilder.buildResponseDatagram(CommandCode.SUCCESS
+                        , cmd.getHeader(), new SendResultPayloadHolder(results)));
     }
 
     private void doInvoke(ReceivedDelayMessage message) {
@@ -206,36 +206,24 @@ public class Receiver {
             message.done(result);
         } catch (Throwable e) {
             LOGGER.error("send response failed id:{} ,msg:{}", message.getMessageId(), message);
-        }
+        } finally {
+			QMon.processTime(message.getSubject(), System.currentTimeMillis() - message.getReceivedTime());
+		}
     }
 
     public static class SendResultPayloadHolder implements PayloadHolder {
         private final List<ReceivedResult> results;
 
-        private final short version;
-
-        public SendResultPayloadHolder(List<ReceivedResult> results, short version) {
+        SendResultPayloadHolder(List<ReceivedResult> results) {
             this.results = results;
-            this.version = version;
         }
 
         @Override
         public void writeBody(ByteBuf out) {
-            // VERSION_4 以下协议，返回所有消息信息
-            if (version < RemotingHeader.VERSION_4) {
-                writeBodyV3(out);
-            } else {
-                for (ReceivedResult result : results) {
-                    if (MessageProducerCode.SUCCESS != result.getCode()) {
-                        writeItem(result, out);
-                    }
-                }
-            }
-        }
-
-        private void writeBodyV3(ByteBuf out) {
             for (ReceivedResult result : results) {
-                writeItem(result, out);
+                if (MessageProducerCode.SUCCESS != result.getCode()) {
+                    writeItem(result, out);
+                }
             }
         }
 

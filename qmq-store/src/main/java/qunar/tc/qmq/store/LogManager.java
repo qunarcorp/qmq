@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.store;
@@ -24,10 +24,8 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.function.Predicate;
 
@@ -41,25 +39,18 @@ public class LogManager {
     private final File logDir;
     private final int fileSize;
 
-    private final StorageConfig config;
-
     private final LogSegmentValidator segmentValidator;
     private final ConcurrentSkipListMap<Long, LogSegment> segments = new ConcurrentSkipListMap<>();
 
     private long flushedOffset = 0;
 
-    public LogManager(final File dir, final int fileSize, final StorageConfig config, final LogSegmentValidator segmentValidator) {
-        this(dir, fileSize, config, segmentValidator, false);
-    }
-
-    public LogManager(final File dir, final int fileSize, final StorageConfig config, final LogSegmentValidator segmentValidator, boolean freeAfterRecover) {
+    public LogManager(final File dir, final int fileSize, final LogSegmentValidator segmentValidator) {
         this.logDir = dir;
         this.fileSize = fileSize;
-        this.config = config;
         this.segmentValidator = segmentValidator;
         createAndValidateLogDir();
         loadLogs();
-        recover(freeAfterRecover);
+        recover();
     }
 
     // ensure dir ok
@@ -105,7 +96,7 @@ public class LogManager {
         }
     }
 
-    private void recover(boolean freeAfterRecover) {
+    private void recover() {
         if (segments.isEmpty()) {
             return;
         }
@@ -118,31 +109,29 @@ public class LogManager {
             if (i < 0) continue;
 
             final LogSegment segment = segments.get(baseOffsets.get(i));
-            try {
-                offset = segment.getBaseOffset();
-
-                final LogSegmentValidator.ValidateResult result = segmentValidator.validate(segment);
-                offset += result.getValidatedSize();
-                if (result.getStatus() == LogSegmentValidator.ValidateStatus.COMPLETE) {
-                    segment.setWrotePosition(segment.getFileSize());
-                } else {
-                    break;
-                }
-            } finally {
-                if (freeAfterRecover) {
-                    segment.free();
-                }
+            offset = segment.getBaseOffset();
+            final LogSegmentValidator.ValidateResult result = segmentValidator.validate(segment);
+            offset += result.getValidatedSize();
+            if (result.getStatus() == LogSegmentValidator.ValidateStatus.COMPLETE) {
+                segment.setWrotePosition(segment.getFileSize());
+            } else {
+                break;
             }
         }
         flushedOffset = offset;
 
-        final long maxOffset = latestSegment().getBaseOffset() + latestSegment().getFileSize();
+        final LogSegment latestSegment = latestSegment();
+        final long maxOffset = latestSegment.getBaseOffset() + latestSegment.getFileSize();
         final int relativeOffset = (int) (offset % fileSize);
         final LogSegment segment = locateSegment(offset);
         if (segment != null && maxOffset != offset) {
             segment.setWrotePosition(relativeOffset);
             LOG.info("recover wrote offset to {}:{}", segment, segment.getWrotePosition());
-            // TODO(keli.wang): should delete crash file
+            if (segment.getBaseOffset() != latestSegment.getBaseOffset()) {
+                LOG.info("will remove all segment after max wrote position. current base offset: {}, max base offset: {}",
+                        segment.getBaseOffset(), latestSegment.getBaseOffset());
+                deleteSegmentsAfterOffset(offset);
+            }
         }
         LOG.info("Recover done.");
     }
@@ -201,6 +190,19 @@ public class LogManager {
         return null;
     }
 
+    public Optional<LogSegment> getOrAllocSegment(final long baseOffset) {
+        if (!isBaseOffset(baseOffset)) {
+            return Optional.empty();
+        }
+
+        final LogSegment segment = segments.get(baseOffset);
+        if (segment != null) {
+            return Optional.of(segment);
+        }
+
+        return Optional.ofNullable(allocSegment(baseOffset));
+    }
+
     public LogSegment allocOrResetSegments(final long expectedOffset) {
         final long baseOffset = computeBaseOffset(expectedOffset);
 
@@ -246,15 +248,32 @@ public class LogManager {
     }
 
     public boolean flush() {
-        boolean result = true;
-        final LogSegment segment = locateSegment(flushedOffset);
-        if (segment != null) {
-            final int offset = segment.flush();
-            final long where = segment.getBaseOffset() + offset;
-            result = where == this.flushedOffset;
-            this.flushedOffset = where;
+        ConcurrentNavigableMap<Long, LogSegment> beingFlushView = findBeingFlushView();
+        int lastOffset = -1;
+        long lastBaseOffset = -1;
+        for (Map.Entry<Long, LogSegment> entry : beingFlushView.entrySet()) {
+            try {
+                LogSegment segment = entry.getValue();
+                lastOffset = segment.flush();
+                lastBaseOffset = segment.getBaseOffset();
+            } catch (Exception e) {
+                break;
+            }
         }
+
+        if (lastBaseOffset == -1 || lastOffset == -1) return false;
+        final long where = lastBaseOffset + lastOffset;
+        boolean result = where != this.flushedOffset;
+        this.flushedOffset = where;
         return result;
+    }
+
+    private ConcurrentNavigableMap<Long, LogSegment> findBeingFlushView() {
+        LogSegment lastFlush = locateSegment(flushedOffset);
+        if (lastFlush == null) {
+            return segments;
+        }
+        return segments.tailMap(lastFlush.getBaseOffset(), true);
     }
 
     public void close() {
@@ -271,19 +290,18 @@ public class LogManager {
         final long deleteUntil = System.currentTimeMillis() - retentionMs;
         Preconditions.checkState(deleteUntil > 0, "retentionMs不应该超过当前时间");
 
-        Predicate<LogSegment> predicate = segment -> {
-            if (!config.isDeleteExpiredLogsEnable()) {
-                LOG.info("should delete expired segment {}, but delete expired logs is disabled for now", segment);
-                return false;
-            }
-            return segment.getLastModifiedTime() < deleteUntil;
-        };
+        Predicate<LogSegment> predicate = segment -> segment.getLastModifiedTime() < deleteUntil;
         deleteSegments(predicate, afterDeleted);
     }
 
     public void deleteSegmentsBeforeOffset(final long offset) {
         if (offset == -1) return;
-        Predicate<LogSegment> predicate = segment -> segment.getBaseOffset() < offset;
+        Predicate<LogSegment> predicate = segment -> segment.getBaseOffset() + segment.getFileSize() < offset;
+        deleteSegments(predicate, null);
+    }
+
+    private void deleteSegmentsAfterOffset(final long offset) {
+        Predicate<LogSegment> predicate = segment -> segment.getBaseOffset() > offset;
         deleteSegments(predicate, null);
     }
 
@@ -312,11 +330,11 @@ public class LogManager {
     private void executeHook(DeleteHook hook, LogSegment segment) {
         if (hook == null) return;
 
-        hook.afterDeleted(segment);
+        hook.afterDeleted(this, segment);
     }
 
     private boolean deleteSegment(final long key, final LogSegment segment) {
-        if (!segment.release()) return false;
+        if (!segment.disable()) return false;
         segments.remove(key);
         segment.destroy();
         return true;
@@ -328,13 +346,13 @@ public class LogManager {
     }
 
     public interface DeleteHook {
-        void afterDeleted(LogSegment segment);
+        void afterDeleted(final LogManager logManager, final LogSegment deletedSegment);
     }
 
     public boolean clean(Long key) {
         LogSegment segment = segments.get(key);
-        if (null == segment){
-            LOG.error("clean message segment log error,segment:{} is null",key);
+        if (null == segment) {
+            LOG.error("clean message segment log error,segment:{} is null", key);
             return false;
         }
 

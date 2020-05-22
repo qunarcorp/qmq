@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,12 +11,11 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.consumer.idempotent;
 
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import qunar.tc.qmq.IdempotentChecker;
@@ -31,11 +30,10 @@ import java.util.Date;
  */
 public abstract class AbstractIdempotentChecker implements IdempotentChecker {
 
-    private final Function<Message, String> keyFunc;
+    private final KeyExtractor extractor;
 
-    public AbstractIdempotentChecker(Function<Message, String> keyFunc) {
-        Preconditions.checkNotNull(keyFunc, "用于生成幂等key的函数不能为空");
-        this.keyFunc = keyFunc;
+    public AbstractIdempotentChecker(KeyExtractor extractor) {
+        this.extractor = extractor;
     }
 
     @Override
@@ -115,7 +113,7 @@ public abstract class AbstractIdempotentChecker implements IdempotentChecker {
      * @return
      */
     protected String keyOf(Message message) {
-        String original = keyFunc.apply(message);
+        String original = extractor.extract(message);
         Preconditions.checkArgument(!Strings.isNullOrEmpty(original), "使用所提供的keyFunc无法提取幂等key");
 
         return message.getSubject() + "%" + message.getStringProperty(BaseMessage.keys.qmq_consumerGroupName.name()) + "%" + original;
@@ -132,10 +130,14 @@ public abstract class AbstractIdempotentChecker implements IdempotentChecker {
 
     public abstract void garbageCollect(Date before);
 
-    public static Function<Message, String> DEFAULT_KEYFUNC = new Function<Message, String>() {
+    public interface KeyExtractor {
+        String extract(Message message);
+    }
+
+    public static KeyExtractor DEFAULT_EXTRACTOR = new KeyExtractor() {
         @Override
-        public String apply(Message input) {
-            return input.getMessageId();
+        public String extract(Message message) {
+            return message.getMessageId();
         }
     };
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.delay.store.log;
@@ -40,7 +40,7 @@ public abstract class AbstractDelaySegment<T> implements DelaySegment<T> {
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractDelaySegment.class);
 
     private final File file;
-    private final int segmentBaseOffset;
+    private final long segmentBaseOffset;
     private final AtomicLong wrotePosition = new AtomicLong(0);
     private final AtomicLong flushedPosition = new AtomicLong(0);
     private final AtomicBoolean needFlush = new AtomicBoolean(true);
@@ -52,7 +52,7 @@ public abstract class AbstractDelaySegment<T> implements DelaySegment<T> {
     AbstractDelaySegment(File file) throws IOException {
         this.file = file;
         this.fileName = file.getAbsolutePath();
-        this.segmentBaseOffset = Integer.parseInt(file.getName());
+        this.segmentBaseOffset = Long.parseLong(file.getName());
         boolean success = false;
         try {
             fileChannel = new RandomAccessFile(file, "rw").getChannel();
@@ -122,7 +122,7 @@ public abstract class AbstractDelaySegment<T> implements DelaySegment<T> {
     }
 
     @Override
-    public int getSegmentBaseOffset() {
+    public long getSegmentBaseOffset() {
         return segmentBaseOffset;
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,13 +11,15 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.store;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.FileRegion;
 import io.netty.util.ReferenceCounted;
+import qunar.tc.qmq.store.buffer.SegmentBuffer;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -29,7 +31,7 @@ import java.nio.channels.WritableByteChannel;
  * @since 2017/7/6
  */
 public class DataTransfer implements FileRegion {
-    private final ByteBuffer headerBuffer;
+    private final ByteBuf headerBuffer;
     private final SegmentBuffer segmentBuffer;
     private final int bufferTotalSize;
 
@@ -37,14 +39,13 @@ public class DataTransfer implements FileRegion {
 
     private long transferred;
 
-    public DataTransfer(ByteBuffer headerBuffer, SegmentBuffer segmentBuffer, int bufferTotalSize) {
-
+    public DataTransfer(ByteBuf headerBuffer, SegmentBuffer segmentBuffer, int bufferTotalSize) {
         this.headerBuffer = headerBuffer;
         this.segmentBuffer = segmentBuffer;
         this.bufferTotalSize = bufferTotalSize;
 
         this.buffers = new ByteBuffer[2];
-        this.buffers[0] = headerBuffer;
+        this.buffers[0] = headerBuffer.nioBuffer();
         this.buffers[1] = segmentBuffer.getBuffer();
     }
 
@@ -64,7 +65,7 @@ public class DataTransfer implements FileRegion {
 
     @Override
     public long count() {
-        return headerBuffer.limit() + bufferTotalSize;
+        return headerBuffer.readableBytes() + bufferTotalSize;
     }
 
     @Override
@@ -93,6 +94,7 @@ public class DataTransfer implements FileRegion {
 
     @Override
     public boolean release() {
+        headerBuffer.release();
         segmentBuffer.release();
         return true;
     }

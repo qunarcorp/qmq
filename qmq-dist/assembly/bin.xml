@@ -13,6 +13,11 @@
     <fileSets>
         <fileSet>
             <includes>
+                <include>sql/**</include>
+            </includes>
+        </fileSet>
+        <fileSet>
+            <includes>
                 <include>conf/**</include>
             </includes>
         </fileSet>
@@ -22,6 +27,7 @@
                 <include>bin/**</include>
             </includes>
             <fileMode>0755</fileMode>
+            <lineEnding>keep</lineEnding>
         </fileSet>
     </fileSets>
 

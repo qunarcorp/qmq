@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.consumer.pull;
@@ -46,9 +46,9 @@ abstract class AbstractPullConsumer implements PullConsumer {
     final PlainPullEntry pullEntry;
     final PlainPullEntry retryPullEntry;
 
-    AbstractPullConsumer(String subject, String group, boolean isBroadcast, String clientId, PullService pullService, AckService ackService, BrokerService brokerService) {
-        this.consumeParam = new ConsumeParam(subject, group, isBroadcast, false, clientId);
-        this.retryConsumeParam = new ConsumeParam(consumeParam.getRetrySubject(), group, isBroadcast, false, clientId);
+    AbstractPullConsumer(String subject, String consumerGroup, boolean isBroadcast, String clientId, PullService pullService, AckService ackService, BrokerService brokerService) {
+        this.consumeParam = new ConsumeParam(subject, consumerGroup, isBroadcast, false, clientId);
+        this.retryConsumeParam = new ConsumeParam(consumeParam.getRetrySubject(), consumerGroup, isBroadcast, false, clientId);
         this.pullEntry = new PlainPullEntry(consumeParam, pullService, ackService, brokerService, new AlwaysPullStrategy());
         this.retryPullEntry = new PlainPullEntry(retryConsumeParam, pullService, ackService, brokerService, new WeightPullStrategy());
     }

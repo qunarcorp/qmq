@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,12 +11,14 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.delay;
 
-import io.netty.buffer.ByteBuf;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.delay.base.AppendException;
 import qunar.tc.qmq.delay.base.LongHashSet;
 import qunar.tc.qmq.delay.base.ReceivedDelayMessage;
 import qunar.tc.qmq.delay.base.ReceivedResult;
@@ -24,13 +26,12 @@ import qunar.tc.qmq.delay.cleaner.LogCleaner;
 import qunar.tc.qmq.delay.config.StoreConfiguration;
 import qunar.tc.qmq.delay.store.IterateOffsetManager;
 import qunar.tc.qmq.delay.store.log.*;
-import qunar.tc.qmq.delay.store.model.AppendLogResult;
-import qunar.tc.qmq.delay.store.model.LogRecord;
-import qunar.tc.qmq.delay.store.model.RawMessageExtend;
-import qunar.tc.qmq.delay.store.model.ScheduleSetRecord;
-import qunar.tc.qmq.delay.store.visitor.LogVisitor;
+import qunar.tc.qmq.delay.store.model.*;
 import qunar.tc.qmq.delay.wheel.WheelLoadCursor;
-import qunar.tc.qmq.store.SegmentBuffer;
+import qunar.tc.qmq.protocol.producer.MessageProducerCode;
+import qunar.tc.qmq.store.LogIterateService;
+import qunar.tc.qmq.store.buffer.SegmentBuffer;
+import qunar.tc.qmq.store.event.FixedExecOrderEventBus;
 import qunar.tc.qmq.sync.DelaySyncRequest;
 
 import java.nio.ByteBuffer;
@@ -43,22 +44,44 @@ import java.util.function.Function;
  * @since 2018-07-20 10:20
  */
 public class DefaultDelayLogFacade implements DelayLogFacade {
+    private static final Logger LOGGER = LoggerFactory.getLogger(DefaultDelayLogFacade.class);
     private final IterateOffsetManager offsetManager;
     private final ScheduleLog scheduleLog;
     private final DispatchLog dispatchLog;
     private final MessageLog messageLog;
     private final LogFlusher logFlusher;
     private final LogCleaner cleaner;
-    private final MessageLogReplayer replayer;
+    private final LogIterateService<LogRecord> messageLogIterateService;
 
-    public DefaultDelayLogFacade(final StoreConfiguration config, final Function<ByteBuf, Boolean> func) {
+    public DefaultDelayLogFacade(final StoreConfiguration config, final Function<ScheduleIndex, Boolean> func) {
         this.messageLog = new MessageLog(config);
         this.scheduleLog = new ScheduleLog(config);
         this.dispatchLog = new DispatchLog(config);
         this.offsetManager = new IterateOffsetManager(config.getCheckpointStorePath(), scheduleLog::flush);
-        this.replayer = new MessageLogReplayer(this, func);
+        FixedExecOrderEventBus bus = new FixedExecOrderEventBus();
+        bus.subscribe(MessageLogRecord.class, e -> {
+            AppendLogResult<ScheduleIndex> result = appendScheduleLog(e);
+            int code = result.getCode();
+            if (MessageProducerCode.SUCCESS != code) {
+                LOGGER.error("appendMessageLog schedule log error,log:{} {},code:{}", e.getSubject(), e.getMessageId(), code);
+                throw new AppendException("appendScheduleLogError");
+            }
+            func.apply(result.getAdditional());
+        });
+        bus.subscribe(MessageLogRecord.class, e -> {
+            long checkpoint = e.getStartWroteOffset() + e.getRecordSize();
+            updateIterateOffset(checkpoint);
+        });
+        this.messageLogIterateService = new LogIterateService<>("message-log", 5, messageLog, initialMessageIterateFrom(), bus);
         this.logFlusher = new LogFlusher(messageLog, offsetManager, dispatchLog);
         this.cleaner = new LogCleaner(config, dispatchLog, scheduleLog, messageLog);
+    }
+
+    @Override
+    public void start() {
+        logFlusher.start();
+        messageLogIterateService.start();
+        cleaner.start();
     }
 
     @Override
@@ -80,7 +103,7 @@ public class DefaultDelayLogFacade implements DelayLogFacade {
     }
 
     @Override
-    public long getDispatchLogMaxOffset(final int dispatchSegmentBaseOffset) {
+    public long getDispatchLogMaxOffset(final long dispatchSegmentBaseOffset) {
         return dispatchLog.getMaxOffset(dispatchSegmentBaseOffset);
     }
 
@@ -95,7 +118,7 @@ public class DefaultDelayLogFacade implements DelayLogFacade {
     }
 
     @Override
-    public boolean appendDispatchLogData(final long startOffset, final int baseOffset, final ByteBuffer body) {
+    public boolean appendDispatchLogData(final long startOffset, final long baseOffset, final ByteBuffer body) {
         return dispatchLog.appendData(startOffset, baseOffset, body);
     }
 
@@ -105,28 +128,22 @@ public class DefaultDelayLogFacade implements DelayLogFacade {
     }
 
     @Override
-    public SegmentBuffer getDispatchLogs(final int segmentBaseOffset, final long dispatchLogOffset) {
+    public SegmentBuffer getDispatchLogs(final long segmentBaseOffset, final long dispatchLogOffset) {
         return dispatchLog.getDispatchLogData(segmentBaseOffset, dispatchLogOffset);
     }
 
-    @Override
-    public void start() {
-        logFlusher.start();
-        replayer.start();
-        cleaner.start();
-    }
 
     @Override
     public void shutdown() {
         cleaner.shutdown();
-        replayer.shutdown();
+        messageLogIterateService.close();
         logFlusher.shutdown();
         scheduleLog.destroy();
     }
 
     @Override
-    public List<ScheduleSetRecord> recoverLogRecord(final List<ByteBuf> pureRecords) {
-        return scheduleLog.recoverLogRecord(pureRecords);
+    public List<ScheduleSetRecord> recoverLogRecord(final List<ScheduleIndex> indexList) {
+        return scheduleLog.recoverLogRecord(indexList);
     }
 
     @Override
@@ -140,37 +157,32 @@ public class DefaultDelayLogFacade implements DelayLogFacade {
     }
 
     @Override
-    public DispatchLogSegment lowerDispatchSegment(final int baseOffset) {
+    public DispatchLogSegment lowerDispatchSegment(final long baseOffset) {
         return dispatchLog.lowerSegment(baseOffset);
     }
 
     @Override
-    public ScheduleSetSegment loadScheduleLogSegment(final int segmentBaseOffset) {
+    public ScheduleSetSegment loadScheduleLogSegment(final long segmentBaseOffset) {
         return scheduleLog.loadSegment(segmentBaseOffset);
     }
 
     @Override
-    public WheelLoadCursor.Cursor loadUnDispatch(final ScheduleSetSegment setSegment, final LongHashSet dispatchedSet, final Consumer<ByteBuf> refresh) {
+    public WheelLoadCursor.Cursor loadUnDispatch(final ScheduleSetSegment setSegment, final LongHashSet dispatchedSet, final Consumer<ScheduleIndex> refresh) {
         return scheduleLog.loadUnDispatch(setSegment, dispatchedSet, refresh);
     }
 
     @Override
-    public int higherScheduleBaseOffset(int index) {
+    public long higherScheduleBaseOffset(long index) {
         return scheduleLog.higherBaseOffset(index);
     }
 
     @Override
-    public int higherDispatchLogBaseOffset(int segmentBaseOffset) {
+    public long higherDispatchLogBaseOffset(long segmentBaseOffset) {
         return dispatchLog.higherBaseOffset(segmentBaseOffset);
     }
 
     @Override
-    public LogVisitor<LogRecord> newMessageLogVisitor(long start) {
-        return messageLog.newVisitor(start);
-    }
-
-    @Override
-    public AppendLogResult<ByteBuf> appendScheduleLog(LogRecord event) {
+    public AppendLogResult<ScheduleIndex> appendScheduleLog(LogRecord event) {
         return scheduleLog.append(event);
     }
 
@@ -178,7 +190,7 @@ public class DefaultDelayLogFacade implements DelayLogFacade {
     public long initialMessageIterateFrom() {
         long iterateOffset = offsetManager.getIterateOffset();
         if (iterateOffset <= 0) {
-            return getMessageLogMaxOffset();
+            return getMessageLogMinOffset();
         }
         if (iterateOffset > getMessageLogMaxOffset()) {
             return getMessageLogMaxOffset();
@@ -193,6 +205,6 @@ public class DefaultDelayLogFacade implements DelayLogFacade {
 
     @Override
     public void blockUntilReplayDone() {
-        replayer.blockUntilReplayDone();
+        messageLogIterateService.blockUntilReplayDone();
     }
 }

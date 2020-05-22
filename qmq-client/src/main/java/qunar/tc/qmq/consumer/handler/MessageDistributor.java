@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 package qunar.tc.qmq.consumer.handler;
 
@@ -40,23 +40,23 @@ public class MessageDistributor {
         this.register = register;
     }
 
-    public ListenerHolder addListener(final String subjectPrefix, final String consumerGroup, MessageListener listener, Executor executor, SubscribeParam subscribeParam) {
+    public ListenerHolder addListener(final String subject, final String consumerGroup, MessageListener listener, Executor executor, SubscribeParam subscribeParam) {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(consumerGroup));
 
         final RegistParam registParam = new RegistParam(executor, listener, subscribeParam, clientId);
         registParam.setBroadcast(subscribeParam.isBroadcast());
-        register.regist(subjectPrefix, consumerGroup, registParam);
+        register.regist(subject, consumerGroup, registParam);
         return new ListenerHolder() {
 
             @Override
             public void stopListen() {
-                register.unregist(subjectPrefix, consumerGroup);
+                register.unregist(subject, consumerGroup);
             }
 
             @Override
             public void resumeListen() {
                 registParam.setActionSrc(CODE);
-                register.regist(subjectPrefix, consumerGroup, registParam);
+                register.regist(subject, consumerGroup, registParam);
             }
         };
     }

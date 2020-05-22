@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.meta.store.impl;
@@ -22,12 +22,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+
+import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
 import qunar.tc.qmq.meta.BrokerGroup;
 import qunar.tc.qmq.meta.BrokerGroupKind;
 import qunar.tc.qmq.meta.BrokerState;
 import qunar.tc.qmq.meta.model.SubjectInfo;
 import qunar.tc.qmq.meta.model.SubjectRoute;
-import qunar.tc.qmq.meta.store.JdbcTemplateHolder;
 import qunar.tc.qmq.meta.store.Store;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
 
@@ -98,8 +99,8 @@ public class DatabaseStore implements Store {
 
     private final JdbcTemplate jdbcTemplate;
 
-    public DatabaseStore() {
-        this.jdbcTemplate = JdbcTemplateHolder.getOrCreate();
+    public DatabaseStore(JdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @Override

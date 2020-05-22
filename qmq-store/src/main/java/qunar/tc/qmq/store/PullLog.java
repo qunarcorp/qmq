@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,12 +11,13 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.store;
 
 import qunar.tc.qmq.monitor.QMon;
+import qunar.tc.qmq.store.buffer.SegmentBuffer;
 
 import java.io.File;
 import java.nio.ByteBuffer;
@@ -36,8 +37,14 @@ public class PullLog {
     private final MessageAppender<PullLogMessage, MessageSequence> messageAppender = new PullLogMessageAppender();
 
     public PullLog(final StorageConfig config, final String consumerId, final String groupAndSubject) {
+        this(config, consumerId, groupAndSubject, -1);
+    }
+
+    public PullLog(final StorageConfig config, final String consumerId, final String groupAndSubject, final long maxSequence) {
         this.config = config;
-        this.logManager = new LogManager(buildPullLogPath(consumerId, groupAndSubject), PULL_LOG_SIZE, config, new PullLogSegmentValidator(), true);
+        this.logManager = new LogManager(buildPullLogPath(consumerId, groupAndSubject),
+                PULL_LOG_SIZE,
+                new MaxSequenceLogSegmentValidator(maxSequence, PULL_LOG_UNIT_BYTES));
     }
 
     private File buildPullLogPath(final String consumerId, final String groupAndSubject) {
@@ -100,7 +107,6 @@ public class PullLog {
 
         try {
             final ByteBuffer buffer = result.getBuffer();
-            buffer.getInt();
             return buffer.getLong();
         } finally {
             result.release();
@@ -159,33 +165,6 @@ public class PullLog {
 
             final long messageIndex = wroteOffset / PULL_LOG_UNIT_BYTES;
             return new AppendMessageResult<>(AppendMessageStatus.SUCCESS, wroteOffset, PULL_LOG_UNIT_BYTES, new MessageSequence(messageIndex, wroteOffset));
-        }
-    }
-
-    private static class PullLogSegmentValidator implements LogSegmentValidator {
-        @Override
-        public ValidateResult validate(LogSegment segment) {
-            final int fileSize = segment.getFileSize();
-            final ByteBuffer buffer = segment.sliceByteBuffer();
-
-            int position = 0;
-            while (true) {
-                if (position == fileSize) {
-                    return new ValidateResult(ValidateStatus.COMPLETE, fileSize);
-                }
-
-                final int result = consumeAndValidateMessage(buffer);
-                if (result == -1) {
-                    return new ValidateResult(ValidateStatus.PARTIAL, position);
-                } else {
-                    position += result;
-                }
-            }
-        }
-
-        private int consumeAndValidateMessage(final ByteBuffer buffer) {
-            buffer.getLong();
-            return PULL_LOG_UNIT_BYTES;
         }
     }
 }

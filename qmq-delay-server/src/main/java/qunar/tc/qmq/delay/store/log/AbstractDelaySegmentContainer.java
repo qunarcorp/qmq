@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.delay.store.log;
@@ -43,9 +43,12 @@ public abstract class AbstractDelaySegmentContainer<T> implements SegmentContain
 
     private final LogAppender<T, LogRecord> appender;
 
-    final ConcurrentSkipListMap<Integer, DelaySegment<T>> segments = new ConcurrentSkipListMap<>();
+    final int segmentScale;
 
-    AbstractDelaySegmentContainer(File logDir, DelaySegmentValidator validator, LogAppender<T, LogRecord> appender) {
+    final ConcurrentSkipListMap<Long, DelaySegment<T>> segments = new ConcurrentSkipListMap<>();
+
+    AbstractDelaySegmentContainer(int scale, File logDir, DelaySegmentValidator validator, LogAppender<T, LogRecord> appender) {
+        this.segmentScale = scale;
         this.logDir = logDir;
         this.appender = appender;
         createAndValidateLogDir();
@@ -88,7 +91,7 @@ public abstract class AbstractDelaySegmentContainer<T> implements SegmentContain
     public boolean clean(Long key) {
         if (segments.isEmpty()) return false;
         if (segments.lastKey() < key) return false;
-        DelaySegment segment = segments.remove(Math.toIntExact(key));
+        DelaySegment segment = segments.remove(key);
         if (null == segment) {
             LOGGER.error("clean delay segment log failed,segment:{}", logDir, key);
             return false;
@@ -113,22 +116,22 @@ public abstract class AbstractDelaySegmentContainer<T> implements SegmentContain
     protected abstract RecordResult<T> retResult(AppendMessageResult<T> result);
 
     DelaySegment<T> locateSegment(long scheduleTime) {
-        int baseOffset = resolveSegment(scheduleTime);
+        long baseOffset = resolveSegment(scheduleTime, segmentScale);
         return segments.get(baseOffset);
     }
 
     private DelaySegment<T> allocNewSegment(long offset) {
-        int baseOffset = resolveSegment(offset);
+        long baseOffset = resolveSegment(offset, segmentScale);
         if (segments.containsKey(baseOffset)) {
             return segments.get(baseOffset);
         }
         return allocSegment(baseOffset);
     }
 
-    int higherBaseOffset(int low) {
-        Integer next = segments.higherKey(low);
+    long higherBaseOffset(long low) {
+        Long next = segments.higherKey(low);
         return next == null ? -1 : next;
     }
 
-    protected abstract DelaySegment<T> allocSegment(int segmentBaseOffset);
+    protected abstract DelaySegment<T> allocSegment(long segmentBaseOffset);
 }

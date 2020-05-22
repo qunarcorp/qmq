@@ -1,0 +1,36 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+    <title>Order</title>
+    <link rel="stylesheet" href="https://cdn.bootcss.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous" />
+
+    <style type="text/css">
+        .qmq-demo {
+            margin-top: 30px;
+            max-width: 50%;
+        }
+    </style>
+</head>
+
+<body>
+<div id="container-fluid">
+    <div class="qmq-demo mx-auto">
+        <h1>QMQ Demo Test Page</h1>
+        <form action="/order/placeOrder" method="post" style="margin-top: 5px">
+            <div class="form-group">
+                <label for="inputOrderId">OrderId(数字):</label>
+                <input type="text" class="form-control" id="inputOrderId" aria-describedby="orderIdHelp"
+                       placeholder="Order Id" name="orderId" />
+                <small id="orderIdHelp" class="form-text text-muted">OrderId必须输入数字，如果输入字母会提交失败，消息也不会发送出去</small>
+            </div>
+            <div class="form-group">
+                <label for="inputName">Name</label>
+                <input type="text" class="form-control" id="inputName" placeholder="name" name="name" />
+            </div>
+            <button type="submit" class="btn btn-primary">提交</button>
+        </form>
+    </div>
+</div>
+</body>
+</html>

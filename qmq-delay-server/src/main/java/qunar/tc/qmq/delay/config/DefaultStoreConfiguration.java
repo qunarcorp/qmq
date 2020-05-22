@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,13 +11,13 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.delay.config;
 
+import com.google.common.base.Preconditions;
 import qunar.tc.qmq.configuration.DynamicConfig;
-import qunar.tc.qmq.configuration.DynamicConfigLoader;
 import qunar.tc.qmq.constants.BrokerConstants;
 
 import java.io.File;
@@ -38,23 +38,50 @@ public class DefaultStoreConfiguration implements StoreConfiguration {
     private static final String DISPATCH_LOG_KEEP_HOUR = "dispatch.log.keep.hour";
     private static final String SCHEDULE_CLEAN_BEFORE_DISPATCH_HOUR = "schedule.clean.before.dispatch.hour";
     private static final String LOAD_IN_ADVANCE_MIN = "load.in.advance.min";
-    private static final String LOAD_BLOCKING_EXIT_MIN = "load.blocking.exit.min";
+    private static final String LOAD_BLOCKING_EXIT_SEC = "load.blocking.exit.sec";
+    private static final String SEGMENT_SCALE_MIN = "segment.scale.minute";
+
+    private static final long MS_PER_HOUR = TimeUnit.HOURS.toMillis(1);
+    private static final long MS_PER_MINUTE = TimeUnit.MINUTES.toMillis(1);
+    private static final long MS_PER_SECONDS = TimeUnit.SECONDS.toMillis(1);
+    private static final int SEC_PER_MINUTE = (int) TimeUnit.MINUTES.toSeconds(1);
 
     private static final int MESSAGE_SEGMENT_LOG_FILE_SIZE = 1024 * 1024 * 1024;
     private static final int SINGLE_MESSAGE_LIMIT_SIZE = 50 * 1024 * 1024;
     private static final int SEGMENT_LOAD_DELAY_TIMES_IN_MIN = 1;
     private static final int DISPATCH_LOG_KEEP_TIMES_IN_HOUR = 3 * 24;
     private static final int SCHEDULE_CLEAN_BEFORE_DISPATCH_TIMES_IN_HOUR = 24;
-    private static final int LOAD_IN_ADVANCE_TIMES_IN_MIN = 30;
-    private static final int LOAD_BLOCKING_EXIT_TIMES_IN_MIN = 10;
+    private static final int DEFAULT_SEGMENT_SCALE_IN_MIN = 60;
 
-    private static final long MS_PER_HOUR = TimeUnit.HOURS.toMillis(1);
-    private static final long MS_PER_MINUTE = TimeUnit.MINUTES.toMillis(1);
+    private volatile int segmentScale;
+    private volatile long inAdvanceLoadMillis;
+    private volatile long loadBlockingExitMillis;
 
     private final DynamicConfig config;
 
     public DefaultStoreConfiguration(DynamicConfig config) {
+        setup(config);
         this.config = config;
+    }
+
+    private void setup(DynamicConfig config) {
+        int segmentScale = config.getInt(SEGMENT_SCALE_MIN, DEFAULT_SEGMENT_SCALE_IN_MIN);
+        validateArguments((segmentScale >= 5) && (segmentScale <= 60), "segment scale in [5, 60] min");
+        int inAdvanceLoadMin = config.getInt(LOAD_IN_ADVANCE_MIN, (segmentScale + 1) / 2);
+        validateArguments((inAdvanceLoadMin >= 1) && (inAdvanceLoadMin <= ((segmentScale + 1) / 2)), "load in advance time in [1, segmentScale/2] min");
+        int loadBlockingExitSec = config.getInt(LOAD_BLOCKING_EXIT_SEC, SEC_PER_MINUTE * (inAdvanceLoadMin + 2) / 3);
+        int inAdvanceLoadSec = inAdvanceLoadMin * SEC_PER_MINUTE;
+        int loadBlockExitFront = inAdvanceLoadSec / 3;
+        int loadBlockExitRear = inAdvanceLoadSec / 2;
+        validateArguments((loadBlockingExitSec >= loadBlockExitFront) && (loadBlockingExitSec <= loadBlockExitRear), "load exit block exit time in [inAdvanceLoadMin/3,inAdvanceLoadMin/2] sec. note.");
+
+        this.segmentScale = segmentScale;
+        this.inAdvanceLoadMillis = inAdvanceLoadMin * MS_PER_MINUTE;
+        this.loadBlockingExitMillis = loadBlockingExitSec * MS_PER_SECONDS;
+    }
+
+    private void validateArguments(boolean expression, String errorMessage) {
+        Preconditions.checkArgument(expression, errorMessage);
     }
 
     @Override
@@ -120,17 +147,22 @@ public class DefaultStoreConfiguration implements StoreConfiguration {
 
     @Override
     public long getLoadInAdvanceTimesInMillis() {
-        return config.getInt(LOAD_IN_ADVANCE_MIN, LOAD_IN_ADVANCE_TIMES_IN_MIN) * MS_PER_MINUTE;
+        return inAdvanceLoadMillis;
     }
 
     @Override
     public long getLoadBlockingExitTimesInMillis() {
-        return config.getInt(LOAD_BLOCKING_EXIT_MIN, LOAD_BLOCKING_EXIT_TIMES_IN_MIN) * MS_PER_MINUTE;
+        return loadBlockingExitMillis;
     }
 
     @Override
     public boolean isDeleteExpiredLogsEnable() {
         return config.getBoolean(BrokerConstants.ENABLE_DELETE_EXPIRED_LOGS, false);
+    }
+
+    @Override
+    public int getSegmentScale() {
+        return segmentScale;
     }
 
     @Override

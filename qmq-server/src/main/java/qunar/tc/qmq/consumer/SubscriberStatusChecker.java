@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.consumer;
@@ -55,7 +55,7 @@ public class SubscriberStatusChecker implements ActorSystem.Processor<Subscriber
         this.config = config;
         this.storage = storage;
         this.consumerSequenceManager = consumerSequenceManager;
-        this.actorSystem = new ActorSystem("consumer-consumers", 4, false);
+        this.actorSystem = new ActorSystem("consumers", 4, false);
     }
 
     public void init() {
@@ -82,7 +82,7 @@ public class SubscriberStatusChecker implements ActorSystem.Processor<Subscriber
     }
 
     private void initSubscribers() {
-        final Collection<ConsumerGroupProgress> progresses = storage.allConsumerGroupProgresses();
+        final Collection<ConsumerGroupProgress> progresses = storage.allConsumerGroupProgresses().values();
         progresses.forEach(progress -> {
             if (progress.isBroadcast()) {
                 return;

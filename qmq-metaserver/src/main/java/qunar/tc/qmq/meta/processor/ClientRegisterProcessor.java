@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.meta.processor;
@@ -21,6 +21,7 @@ import io.netty.channel.ChannelHandlerContext;
 import qunar.tc.qmq.meta.cache.AliveClientManager;
 import qunar.tc.qmq.meta.cache.CachedOfflineStateManager;
 import qunar.tc.qmq.meta.monitor.QMon;
+import qunar.tc.qmq.meta.route.ReadonlyBrokerGroupManager;
 import qunar.tc.qmq.meta.route.SubjectRouter;
 import qunar.tc.qmq.meta.store.Store;
 import qunar.tc.qmq.netty.NettyRequestProcessor;
@@ -43,8 +44,9 @@ public class ClientRegisterProcessor implements NettyRequestProcessor {
 
     public ClientRegisterProcessor(final SubjectRouter subjectRouter,
                                    final CachedOfflineStateManager offlineStateManager,
-                                   final Store store) {
-        this.clientRegisterWorker = new ClientRegisterWorker(subjectRouter, offlineStateManager, store);
+                                   final Store store,
+                                   ReadonlyBrokerGroupManager readonlyBrokerGroupManager) {
+        this.clientRegisterWorker = new ClientRegisterWorker(subjectRouter, offlineStateManager, store, readonlyBrokerGroupManager);
         this.aliveClientManager = AliveClientManager.getInstance();
     }
 

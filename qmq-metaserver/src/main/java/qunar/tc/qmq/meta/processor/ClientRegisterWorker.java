@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.meta.processor;
@@ -21,12 +21,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.base.OnOfflineState;
+import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.concurrent.ActorSystem;
 import qunar.tc.qmq.meta.BrokerCluster;
 import qunar.tc.qmq.meta.BrokerGroup;
 import qunar.tc.qmq.meta.BrokerState;
 import qunar.tc.qmq.meta.cache.CachedOfflineStateManager;
+import qunar.tc.qmq.meta.monitor.QMon;
+import qunar.tc.qmq.meta.route.ReadonlyBrokerGroupManager;
 import qunar.tc.qmq.meta.route.SubjectRouter;
+import qunar.tc.qmq.meta.spi.ClientRegisterAuthFactory;
+import qunar.tc.qmq.meta.spi.pojo.ClientRegisterAuthInfo;
 import qunar.tc.qmq.meta.store.Store;
 import qunar.tc.qmq.meta.utils.ClientLogUtils;
 import qunar.tc.qmq.protocol.CommandCode;
@@ -38,6 +43,7 @@ import qunar.tc.qmq.protocol.consumer.MetaInfoResponse;
 import qunar.tc.qmq.util.RemotingBuilder;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
+import qunar.tc.qmq.utils.SubjectUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -47,22 +53,24 @@ import java.util.List;
  * @since 2017/9/1
  */
 class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProcessor.ClientRegisterMessage> {
-    private static final Logger LOG = LoggerFactory.getLogger(ClientRegisterProcessor.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ClientRegisterWorker.class);
 
     private final SubjectRouter subjectRouter;
     private final ActorSystem actorSystem;
     private final Store store;
     private final CachedOfflineStateManager offlineStateManager;
+    private final ReadonlyBrokerGroupManager readonlyBrokerGroupManager;
 
-    ClientRegisterWorker(final SubjectRouter subjectRouter, final CachedOfflineStateManager offlineStateManager, final Store store) {
+    ClientRegisterWorker(final SubjectRouter subjectRouter, final CachedOfflineStateManager offlineStateManager, final Store store, ReadonlyBrokerGroupManager readonlyBrokerGroupManager) {
         this.subjectRouter = subjectRouter;
-        this.actorSystem = new ActorSystem("qmq-meta");
+        this.readonlyBrokerGroupManager = readonlyBrokerGroupManager;
+        this.actorSystem = new ActorSystem("qmq_meta");
         this.offlineStateManager = offlineStateManager;
         this.store = store;
     }
 
     void register(ClientRegisterProcessor.ClientRegisterMessage message) {
-        actorSystem.dispatch("client-register-" + message.getMetaInfoRequest().getSubject(), message, this);
+        actorSystem.dispatch("client_register_" + message.getMetaInfoRequest().getSubject(), message, this);
     }
 
     @Override
@@ -76,15 +84,32 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
 
     private MetaInfoResponse handleClientRegister(final MetaInfoRequest request) {
         final String realSubject = RetrySubjectUtils.getRealSubject(request.getSubject());
+        if (SubjectUtils.isInValid(realSubject)) {
+            return buildResponse(request, -2, OnOfflineState.OFFLINE, new BrokerCluster(new ArrayList<>()));
+        }
         final int clientRequestType = request.getRequestType();
 
         try {
+            ClientRegisterAuthInfo authInfo = new ClientRegisterAuthInfo();
+            authInfo.setAppCode(request.getAppCode());
+            authInfo.setSubject(request.getSubject());
+            authInfo.setConsumerGroup(request.getConsumerGroup());
+            authInfo.setClientId(request.getClientId());
+            authInfo.setClientType(ClientType.of(request.getClientTypeCode()));
+
+            if (!ClientRegisterAuthFactory.auth(authInfo)) {
+                QMon.clientRegisterAuthFailCountInc(realSubject, authInfo.getConsumerGroup(), authInfo.getClientType().name());
+                return buildResponse(request, -2, OnOfflineState.OFFLINE, new BrokerCluster(new ArrayList<>()));
+            }
+
             if (ClientRequestType.ONLINE.getCode() == clientRequestType) {
                 store.insertClientMetaInfo(request);
             }
 
             final List<BrokerGroup> brokerGroups = subjectRouter.route(realSubject, request);
-            final List<BrokerGroup> filteredBrokerGroups = filterBrokerGroups(brokerGroups);
+
+            List<BrokerGroup> removedReadonlyGroups = readonlyBrokerGroupManager.disableReadonlyBrokerGroup(realSubject, request.getClientTypeCode(), brokerGroups);
+            final List<BrokerGroup> filteredBrokerGroups = filterBrokerGroups(removedReadonlyGroups);
             final OnOfflineState clientState = offlineStateManager.queryClientState(request.getClientId(), request.getSubject(), request.getConsumerGroup());
 
             ClientLogUtils.log(realSubject,
@@ -129,18 +154,16 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
 
     private void writeResponse(final ClientRegisterProcessor.ClientRegisterMessage message, final MetaInfoResponse response) {
         final RemotingHeader header = message.getHeader();
-        final MetaInfoResponsePayloadHolder payloadHolder = new MetaInfoResponsePayloadHolder(response, header.getVersion());
+        final MetaInfoResponsePayloadHolder payloadHolder = new MetaInfoResponsePayloadHolder(response);
         final Datagram datagram = RemotingBuilder.buildResponseDatagram(CommandCode.SUCCESS, header, payloadHolder);
         message.getCtx().writeAndFlush(datagram);
     }
 
     private static class MetaInfoResponsePayloadHolder implements PayloadHolder {
         private final MetaInfoResponse response;
-        private final short version;
 
-        MetaInfoResponsePayloadHolder(MetaInfoResponse response, short version) {
+        MetaInfoResponsePayloadHolder(MetaInfoResponse response) {
             this.response = response;
-            this.version = version;
         }
 
         @Override

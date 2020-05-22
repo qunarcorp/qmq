@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 package qunar.tc.qmq.producer;
 
@@ -22,14 +22,15 @@ import io.opentracing.util.GlobalTracer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.MessageSendStateListener;
+import qunar.tc.qmq.MessageStore;
 import qunar.tc.qmq.ProduceMessage;
 import qunar.tc.qmq.base.BaseMessage;
-import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.QmqCounter;
+import qunar.tc.qmq.metrics.QmqMeter;
 import qunar.tc.qmq.tracing.TraceUtil;
 
-import java.util.concurrent.*;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -46,31 +47,19 @@ class ProduceMessageImpl implements ProduceMessage {
     private static final int ERROR = -1;
     private static final int BLOCK = -2;
 
-    private static final int DEFAULT_THREADS = 10;
-
-    private static final int DEFAULT_QUEUE_SIZE = 1000;
-
-    private static final Executor EXECUTOR;
-
     private static final QmqCounter sendCount = Metrics.counter("qmq_client_send_count");
     private static final QmqCounter sendOkCount = Metrics.counter("qmq_client_send_ok_count");
+    private static final QmqMeter sendOkQps = Metrics.meter("qmq_client_send_ok_qps");
     private static final QmqCounter sendErrorCount = Metrics.counter("qmq_client_send_error_count");
     private static final QmqCounter sendFailCount = Metrics.counter("qmq_client_send_fail_count");
     private static final QmqCounter resendCount = Metrics.counter("qmq_client_resend_count");
     private static final QmqCounter enterQueueFail = Metrics.counter("qmq_client_enter_queue_fail");
 
-    static {
-        EXECUTOR = new ThreadPoolExecutor(1, DEFAULT_THREADS, 1, TimeUnit.MINUTES,
-                new LinkedBlockingQueue<Runnable>(DEFAULT_QUEUE_SIZE),
-                new NamedThreadFactory("default-send-listener", true),
-                new RejectedExecutionHandler() {
-                    @Override
-                    public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
-                        LOGGER.error("MessageSendStateListener任务被拒绝,现在的大小为:threads-{}, queue size-{}.如果在该listener里执行了比较重的操作", DEFAULT_THREADS, DEFAULT_QUEUE_SIZE);
-                    }
-                });
+    private static final String persistenceTime = "qmq_client_persistence_time";
+    private static final String[] persistenceTags = new String[] {"subject", "type"};
 
-    }
+    private static final String persistenceThrowable = "qmq_client_persistence_throwable";
+
 
     /**
      * 最多尝试次数
@@ -90,7 +79,13 @@ class ProduceMessageImpl implements ProduceMessage {
 
     private final AtomicInteger state = new AtomicInteger(INIT);
     private final AtomicInteger tries = new AtomicInteger(0);
+
     private boolean syncSend;
+    private MessageStore store;
+    private long sequence;
+
+    //如果使用了分库分表等，用于临时记录分库分表的路由信息，确保在发送消息成功后能够根据路由信息找到插入的db
+    private transient Object routeKey;
 
     public ProduceMessageImpl(BaseMessage base, QueueSender sender) {
         this.base = base;
@@ -115,12 +110,16 @@ class ProduceMessageImpl implements ProduceMessage {
 
                 if (sender.offer(this)) {
                     LOGGER.info("进入发送队列 {}:{}", getSubject(), getMessageId());
-                } else {
+                } else if (store != null) {
                     enterQueueFail.inc();
+                    LOGGER.info("内存发送队列已满! 此消息将暂时丢弃,等待补偿服务处理 {}:{}", getSubject(), getMessageId());
+                    failed();
+                } else {
                     LOGGER.info("内存发送队列已满! 此消息在用户进程阻塞,等待队列激活 {}:{}", getSubject(), getMessageId());
                     if (sender.offer(this, 50)) {
                         LOGGER.info("进入发送队列 {}:{}", getSubject(), getMessageId());
                     } else {
+                        enterQueueFail.inc();
                         LOGGER.info("由于无法入队,发送失败！取消发送 {}:{}", getSubject(), getMessageId());
                         onFailed();
                     }
@@ -134,7 +133,7 @@ class ProduceMessageImpl implements ProduceMessage {
     }
 
     private boolean sendSync() {
-        if (!syncSend) return false;
+        if (store != null || !syncSend) return false;
         sender.send(this);
         return true;
     }
@@ -142,19 +141,29 @@ class ProduceMessageImpl implements ProduceMessage {
     @Override
     public void finish() {
         state.set(FINISH);
-        onSuccess();
-        closeTrace();
+        try {
+            if (store == null) return;
+            if (base.isStoreAtFailed()) return;
+            long startTime = System.currentTimeMillis();
+            store.finish(this);
+            Metrics.timer(persistenceTime,
+                    persistenceTags,
+                    new String[] {getSubject(), "success"})
+                    .update(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            TraceUtil.recordEvent("Qmq.Store.Failed");
+            Metrics.counter(persistenceThrowable, persistenceTags, new String[] {getSubject(), "success"}).inc();
+        } finally {
+            onSuccess();
+            closeTrace();
+        }
     }
 
     private void onSuccess() {
         sendOkCount.inc();
+        sendOkQps.mark();
         if (sendStateListener == null) return;
-        EXECUTOR.execute(new Runnable() {
-            @Override
-            public void run() {
-                sendStateListener.onSuccess(base);
-            }
-        });
+        sendStateListener.onSuccess(base);
     }
 
     @Override
@@ -177,8 +186,20 @@ class ProduceMessageImpl implements ProduceMessage {
     public void block() {
         try {
             state.set(BLOCK);
-            LOGGER.info("消息被拒绝 {}:{}", getSubject(), getMessageId());
-            if (syncSend) {
+            try {
+                if (store == null) return;
+                long startTime = System.currentTimeMillis();
+                store.block(this);
+                Metrics.timer(persistenceTime,
+                        persistenceTags,
+                        new String[] {getSubject(), "block"})
+                        .update(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
+            } catch (Exception e) {
+                TraceUtil.recordEvent("Qmq.Store.Failed");
+                Metrics.counter(persistenceThrowable, persistenceTags, new String[] {getSubject(), "block"}).inc();
+            }
+            LOGGER.info("消息被拒绝");
+            if (store == null && syncSend) {
                 throw new RuntimeException("消息被拒绝且没有store可恢复,请检查应用授权配置");
             }
         } finally {
@@ -194,8 +215,16 @@ class ProduceMessageImpl implements ProduceMessage {
             sendErrorCount.inc();
             String message = "发送失败, 已尝试" + tries.get() + "次不再尝试重新发送.";
             LOGGER.info(message);
+            try {
+                if (store == null) return;
+                if (base.isStoreAtFailed()) {
+                    save();
+                }
+            } catch (Exception e) {
+                TraceUtil.recordEvent("Qmq.Store.Failed");
+            }
 
-            if (syncSend) {
+            if (store == null && syncSend) {
                 throw new RuntimeException(message);
             }
         } finally {
@@ -208,12 +237,7 @@ class ProduceMessageImpl implements ProduceMessage {
         TraceUtil.recordEvent("send_failed", tracer);
         sendFailCount.inc();
         if (sendStateListener == null) return;
-        EXECUTOR.execute(new Runnable() {
-            @Override
-            public void run() {
-                sendStateListener.onFailed(base);
-            }
-        });
+        sendStateListener.onFailed(base);
     }
 
     private void resend() {
@@ -240,6 +264,41 @@ class ProduceMessageImpl implements ProduceMessage {
         if (traceSpan == null) return;
         traceScope = tracer.scopeManager().activate(traceSpan, false);
         attachTraceData();
+    }
+
+    @Override
+    public void setStore(MessageStore messageStore) {
+        this.store = messageStore;
+    }
+
+    @Override
+    public void save() {
+        long start = System.nanoTime();
+        try {
+            this.sequence = store.insertNew(this);
+            Metrics.timer(persistenceTime,
+                    persistenceTags,
+                    new String[]{getSubject(), "save"}).update(System.nanoTime() - start, TimeUnit.NANOSECONDS);
+        } catch (Exception e) {
+            Metrics.counter(persistenceThrowable, persistenceTags, new String[] {this.getSubject(), "save"}).inc();
+            throw e;
+        }
+
+    }
+
+    @Override
+    public long getSequence() {
+        return this.sequence;
+    }
+
+    @Override
+    public void setRouteKey(Object routeKey) {
+        this.routeKey = routeKey;
+    }
+
+    @Override
+    public Object getRouteKey() {
+        return this.routeKey;
     }
 
     private void attachTraceData() {

@@ -1,0 +1,15 @@
+###
+GET http://local.qunar.com:8082/api/message?backupQuery={"subject":"new.qmq.test","isDelay":false,"len":20}
+Content-Type: application/json
+
+###
+GET http://local.qunar.com:8082/api/message/detail?backupQuery={"subject":"new.qmq.test","brokerGroup":"dev","sequence":0}
+Content-Type: application/json
+
+###
+GET http://local.qunar.com:8082/api/message/records?recordQuery={"subject":"new.qmq.test","sequence":0,"brokerGroup":"dev","recordCode":0}
+
+###
+GET http://local.qunar.com:8082/api/message/records?recordQuery={"subject":"new.qmq.test","messageId":"190603.153809.100.80.128.160.12812.0","recordCode":1}
+
+###

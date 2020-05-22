@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,13 +11,12 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.delay.sender;
 
 import com.google.common.collect.Sets;
-import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.batch.BatchExecutor;
@@ -35,16 +34,14 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import static qunar.tc.qmq.delay.ScheduleIndex.buildIndex;
-
 /**
  * @author xufeng.deng dennisdxf@gmail.com
  * @since 2018-07-25 13:59
  */
-public class SenderProcessor implements DelayProcessor, Processor<ByteBuf>, SenderGroup.ResultHandler {
+public class SenderProcessor implements DelayProcessor, Processor<ScheduleIndex>, SenderGroup.ResultHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(SenderProcessor.class);
 
-    private static final long DEFAULT_SEND_WAIT_TIME = 1;
+    private static final long DEFAULT_SEND_WAIT_TIME = 10;
     private static final int DEFAULT_SEND_THREAD = 4;
     private static final int MAX_QUEUE_SIZE = 10000;
     private static final int BATCH_SIZE = 30;
@@ -54,14 +51,14 @@ public class SenderProcessor implements DelayProcessor, Processor<ByteBuf>, Send
     private final BrokerService brokerService;
     private final DelayLogFacade facade;
 
-    private BatchExecutor<ByteBuf> batchExecutor;
+    private BatchExecutor<ScheduleIndex> batchExecutor;
 
     private long sendWaitTime = DEFAULT_SEND_WAIT_TIME;
 
-    public SenderProcessor(final DelayLogFacade facade, final BrokerService brokerService, final Sender sender, final DynamicConfig config) {
+    public SenderProcessor(final DelayLogFacade store, final BrokerService brokerService, final Sender sender, final DynamicConfig config) {
         this.brokerService = brokerService;
-        this.senderExecutor = new SenderExecutor(sender, config);
-        this.facade = facade;
+        this.senderExecutor = new SenderExecutor(sender, store, config);
+        this.facade = store;
         this.config = config;
     }
 
@@ -77,9 +74,8 @@ public class SenderProcessor implements DelayProcessor, Processor<ByteBuf>, Send
     }
 
     @Override
-    public void send(ByteBuf index) {
+    public void send(ScheduleIndex index) {
         if (!BrokerRoleManager.isDelayMaster()) {
-            ScheduleIndex.release(index);
             return;
         }
 
@@ -87,7 +83,7 @@ public class SenderProcessor implements DelayProcessor, Processor<ByteBuf>, Send
         try {
             long waitTime = Math.abs(sendWaitTime);
             if (waitTime > 0) {
-                add = batchExecutor.addItem(index, waitTime, TimeUnit.MINUTES);
+                add = batchExecutor.addItem(index, waitTime, TimeUnit.MILLISECONDS);
             } else {
                 add = batchExecutor.addItem(index);
             }
@@ -100,23 +96,17 @@ public class SenderProcessor implements DelayProcessor, Processor<ByteBuf>, Send
     }
 
     @Override
-    public void process(List<ByteBuf> pureRecords) {
-        if (pureRecords == null || pureRecords.isEmpty()) {
-            return;
-        }
-
-        List<ScheduleSetRecord> records = null;
+    public void process(List<ScheduleIndex> indexList) {
         try {
-            records = facade.recoverLogRecord(pureRecords);
-            senderExecutor.execute(records, this, brokerService);
+            senderExecutor.execute(indexList, this, brokerService);
         } catch (Exception e) {
-            LOGGER.error("send message failed,messageSize:{} will retry", pureRecords.size(), e);
-            retry(records);
+            LOGGER.error("send message failed,messageSize:{} will retry", indexList.size(), e);
+            retry(indexList);
         }
     }
 
-    private void reject(ByteBuf record) {
-        send(record);
+    private void reject(ScheduleIndex index) {
+        send(index);
     }
 
     private void success(ScheduleSetRecord record) {
@@ -127,42 +117,43 @@ public class SenderProcessor implements DelayProcessor, Processor<ByteBuf>, Send
         final Set<String> refreshSubject = Sets.newHashSet();
         for (ScheduleSetRecord record : records) {
             if (messageIds.contains(record.getMessageId())) {
-                refresh(record, refreshSubject);
-                send(buildIndex(record.getScheduleTime(), record.getStartWroteOffset(), record.getRecordSize(), record.getSequence()));
+                ScheduleIndex index = new ScheduleIndex(record.getSubject(), record.getScheduleTime(), record.getStartWroteOffset(), record.getRecordSize(), record.getSequence());
+                refresh(index, refreshSubject);
+                send(index);
                 continue;
             }
             success(record);
         }
     }
 
-    private void retry(List<ScheduleSetRecord> records) {
-        if (null == records || records.isEmpty()) {
+    private void retry(List<ScheduleIndex> indexList) {
+        if (null == indexList || indexList.isEmpty()) {
             return;
         }
 
         final Set<String> refreshSubject = Sets.newHashSet();
-        for (ScheduleSetRecord record : records) {
-            refresh(record, refreshSubject);
-            send(buildIndex(record.getScheduleTime(), record.getStartWroteOffset(), record.getRecordSize(), record.getSequence()));
+        for (ScheduleIndex index : indexList) {
+            refresh(index, refreshSubject);
+            send(index);
         }
     }
 
-    private void refresh(ScheduleSetRecord record, Set<String> refreshSubject) {
-        boolean refresh = !refreshSubject.contains(record.getSubject());
+    private void refresh(ScheduleIndex index, Set<String> refreshSubject) {
+        boolean refresh = !refreshSubject.contains(index.getSubject());
         if (refresh) {
-            brokerService.refresh(ClientType.PRODUCER, record.getSubject());
-            refreshSubject.add(record.getSubject());
+            brokerService.refresh(ClientType.PRODUCER, index.getSubject());
+            refreshSubject.add(index.getSubject());
         }
     }
 
     @Override
-    public void success(List<ScheduleSetRecord> recordList, Set<String> messageIds) {
-        retry(recordList, messageIds);
+    public void success(List<ScheduleSetRecord> indexList, Set<String> messageIds) {
+        retry(indexList, messageIds);
     }
 
     @Override
-    public void fail(List<ScheduleSetRecord> records) {
-        retry(records);
+    public void fail(List<ScheduleIndex> indexList) {
+        retry(indexList);
     }
 
     @Override

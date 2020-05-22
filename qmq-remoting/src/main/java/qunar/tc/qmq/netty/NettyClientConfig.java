@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.netty;
@@ -26,6 +26,7 @@ public class NettyClientConfig {
     private int clientChannelMaxIdleTimeSeconds = 120;
     private int clientSocketSndBufSize = Integer.getInteger("qmq.remoting.socket.sndbuf.size", 65535);
     private int clientSocketRcvBufSize = Integer.getInteger("qmq.remoting.socket.rcvbuf.size", 65535);
+    private boolean isServer = false;
 
     public int getClientWorkerThreads() {
         return clientWorkerThreads;
@@ -73,5 +74,13 @@ public class NettyClientConfig {
 
     public void setClientSocketRcvBufSize(int clientSocketRcvBufSize) {
         this.clientSocketRcvBufSize = clientSocketRcvBufSize;
+    }
+
+    public boolean isServer() {
+        return isServer;
+    }
+
+    public void setServer(boolean server) {
+        isServer = server;
     }
 }

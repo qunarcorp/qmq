@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,13 +11,13 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 package qunar.tc.qmq.delay.wheel;
 
-import io.netty.buffer.ByteBuf;
 import io.netty.util.internal.PlatformDependent;
 import io.netty.util.internal.StringUtil;
+import qunar.tc.qmq.delay.ScheduleIndex;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -33,11 +33,7 @@ public class HashedWheelTimer {
     private static final AtomicIntegerFieldUpdater<HashedWheelTimer> WORKER_STATE_UPDATER;
 
     static {
-        AtomicIntegerFieldUpdater<HashedWheelTimer> workerStateUpdater =
-                PlatformDependent.newAtomicIntegerFieldUpdater(HashedWheelTimer.class, "workerState");
-        if (workerStateUpdater == null) {
-            workerStateUpdater = AtomicIntegerFieldUpdater.newUpdater(HashedWheelTimer.class, "workerState");
-        }
+        AtomicIntegerFieldUpdater<HashedWheelTimer> workerStateUpdater = AtomicIntegerFieldUpdater.newUpdater(HashedWheelTimer.class, "workerState");
         WORKER_STATE_UPDATER = workerStateUpdater;
     }
 
@@ -172,14 +168,14 @@ public class HashedWheelTimer {
         return worker.unprocessedTimeouts();
     }
 
-    public void newTimeout(ByteBuf record, long delay, TimeUnit unit) {
+    public void newTimeout(ScheduleIndex index, long delay, TimeUnit unit) {
         long deadline = System.nanoTime() + unit.toNanos(delay) - startTime;
-        HashedWheelTimeout timeout = new HashedWheelTimeout(this, record, deadline);
+        HashedWheelTimeout timeout = new HashedWheelTimeout(this, index, deadline);
         timeouts.add(timeout);
     }
 
-    private void expire(ByteBuf record) {
-        processor.process(record);
+    private void expire(ScheduleIndex index) {
+        processor.process(index);
     }
 
     private final class Worker implements Runnable {
@@ -298,16 +294,12 @@ public class HashedWheelTimer {
         private static final AtomicIntegerFieldUpdater<HashedWheelTimeout> STATE_UPDATER;
 
         static {
-            AtomicIntegerFieldUpdater<HashedWheelTimeout> updater =
-                    PlatformDependent.newAtomicIntegerFieldUpdater(HashedWheelTimeout.class, "state");
-            if (updater == null) {
-                updater = AtomicIntegerFieldUpdater.newUpdater(HashedWheelTimeout.class, "state");
-            }
+            AtomicIntegerFieldUpdater<HashedWheelTimeout> updater = AtomicIntegerFieldUpdater.newUpdater(HashedWheelTimeout.class, "state");
             STATE_UPDATER = updater;
         }
 
         private final HashedWheelTimer timer;
-        private final ByteBuf entity;
+        private final ScheduleIndex entity;
         private final long deadline;
 
         @SuppressWarnings({"unused", "FieldMayBeFinal", "RedundantFieldInitialization"})
@@ -325,7 +317,7 @@ public class HashedWheelTimer {
         // The bucket to which the timeout was added
         HashedWheelBucket bucket;
 
-        HashedWheelTimeout(HashedWheelTimer timer, ByteBuf entity, long deadline) {
+        HashedWheelTimeout(HashedWheelTimer timer, ScheduleIndex entity, long deadline) {
             this.timer = timer;
             this.entity = entity;
             this.deadline = deadline;
@@ -492,6 +484,6 @@ public class HashedWheelTimer {
     }
 
     public interface Processor {
-        void process(ByteBuf record);
+        void process(ScheduleIndex index);
     }
 }

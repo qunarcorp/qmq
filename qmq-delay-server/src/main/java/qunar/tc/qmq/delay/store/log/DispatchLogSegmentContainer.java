@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.delay.store.log;
@@ -27,7 +27,7 @@ import qunar.tc.qmq.delay.store.model.LogRecord;
 import qunar.tc.qmq.delay.store.model.RecordResult;
 import qunar.tc.qmq.store.AppendMessageResult;
 import qunar.tc.qmq.store.PutMessageStatus;
-import qunar.tc.qmq.store.SegmentBuffer;
+import qunar.tc.qmq.store.buffer.SegmentBuffer;
 import qunar.tc.qmq.sync.DelaySyncRequest;
 
 import java.io.File;
@@ -47,7 +47,7 @@ public class DispatchLogSegmentContainer extends AbstractDelaySegmentContainer<B
     private final StoreConfiguration config;
 
     DispatchLogSegmentContainer(StoreConfiguration config, File logDir, DelaySegmentValidator validator, LogAppender<Boolean, LogRecord> appender) {
-        super(logDir, validator, appender);
+        super(config.getSegmentScale(), logDir, validator, appender);
         this.config = config;
     }
 
@@ -90,7 +90,7 @@ public class DispatchLogSegmentContainer extends AbstractDelaySegmentContainer<B
     }
 
     @Override
-    protected DelaySegment<Boolean> allocSegment(int segmentBaseOffset) {
+    protected DelaySegment<Boolean> allocSegment(long segmentBaseOffset) {
         File nextSegmentFile = new File(logDir, String.valueOf(segmentBaseOffset));
         try {
             DelaySegment<Boolean> logSegment = new DispatchLogSegment(nextSegmentFile);
@@ -104,7 +104,7 @@ public class DispatchLogSegmentContainer extends AbstractDelaySegmentContainer<B
     }
 
     DispatchLogSegment latestSegment() {
-        Map.Entry<Integer, DelaySegment<Boolean>> entry = segments.lastEntry();
+        Map.Entry<Long, DelaySegment<Boolean>> entry = segments.lastEntry();
         if (null == entry) {
             return null;
         }
@@ -113,7 +113,7 @@ public class DispatchLogSegmentContainer extends AbstractDelaySegmentContainer<B
     }
 
     public void clean(LogCleaner.CleanHook hook) {
-        Integer deleteUntil = resolveSegment(System.currentTimeMillis() - config.getDispatchLogKeepTime());
+        long deleteUntil = resolveSegment(System.currentTimeMillis() - config.getDispatchLogKeepTime(), segmentScale);
         for (DelaySegment<Boolean> segment : segments.values()) {
             if (segment.getSegmentBaseOffset() < deleteUntil) {
                 doClean(segment, hook);
@@ -128,7 +128,7 @@ public class DispatchLogSegmentContainer extends AbstractDelaySegmentContainer<B
         }
     }
 
-    SegmentBuffer getDispatchData(int segmentBaseOffset, long dispatchLogOffset) {
+    SegmentBuffer getDispatchData(long segmentBaseOffset, long dispatchLogOffset) {
         DispatchLogSegment segment = (DispatchLogSegment) segments.get(segmentBaseOffset);
         if (null == segment) {
             return null;
@@ -137,7 +137,7 @@ public class DispatchLogSegmentContainer extends AbstractDelaySegmentContainer<B
         return segment.selectSegmentBuffer(dispatchLogOffset);
     }
 
-    long getMaxOffset(int segmentOffset) {
+    long getMaxOffset(long segmentOffset) {
         DispatchLogSegment segment = (DispatchLogSegment) segments.get(segmentOffset);
         if (null == segment) {
             return 0;
@@ -152,7 +152,7 @@ public class DispatchLogSegmentContainer extends AbstractDelaySegmentContainer<B
             return null;
         }
 
-        int lastBaseOffset = -1;
+        long lastBaseOffset = -1;
         long lastOffset = -1;
         final DispatchLogSegment lastSegment = lowerSegment(segment.getSegmentBaseOffset());
         if (lastSegment != null) {
@@ -163,7 +163,7 @@ public class DispatchLogSegmentContainer extends AbstractDelaySegmentContainer<B
         return new DelaySyncRequest.DispatchLogSyncRequest(segment.getSegmentBaseOffset(), segment.getWrotePosition(), lastBaseOffset, lastOffset);
     }
 
-    boolean appendData(long startOffset, int baseOffset, ByteBuffer body) {
+    boolean appendData(long startOffset, long baseOffset, ByteBuffer body) {
         DispatchLogSegment segment = (DispatchLogSegment) segments.get(baseOffset);
         if (null == segment) {
             segment = (DispatchLogSegment) allocSegment(baseOffset);
@@ -173,8 +173,8 @@ public class DispatchLogSegmentContainer extends AbstractDelaySegmentContainer<B
         return segment.appendData(startOffset, body);
     }
 
-    DispatchLogSegment lowerSegment(int offset) {
-        Map.Entry<Integer, DelaySegment<Boolean>> lowEntry = segments.lowerEntry(offset);
+    DispatchLogSegment lowerSegment(long offset) {
+        Map.Entry<Long, DelaySegment<Boolean>> lowEntry = segments.lowerEntry(offset);
         if (lowEntry == null) {
             return null;
         }

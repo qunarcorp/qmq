@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.sync;
@@ -31,7 +31,7 @@ public class DelaySyncRequest {
         this.syncType = syncType;
     }
 
-    public DelaySyncRequest(long messageLogOffset, int dispatchLogSegmentBaseOffset, long dispatchLogOffset, int lastDispatchLogBaseOffset, long lastDispatchLogOffset, int syncType) {
+    public DelaySyncRequest(long messageLogOffset, long dispatchLogSegmentBaseOffset, long dispatchLogOffset, long lastDispatchLogBaseOffset, long lastDispatchLogOffset, int syncType) {
         this.messageLogOffset = messageLogOffset;
         this.dispatchSyncRequest = new DispatchLogSyncRequest(dispatchLogSegmentBaseOffset, dispatchLogOffset, lastDispatchLogBaseOffset, lastDispatchLogOffset);
         this.syncType = syncType;
@@ -41,7 +41,7 @@ public class DelaySyncRequest {
         return messageLogOffset;
     }
 
-    public int getDispatchSegmentBaseOffset() {
+    public long getDispatchSegmentBaseOffset() {
         return dispatchSyncRequest == null ? -1 : dispatchSyncRequest.getSegmentBaseOffset();
     }
 
@@ -49,7 +49,7 @@ public class DelaySyncRequest {
         return dispatchSyncRequest == null ? -1 : dispatchSyncRequest.getDispatchLogOffset();
     }
 
-    public int getLastDispatchSegmentBaseOffset() {
+    public long getLastDispatchSegmentBaseOffset() {
         return dispatchSyncRequest == null ? -1 : dispatchSyncRequest.getLastSegmentBaseOffset();
     }
 
@@ -71,19 +71,19 @@ public class DelaySyncRequest {
     }
 
     public static class DispatchLogSyncRequest {
-        private final int segmentBaseOffset;
+        private final long segmentBaseOffset;
         private final long dispatchLogOffset;
-        private final int lastSegmentBaseOffset;
+        private final long lastSegmentBaseOffset;
         private final long lastDispatchLogOffset;
 
-        public DispatchLogSyncRequest(int segmentBaseOffset, long dispatchLogOffset, int lastSegmentBaseOffset, long lastDispatchLogOffset) {
+        public DispatchLogSyncRequest(long segmentBaseOffset, long dispatchLogOffset, long lastSegmentBaseOffset, long lastDispatchLogOffset) {
             this.segmentBaseOffset = segmentBaseOffset;
             this.dispatchLogOffset = dispatchLogOffset;
             this.lastSegmentBaseOffset = lastSegmentBaseOffset;
             this.lastDispatchLogOffset = lastDispatchLogOffset;
         }
 
-        public int getSegmentBaseOffset() {
+        public long getSegmentBaseOffset() {
             return segmentBaseOffset;
         }
 
@@ -91,7 +91,7 @@ public class DelaySyncRequest {
             return dispatchLogOffset;
         }
 
-        public int getLastSegmentBaseOffset() {
+        public long getLastSegmentBaseOffset() {
             return lastSegmentBaseOffset;
         }
 

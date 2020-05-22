@@ -1,13 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>qunar.tc</groupId>
-    <artifactId>qmq</artifactId>
-    <version>4.0.30</version>
+    <groupId>com.qunar.qmq</groupId>
+    <artifactId>qmq-parent</artifactId>
+    <version>1.1.22</version>
     <packaging>pom</packaging>
+
+    <name>qmq</name>
+    <description>Qunar Message Queue</description>
+    <url>https://github.com/qunarcorp/qmq</url>
 
     <inceptionYear>2012</inceptionYear>
 
@@ -23,6 +26,32 @@
         </license>
     </licenses>
 
+    <developers>
+        <developer>
+            <id>yuyijq</id>
+            <name>Zhaohui Yu</name>
+            <email>yuyijq at hotmail.com</email>
+            <organization>Qunar, Inc.</organization>
+        </developer>
+        <developer>
+            <id>Keli</id>
+            <name>Keli Wang</name>
+            <organization>Qunar, Inc.</organization>
+        </developer>
+        <developer>
+            <id>Xufeng</id>
+            <name>Xufeng Deng</name>
+            <organization>Qunar, Inc.</organization>
+        </developer>
+    </developers>
+
+    <scm>
+        <url>https://github.com/qunarcorp/qmq.git</url>
+        <connection>scm:git:https://github.com/qunarcorp/qmq.git</connection>
+        <developerConnection>scm:git:https://github.com/qunarcorp/qmq.git</developerConnection>
+        <tag>HEAD</tag>
+    </scm>
+
     <organization>
         <name>Qunar Inc.</name>
         <url>http://www.qunar.com</url>
@@ -33,27 +62,47 @@
         <module>qmq-api</module>
         <module>qmq-common</module>
         <module>qmq-remoting</module>
-        <module>qmq-store</module>
-        <module>qmq-metaserver</module>
-        <module>qmq-server-common</module>
-        <module>qmq-delay-server</module>
+        <module>qmq-deploy</module>
         <module>qmq-server</module>
+        <module>qmq-backup</module>
+        <module>qmq-delay-server</module>
+        <module>qmq-metaserver</module>
+        <module>qmq-store</module>
+        <module>qmq-server-common</module>
         <module>qmq-sync</module>
         <module>qmq-metrics-prometheus</module>
-        <module>qmq-dist</module>
         <module>qmq-tools</module>
+        <module>qmq-dist</module>
+        <module>qmq-watchdog</module>
+        <module>qmq-gateway</module>
+<!--        <module>qmq-demo</module>-->
     </modules>
 
     <properties>
         <java_source_version>1.8</java_source_version>
         <java_target_version>1.8</java_target_version>
+        <maven_deploy_skip>false</maven_deploy_skip>
 
         <prometheus.client.version>0.5.0</prometheus.client.version>
         <spring.version>4.2.3.RELEASE</spring.version>
+        <jackson.version>2.9.9</jackson.version>
+        <jetty.version>9.4.17.v20190418</jetty.version>
+        <slf4j.version>1.7.25</slf4j.version>
+        <logback.version>1.2.3</logback.version>
+        <async.hbaseclient.version>1.7.2</async.hbaseclient.version>
+        <powermock.version>1.7.4</powermock.version>
+        <powermock-api-mockito2.version>2.0.0</powermock-api-mockito2.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-bom</artifactId>
+                <version>4.0.46.Final</version>
+                <scope>import</scope>
+                <type>pom</type>
+            </dependency>
             <dependency>
                 <groupId>${project.groupId}</groupId>
                 <artifactId>qmq-api</artifactId>
@@ -95,32 +144,40 @@
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>qunar.tc</groupId>
+                <groupId>${project.groupId}</groupId>
                 <artifactId>qmq-metaserver</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>qunar.tc</groupId>
+                <groupId>${project.groupId}</groupId>
                 <artifactId>qmq-server</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>qunar.tc</groupId>
+                <groupId>${project.groupId}</groupId>
                 <artifactId>qmq-delay-server</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>qunar.tc</groupId>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>qmq-watchdog</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>qmq-gateway</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>qmq-backup</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>${project.groupId}</groupId>
                 <artifactId>qmq-tools</artifactId>
                 <version>${project.version}</version>
             </dependency>
-
-            <dependency>
-                <groupId>javax.servlet</groupId>
-                <artifactId>javax.servlet-api</artifactId>
-                <version>3.1.0</version>
-            </dependency>
-
             <dependency>
                 <groupId>mysql</groupId>
                 <artifactId>mysql-connector-java</artifactId>
@@ -135,6 +192,16 @@
             <dependency>
                 <groupId>io.prometheus</groupId>
                 <artifactId>simpleclient</artifactId>
+                <version>${prometheus.client.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.prometheus</groupId>
+                <artifactId>simpleclient_httpserver</artifactId>
+                <version>${prometheus.client.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.prometheus</groupId>
+                <artifactId>simpleclient_graphite_bridge</artifactId>
                 <version>${prometheus.client.version}</version>
             </dependency>
             <dependency>
@@ -156,65 +223,65 @@
             <dependency>
                 <groupId>com.google.guava</groupId>
                 <artifactId>guava</artifactId>
-                <version>23.0</version>
-            </dependency>
-            <dependency>
-                <groupId>io.netty</groupId>
-                <artifactId>netty-all</artifactId>
-                <version>4.0.24.Final</version>
+                <version>18.0</version>
             </dependency>
 
             <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-api</artifactId>
-                <version>1.7.25</version>
+                <version>${slf4j.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>jcl-over-slf4j</artifactId>
-                <version>1.7.25</version>
+                <version>${slf4j.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>log4j-over-slf4j</artifactId>
-                <version>1.7.25</version>
+                <version>${slf4j.version}</version>
             </dependency>
             <dependency>
                 <groupId>ch.qos.logback</groupId>
                 <artifactId>logback-classic</artifactId>
-                <version>1.2.3</version>
+                <version>${logback.version}</version>
             </dependency>
             <dependency>
                 <groupId>ch.qos.logback</groupId>
                 <artifactId>logback-core</artifactId>
-                <version>1.2.3</version>
+                <version>${logback.version}</version>
             </dependency>
 
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-core</artifactId>
-                <version>2.9.6</version>
+                <version>${jackson.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-databind</artifactId>
-                <version>2.9.6</version>
+                <version>${jackson.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-annotations</artifactId>
-                <version>2.9.6</version>
+                <version>${jackson.version}</version>
             </dependency>
 
             <dependency>
+                <groupId>javax.servlet</groupId>
+                <artifactId>javax.servlet-api</artifactId>
+                <version>3.1.0</version>
+            </dependency>
+            <dependency>
                 <groupId>org.eclipse.jetty</groupId>
                 <artifactId>jetty-server</artifactId>
-                <version>9.4.14.v20181114</version>
+                <version>${jetty.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.eclipse.jetty</groupId>
                 <artifactId>jetty-servlet</artifactId>
-                <version>9.4.14.v20181114</version>
+                <version>${jetty.version}</version>
             </dependency>
 
             <dependency>
@@ -222,22 +289,59 @@
                 <artifactId>joda-time</artifactId>
                 <version>2.9.9</version>
             </dependency>
-
-            <dependency>
-                <groupId>com.ning</groupId>
-                <artifactId>async-http-client</artifactId>
-                <version>1.9.40</version>
-            </dependency>
             <dependency>
                 <groupId>info.picocli</groupId>
                 <artifactId>picocli</artifactId>
                 <version>3.8.2</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.code.gson</groupId>
+                <artifactId>gson</artifactId>
+                <version>2.8.5</version>
+            </dependency>
+            <dependency>
+                <groupId>org.hbase</groupId>
+                <artifactId>asynchbase</artifactId>
+                <version>${async.hbaseclient.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.asynchttpclient</groupId>
+                <artifactId>async-http-client</artifactId>
+                <version>2.0.32</version>
             </dependency>
 
             <dependency>
                 <groupId>junit</groupId>
                 <artifactId>junit</artifactId>
                 <version>4.12</version>
+                <scope>test</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-core</artifactId>
+                <version>2.23.4</version>
+                <scope>test</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.powermock</groupId>
+                <artifactId>powermock-module-junit4</artifactId>
+                <version>${powermock.version}</version>
+                <scope>test</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.powermock</groupId>
+                <artifactId>powermock-api-mockito2</artifactId>
+                <version>${powermock-api-mockito2.version}</version>
+                <scope>test</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.powermock</groupId>
+                <artifactId>powermock-core</artifactId>
+                <version>${powermock.version}</version>
                 <scope>test</scope>
             </dependency>
         </dependencies>
@@ -247,6 +351,35 @@
         <pluginManagement>
             <plugins>
                 <plugin>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <version>3.0.1</version>
+                    <executions>
+                        <execution>
+                            <id>attach-javadoc</id>
+                            <goals>
+                                <goal>jar</goal>
+                            </goals>
+                            <configuration>
+                                <doclint>none</doclint>
+                            </configuration>
+                        </execution>
+                    </executions>
+                    <configuration>
+                        <includeDependencySources>true</includeDependencySources>
+                        <dependencySourceIncludes>
+                            <dependencySourceInclude>com.qunar.qmq:qmq-*</dependencySourceInclude>
+                        </dependencySourceIncludes>
+                        <show>public</show>
+                        <charset>UTF-8</charset>
+                        <encoding>UTF-8</encoding>
+                        <docencoding>UTF-8</docencoding>
+                        <links>
+                            <link>http://docs.oracle.com/javase/7/docs/api</link>
+                        </links>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-compiler-plugin</artifactId>
                     <version>3.5.1</version>
                     <configuration>
@@ -286,7 +419,70 @@
                     <artifactId>maven-assembly-plugin</artifactId>
                     <version>3.0.0</version>
                 </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-deploy-plugin</artifactId>
+                    <version>2.8.2</version>
+                    <configuration>
+                        <skip>${maven_deploy_skip}</skip>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-gpg-plugin</artifactId>
+                    <version>1.6</version>
+                    <executions>
+                        <execution>
+                            <id>sign-artifacts</id>
+                            <phase>verify</phase>
+                            <goals>
+                                <goal>sign</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
             </plugins>
         </pluginManagement>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-deploy-plugin</artifactId>
+            </plugin>
+        </plugins>
     </build>
+    <profiles>
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+    <distributionManagement>
+        <snapshotRepository>
+            <id>ossrh</id>
+            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+        </snapshotRepository>
+        <repository>
+            <id>ossrh</id>
+            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+        </repository>
+    </distributionManagement>
 </project>

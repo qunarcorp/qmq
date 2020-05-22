@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,12 +11,11 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.consumer.idempotent;
 
-import com.google.common.base.Function;
 import org.springframework.jdbc.core.JdbcTemplate;
 import qunar.tc.qmq.Message;
 
@@ -42,11 +41,11 @@ public class JdbcIdempotentChecker extends AbstractIdempotentChecker {
     private final String GARBAGE_SQL;
 
     public JdbcIdempotentChecker(DataSource dataSource, String tableName) {
-        this(dataSource, tableName, DEFAULT_KEYFUNC);
+        this(dataSource, tableName, DEFAULT_EXTRACTOR);
     }
 
-    public JdbcIdempotentChecker(DataSource dataSource, String tableName, Function<Message, String> keyFunc) {
-        super(keyFunc);
+    public JdbcIdempotentChecker(DataSource dataSource, String tableName, KeyExtractor extractor) {
+        super(extractor);
         this.jdbcTemplate = new JdbcTemplate(dataSource);
         this.INSERT_SQL = String.format(INSERT_TEMP, tableName);
         this.DELETE_SQL = String.format(DELETE_TEMP, tableName);

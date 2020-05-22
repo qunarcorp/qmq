@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,13 +11,15 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.meta.startup;
 
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
+import qunar.tc.qmq.configuration.DynamicConfig;
+import qunar.tc.qmq.configuration.DynamicConfigLoader;
 import qunar.tc.qmq.meta.web.*;
 
 /**
@@ -29,17 +31,19 @@ public class Bootstrap {
         final ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath("/");
         context.setResourceBase(System.getProperty("java.io.tmpdir"));
-
-        final ServerWrapper wrapper = new ServerWrapper();
+        DynamicConfig config = DynamicConfigLoader.load("metaserver.properties");
+        final ServerWrapper wrapper = new ServerWrapper(config);
         wrapper.start(context.getServletContext());
 
         context.addServlet(MetaServerAddressSupplierServlet.class, "/meta/address");
         context.addServlet(MetaManagementServlet.class, "/management");
         context.addServlet(SubjectConsumerServlet.class, "/subject/consumers");
         context.addServlet(OnOfflineServlet.class, "/onoffline");
+        context.addServlet(SlaveServerAddressSupplierServlet.class, "/slave/meta");
 
         // TODO(keli.wang): allow set port use env
-        final Server server = new Server(8080);
+        int port = config.getInt("meta.server.discover.port", 8080);
+        final Server server = new Server(port);
         server.setHandler(context);
         server.start();
         server.join();

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,37 +11,34 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.delay.store.model;
-
-import qunar.tc.qmq.base.MessageHeader;
-
 
 /**
  * @author xufeng.deng dennisdxf@gmail.com
  * @since 2018-07-14 11:14
  */
 public class LogRecordHeader {
-    private MessageHeader header;
-    private long scheduleTime;
-    private long sequence;
+    private final String subject;
+    private final String messageId;
+    private final long scheduleTime;
+    private final long sequence;
 
     public LogRecordHeader(String subject, String messageId, long scheduleTime, long sequence) {
-        this.header = new MessageHeader();
-        this.header.setSubject(subject);
-        this.header.setMessageId(messageId);
+        this.subject = subject;
+        this.messageId = messageId;
         this.scheduleTime = scheduleTime;
         this.sequence = sequence;
     }
 
     public String getSubject() {
-        return header.getSubject();
+        return subject;
     }
 
     public String getMessageId() {
-        return header.getMessageId();
+        return messageId;
     }
 
     public long getScheduleTime() {
@@ -55,7 +52,8 @@ public class LogRecordHeader {
     @Override
     public String toString() {
         return "LogRecordHeader{" +
-                "header=" + header +
+                "subject=" + subject +
+                "messageId=" + messageId +
                 ", scheduleTime=" + scheduleTime +
                 ", sequence=" + sequence +
                 '}';

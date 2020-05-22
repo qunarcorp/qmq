@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.delay.sender;
@@ -23,7 +23,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.common.Disposable;
-import qunar.tc.qmq.delay.base.GroupSendException;
+import qunar.tc.qmq.delay.DelayLogFacade;
+import qunar.tc.qmq.delay.ScheduleIndex;
 import qunar.tc.qmq.delay.monitor.QMon;
 import qunar.tc.qmq.delay.store.model.ScheduleSetRecord;
 import qunar.tc.qmq.metrics.Metrics;
@@ -35,7 +36,9 @@ import qunar.tc.qmq.protocol.producer.MessageProducerCode;
 import qunar.tc.qmq.protocol.producer.SendResult;
 
 import java.util.*;
-import java.util.concurrent.*;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static qunar.tc.qmq.delay.monitor.QMon.delayBrokerSendMsgCount;
@@ -49,76 +52,94 @@ public class SenderGroup implements Disposable {
     private static final Logger LOGGER = LoggerFactory.getLogger(SenderGroup.class);
     private static final int MAX_SEND_BATCH_SIZE = 50;
     private final AtomicReference<BrokerGroupInfo> groupInfo;
+    private final DelayLogFacade store;
     private final ThreadPoolExecutor executorService;
     private final RateLimiter LOG_LIMITER = RateLimiter.create(2);
 
-    SenderGroup(final BrokerGroupInfo groupInfo, int sendThreads) {
+    SenderGroup(final BrokerGroupInfo groupInfo, int sendThreads, DelayLogFacade store) {
         this.groupInfo = new AtomicReference<>(groupInfo);
+        this.store = store;
         this.executorService = new ThreadPoolExecutor(1, sendThreads, 1L, TimeUnit.MINUTES,
                 new LinkedBlockingQueue<>(), new ThreadFactoryBuilder()
                 .setNameFormat("delay-sender-" + groupInfo.getGroupName() + "-%d").build());
-        executorService.setRejectedExecutionHandler(new SenderRejectExecutionHandler(this));
     }
 
-    public void send(final List<ScheduleSetRecord> records, final Sender sender, final ResultHandler handler) {
+    public void send(final List<ScheduleIndex> records, final Sender sender, final ResultHandler handler) {
         executorService.execute(() -> doSend(records, sender, handler));
     }
 
-    private void doSend(final List<ScheduleSetRecord> records, final Sender sender, final ResultHandler handler) {
+    private void doSend(final List<ScheduleIndex> batch, final Sender sender, final ResultHandler handler) {
         BrokerGroupInfo groupInfo = this.groupInfo.get();
         String groupName = groupInfo.getGroupName();
-        List<List<ScheduleSetRecord>> partitions = Lists.partition(records, MAX_SEND_BATCH_SIZE);
+        List<List<ScheduleIndex>> partitions = Lists.partition(batch, MAX_SEND_BATCH_SIZE);
 
-        for (List<ScheduleSetRecord> recordList : partitions) {
-            try {
-                Datagram response = sendMessages(recordList, sender);
-                monitor(recordList, groupName);
-                if (null == response) {
-                    handler.fail(recordList);
-                } else {
-                    final int responseCode = response.getHeader().getCode();
-                    final Map<String, SendResult> resultMap = getSendResult(response);
-
-                    if (null == resultMap || CommandCode.SUCCESS != responseCode) {
-                        if (responseCode == CommandCode.BROKER_REJECT || responseCode == CommandCode.BROKER_ERROR) {
-                            groupInfo.markFailed();
-                        }
-
-                        monitorSendFail(recordList, groupInfo.getGroupName());
-                        handler.fail(recordList);
-                        return;
-                    }
-
-                    Set<String> failedMessageIds = new HashSet<>();
-                    boolean brokerRefreshed = false;
-                    for (Map.Entry<String, SendResult> entry1 : resultMap.entrySet()) {
-                        if (entry1.getValue().getCode() != MessageProducerCode.SUCCESS) {
-                            failedMessageIds.add(entry1.getKey());
-                        }
-                        if (!brokerRefreshed && entry1.getValue().getCode() == MessageProducerCode.BROKER_READ_ONLY) {
-                            groupInfo.markFailed();
-                            brokerRefreshed = true;
-                        }
-                    }
-                    if (!brokerRefreshed) groupInfo.markSuccess();
-
-                    handler.success(recordList, failedMessageIds);
-                }
-            } catch (Throwable e) {
-                LOGGER.error("sender group send records failed,broker:{},records size:{}", groupName, recordList.size(), e);
-                throw new GroupSendException(e);
-            }
+        for (List<ScheduleIndex> partition : partitions) {
+            send(sender, handler, groupInfo, groupName, partition);
         }
     }
 
-    private void monitor(final List<ScheduleSetRecord> records, final String groupName) {
+    private void send(Sender sender, ResultHandler handler, BrokerGroupInfo groupInfo, String groupName, List<ScheduleIndex> list) {
+        try {
+            long start = System.currentTimeMillis();
+            List<ScheduleSetRecord> records = store.recoverLogRecord(list);
+            QMon.loadMsgTime(System.currentTimeMillis() - start);
+
+            Datagram response = sendMessages(records, sender);
+            release(records);
+            monitor(list, groupName);
+            if (response == null) {
+                handler.fail(list);
+            } else {
+                final int responseCode = response.getHeader().getCode();
+                final Map<String, SendResult> resultMap = getSendResult(response);
+
+                if (resultMap == null || responseCode != CommandCode.SUCCESS) {
+                    if (responseCode == CommandCode.BROKER_REJECT || responseCode == CommandCode.BROKER_ERROR) {
+                        groupInfo.markFailed();
+                    }
+
+                    monitorSendFail(list, groupInfo.getGroupName());
+
+                    handler.fail(list);
+                    return;
+                }
+
+                Set<String> failedMessageIds = new HashSet<>();
+                boolean brokerRefreshed = false;
+                for (Map.Entry<String, SendResult> entry : resultMap.entrySet()) {
+                    int resultCode = entry.getValue().getCode();
+                    if (resultCode != MessageProducerCode.SUCCESS) {
+                        failedMessageIds.add(entry.getKey());
+                    }
+                    if (!brokerRefreshed && resultCode == MessageProducerCode.BROKER_READ_ONLY) {
+                        groupInfo.markFailed();
+                        brokerRefreshed = true;
+                    }
+                }
+                if (!brokerRefreshed) groupInfo.markSuccess();
+
+                handler.success(records, failedMessageIds);
+            }
+        } catch (Throwable e) {
+            LOGGER.error("sender group send batch failed,broker:{},batch size:{}", groupName, list.size(), e);
+            handler.fail(list);
+        }
+    }
+
+    private void release(List<ScheduleSetRecord> records) {
         for (ScheduleSetRecord record : records) {
-            String subject = record.getSubject();
-            long delay = System.currentTimeMillis() - record.getScheduleTime();
+            record.release();
+        }
+    }
+
+    private void monitor(final List<ScheduleIndex> indexList, final String groupName) {
+        for (ScheduleIndex index : indexList) {
+            String subject = index.getSubject();
+            long delay = System.currentTimeMillis() - index.getScheduleTime();
             delayBrokerSendMsgCount(groupName, subject);
             delayTime(groupName, subject, delay);
         }
-        Metrics.meter("delaySendMessagesQps", new String[]{"group"}, new String[]{groupName}).mark(records.size());
+        Metrics.meter("delaySendMessagesQps", new String[]{"group"}, new String[]{groupName}).mark(indexList.size());
     }
 
     BrokerGroupInfo getBrokerGroupInfo() {
@@ -149,6 +170,7 @@ public class SenderGroup implements Disposable {
 
     private Datagram sendMessages(final List<ScheduleSetRecord> records, final Sender sender) {
         long start = System.currentTimeMillis();
+
         try {
             return sender.send(records, this);
         } catch (ClientSendException e) {
@@ -163,8 +185,8 @@ public class SenderGroup implements Disposable {
         return null;
     }
 
-    private void monitorSendFail(List<ScheduleSetRecord> records, String groupName) {
-        records.parallelStream().forEach(record -> monitorSendFail(record.getSubject(), groupName));
+    private void monitorSendFail(List<ScheduleIndex> indexList, String groupName) {
+        indexList.forEach(record -> monitorSendFail(record.getSubject(), groupName));
     }
 
     private void monitorSendFail(String subject, String groupName) {
@@ -216,25 +238,9 @@ public class SenderGroup implements Disposable {
     }
 
     public interface ResultHandler {
-        void success(List<ScheduleSetRecord> recordList, Set<String> messageIds);
+        void success(List<ScheduleSetRecord> indexList, Set<String> messageIds);
 
-        void fail(List<ScheduleSetRecord> records);
-    }
-
-    private static class SenderRejectExecutionHandler implements RejectedExecutionHandler {
-        private final SenderGroup groupInfo;
-
-        SenderRejectExecutionHandler(SenderGroup groupInfo) {
-            this.groupInfo = groupInfo;
-        }
-
-        @Override
-        public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
-            LOGGER.error("sender group:{} was rejected", groupInfo);
-            throw new RejectedExecutionException("Task " + r.toString() +
-                    " rejected from " +
-                    executor.toString());
-        }
+        void fail(List<ScheduleIndex> indexList);
     }
 
 }

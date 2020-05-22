@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.store;
@@ -44,7 +44,7 @@ public class ConsumeQueue {
         this.storage = storage;
         this.subject = subject;
         this.group = group;
-        this.nextSequence = new AtomicLong(lastMaxSequence + 1);
+        this.nextSequence = new AtomicLong(lastMaxSequence);
     }
 
     public synchronized void setNextSequence(long nextSequence) {
@@ -63,7 +63,7 @@ public class ConsumeQueue {
             return storage.pollMessages(subject, currentSequence, maxMessages, this::isDelayReached);
         } else {
             final GetMessageResult result = storage.pollMessages(subject, currentSequence, maxMessages);
-            long actualSequence = result.getNextBeginOffset() - result.getSegmentBuffers().size();
+            long actualSequence = result.getNextBeginSequence() - result.getBuffers().size();
             long delta = actualSequence - currentSequence;
             if (delta > 0) {
                 QMon.expiredMessagesCountInc(subject, group, delta);
@@ -73,7 +73,7 @@ public class ConsumeQueue {
         }
     }
 
-    private boolean isDelayReached(ConsumerLogEntry entry) {
+    private boolean isDelayReached(MessageFilter.WithTimestamp entry) {
         final int delayMillis = storage.getStorageConfig().getRetryDelaySeconds() * 1000;
         return entry.getTimestamp() + delayMillis <= System.currentTimeMillis();
     }

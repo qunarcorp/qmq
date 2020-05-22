@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,51 +11,65 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.store;
 
-import com.google.common.collect.HashBasedTable;
-import com.google.common.collect.Table;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * @author keli.wang
  * @since 2017/7/31
  */
 public class ConsumeQueueManager {
-    private final Table<String, String, ConsumeQueue> queues;
+
+    private final Logger LOGGER = LoggerFactory.getLogger(ConsumeQueueManager.class);
+
+    private final ConcurrentMap<String, ConcurrentMap<String, ConsumeQueue>> queues;
     private final Storage storage;
 
     public ConsumeQueueManager(final Storage storage) {
-        this.queues = HashBasedTable.create();
+        this.queues = new ConcurrentHashMap<>();
         this.storage = storage;
     }
 
-    public synchronized ConsumeQueue getOrCreate(final String subject, final String group) {
-        if (!queues.contains(subject, group)) {
-            queues.put(subject, group, new ConsumeQueue(storage, subject, group, getLastMaxSequence(subject, group)));
-        }
-        return queues.get(subject, group);
+    public ConsumeQueue getOrCreate(final String subject, final String group) {
+        ConcurrentMap<String, ConsumeQueue> consumeQueues = queues.computeIfAbsent(subject, s -> new ConcurrentHashMap<>());
+        return consumeQueues.computeIfAbsent(group, g -> {
+            Optional<Long> lastMaxSequence = getLastMaxSequence(subject, g);
+            if (lastMaxSequence.isPresent()) {
+                return new ConsumeQueue(storage, subject, g, lastMaxSequence.get() + 1);
+            } else {
+                OffsetBound consumerLogBound = storage.getSubjectConsumerLogBound(subject);
+                long maxSequence = consumerLogBound == null ? 0 : consumerLogBound.getMaxOffset();
+                LOGGER.info("发现新的group：{} 订阅了subject: {},从最新的消息开始消费, 最新的sequence为：{}！", g, subject, maxSequence);
+                return new ConsumeQueue(storage, subject, g, maxSequence);
+            }
+        });
     }
 
-    public synchronized Map<String, ConsumeQueue> getBySubject(final String subject) {
-        if (queues.containsRow(subject)) {
-            return queues.row(subject);
-        } else {
-            return Collections.emptyMap();
+    public Map<String, ConsumeQueue> getBySubject(final String subject) {
+        ConcurrentMap<String, ConsumeQueue> consumeQueues = queues.get(subject);
+        if (consumeQueues != null) {
+            return consumeQueues;
         }
+        return Collections.emptyMap();
     }
 
-    private long getLastMaxSequence(final String subject, final String group) {
+    private Optional<Long> getLastMaxSequence(final String subject, final String group) {
         final ConsumerGroupProgress progress = storage.getConsumerGroupProgress(subject, group);
         if (progress == null) {
-            return -1;
+            return Optional.empty();
         } else {
-            return progress.getPull();
+            return Optional.of(progress.getPull());
         }
     }
 
@@ -65,7 +79,11 @@ public class ConsumeQueueManager {
     }
 
     synchronized void disableLagMonitor(String subject, String group) {
-        final ConsumeQueue consumeQueue = queues.get(subject, group);
+        ConcurrentMap<String, ConsumeQueue> consumeQueues = queues.get(subject);
+        if (consumeQueues == null) {
+            return;
+        }
+        ConsumeQueue consumeQueue = consumeQueues.get(group);
         if (consumeQueue == null) {
             return;
         }

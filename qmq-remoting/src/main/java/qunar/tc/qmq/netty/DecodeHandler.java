@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.netty;
@@ -27,7 +27,6 @@ import java.io.IOException;
 import java.util.List;
 
 import static qunar.tc.qmq.protocol.RemotingHeader.DEFAULT_MAGIC_CODE;
-import static qunar.tc.qmq.protocol.RemotingHeader.VERSION_3;
 
 /**
  * @author yunfeng.yang
@@ -46,7 +45,7 @@ public class DecodeHandler extends ByteToMessageDecoder {
 
         int magicCode = in.getInt(in.readerIndex() + RemotingHeader.LENGTH_FIELD);
         if (DEFAULT_MAGIC_CODE != magicCode) {
-            throw new IOException("非法数据，MagicCode=" + Integer.toHexString(magicCode));
+            throw new IOException("Illegal Data, MagicCode=" + Integer.toHexString(magicCode));
         }
 
         in.markReaderIndex();
@@ -62,6 +61,8 @@ public class DecodeHandler extends ByteToMessageDecoder {
         int bodyLength = total - headerSize - RemotingHeader.HEADER_SIZE_LEN;
 
         RemotingCommand remotingCommand = new RemotingCommand();
+        //because netty(lower version) has memory leak when ByteBuf cross thread
+        //We can ensure server use high version netty, bu we can't ensure client
         if (isServer) {
             ByteBuf bodyData = in.readSlice(bodyLength);
             bodyData.retain();
@@ -87,10 +88,8 @@ public class DecodeHandler extends ByteToMessageDecoder {
         remotingHeader.setOpaque(in.readInt());
         // int flag
         remotingHeader.setFlag(in.readInt());
-        // int requestCode if version == 3
-        if (remotingHeader.getVersion() >= VERSION_3) {
-            remotingHeader.setRequestCode(in.readShort());
-        }
+        // int requestCode
+        remotingHeader.setRequestCode(in.readShort());
         return remotingHeader;
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,12 +11,14 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.producer.sender;
 
 import qunar.tc.qmq.ProduceMessage;
+import qunar.tc.qmq.metrics.Metrics;
+import qunar.tc.qmq.metrics.MetricsConstants;
 import qunar.tc.qmq.producer.SendErrorHandler;
 import qunar.tc.qmq.service.exceptions.BlockMessageException;
 import qunar.tc.qmq.service.exceptions.DuplicateMessageException;
@@ -31,6 +33,9 @@ import java.util.Map;
  * @author zhenyu.nie created on 2017 2017/7/5 17:26
  */
 class MessageSenderGroup {
+
+    private final static String senMessageThrowable = "qmq_client_producer_send_message_Throwable";
+
 
     private final Connection connection;
     private final SendErrorHandler errorHandler;
@@ -49,6 +54,7 @@ class MessageSenderGroup {
             map = connection.send(source);
         } catch (Exception e) {
             for (ProduceMessage pm : source) {
+                Metrics.counter(senMessageThrowable, MetricsConstants.SUBJECT_ARRAY, new String[] {pm.getSubject()}).inc();
                 errorHandler.error(pm, e);
             }
             return;
@@ -56,6 +62,7 @@ class MessageSenderGroup {
 
         if (map == null) {
             for (ProduceMessage pm : source) {
+                Metrics.counter(senMessageThrowable, MetricsConstants.SUBJECT_ARRAY, new String[] {pm.getSubject()});
                 errorHandler.error(pm, new MessageException(pm.getMessageId(), "return null"));
             }
             return;
@@ -76,6 +83,7 @@ class MessageSenderGroup {
                     //如果是block的,证明还没有被授权,也不重试,task也不重试,需要手工恢复
                     errorHandler.block(pm, ex);
                 } else {
+                    Metrics.counter(senMessageThrowable, MetricsConstants.SUBJECT_ARRAY, new String[] {pm.getSubject()});
                     errorHandler.error(pm, ex);
                 }
             }

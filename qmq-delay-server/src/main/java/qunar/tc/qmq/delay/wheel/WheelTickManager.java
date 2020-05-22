@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,18 +11,16 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.delay.wheel;
 
 import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.broker.BrokerService;
-import qunar.tc.qmq.configuration.DynamicConfigLoader;
 import qunar.tc.qmq.delay.DelayLogFacade;
 import qunar.tc.qmq.delay.ScheduleIndex;
 import qunar.tc.qmq.delay.Switchable;
@@ -55,6 +53,7 @@ public class WheelTickManager implements Switchable, HashedWheelTimer.Processor 
 
     private static final int TICKS_PER_WHEEL = 2 * 60 * 60;
 
+    private final int segmentScale;
     private final ScheduledExecutorService loadScheduler;
     private final StoreConfiguration config;
     private final DelayLogFacade facade;
@@ -66,6 +65,7 @@ public class WheelTickManager implements Switchable, HashedWheelTimer.Processor 
 
     public WheelTickManager(DefaultStoreConfiguration config, BrokerService brokerService, DelayLogFacade facade, Sender sender) {
         this.config = config;
+        this.segmentScale = config.getSegmentScale();
         this.timer = new HashedWheelTimer(new ThreadFactoryBuilder().setNameFormat("delay-send-%d").build(), 500, TimeUnit.MILLISECONDS, TICKS_PER_WHEEL, this);
         this.facade = facade;
         this.sender = new SenderProcessor(facade, brokerService, sender, config.getConfig());
@@ -96,7 +96,7 @@ public class WheelTickManager implements Switchable, HashedWheelTimer.Processor 
             return;
         }
 
-        int latestOffset = currentDispatchedSegment.getSegmentBaseOffset();
+        long latestOffset = currentDispatchedSegment.getSegmentBaseOffset();
         DispatchLogSegment lastSegment = facade.lowerDispatchSegment(latestOffset);
         if (null != lastSegment) doRecover(lastSegment);
 
@@ -105,7 +105,7 @@ public class WheelTickManager implements Switchable, HashedWheelTimer.Processor 
     }
 
     private void doRecover(DispatchLogSegment dispatchLogSegment) {
-        int segmentBaseOffset = dispatchLogSegment.getSegmentBaseOffset();
+        long segmentBaseOffset = dispatchLogSegment.getSegmentBaseOffset();
         ScheduleSetSegment setSegment = facade.loadScheduleLogSegment(segmentBaseOffset);
         if (setSegment == null) {
             LOGGER.error("load schedule index error,dispatch segment:{}", segmentBaseOffset);
@@ -114,7 +114,7 @@ public class WheelTickManager implements Switchable, HashedWheelTimer.Processor 
 
         LongHashSet dispatchedSet = loadDispatchLog(dispatchLogSegment);
         WheelLoadCursor.Cursor loadCursor = facade.loadUnDispatch(setSegment, dispatchedSet, this::refresh);
-        int baseOffset = loadCursor.getBaseOffset();
+        long baseOffset = loadCursor.getBaseOffset();
         loadingCursor.shiftCursor(baseOffset, loadCursor.getOffset());
         loadedCursor.shiftCursor(baseOffset);
     }
@@ -140,7 +140,7 @@ public class WheelTickManager implements Switchable, HashedWheelTimer.Processor 
 
     private void load() {
         long next = System.currentTimeMillis() + config.getLoadInAdvanceTimesInMillis();
-        int prepareLoadBaseOffset = resolveSegment(next);
+        long prepareLoadBaseOffset = resolveSegment(next, segmentScale);
         try {
             loadUntil(prepareLoadBaseOffset);
         } catch (InterruptedException ignored) {
@@ -148,8 +148,8 @@ public class WheelTickManager implements Switchable, HashedWheelTimer.Processor 
         }
     }
 
-    private void loadUntil(int until) throws InterruptedException {
-        int loadedBaseOffset = loadedCursor.baseOffset();
+    private void loadUntil(long until) throws InterruptedException {
+        long loadedBaseOffset = loadedCursor.baseOffset();
         // have loaded
         if (loadedBaseOffset > until) return;
 
@@ -161,7 +161,7 @@ public class WheelTickManager implements Switchable, HashedWheelTimer.Processor 
             if (loadingCursor.baseOffset() < until) {
                 long thresholdTime = System.currentTimeMillis() + config.getLoadBlockingExitTimesInMillis();
                 // exit in a few minutes in advance
-                if (resolveSegment(thresholdTime) >= until) {
+                if (resolveSegment(thresholdTime, segmentScale) >= until) {
                     loadingCursor.shiftCursor(until);
                     loadedCursor.shiftCursor(until);
                     break;
@@ -174,22 +174,22 @@ public class WheelTickManager implements Switchable, HashedWheelTimer.Processor 
         LOGGER.info("wheel load until {} <= {}", loadedCursor.baseOffset(), until);
     }
 
-    private boolean loadUntilInternal(int until) {
-        int index = resolveStartIndex();
+    private boolean loadUntilInternal(long until) {
+        long index = resolveStartIndex();
         if (index < 0) return true;
 
         try {
             while (index <= until) {
                 ScheduleSetSegment segment = facade.loadScheduleLogSegment(index);
                 if (segment == null) {
-                    int nextIndex = facade.higherScheduleBaseOffset(index);
+                    long nextIndex = facade.higherScheduleBaseOffset(index);
                     if (nextIndex < 0) return true;
                     index = nextIndex;
                     continue;
                 }
 
                 loadSegment(segment);
-                int nextIndex = facade.higherScheduleBaseOffset(index);
+                long nextIndex = facade.higherScheduleBaseOffset(index);
                 if (nextIndex < 0) return true;
 
                 index = nextIndex;
@@ -208,9 +208,9 @@ public class WheelTickManager implements Switchable, HashedWheelTimer.Processor 
      *
      * @return generally, result > 0, however the result might be -1. -1 mean that no higher key.
      */
-    private int resolveStartIndex() {
+    private long resolveStartIndex() {
         WheelLoadCursor.Cursor loadedEntry = loadedCursor.cursor();
-        int startIndex = loadedEntry.getBaseOffset();
+        long startIndex = loadedEntry.getBaseOffset();
         long offset = loadedEntry.getOffset();
 
         if (offset < 0) return facade.higherScheduleBaseOffset(startIndex);
@@ -221,7 +221,7 @@ public class WheelTickManager implements Switchable, HashedWheelTimer.Processor 
     private void loadSegment(ScheduleSetSegment segment) {
         final long start = System.currentTimeMillis();
         try {
-            int baseOffset = segment.getSegmentBaseOffset();
+            long baseOffset = segment.getSegmentBaseOffset();
             long offset = segment.getWrotePosition();
             if (!loadingCursor.shiftCursor(baseOffset, offset)) {
                 LOGGER.error("doLoadSegment error,shift loadingCursor failed,from {}-{} to {}-{}", loadingCursor.baseOffset(), loadingCursor.offset(), baseOffset, offset);
@@ -237,16 +237,16 @@ public class WheelTickManager implements Switchable, HashedWheelTimer.Processor 
             if (baseOffset == loadedCursorEntry.getBaseOffset() && loadedCursorEntry.getOffset() > -1)
                 startOffset = loadedCursorEntry.getOffset();
 
-            LogVisitor<ByteBuf> visitor = segment.newVisitor(startOffset, config.getSingleMessageLimitSize());
+            LogVisitor<ScheduleIndex> visitor = segment.newVisitor(startOffset, config.getSingleMessageLimitSize());
             try {
                 loadedCursor.shiftCursor(baseOffset, startOffset);
 
                 long currentOffset = startOffset;
                 while (currentOffset < offset) {
-                    Optional<ByteBuf> recordOptional = visitor.nextRecord();
+                    Optional<ScheduleIndex> recordOptional = visitor.nextRecord();
                     if (!recordOptional.isPresent()) break;
-                    ByteBuf index = recordOptional.get();
-                    currentOffset = ScheduleIndex.offset(index) + ScheduleIndex.size(index);
+                    ScheduleIndex index = recordOptional.get();
+                    currentOffset = index.getOffset() + index.getSize();
                     refresh(index);
                     loadedCursor.shiftOffset(currentOffset);
                 }
@@ -260,12 +260,12 @@ public class WheelTickManager implements Switchable, HashedWheelTimer.Processor 
         }
     }
 
-    private void refresh(ByteBuf record) {
+    private void refresh(ScheduleIndex index) {
         long now = System.currentTimeMillis();
         long scheduleTime = now;
         try {
-            scheduleTime = ScheduleIndex.scheduleTime(record);
-            timer.newTimeout(record, scheduleTime - now, TimeUnit.MILLISECONDS);
+            scheduleTime = index.getScheduleTime();
+            timer.newTimeout(index, scheduleTime - now, TimeUnit.MILLISECONDS);
         } catch (Throwable e) {
             LOGGER.error("wheel refresh error, scheduleTime:{}, delay:{}", scheduleTime, scheduleTime - now);
             throw Throwables.propagate(e);
@@ -283,16 +283,16 @@ public class WheelTickManager implements Switchable, HashedWheelTimer.Processor 
         }
     }
 
-    public void addWHeel(ByteBuf record) {
-        refresh(record);
+    public void addWHeel(ScheduleIndex index) {
+        refresh(index);
     }
 
     public boolean canAdd(long scheduleTime, long offset) {
         WheelLoadCursor.Cursor currentCursor = loadingCursor.cursor();
-        int currentBaseOffset = currentCursor.getBaseOffset();
+        long currentBaseOffset = currentCursor.getBaseOffset();
         long currentOffset = currentCursor.getOffset();
 
-        int baseOffset = resolveSegment(scheduleTime);
+        long baseOffset = resolveSegment(scheduleTime, segmentScale);
         if (baseOffset < currentBaseOffset) return true;
 
         if (baseOffset == currentBaseOffset) {
@@ -302,8 +302,8 @@ public class WheelTickManager implements Switchable, HashedWheelTimer.Processor 
     }
 
     @Override
-    public void process(ByteBuf record) {
+    public void process(ScheduleIndex index) {
         QMon.scheduleDispatch();
-        sender.send(record);
+        sender.send(index);
     }
 }

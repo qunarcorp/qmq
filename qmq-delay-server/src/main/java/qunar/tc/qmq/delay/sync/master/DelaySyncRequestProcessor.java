@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.delay.sync.master;
@@ -49,10 +49,10 @@ public class DelaySyncRequestProcessor implements NettyRequestProcessor, Disposa
     private final MessageLogSyncWorker messageLogSyncWorker;
     private final ScheduledExecutorService processorTimer;
 
-    DelaySyncRequestProcessor(DelayLogFacade delayLogFacade, DynamicConfig config) {
+    DelaySyncRequestProcessor(int scale, DelayLogFacade delayLogFacade, DynamicConfig config) {
         this.processorMap = new HashMap<>();
         this.messageLogSyncWorker = new MessageLogSyncWorker(delayLogFacade, config);
-        final DispatchLogSyncWorker dispatchLogSyncWorker = new DispatchLogSyncWorker(delayLogFacade, config);
+        final DispatchLogSyncWorker dispatchLogSyncWorker = new DispatchLogSyncWorker(scale, delayLogFacade, config);
         final HeartbeatSyncWorker heartbeatSyncWorker = new HeartbeatSyncWorker(delayLogFacade);
 
         this.processorMap.put(SyncType.message.getCode(), this.messageLogSyncWorker);
@@ -60,8 +60,7 @@ public class DelaySyncRequestProcessor implements NettyRequestProcessor, Disposa
         this.processorMap.put(SyncType.heartbeat.getCode(), heartbeatSyncWorker);
 
         int workerSize = processorMap.size();
-        this.syncProcessPool = Executors.newFixedThreadPool(workerSize,
-                new ThreadFactoryBuilder().setNameFormat("delay-master-sync-%d").build());
+        this.syncProcessPool = Executors.newFixedThreadPool(workerSize, new ThreadFactoryBuilder().setNameFormat("delay-master-sync-%d").build());
         this.processorTimer = Executors.newScheduledThreadPool(workerSize - 1,
                 new ThreadFactoryBuilder().setNameFormat("delay-processor-timer-%d").build());
 
@@ -102,9 +101,9 @@ public class DelaySyncRequestProcessor implements NettyRequestProcessor, Disposa
         ByteBuf body = request.getBody();
         int logType = body.readByte();
         long messageLogOffset = body.readLong();
-        int dispatchLogSegmentBaseOffset = body.readInt();
+        long dispatchLogSegmentBaseOffset = body.readLong();
         long dispatchLogOffset = body.readLong();
-        int lastDispatchLogBaseOffset = body.readInt();
+        long lastDispatchLogBaseOffset = body.readLong();
         long lastDispatchLogOffset = body.readLong();
         return new DelaySyncRequest(messageLogOffset, dispatchLogSegmentBaseOffset, dispatchLogOffset, lastDispatchLogBaseOffset, lastDispatchLogOffset, logType);
     }

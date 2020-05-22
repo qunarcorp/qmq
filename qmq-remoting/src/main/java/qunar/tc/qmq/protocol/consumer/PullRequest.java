@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,14 +11,11 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.protocol.consumer;
 
-import qunar.tc.qmq.TagType;
-
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -34,10 +31,7 @@ public class PullRequest {
     private long pullOffsetLast;
     private String consumerId;
     private boolean isBroadcast;
-
-    private int tagTypeCode = TagType.NO_TAG.getCode();
-
-    private List<byte[]> tags = Collections.emptyList();
+    private List<PullFilter> filters;
 
     public String getSubject() {
         return subject;
@@ -95,12 +89,12 @@ public class PullRequest {
         this.pullOffsetLast = pullOffsetLast;
     }
 
-    public void setConsumerId(String consumerId) {
-        this.consumerId = consumerId;
-    }
-
     public String getConsumerId() {
         return consumerId;
+    }
+
+    public void setConsumerId(String consumerId) {
+        this.consumerId = consumerId;
     }
 
     public boolean isBroadcast() {
@@ -111,20 +105,12 @@ public class PullRequest {
         isBroadcast = broadcast;
     }
 
-    public int getTagTypeCode() {
-        return tagTypeCode;
+    public List<PullFilter> getFilters() {
+        return filters;
     }
 
-    public void setTagTypeCode(int tagTypeCode) {
-        this.tagTypeCode = tagTypeCode;
-    }
-
-    public List<byte[]> getTags() {
-        return tags;
-    }
-
-    public void setTags(List<byte[]> tags) {
-        this.tags = tags;
+    public void setFilters(final List<PullFilter> filters) {
+        this.filters = filters;
     }
 
     @Override
@@ -139,8 +125,6 @@ public class PullRequest {
                 ", pullOffsetLast=" + pullOffsetLast +
                 ", consumerId='" + consumerId + '\'' +
                 ", isBroadcast=" + isBroadcast +
-                ", tagTypeCode=" + tagTypeCode +
-                ", tags=" + tags +
                 '}';
     }
 

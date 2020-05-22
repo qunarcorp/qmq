@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,12 +11,17 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.processor;
 
-import com.google.common.base.CharMatcher;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.LinkedBlockingQueue;
+
+import com.google.common.base.Function;
 import com.google.common.eventbus.Subscribe;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -24,23 +29,26 @@ import com.google.common.util.concurrent.SettableFuture;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.base.*;
+import qunar.tc.qmq.base.MessageHeader;
+import qunar.tc.qmq.base.RawMessage;
+import qunar.tc.qmq.base.ReceiveResult;
+import qunar.tc.qmq.base.ReceivingMessage;
+import qunar.tc.qmq.base.SyncRequest;
 import qunar.tc.qmq.configuration.BrokerConfig;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.monitor.QMon;
 import qunar.tc.qmq.processor.filters.Invoker;
 import qunar.tc.qmq.processor.filters.ReceiveFilterChain;
-import qunar.tc.qmq.protocol.*;
+import qunar.tc.qmq.protocol.CommandCode;
+import qunar.tc.qmq.protocol.Datagram;
+import qunar.tc.qmq.protocol.PayloadHolder;
+import qunar.tc.qmq.protocol.RemotingCommand;
 import qunar.tc.qmq.protocol.producer.MessageProducerCode;
 import qunar.tc.qmq.store.MessageStoreWrapper;
 import qunar.tc.qmq.util.RemotingBuilder;
 import qunar.tc.qmq.utils.CharsetUtils;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Queue;
-import java.util.concurrent.LinkedBlockingQueue;
+import qunar.tc.qmq.utils.SubjectUtils;
 
 /**
  * @author yunfeng.yang
@@ -48,8 +56,6 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 public class SendMessageWorker {
     private static final Logger LOG = LoggerFactory.getLogger(SendMessageWorker.class);
-
-    private static final CharMatcher ILLEGAL_MATCHER = CharMatcher.anyOf("/\r\n");
 
     private final DynamicConfig config;
     private final Invoker invoker;
@@ -74,9 +80,8 @@ public class SendMessageWorker {
             invoker.invoke(receivingMessage);
         }
 
-        final short version = cmd.getHeader().getVersion();
         return Futures.transform(Futures.allAsList(futures),
-                input -> RemotingBuilder.buildResponseDatagram(CommandCode.SUCCESS, cmd.getHeader(), new SendResultPayloadHolder(input, version)));
+                (Function<? super List<ReceiveResult>, ? extends Datagram>) input -> RemotingBuilder.buildResponseDatagram(CommandCode.SUCCESS, cmd.getHeader(), new SendResultPayloadHolder(input)));
     }
 
     private void monitorMessageReceived(long receiveTime, String subject) {
@@ -111,7 +116,8 @@ public class SendMessageWorker {
         }
 
         final String subject = message.getSubject();
-        if (isIllegalSubject(subject)) {
+        if (SubjectUtils.isInValid(subject)) {
+            QMon.receivedIllegalSubjectMessagesCountInc(subject);
             if (isRejectIllegalSubject()) {
                 notAllowed(message);
                 return;
@@ -129,15 +135,6 @@ public class SendMessageWorker {
     private void notAllowed(ReceivingMessage message) {
         QMon.rejectReceivedMessageCountInc(message.getSubject());
         end(message, new ReceiveResult(message.getMessageId(), MessageProducerCode.SUBJECT_NOT_ASSIGNED, "message rejected", -1));
-    }
-
-    private boolean isIllegalSubject(final String subject) {
-        if (ILLEGAL_MATCHER.matchesAnyOf(subject)) {
-            QMon.receivedIllegalSubjectMessagesCountInc(subject);
-            return true;
-        }
-
-        return false;
     }
 
     private boolean isRejectIllegalSubject() {
@@ -204,24 +201,18 @@ public class SendMessageWorker {
 
     public static class SendResultPayloadHolder implements PayloadHolder {
         private final List<ReceiveResult> results;
-        private final short version;
 
-        SendResultPayloadHolder(List<ReceiveResult> results, short version) {
+        SendResultPayloadHolder(List<ReceiveResult> results) {
             this.results = results;
-            this.version = version;
         }
 
         @Override
         public void writeBody(ByteBuf out) {
-            if (version < RemotingHeader.VERSION_4) {
-                writeBodyV3(out);
-            } else {
-                for (ReceiveResult result : results) {
-                    int code = result.getCode();
-                    if (MessageProducerCode.SUCCESS == code) continue;
+            for (ReceiveResult result : results) {
+                int code = result.getCode();
+                if (MessageProducerCode.SUCCESS == code) continue;
 
-                    writeItem(result, out);
-                }
+                writeItem(result, out);
             }
         }
 
@@ -232,12 +223,6 @@ public class SendMessageWorker {
                 out.writeBytes(bytes);
             } else {
                 out.writeShort(0);
-            }
-        }
-
-        private void writeBodyV3(ByteBuf out) {
-            for (ReceiveResult result : results) {
-                writeItem(result, out);
             }
         }
 

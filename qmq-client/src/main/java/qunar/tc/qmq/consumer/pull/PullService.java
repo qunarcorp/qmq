@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.consumer.pull;
@@ -37,7 +37,10 @@ import qunar.tc.qmq.utils.Flags;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -57,6 +60,12 @@ class PullService {
         final PullResultFuture result = new PullResultFuture(pullParam.getBrokerGroup());
         pull(pullParam, result);
         return result.get();
+    }
+
+    PullResultFuture pullAsync(final PullParam pullParam) {
+        final PullResultFuture result = new PullResultFuture(pullParam.getBrokerGroup());
+        pull(pullParam, result);
+        return result;
     }
 
     private void pull(final PullParam pullParam, final PullCallback callback) {
@@ -85,12 +94,7 @@ class PullService {
         request.setPullOffsetLast(pullParam.getMaxPullOffset());
         request.setConsumerId(pullParam.getConsumerId());
         request.setBroadcast(pullParam.isBroadcast());
-        request.setTagTypeCode(pullParam.getTagType().getCode());
-        List<byte[]> tags = new ArrayList<>(pullParam.getTags().size());
-        for (String tag : pullParam.getTags()) {
-            tags.add(tag.getBytes());
-        }
-        request.setTags(tags);
+        request.setFilters(pullParam.getFilters());
         return request;
     }
 
@@ -231,7 +235,7 @@ class PullService {
         }
     }
 
-    private static final class PullResultFuture extends AbstractFuture<PullResult> implements PullCallback {
+    public static final class PullResultFuture extends AbstractFuture<PullResult> implements PullCallback {
         private final BrokerGroupInfo brokerGroup;
 
         PullResultFuture(BrokerGroupInfo brokerGroup) {

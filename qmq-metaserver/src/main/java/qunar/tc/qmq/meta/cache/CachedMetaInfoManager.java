@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,14 +11,16 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.meta.cache;
 
 import com.google.common.base.Strings;
+import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.collect.SetMultimap;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,14 +28,13 @@ import qunar.tc.qmq.common.Disposable;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.meta.BrokerGroup;
 import qunar.tc.qmq.meta.BrokerGroupKind;
+import qunar.tc.qmq.meta.model.ReadonlyBrokerGroupSetting;
 import qunar.tc.qmq.meta.model.SubjectInfo;
 import qunar.tc.qmq.meta.model.SubjectRoute;
+import qunar.tc.qmq.meta.store.ReadonlyBrokerGroupSettingStore;
 import qunar.tc.qmq.meta.store.Store;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -52,6 +53,7 @@ public class CachedMetaInfoManager implements Disposable {
     private static final String DEFAULT_BROKER_GROUP_TAG = "_default_";
 
     private final Store store;
+    private final ReadonlyBrokerGroupSettingStore readonlyBrokerGroupSettingStore;
     private final long refreshPeriodSeconds;
 
     /**
@@ -75,9 +77,15 @@ public class CachedMetaInfoManager implements Disposable {
      */
     private volatile Map<String, SubjectInfo> cachedSubjectInfoMap = new HashMap<>();
 
-    public CachedMetaInfoManager(DynamicConfig config, Store store) {
+    /**
+     * brokerGroupName -> Subject List
+     */
+    private volatile SetMultimap<String, String> readonlyBrokerGroupSettings = HashMultimap.create();
+
+    public CachedMetaInfoManager(DynamicConfig config, Store store, ReadonlyBrokerGroupSettingStore readonlyBrokerGroupSettingStore) {
         this.refreshPeriodSeconds = config.getLong("refresh.period.seconds", DEFAULT_REFRESH_PERIOD_SECONDS);
         this.store = store;
+        this.readonlyBrokerGroupSettingStore = readonlyBrokerGroupSettingStore;
         refresh();
         initRefreshTask();
     }
@@ -131,6 +139,22 @@ public class CachedMetaInfoManager implements Disposable {
         refreshBrokerGroups();
         refreshSubjectInfoCache();
         refreshGroupsAndSubjects();
+        refreshReadonlyBrokerGroupSettings();
+    }
+
+    private void refreshReadonlyBrokerGroupSettings() {
+        final HashMultimap<String, String> map = HashMultimap.create();
+
+        final List<ReadonlyBrokerGroupSetting> settings = readonlyBrokerGroupSettingStore.allReadonlyBrokerGroupSettings();
+        for (final ReadonlyBrokerGroupSetting setting : settings) {
+            map.put(setting.getBrokerGroup(), setting.getSubject());
+        }
+
+        readonlyBrokerGroupSettings = map;
+    }
+
+    public Set<String> getBrokerGroupReadonlySubjects(final String brokerGroup) {
+        return readonlyBrokerGroupSettings.get(brokerGroup);
     }
 
     private void refreshGroupsAndSubjects() {

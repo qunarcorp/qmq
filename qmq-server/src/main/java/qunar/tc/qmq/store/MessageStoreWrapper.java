@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,25 +11,25 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.store;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.TagType;
 import qunar.tc.qmq.base.*;
+import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.consumer.ConsumerSequenceManager;
 import qunar.tc.qmq.monitor.QMon;
+import qunar.tc.qmq.protocol.consumer.PullFilter;
 import qunar.tc.qmq.protocol.consumer.PullRequest;
 import qunar.tc.qmq.protocol.producer.MessageProducerCode;
 import qunar.tc.qmq.store.action.RangeAckAction;
+import qunar.tc.qmq.store.buffer.Buffer;
 
 import java.util.ArrayList;
 import java.util.List;
-
-import static qunar.tc.qmq.store.Tags.match;
 
 /**
  * @author yunfeng.yang
@@ -38,12 +38,16 @@ import static qunar.tc.qmq.store.Tags.match;
 public class MessageStoreWrapper {
     private static final Logger LOG = LoggerFactory.getLogger(MessageStoreWrapper.class);
 
+    private static final int MAX_MEMORY_LIMIT = 100 * 1024 * 1024;
+
     private final Storage storage;
     private final ConsumerSequenceManager consumerSequenceManager;
+    private final PullMessageFilterChain pullMessageFilterChain;
 
-    public MessageStoreWrapper(final Storage storage, final ConsumerSequenceManager consumerSequenceManager) {
+    public MessageStoreWrapper(final DynamicConfig config, final Storage storage, final ConsumerSequenceManager consumerSequenceManager) {
         this.storage = storage;
         this.consumerSequenceManager = consumerSequenceManager;
+        this.pullMessageFilterChain = new PullMessageFilterChain(config);
     }
 
     public ReceiveResult putMessage(final ReceivingMessage message) {
@@ -79,6 +83,10 @@ public class MessageStoreWrapper {
                 return unAckMessages;
             }
 
+            if (PullMessageResult.WAIT_PULLLOG_REPLAY == unAckMessages) {
+                return PullMessageResult.EMPTY;
+            }
+
             return findNewExistMessages(pullRequest);
         } catch (Throwable e) {
             LOG.error("find messages error, consumer: {}", pullRequest, e);
@@ -100,27 +108,27 @@ public class MessageStoreWrapper {
             switch (getMessageResult.getStatus()) {
                 case SUCCESS:
                     if (getMessageResult.getMessageNum() == 0) {
-                        consumeQueue.setNextSequence(getMessageResult.getNextBeginOffset());
+                        consumeQueue.setNextSequence(getMessageResult.getNextBeginSequence());
                         return PullMessageResult.EMPTY;
                     }
 
-                    if (noRequestTag(pullRequest)) {
+                    if (noPullFilter(pullRequest)) {
                         final WritePutActionResult writeResult = consumerSequenceManager.putPullActions(subject, group, consumerId, isBroadcast, getMessageResult);
                         if (writeResult.isSuccess()) {
-                            consumeQueue.setNextSequence(getMessageResult.getNextBeginOffset());
-                            return new PullMessageResult(writeResult.getPullLogOffset(), getMessageResult.getSegmentBuffers(), getMessageResult.getBufferTotalSize(), getMessageResult.getMessageNum());
+                            consumeQueue.setNextSequence(getMessageResult.getNextBeginSequence());
+                            return new PullMessageResult(writeResult.getPullLogOffset(), getMessageResult.getBuffers(), getMessageResult.getBufferTotalSize(), getMessageResult.getMessageNum());
                         } else {
                             getMessageResult.release();
                             return PullMessageResult.EMPTY;
                         }
                     }
 
-                    return filterByTags(pullRequest, getMessageResult, consumeQueue);
+                    return doPullResultFilter(pullRequest, getMessageResult, consumeQueue);
                 case OFFSET_OVERFLOW:
                     LOG.warn("get message result not success, consumer:{}, result:{}", pullRequest, getMessageResult);
                     QMon.getMessageOverflowCountInc(subject, group);
                 default:
-                    consumeQueue.setNextSequence(getMessageResult.getNextBeginOffset());
+                    consumeQueue.setNextSequence(getMessageResult.getNextBeginSequence());
                     return PullMessageResult.EMPTY;
             }
         } finally {
@@ -128,21 +136,19 @@ public class MessageStoreWrapper {
         }
     }
 
-    private boolean noRequestTag(PullRequest pullRequest) {
-        int tagTypeCode = pullRequest.getTagTypeCode();
-        if (TagType.NO_TAG.getCode() == tagTypeCode) return true;
-        List<byte[]> tags = pullRequest.getTags();
-        return tags == null || tags.isEmpty();
+    private boolean noPullFilter(PullRequest pullRequest) {
+        final List<PullFilter> filters = pullRequest.getFilters();
+        return filters == null || filters.isEmpty();
     }
 
-    private PullMessageResult filterByTags(PullRequest pullRequest, GetMessageResult getMessageResult, ConsumeQueue consumeQueue) {
+    private PullMessageResult doPullResultFilter(PullRequest pullRequest, GetMessageResult getMessageResult, ConsumeQueue consumeQueue) {
         final String subject = pullRequest.getSubject();
         final String group = pullRequest.getGroup();
         final String consumerId = pullRequest.getConsumerId();
         final boolean isBroadcast = pullRequest.isBroadcast();
 
         shiftRight(getMessageResult);
-        List<GetMessageResult> filterResult = filter(getMessageResult, pullRequest.getTags(), pullRequest.getTagTypeCode());
+        List<GetMessageResult> filterResult = filter(pullRequest, getMessageResult);
         List<PullMessageResult> retList = new ArrayList<>();
         int index;
         for (index = 0; index < filterResult.size(); ++index) {
@@ -150,29 +156,42 @@ public class MessageStoreWrapper {
             if (!putAction(item, consumeQueue, subject, group, consumerId, isBroadcast, retList)) break;
         }
         releaseRemain(index, filterResult);
-        if (retList.isEmpty()) return PullMessageResult.FILTER_EMPTY;
+        if (isEmptyAfterFilter(retList)) return PullMessageResult.FILTER_EMPTY;
         return merge(retList);
     }
 
-    private List<GetMessageResult> filter(GetMessageResult input, List<byte[]> tags, int tagType) {
+    private boolean isEmptyAfterFilter(List<PullMessageResult> retList) {
+        if (retList.isEmpty()) {
+            return true;
+        } else {
+            return retList.size() == 1 && retList.get(0).getMessageNum() == 0;
+        }
+    }
+
+    /**
+     * 过滤掉不需要的消息，这样拿出来的一块连续的消息就不连续了，比如1 - 100条消息
+     * 中间20,21,50,73这4条不符合条件，则返回的是
+     * [1, 19], [22, 49], [51, 72], [74, 100] 这几个连续的段
+     */
+    private List<GetMessageResult> filter(PullRequest request, GetMessageResult input) {
         List<GetMessageResult> result = new ArrayList<>();
 
-        List<SegmentBuffer> messages = input.getSegmentBuffers();
+        List<Buffer> messages = input.getBuffers();
         OffsetRange offsetRange = input.getConsumerLogRange();
 
         GetMessageResult range = null;
         long begin = -1;
         long end = -1;
         for (int i = 0; i < messages.size(); ++i) {
-            SegmentBuffer message = messages.get(i);
-            if (match(message, tags, tagType)) {
+            Buffer message = messages.get(i);
+            if (pullMessageFilterChain.needKeep(request, message)) {
                 if (range == null) {
                     range = new GetMessageResult();
                     result.add(range);
                     begin = offsetRange.getBegin() + i;
                 }
                 end = offsetRange.getBegin() + i;
-                range.addSegmentBuffer(message);
+                range.addBuffer(message);
             } else {
                 message.release();
                 setOffsetRange(range, begin, end);
@@ -187,7 +206,7 @@ public class MessageStoreWrapper {
     private void setOffsetRange(GetMessageResult input, long begin, long end) {
         if (input != null) {
             input.setConsumerLogRange(new OffsetRange(begin, end));
-            input.setNextBeginOffset(end + 1);
+            input.setNextBeginSequence(end + 1);
         }
     }
 
@@ -210,8 +229,8 @@ public class MessageStoreWrapper {
                               List<PullMessageResult> retList) {
         final WritePutActionResult writeResult = consumerSequenceManager.putPullActions(subject, group, consumerId, isBroadcast, range);
         if (writeResult.isSuccess()) {
-            consumeQueue.setNextSequence(range.getNextBeginOffset());
-            retList.add(new PullMessageResult(writeResult.getPullLogOffset(), range.getSegmentBuffers(), range.getBufferTotalSize(), range.getMessageNum()));
+            consumeQueue.setNextSequence(range.getNextBeginSequence());
+            retList.add(new PullMessageResult(writeResult.getPullLogOffset(), range.getBuffers(), range.getBufferTotalSize(), range.getMessageNum()));
             return true;
         }
         return false;
@@ -221,7 +240,7 @@ public class MessageStoreWrapper {
         if (list.size() == 1) return list.get(0);
 
         long pullLogOffset = list.get(0).getPullLogOffset();
-        List<SegmentBuffer> buffers = new ArrayList<>();
+        List<Buffer> buffers = new ArrayList<>();
         int bufferTotalSize = 0;
         int messageNum = 0;
         for (PullMessageResult result : list) {
@@ -237,7 +256,7 @@ public class MessageStoreWrapper {
             GetMessageResult emptyRange = new GetMessageResult();
             long begin = end == -1 ? offsetRange.getBegin() : end;
             emptyRange.setConsumerLogRange(new OffsetRange(begin, offsetRange.getEnd()));
-            emptyRange.setNextBeginOffset(offsetRange.getEnd() + 1);
+            emptyRange.setNextBeginSequence(offsetRange.getEnd() + 1);
             list.add(emptyRange);
         }
     }
@@ -274,10 +293,14 @@ public class MessageStoreWrapper {
             return PullMessageResult.EMPTY;
         }
 
+        if (isPullLogReplayDelay(pullRequest, pullLogSequenceInServer)) {
+            return PullMessageResult.WAIT_PULLLOG_REPLAY;
+        }
+
         LOG.warn("consumer need find lost ack messages, pullRequest: {}, consumerSequence: {}", pullRequest, consumerSequence);
 
         final int requestNum = pullRequest.getRequestNum();
-        final List<SegmentBuffer> buffers = new ArrayList<>(requestNum);
+        final List<Buffer> buffers = new ArrayList<>(requestNum);
         long firstValidSeq = -1;
         int totalSize = 0;
         final long firstLostAckPullLogSeq = pullLogSequenceInConsumer + 1;
@@ -306,10 +329,15 @@ public class MessageStoreWrapper {
                 }
 
                 //re-filter un-ack message
-                final SegmentBuffer segmentBuffer = getMessageResult.getSegmentBuffers().get(0);
-                if (!noRequestTag(pullRequest) && !match(segmentBuffer, pullRequest.getTags(), pullRequest.getTagTypeCode())) {
+                //避免客户端发布一个新版本，新版本里tags发生变化了，那么原来已经拉取但是未ack的消息就可能存在不符合新条件的消息了
+                //这个时候需要重新过滤一遍
+                final Buffer segmentBuffer = getMessageResult.getBuffers().get(0);
+                if (!noPullFilter(pullRequest) && !pullMessageFilterChain.needKeep(pullRequest, segmentBuffer)) {
+                    segmentBuffer.release();
                     if (firstValidSeq != -1) {
                         break;
+                    } else {
+                        continue;
                     }
                 }
 
@@ -317,9 +345,11 @@ public class MessageStoreWrapper {
                     firstValidSeq = seq;
                 }
 
-
                 buffers.add(segmentBuffer);
                 totalSize += segmentBuffer.getSize();
+
+                //超过一次读取的内存限制
+                if (totalSize >= MAX_MEMORY_LIMIT) break;
             } catch (Exception e) {
                 LOG.error("error occurs when find messages by pull log offset, request: {}, consumerSequence: {}", pullRequest, consumerSequence, e);
                 QMon.getMessageErrorCountInc(subject, group);
@@ -351,6 +381,14 @@ public class MessageStoreWrapper {
         QMon.findLostMessageCountInc(subject, group, result.getMessageNum());
         LOG.info("found lost ack messages request: {}, consumerSequence: {}, result: {}", pullRequest, consumerSequence, result);
         return result;
+    }
+
+    //pull log是异步回放action log得到的，如果这个时候pull log还没回放出来，则会有问题
+    private boolean isPullLogReplayDelay(PullRequest pullRequest, long pullLogSequenceInServer) {
+        //广播消息没有pull log回放
+        if (pullRequest.isBroadcast()) return false;
+        long pullLogReplaySequence = storage.getPullLogReplayState(pullRequest.getSubject(), pullRequest.getGroup(), pullRequest.getConsumerId());
+        return pullLogReplaySequence < pullLogSequenceInServer;
     }
 
     private long getConsumerLogSequence(PullRequest pullRequest, long offset) {

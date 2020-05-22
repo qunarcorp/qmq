@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.delay.store.log;
@@ -41,8 +41,8 @@ public class ScheduleSetSegmentContainer extends AbstractDelaySegmentContainer<S
 
     private final StoreConfiguration config;
 
-    public ScheduleSetSegmentContainer(StoreConfiguration config, File logDir, DelaySegmentValidator validator, LogAppender<ScheduleSetSequence, LogRecord> appender) {
-        super(logDir, validator, appender);
+    ScheduleSetSegmentContainer(StoreConfiguration config, File logDir, DelaySegmentValidator validator, LogAppender<ScheduleSetSequence, LogRecord> appender) {
+        super(config.getSegmentScale(), logDir, validator, appender);
         this.config = config;
     }
 
@@ -85,7 +85,7 @@ public class ScheduleSetSegmentContainer extends AbstractDelaySegmentContainer<S
     }
 
     @Override
-    protected DelaySegment<ScheduleSetSequence> allocSegment(int segmentBaseOffset) {
+    protected DelaySegment<ScheduleSetSequence> allocSegment(long segmentBaseOffset) {
         File nextSegmentFile = new File(logDir, String.valueOf(segmentBaseOffset));
         try {
             DelaySegment<ScheduleSetSequence> logSegment = new ScheduleSetSegment(nextSegmentFile);
@@ -100,7 +100,7 @@ public class ScheduleSetSegmentContainer extends AbstractDelaySegmentContainer<S
 
     ScheduleSetRecord recover(long scheduleTime, int size, long offset) {
         ScheduleSetSegment segment = (ScheduleSetSegment) locateSegment(scheduleTime);
-        if (null == segment) {
+        if (segment == null) {
             LOGGER.error("schedule set recover null value, scheduleTime:{}, size:{}, offset:{}", scheduleTime, size, offset);
             return null;
         }
@@ -109,25 +109,25 @@ public class ScheduleSetSegmentContainer extends AbstractDelaySegmentContainer<S
     }
 
     public void clean() {
-        Integer checkTime = resolveSegment(System.currentTimeMillis() - config.getDispatchLogKeepTime() - config.getCheckCleanTimeBeforeDispatch());
+        long checkTime = resolveSegment(System.currentTimeMillis() - config.getDispatchLogKeepTime() - config.getCheckCleanTimeBeforeDispatch(), segmentScale);
         for (DelaySegment<ScheduleSetSequence> segment : segments.values()) {
             if (segment.getSegmentBaseOffset() < checkTime) {
-                clean((long) segment.getSegmentBaseOffset());
+                clean(segment.getSegmentBaseOffset());
             }
         }
     }
 
-    ScheduleSetSegment loadSegment(int segmentBaseOffset) {
+    ScheduleSetSegment loadSegment(long segmentBaseOffset) {
         return (ScheduleSetSegment) segments.get(segmentBaseOffset);
     }
 
-    Map<Integer, Long> countSegments() {
-        final Map<Integer, Long> offsets = new HashMap<>(segments.size());
+    Map<Long, Long> countSegments() {
+        final Map<Long, Long> offsets = new HashMap<>(segments.size());
         segments.values().forEach(segment -> offsets.put(segment.getSegmentBaseOffset(), segment.getWrotePosition()));
         return offsets;
     }
 
-    void reValidate(final Map<Integer, Long> offsets, int singleMessageLimitSize) {
+    void reValidate(final Map<Long, Long> offsets, int singleMessageLimitSize) {
         segments.values().parallelStream().forEach(segment -> {
             Long offset = offsets.get(segment.getSegmentBaseOffset());
             long wrotePosition = segment.getWrotePosition();

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,11 +11,12 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.store;
 
+import com.google.common.base.Charsets;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
 import io.netty.buffer.ByteBuf;
@@ -26,9 +27,9 @@ import qunar.tc.qmq.monitor.QMon;
 import qunar.tc.qmq.store.action.PullAction;
 import qunar.tc.qmq.store.action.RangeAckAction;
 
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -43,24 +44,38 @@ public class CheckpointManager implements AutoCloseable {
     private final ActionCheckpointSerde actionCheckpointSerde;
     private final SnapshotStore<MessageCheckpoint> messageCheckpointStore;
     private final SnapshotStore<ActionCheckpoint> actionCheckpointStore;
+    private final SnapshotStore<IndexCheckpoint> indexCheckpointStore;
+    private final SnapshotStore<Long> indexIterateCheckpointStore;
+    private final SnapshotStore<Long> syncActionCheckpointStore;
 
     private final Lock messageCheckpointGuard;
     private final Lock actionCheckpointGuard;
+    private final Lock indexCheckpointGuard;
     private final MessageCheckpoint messageCheckpoint;
     private final ActionCheckpoint actionCheckpoint;
+    private final IndexCheckpoint indexCheckpoint;
+    private final long indexIterateCheckpoint;
+    private final AtomicLong syncActionCheckpoint;
 
-    CheckpointManager(final BrokerRole role, final StorageConfig config, final CheckpointLoader loader) {
+    public CheckpointManager(final BrokerRole role, final StorageConfig config, final CheckpointLoader loader) {
         this.messageCheckpointSerde = new MessageCheckpointSerde();
         this.actionCheckpointSerde = new ActionCheckpointSerde();
 
         this.messageCheckpointStore = new SnapshotStore<>("message-checkpoint", config, messageCheckpointSerde);
         this.actionCheckpointStore = new SnapshotStore<>("action-checkpoint", config, actionCheckpointSerde);
+        this.indexCheckpointStore = new SnapshotStore<>("index-checkpoint", config, new IndexCheckpointSerde());
+        this.indexIterateCheckpointStore = new SnapshotStore<>("index-iterate-checkpoint", config, new LongSerde());
+        this.syncActionCheckpointStore = new SnapshotStore<>("sync-action-checkpoint", config, new LongSerde());
 
         this.messageCheckpointGuard = new ReentrantLock();
         this.actionCheckpointGuard = new ReentrantLock();
+        this.indexCheckpointGuard = new ReentrantLock();
 
         final MessageCheckpoint messageCheckpoint = loadMessageCheckpoint();
         final ActionCheckpoint actionCheckpoint = loadActionCheckpoint();
+        this.indexCheckpoint = loadIndexCheckpoint();
+        this.indexIterateCheckpoint = loadIndexIterateCheckpoint();
+        this.syncActionCheckpoint = new AtomicLong(loadSyncActionCheckpoint());
         if (needSyncCheckpoint(role, messageCheckpoint, actionCheckpoint)) {
             // TODO(keli.wang): must try to cleanup this messy...
             final ByteBuf buf = loader.loadCheckpoint();
@@ -85,11 +100,7 @@ public class CheckpointManager implements AutoCloseable {
             LOG.info("no message log replay snapshot, return empty state.");
             return new MessageCheckpoint(-1, new HashMap<>());
         } else {
-            final MessageCheckpoint checkpoint = snapshot.getData();
-            if (checkpoint.isFromOldVersion()) {
-                checkpoint.setOffset(snapshot.getVersion());
-            }
-            return checkpoint;
+            return snapshot.getData();
         }
     }
 
@@ -99,13 +110,31 @@ public class CheckpointManager implements AutoCloseable {
             LOG.info("no action log replay snapshot, return empty state.");
             return new ActionCheckpoint(-1, HashBasedTable.create());
         } else {
-            final ActionCheckpoint checkpoint = snapshot.getData();
-            if (checkpoint.isFromOldVersion()) {
-                checkpoint.setOffset(snapshot.getVersion());
-            }
-            return checkpoint;
+            return snapshot.getData();
         }
     }
+
+    private IndexCheckpoint loadIndexCheckpoint() {
+        Snapshot<IndexCheckpoint> snapshot = indexCheckpointStore.latestSnapshot();
+        if (snapshot == null) {
+            LOG.info("no index checkpoint snapshot,return empty state.");
+            return new IndexCheckpoint(-1L, -1L);
+        }
+        return snapshot.getData();
+    }
+
+    private long loadIndexIterateCheckpoint() {
+        Snapshot<Long> snapshot = indexIterateCheckpointStore.latestSnapshot();
+        if (snapshot == null) return 0;
+        return snapshot.getData();
+    }
+
+    private long loadSyncActionCheckpoint() {
+        Snapshot<Long> snapshot = syncActionCheckpointStore.latestSnapshot();
+        if (snapshot == null) return 0;
+        return snapshot.getData();
+    }
+
 
     private boolean needSyncCheckpoint(final BrokerRole role, final MessageCheckpoint messageCheckpoint, final ActionCheckpoint actionCheckpoint) {
         if (role != BrokerRole.SLAVE) {
@@ -115,62 +144,10 @@ public class CheckpointManager implements AutoCloseable {
         return messageCheckpoint.getOffset() < 0 && actionCheckpoint.getOffset() < 0;
     }
 
-    void fixOldVersionCheckpointIfShould(ConsumerLogManager consumerLogManager, PullLogManager pullLogManager) {
-        if (messageCheckpoint.isFromOldVersion()) {
-            LOG.info("fix message replay state using consumer log");
-            fixMessageCheckpoint(consumerLogManager);
-            messageCheckpoint.setFromOldVersion(false);
-        }
-
-        if (actionCheckpoint.isFromOldVersion()) {
-            LOG.info("fix action replay state using pull log");
-            fixActionCheckpoint(pullLogManager);
-            messageCheckpoint.setFromOldVersion(false);
-        }
-    }
-
-    private void fixMessageCheckpoint(ConsumerLogManager manager) {
-        final Map<String, Long> maxSequences = messageCheckpoint.getMaxSequences();
-        final Map<String, Long> offsets = manager.currentConsumerLogOffset();
-        offsets.forEach(maxSequences::put);
-    }
-
-    private void fixActionCheckpoint(PullLogManager manager) {
-        final Table<String, String, PullLog> allLogs = manager.getLogs();
-        final Table<String, String, ConsumerGroupProgress> progresses = actionCheckpoint.getProgresses();
-        progresses.values().forEach(progress -> {
-            final String subject = progress.getSubject();
-            final String group = progress.getGroup();
-            final String groupAndSubject = GroupAndSubject.groupAndSubject(subject, group);
-
-            final Map<String, ConsumerProgress> consumers = progress.getConsumers();
-
-            final Map<String, PullLog> logs = allLogs.column(groupAndSubject);
-            logs.forEach((consumerId, log) -> {
-                final long pull = log.getMaxOffset() - 1;
-                final ConsumerProgress consumer = consumers.get(consumerId);
-                if (consumer != null) {
-                    consumer.setPull(pull);
-                } else {
-                    consumers.put(consumerId, new ConsumerProgress(subject, group, consumerId, pull, -1));
-                }
-            });
-
-            if (consumers.size() == 1) {
-                consumers.values().forEach(consumer -> {
-                    if (consumer.getPull() < 0) {
-                        progress.setBroadcast(true);
-                        consumer.setPull(progress.getPull());
-                    }
-                });
-            }
-        });
-    }
-
-    Collection<ConsumerGroupProgress> allConsumerGroupProgresses() {
+    Table<String, String, ConsumerGroupProgress> allConsumerGroupProgresses() {
         actionCheckpointGuard.lock();
         try {
-            return actionCheckpoint.getProgresses().values();
+            return actionCheckpoint.getProgresses();
         } finally {
             actionCheckpointGuard.unlock();
         }
@@ -218,7 +195,9 @@ public class CheckpointManager implements AutoCloseable {
         final long maxSequence = getMaxPulledMessageSequence(subject, group);
         if (maxSequence + 1 < action.getFirstMessageSequence()) {
             long num = action.getFirstMessageSequence() - maxSequence;
-            LOG.warn("Maybe lost message. Last message sequence: {}. Current start sequence {} {}:{}", maxSequence, action.getFirstMessageSequence(), subject, group);
+            //这个地方本来是用来判断某个consumer group拉取的消息的consumer log sequence的连续性的，因为不连续就可能有消息丢了
+            //但是如果使用了基于tag的过滤，那么这个sequence本来就可能是不连续的
+            LOG.debug("Skipped messages: last message sequence: {}, current start sequence {} {}:{}:{}", maxSequence, action.getFirstMessageSequence(), subject, group, action.consumerId());
             QMon.maybeLostMessagesCountInc(subject, group, num);
         }
         final long lastMessageSequence = action.getLastMessageSequence();
@@ -281,7 +260,7 @@ public class CheckpointManager implements AutoCloseable {
 
             final long maxSequence = getConsumerMaxAckedPullLogSequence(subject, group, consumerId);
             if (maxSequence + 1 < action.getFirstSequence()) {
-                LOG.warn("Maybe lost ack. Last acked sequence: {}. Current start acked sequence {} {}:{}:{}", maxSequence, action.getFirstSequence(), subject, group, consumerId);
+                LOG.debug("Skipped ack: last acked sequence: {}, current start acked sequence {} {}:{}:{}", maxSequence, action.getFirstSequence(), subject, group, consumerId);
             }
 
             final long lastSequence = action.getLastSequence();
@@ -347,7 +326,7 @@ public class CheckpointManager implements AutoCloseable {
         }
     }
 
-    void updateMessageReplayState(final MessageLogMeta meta) {
+    void updateMessageReplayState(final MessageLogRecord meta) {
         messageCheckpointGuard.lock();
         try {
             final String subject = meta.getSubject();
@@ -456,5 +435,157 @@ public class CheckpointManager implements AutoCloseable {
     public void close() {
         messageCheckpointStore.close();
         actionCheckpointStore.close();
+    }
+
+    long getIndexCheckpointIndexOffset() {
+        indexCheckpointGuard.lock();
+        try {
+            return indexCheckpoint.getIndexOffset();
+        } finally {
+            indexCheckpointGuard.unlock();
+        }
+    }
+
+    void updateMessageIndexCheckpoint(final long msgOffset) {
+        indexCheckpointGuard.lock();
+        try {
+            if (msgOffset <= indexCheckpoint.getMsgOffset()) return;
+            indexCheckpoint.setMsgOffset(msgOffset);
+        } finally {
+            indexCheckpointGuard.unlock();
+        }
+    }
+
+    void updateIndexCheckpoint(final long msgOffset, final long indexOffset) {
+        indexCheckpointGuard.lock();
+        try {
+            if (msgOffset <= indexCheckpoint.getMsgOffset()) return;
+            indexCheckpoint.setMsgOffset(msgOffset);
+            indexCheckpoint.setIndexOffset(indexOffset);
+        } finally {
+            indexCheckpointGuard.unlock();
+        }
+    }
+
+    void updateIndexLogCheckpoint(final long indexOffset) {
+        indexCheckpointGuard.lock();
+        try {
+            indexCheckpoint.setIndexOffset(indexOffset);
+        } finally {
+            indexCheckpointGuard.unlock();
+        }
+    }
+
+    public long getIndexCheckpointMessageOffset() {
+        indexCheckpointGuard.lock();
+        try {
+            return indexCheckpoint.getMsgOffset();
+        } finally {
+            indexCheckpointGuard.unlock();
+        }
+    }
+
+    public long getIndexIterateCheckpoint() {
+        return indexIterateCheckpoint;
+    }
+
+    public void saveIndexIterateCheckpointSnapshot(final Snapshot<Long> snapshot) {
+        if (snapshot.getVersion() <= 0) return;
+        indexIterateCheckpointStore.saveSnapshot(snapshot);
+    }
+
+    public long getSyncActionLogOffset() {
+        return this.syncActionCheckpoint.longValue();
+    }
+
+    public void setSyncActionLogOffset(long offset) {
+        this.syncActionCheckpoint.set(offset);
+    }
+
+    public void addSyncActionLogOffset(int delta) {
+        this.syncActionCheckpoint.getAndAdd(delta);
+    }
+
+    public void saveSyncActionCheckpointSnapshot() {
+        long actionCheckpoint = syncActionCheckpoint.longValue();
+        if (actionCheckpoint <= 0) return;
+        syncActionCheckpointStore.saveSnapshot(new Snapshot<>(actionCheckpoint, actionCheckpoint));
+    }
+
+    Snapshot<IndexCheckpoint> createIndexCheckpoint() {
+        IndexCheckpoint indexCheckpoint = duplicateIndexCheckpoint();
+        return new Snapshot<>(indexCheckpoint.getMsgOffset(), indexCheckpoint);
+    }
+
+    private IndexCheckpoint duplicateIndexCheckpoint() {
+        indexCheckpointGuard.lock();
+        try {
+            return new IndexCheckpoint(indexCheckpoint.getMsgOffset(), indexCheckpoint.getIndexOffset());
+        } finally {
+            indexCheckpointGuard.unlock();
+        }
+    }
+
+    void saveIndexCheckpointSnapshot(final Snapshot<IndexCheckpoint> snapshot) {
+        if (snapshot.getVersion() < 0) {
+            return;
+        }
+        indexCheckpointStore.saveSnapshot(snapshot);
+    }
+
+    Map<String, Long> allMessageMaxSequences() {
+        messageCheckpointGuard.lock();
+        try {
+            return messageCheckpoint.getMaxSequences();
+        } finally {
+            messageCheckpointGuard.unlock();
+        }
+    }
+
+    void updateMessageCheckpoint(final long offset, final Map<String, Long> currentMaxSequences) {
+        messageCheckpointGuard.lock();
+        try {
+            currentMaxSequences.forEach((subject, maxSequence) -> {
+                messageCheckpoint.getMaxSequences().merge(subject, maxSequence, Math::max);
+            });
+            messageCheckpoint.setOffset(offset);
+        } finally {
+            messageCheckpointGuard.unlock();
+        }
+    }
+
+    private static class LongSerde implements Serde<Long> {
+
+        @Override
+        public byte[] toBytes(Long value) {
+            return value.toString().getBytes();
+        }
+
+        @Override
+        public Long fromBytes(byte[] data) {
+            return Long.valueOf(new String(data));
+        }
+    }
+
+    private static class IndexCheckpointSerde implements Serde<IndexCheckpoint> {
+        private static final String SLASH = "/";
+
+        @Override
+        public byte[] toBytes(IndexCheckpoint value) {
+            return (value.getMsgOffset() + SLASH + value.getIndexOffset()).getBytes(Charsets.UTF_8);
+        }
+
+        @Override
+        public IndexCheckpoint fromBytes(byte[] data) {
+            try {
+                final String checkpoint = new String(data, Charsets.UTF_8);
+                int pos = checkpoint.indexOf(SLASH);
+                long msgOffset = Long.parseLong(checkpoint.substring(0, pos));
+                long indexOffset = Long.parseLong(checkpoint.substring(pos + 1));
+                return new IndexCheckpoint(msgOffset, indexOffset);
+            } catch (NumberFormatException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 }

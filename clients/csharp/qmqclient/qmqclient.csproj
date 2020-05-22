@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <Company>Qunar</Company>
+    <Product>QMQ</Product>
+    <Description>The .Net client for QMQ</Description>
+    <Copyright>Qunar</Copyright>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="EnterpriseLibrary.Data.NetCore" Version="6.0.1313" />
+    <PackageReference Include="NLog" Version="4.5.11" />
+  </ItemGroup>
+
+</Project>

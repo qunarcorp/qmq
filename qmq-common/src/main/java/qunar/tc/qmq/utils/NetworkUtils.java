@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.utils;
@@ -46,9 +46,8 @@ public class NetworkUtils {
             final ArrayList<String> ipv6Result = new ArrayList<>();
             while (interfaces.hasMoreElements()) {
                 final NetworkInterface networkInterface = interfaces.nextElement();
-                if (networkInterface.getDisplayName().contains("docker")) {
-                    continue;
-                }
+                if (!networkInterface.isUp()) continue;
+                if (networkInterface.isVirtual()) continue;
 
                 final Enumeration<InetAddress> addresses = networkInterface.getInetAddresses();
                 while (addresses.hasMoreElements()) {
@@ -65,7 +64,7 @@ public class NetworkUtils {
 
             if (!ipv4Result.isEmpty()) {
                 for (String ip : ipv4Result) {
-                    if (ip.startsWith("127.0") || ip.startsWith("192.168")) {
+                    if (ip.startsWith("127.0")) {
                         continue;
                     }
 

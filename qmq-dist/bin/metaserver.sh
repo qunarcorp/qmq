@@ -15,7 +15,7 @@ else
   JAVA=java
 fi
 
-JAVA_OPTS="$JAVA_OPTS -DQMQ_LOG_DIR=$QMQ_LOG_DIR"
+JAVA_OPTS="$JAVA_OPTS -DQMQ_LOG_DIR=$QMQ_LOG_DIR -Xloggc:${QMQ_LOG_DIR}/metaserver-gc-${TIMESTAMP}.log -XX:+PrintGC -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${QMQ_LOG_DIR}"
 QMQ_PID_FILE="$QMQ_PID_DIR/metaserver.pid"
 QMQ_DAEMON_OUT="$QMQ_LOG_DIR/metaserver.out"
 

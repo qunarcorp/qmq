@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.store;
@@ -20,17 +20,20 @@ import com.google.common.collect.Table;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.meta.BrokerRole;
 import qunar.tc.qmq.base.RawMessage;
+import qunar.tc.qmq.meta.BrokerRole;
 import qunar.tc.qmq.monitor.QMon;
 import qunar.tc.qmq.store.action.ActionEvent;
 import qunar.tc.qmq.store.action.MaxSequencesUpdater;
 import qunar.tc.qmq.store.action.PullLogBuilder;
+import qunar.tc.qmq.store.buffer.SegmentBuffer;
 import qunar.tc.qmq.store.event.FixedExecOrderEventBus;
+import qunar.tc.qmq.store.result.Result;
 
+import java.io.File;
 import java.nio.ByteBuffer;
-import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
@@ -48,6 +51,10 @@ public class DefaultStorage implements Storage {
     private static final int DEFAULT_FLUSH_INTERVAL = 500; // ms
 
     private final StorageConfig config;
+    private final CheckpointManager checkpointManager;
+
+    private final SortedMessagesTable sortedMessagesTable;
+    private final MessageMemTableManager memTableManager;
 
     private final MessageLog messageLog;
     private final ConsumerLogManager consumerLogManager;
@@ -55,14 +62,13 @@ public class DefaultStorage implements Storage {
     private final ActionLog actionLog;
     private final ConsumeQueueManager consumeQueueManager;
 
-    private final CheckpointManager checkpointManager;
-
     private final PullLogFlusher pullLogFlusher;
     private final FixedExecOrderEventBus actionEventBus;
-    private final ActionLogIterateService actionLogIterateService;
+    private final LogIterateService<ActionEvent> actionLogIterateService;
+
     private final ConsumerLogFlusher consumerLogFlusher;
     private final FixedExecOrderEventBus messageEventBus;
-    private final MessageLogIterateService messageLogIterateService;
+    private final LogIterateService<MessageLogRecord> messageLogIterateService;
 
     private final ScheduledExecutorService logCleanerExecutor;
 
@@ -71,13 +77,18 @@ public class DefaultStorage implements Storage {
 
     public DefaultStorage(final BrokerRole role, final StorageConfig config, final CheckpointLoader loader) {
         this.config = config;
-        this.consumerLogManager = new ConsumerLogManager(config);
+        this.checkpointManager = new CheckpointManager(role, config, loader);
+
+        this.consumerLogManager = new ConsumerLogManager(config, checkpointManager.allMessageMaxSequences());
         this.messageLog = new MessageLog(config, consumerLogManager);
-        this.pullLogManager = new PullLogManager(config);
+        this.pullLogManager = new PullLogManager(config, checkpointManager.allConsumerGroupProgresses());
         this.actionLog = new ActionLog(config);
 
-        this.checkpointManager = new CheckpointManager(role, config, loader);
-        this.checkpointManager.fixOldVersionCheckpointIfShould(consumerLogManager, pullLogManager);
+        final int tabletSize = MessageLog.PER_SEGMENT_FILE_SIZE / 4;
+        this.sortedMessagesTable = new SortedMessagesTable(new File(config.getSMTStorePath()), tabletSize);
+        final EvictedMemTableHandler evictedCallback = new EvictedMemTableHandler(sortedMessagesTable, consumerLogManager, checkpointManager);
+        this.memTableManager = new MessageMemTableManager(config, tabletSize - sortedMessagesTable.getTabletMetaSize(), evictedCallback);
+
         // must init after offset manager created
         this.consumeQueueManager = new ConsumeQueueManager(this);
 
@@ -86,13 +97,18 @@ public class DefaultStorage implements Storage {
         this.actionEventBus.subscribe(ActionEvent.class, new PullLogBuilder(this));
         this.actionEventBus.subscribe(ActionEvent.class, new MaxSequencesUpdater(checkpointManager));
         this.actionEventBus.subscribe(ActionEvent.class, pullLogFlusher);
-        this.actionLogIterateService = new ActionLogIterateService(actionLog, checkpointManager, actionEventBus);
+        this.actionLogIterateService = new LogIterateService<>("ReplayActionLog", config.getLogDispatcherPauseMillis(), actionLog, checkpointManager.getActionCheckpointOffset(), actionEventBus);
 
         this.consumerLogFlusher = new ConsumerLogFlusher(config, checkpointManager, consumerLogManager);
         this.messageEventBus = new FixedExecOrderEventBus();
-        this.messageEventBus.subscribe(MessageLogMeta.class, new BuildConsumerLogEventListener(consumerLogManager));
-        this.messageEventBus.subscribe(MessageLogMeta.class, consumerLogFlusher);
-        this.messageLogIterateService = new MessageLogIterateService(messageLog, checkpointManager, messageEventBus);
+        if (config.isSMTEnable()) {
+            this.messageEventBus.subscribe(MessageLogRecord.class, new BuildMessageMemTableEventListener(config, memTableManager, sortedMessagesTable));
+            this.messageEventBus.subscribe(MessageLogRecord.class, event -> messageEventBus.post(new ConsumerLogWroteEvent(event.getSubject(), true)));
+        } else {
+            this.messageEventBus.subscribe(MessageLogRecord.class, new BuildConsumerLogEventListener(consumerLogManager));
+            this.messageEventBus.subscribe(MessageLogRecord.class, consumerLogFlusher);
+        }
+        this.messageLogIterateService = new LogIterateService<>("ReplayMessageLog", config.getLogDispatcherPauseMillis(), messageLog, checkpointManager.getMessageCheckpointOffset(), messageEventBus);
 
         this.logCleanerExecutor = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder().setNameFormat("log-cleaner-%d").build());
 
@@ -109,11 +125,23 @@ public class DefaultStorage implements Storage {
 
         messageLogIterateService.blockUntilReplayDone();
         actionLogIterateService.blockUntilReplayDone();
+        blockUntilSMTWriteComplete();
         // must call this after message log replay done
-        consumerLogManager.initConsumerLogOffset();
+        consumerLogManager.initConsumerLogOffset(memTableManager.latestMemTable());
 
         logCleanerExecutor.scheduleAtFixedRate(
                 new LogCleaner(), 0, config.getLogRetentionCheckIntervalSeconds(), TimeUnit.SECONDS);
+    }
+
+    private void blockUntilSMTWriteComplete() {
+        while (memTableManager.hasPendingEvicted()) {
+            LOG.info("waiting all smt write complete");
+            try {
+                TimeUnit.SECONDS.sleep(1);
+            } catch (InterruptedException e) {
+                LOG.debug("sleep interrupted.", e);
+            }
+        }
     }
 
     @Override
@@ -123,6 +151,8 @@ public class DefaultStorage implements Storage {
 
     @Override
     public void destroy() {
+        shutdownLogCleaner();
+
         safeClose(actionLogIterateService);
         safeClose(messageLogIterateService);
         safeClose(messageLogFlushService);
@@ -133,6 +163,14 @@ public class DefaultStorage implements Storage {
         safeClose(messageLog);
         safeClose(consumerLogManager);
         safeClose(pullLogManager);
+    }
+
+    private void shutdownLogCleaner() {
+        logCleanerExecutor.shutdown();
+        try {
+            logCleanerExecutor.awaitTermination(1, TimeUnit.SECONDS);
+        } catch (InterruptedException ignore) {
+        }
     }
 
     private void safeClose(AutoCloseable closeable) {
@@ -171,18 +209,55 @@ public class DefaultStorage implements Storage {
         return pollMessages(subject, consumerLogSequence, maxMessages, filter, false);
     }
 
-    private GetMessageResult pollMessages(String subject, long consumerLogSequence, int maxMessages, MessageFilter filter, boolean strictly) {
+    private GetMessageResult pollMessages(String subject, long beginSequence, int maxMessages, MessageFilter filter, boolean strictly) {
+        if (config.isSMTEnable()) {
+            final GetMessageResult result = pollFromMemTable(subject, beginSequence, maxMessages, filter);
+            switch (result.getStatus()) {
+                case SUCCESS:
+                    QMon.memtableHitsCountInc(result.getMessageNum());
+                    return result;
+                case NO_MESSAGE:
+                    return result;
+                default:
+                    break;
+            }
+        }
+
+        return pollFromConsumerLog(subject, beginSequence, maxMessages, filter, strictly);
+    }
+
+    private GetMessageResult pollFromMemTable(String subject, long beginSequence, int maxMessages, MessageFilter filter) {
+        final Iterator<MessageMemTable> iter = memTableManager.iterator();
+        while (iter.hasNext()) {
+            final MessageMemTable table = iter.next();
+            final GetMessageResult result = table.poll(subject, beginSequence, maxMessages, filter);
+            switch (result.getStatus()) {
+                case SUBJECT_NOT_FOUND:
+                case SEQUENCE_TOO_SMALL:
+                    break;
+                default:
+                    return result;
+            }
+        }
+
+        final GetMessageResult result = new GetMessageResult();
+        result.setNextBeginSequence(0);
+        result.setStatus(GetMessageStatus.SEQUENCE_TOO_SMALL);
+        return result;
+    }
+
+    private GetMessageResult pollFromConsumerLog(String subject, long consumerLogSequence, int maxMessages, MessageFilter filter, boolean strictly) {
         final GetMessageResult result = new GetMessageResult();
 
         if (maxMessages <= 0) {
-            result.setNextBeginOffset(consumerLogSequence);
+            result.setNextBeginSequence(consumerLogSequence);
             result.setStatus(GetMessageStatus.NO_MESSAGE);
             return result;
         }
 
         final ConsumerLog consumerLog = consumerLogManager.getConsumerLog(subject);
         if (consumerLog == null) {
-            result.setNextBeginOffset(0);
+            result.setNextBeginSequence(0);
             result.setStatus(GetMessageStatus.SUBJECT_NOT_FOUND);
             return result;
         }
@@ -190,30 +265,28 @@ public class DefaultStorage implements Storage {
         final OffsetBound bound = consumerLog.getOffsetBound();
         final long minSequence = bound.getMinOffset();
         final long maxSequence = bound.getMaxOffset();
-        result.setMinOffset(minSequence);
-        result.setMaxOffset(maxSequence);
 
         if (maxSequence == 0) {
-            result.setNextBeginOffset(maxSequence);
+            result.setNextBeginSequence(maxSequence);
             result.setStatus(GetMessageStatus.NO_MESSAGE);
             return result;
         }
 
         if (consumerLogSequence < 0) {
             result.setConsumerLogRange(new OffsetRange(maxSequence, maxSequence));
-            result.setNextBeginOffset(maxSequence);
+            result.setNextBeginSequence(maxSequence);
             result.setStatus(GetMessageStatus.SUCCESS);
             return result;
         }
 
         if (consumerLogSequence > maxSequence) {
-            result.setNextBeginOffset(maxSequence);
+            result.setNextBeginSequence(maxSequence);
             result.setStatus(GetMessageStatus.OFFSET_OVERFLOW);
             return result;
         }
 
         if (strictly && consumerLogSequence < minSequence) {
-            result.setNextBeginOffset(consumerLogSequence);
+            result.setNextBeginSequence(consumerLogSequence);
             result.setStatus(GetMessageStatus.EMPTY_CONSUMER_LOG);
             return result;
         }
@@ -221,56 +294,88 @@ public class DefaultStorage implements Storage {
         final long start = consumerLogSequence < minSequence ? minSequence : consumerLogSequence;
         final SegmentBuffer consumerLogBuffer = consumerLog.selectIndexBuffer(start);
         if (consumerLogBuffer == null) {
-            result.setNextBeginOffset(start);
+            result.setNextBeginSequence(start);
             result.setStatus(GetMessageStatus.EMPTY_CONSUMER_LOG);
             return result;
         }
 
         if (!consumerLogBuffer.retain()) {
-            result.setNextBeginOffset(start);
+            result.setNextBeginSequence(start);
             result.setStatus(GetMessageStatus.EMPTY_CONSUMER_LOG);
             return result;
         }
 
         long nextBeginSequence = start;
         try {
-            final int maxMessagesInBytes = maxMessages * ConsumerLog.CONSUMER_LOG_UNIT_BYTES;
-            for (int i = 0; i < maxMessagesInBytes; i += ConsumerLog.CONSUMER_LOG_UNIT_BYTES) {
+            final int maxMessagesInBytes = maxMessages * consumerLog.getUnitBytes();
+            for (int i = 0; i < maxMessagesInBytes; i += consumerLog.getUnitBytes()) {
                 if (i >= consumerLogBuffer.getSize()) {
                     break;
                 }
 
-                final ConsumerLogEntry entry = ConsumerLogEntry.Factory.create();
                 final ByteBuffer buffer = consumerLogBuffer.getBuffer();
-                entry.setTimestamp(buffer.getLong());
-                entry.setWroteOffset(buffer.getLong());
-                entry.setWroteBytes(buffer.getInt());
-                entry.setHeaderSize(buffer.getShort());
+                final ConsumerLog.Unit unit = consumerLog.readUnit(buffer);
+                if (unit.getType() == ConsumerLog.PayloadType.MESSAGE_LOG_INDEX) {
+                    final ConsumerLog.MessageLogIndex index = (ConsumerLog.MessageLogIndex) unit.getIndex();
 
-                if (!filter.filter(entry)) break;
+                    if (!filter.filter(index::getTimestamp)) break;
 
-                final SegmentBuffer messageBuffer = messageLog.getMessage(entry.getWroteOffset(), entry.getWroteBytes(), entry.getHeaderSize());
-                if (messageBuffer != null && messageBuffer.retain()) {
-                    result.addSegmentBuffer(messageBuffer);
-                } else {
-                    QMon.readMessageReturnNullCountInc(subject);
-                    LOG.warn("read message log failed. consumerLogSequence: {}, wrote consumerLogSequence: {}, wrote bytes: {}, payload consumerLogSequence: {}",
-                            nextBeginSequence, entry.getWroteOffset(), entry.getWroteBytes(), entry.getHeaderSize());
+                    if (!readFromMessageLog(subject, index, result)) {
+                        if (result.getMessageNum() > 0) {
+                            break;
+                        }
+                    }
+                } else if (unit.getType() == ConsumerLog.PayloadType.SMT_INDEX) {
+                    final ConsumerLog.SMTIndex index = (ConsumerLog.SMTIndex) unit.getIndex();
 
-                    //如果前面已经获取到了消息，中间因为任何原因导致获取不到消息，则需要提前退出，避免consumer sequence中间出现空洞
-                    if (result.getSegmentBuffers().size() > 0) {
+                    if (!filter.filter(index::getTimestamp)) {
                         break;
                     }
+
+                    if (!readFromSMT(index.getTabletId(), index.getPosition(), index.getSize(), result)) {
+                        if (result.getMessageNum() > 0) {
+                            break;
+                        }
+                    }
+                } else {
+                    throw new RuntimeException("unknown consumer log unit type " + unit.getType());
                 }
+
                 nextBeginSequence += 1;
             }
         } finally {
             consumerLogBuffer.release();
         }
-        result.setNextBeginOffset(nextBeginSequence);
+        result.setNextBeginSequence(nextBeginSequence);
         result.setConsumerLogRange(new OffsetRange(start, nextBeginSequence - 1));
         result.setStatus(GetMessageStatus.SUCCESS);
         return result;
+    }
+
+    private boolean readFromMessageLog(final String subject, final ConsumerLog.MessageLogIndex index, final GetMessageResult result) {
+        final SegmentBuffer messageBuffer = messageLog.getMessage(index.getWroteOffset(), index.getWroteBytes(), index.getHeaderSize());
+        if (messageBuffer != null && messageBuffer.retain()) {
+            result.addBuffer(messageBuffer);
+            return true;
+        } else {
+            QMon.readMessageReturnNullCountInc(subject);
+            LOG.warn("read message log failed. wrote offset: {}, wrote bytes: {}, header size: {}",
+                    index.getWroteOffset(), index.getWroteBytes(), index.getHeaderSize());
+            return false;
+        }
+    }
+
+    private boolean readFromSMT(final long tabletId, final int position, final int size, final GetMessageResult result) {
+        final Result<SortedMessagesTable.GetMessageStatus, SegmentBuffer> getResult = sortedMessagesTable.getMessage(tabletId, position, size);
+        switch (getResult.getStatus()) {
+            case SUCCESS:
+                result.addBuffer(getResult.getData());
+                return true;
+            case TABLET_ID_INVALID:
+                LOG.error("found invalid tablet id. id: {}", tabletId);
+            default:
+                return false;
+        }
     }
 
     @Override
@@ -288,12 +393,18 @@ public class DefaultStorage implements Storage {
         return actionLog.getMaxOffset();
     }
 
+    @Override
     public long getMinActionLogOffset() {
         return actionLog.getMinOffset();
     }
 
     @Override
     public long getMaxMessageSequence(String subject) {
+        final Long maxMessageSequence = memTableManager.getMaxMessageSequence(subject);
+        if (maxMessageSequence != null) {
+            return maxMessageSequence + 1;
+        }
+
         final ConsumerLog consumerLog = consumerLogManager.getConsumerLog(subject);
         if (consumerLog == null) {
             return 0;
@@ -314,6 +425,12 @@ public class DefaultStorage implements Storage {
     }
 
     @Override
+    public long getPullLogReplayState(String subject, String group, String consumerId) {
+        PullLog pullLog = pullLogManager.getOrCreate(subject, group, consumerId);
+        return pullLog.getMaxOffset();
+    }
+
+    @Override
     public CheckpointManager getCheckpointManager() {
         return checkpointManager;
     }
@@ -324,7 +441,7 @@ public class DefaultStorage implements Storage {
     }
 
     @Override
-    public Collection<ConsumerGroupProgress> allConsumerGroupProgresses() {
+    public Table<String, String, ConsumerGroupProgress> allConsumerGroupProgresses() {
         return checkpointManager.allConsumerGroupProgresses();
     }
 
@@ -344,6 +461,28 @@ public class DefaultStorage implements Storage {
     }
 
     @Override
+    public void updateConsumeQueue(String subject, String group, int consumeFromWhereCode) {
+        final ConsumerLog consumerLog = consumerLogManager.getConsumerLog(subject);
+        if (consumerLog == null) {
+            LOG.warn("没有对应的consumerLog, subject:{}", subject);
+            return;
+        }
+        final ConsumeFromWhere consumeFromWhere = ConsumeFromWhere.codeOf(consumeFromWhereCode);
+        final OffsetBound bound = consumerLog.getOffsetBound();
+        switch (consumeFromWhere) {
+            case UNKNOWN:
+                LOG.info("UNKNOWN consumeFromWhere code, {}", consumeFromWhereCode);
+                break;
+            case EARLIEST:
+                consumeQueueManager.update(subject, group, bound.getMinOffset());
+                break;
+            case LATEST:
+                consumeQueueManager.update(subject, group, bound.getMaxOffset());
+                break;
+        }
+    }
+
+    @Override
     public void disableLagMonitor(String subject, String group) {
         consumeQueueManager.disableLagMonitor(subject, group);
     }
@@ -358,6 +497,13 @@ public class DefaultStorage implements Storage {
         if (pullLogManager.destroy(subject, group, consumerId)) {
             checkpointManager.removeConsumerProgress(subject, group, consumerId);
         }
+    }
+
+    @Override
+    public OffsetBound getSubjectConsumerLogBound(String subject) {
+        ConsumerLog consumerLog = consumerLogManager.getConsumerLog(subject);
+
+        return consumerLog == null ? null : consumerLog.getOffsetBound();
     }
 
     @Override
@@ -395,7 +541,12 @@ public class DefaultStorage implements Storage {
         return actionLog.appendData(startOffset, data);
     }
 
-    private class BuildConsumerLogEventListener implements FixedExecOrderEventBus.Listener<MessageLogMeta> {
+    @Override
+    public MessageLogRecordVisitor newMessageLogVisitor(long startOffset) {
+        return messageLog.newVisitor(startOffset);
+    }
+
+    private class BuildConsumerLogEventListener implements FixedExecOrderEventBus.Listener<MessageLogRecord> {
         private final ConsumerLogManager consumerLogManager;
         private final Map<String, Long> offsets;
 
@@ -406,7 +557,7 @@ public class DefaultStorage implements Storage {
         }
 
         @Override
-        public void onEvent(final MessageLogMeta event) {
+        public void onEvent(final MessageLogRecord event) {
             if (isFirstEventOfLogSegment(event)) {
                 LOG.info("first event of log segment. event: {}", event);
                 // TODO(keli.wang): need catch all exception here?
@@ -420,16 +571,16 @@ public class DefaultStorage implements Storage {
                 LOG.error("next sequence not equals to max sequence. subject: {}, received seq: {}, received offset: {}, diff: {}",
                         event.getSubject(), event.getSequence(), event.getWroteOffset(), event.getSequence() - consumerLog.nextSequence());
             }
-            final boolean success = consumerLog.putMessageLogOffset(event.getSequence(), event.getWroteOffset(), event.getWroteBytes(), event.getHeaderSize());
+            final boolean success = consumerLog.writeMessageLogIndex(event.getSequence(), event.getWroteOffset(), event.getWroteBytes(), event.getHeaderSize());
             checkpointManager.updateMessageReplayState(event);
             messageEventBus.post(new ConsumerLogWroteEvent(event.getSubject(), success));
         }
 
-        private boolean isFirstEventOfLogSegment(final MessageLogMeta event) {
+        private boolean isFirstEventOfLogSegment(final MessageLogRecord event) {
             return event.getWroteOffset() == event.getBaseOffset();
         }
 
-        private void updateOffset(final MessageLogMeta meta) {
+        private void updateOffset(final MessageLogRecord meta) {
             final String subject = meta.getSubject();
             final long sequence = meta.getSequence();
             if (offsets.containsKey(subject)) {
@@ -459,8 +610,22 @@ public class DefaultStorage implements Storage {
             try {
                 messageLog.clean();
                 consumerLogManager.clean();
-                pullLogManager.clean(allConsumerGroupProgresses());
+                pullLogManager.clean(allConsumerGroupProgresses().values());
                 actionLog.clean();
+                sortedMessagesTable.clean(config, (logManager, deletedSegment) -> {
+                    consumerLogManager.adjustConsumerLogMinOffsetForSMT(logManager.firstSegment());
+
+                    final String fileName = StoreUtils.offsetFileNameForSegment(deletedSegment);
+                    final String path = config.getSMTStorePath();
+                    final File file = new File(path, fileName);
+                    try {
+                        if (!file.delete()) {
+                            LOG.warn("delete offset file failed. file: {}", fileName);
+                        }
+                    } catch (Exception e) {
+                        LOG.warn("delete offset file failed.. file: {}", fileName, e);
+                    }
+                });
             } catch (Throwable e) {
                 LOG.error("log cleaner caught exception.", e);
             }

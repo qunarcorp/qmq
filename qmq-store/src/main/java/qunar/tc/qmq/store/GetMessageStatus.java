@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.store;
@@ -22,12 +22,13 @@ package qunar.tc.qmq.store;
  */
 public enum GetMessageStatus {
     SUCCESS,
-
     OFFSET_OVERFLOW,
-
     NO_MESSAGE,
-
     SUBJECT_NOT_FOUND,
+    EMPTY_CONSUMER_LOG,
 
-    EMPTY_CONSUMER_LOG
+
+    SEQUENCE_TOO_SMALL,
+    SEQUENCE_TOO_LARGE,
+    TABLE_ALREADY_EVICTED,
 }

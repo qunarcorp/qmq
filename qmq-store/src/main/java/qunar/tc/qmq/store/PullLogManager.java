@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.store;
@@ -38,14 +38,14 @@ public class PullLogManager implements AutoCloseable {
     private final StorageConfig config;
     private final Table<String, String, PullLog> logs;
 
-    public PullLogManager(final StorageConfig config) {
+    public PullLogManager(final StorageConfig config, final Table<String, String, ConsumerGroupProgress> consumerGroupProgresses) {
         this.config = config;
         this.logs = HashBasedTable.create();
 
-        loadPullLogs();
+        loadPullLogs(consumerGroupProgresses);
     }
 
-    private void loadPullLogs() {
+    private void loadPullLogs(final Table<String, String, ConsumerGroupProgress> consumerGroupProgresses) {
         final File pullLogsRoot = new File(config.getPullLogStorePath());
         final File[] consumerIdDirs = pullLogsRoot.listFiles();
         if (consumerIdDirs != null) {
@@ -53,12 +53,12 @@ public class PullLogManager implements AutoCloseable {
                 if (!consumerIdDir.isDirectory()) {
                     continue;
                 }
-                loadPullLogsByConsumerId(consumerIdDir);
+                loadPullLogsByConsumerId(consumerIdDir, consumerGroupProgresses);
             }
         }
     }
 
-    private void loadPullLogsByConsumerId(final File consumerIdDir) {
+    private void loadPullLogsByConsumerId(final File consumerIdDir, final Table<String, String, ConsumerGroupProgress> consumerGroupProgresses) {
         final File[] groupAndSubjectDirs = consumerIdDir.listFiles();
         if (groupAndSubjectDirs != null) {
             for (final File groupAndSubjectDir : groupAndSubjectDirs) {
@@ -73,8 +73,32 @@ public class PullLogManager implements AutoCloseable {
 
                 final String consumerId = consumerIdDir.getName();
                 final String groupAndSubject = groupAndSubjectDir.getName();
-                logs.put(consumerId, groupAndSubject, new PullLog(config, consumerId, groupAndSubject));
+                final Long maxSequence = getPullLogMaxSequence(consumerGroupProgresses, groupAndSubject, consumerId);
+                if (maxSequence == null) {
+                    logs.put(consumerId, groupAndSubject, new PullLog(config, consumerId, groupAndSubject));
+                } else {
+                    logs.put(consumerId, groupAndSubject, new PullLog(config, consumerId, groupAndSubject, maxSequence));
+                }
             }
+        }
+    }
+
+    private Long getPullLogMaxSequence(final Table<String, String, ConsumerGroupProgress> consumerGroupProgresses,
+                                       final String groupAndSubject, final String consumerId) {
+        final GroupAndSubject parsedGroupAndSubject = GroupAndSubject.parse(groupAndSubject);
+        final String subject = parsedGroupAndSubject.getSubject();
+        final String group = parsedGroupAndSubject.getGroup();
+
+        final ConsumerGroupProgress groupProgress = consumerGroupProgresses.get(subject, group);
+        if (groupProgress == null) {
+            return null;
+        }
+
+        final ConsumerProgress progress = groupProgress.getConsumers().get(consumerId);
+        if (progress == null) {
+            return null;
+        } else {
+            return progress.getPull();
         }
     }
 

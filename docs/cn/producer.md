@@ -1,6 +1,6 @@
 [上一页](trace.md)
-[回目录](../../readme.md)
-[下一页](consumer.md)
+[回目录](../../README.md)
+[下一页](unittest.md)
 
 # 发送消息(producer)
 
@@ -14,9 +14,9 @@
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
 
-    <bean class="qunar.tc.qmq.MessageProducerProvider">
+    <bean class="qunar.tc.qmq.producer.MessageProducerProvider">
         <property name="appCode" value="your app" />
-        <property name="metaServer" value="http://meta server/meta/address" />
+        <property name="metaServer" value="http://<meta server address>/meta/address" />
     </bean>
 </beans>
 ```
@@ -49,7 +49,7 @@ public class Configuration{
     public MessageProducer producer(){
         MessageProducerProvider producer = new MessageProducerProvider();
         producer.setAppCode("your app");
-        producer.setMetaServer("http://meta server/meta/address");
+        producer.setMetaServer("http://<meta server address>/meta/address");
         return producer;
     }
 }
@@ -59,7 +59,7 @@ public class Configuration{
 ```java
 MessageProducerProvider producer = new MessageProducerProvider();
 producer.setAppCode("your app");
-producer.setMetaServer("http://meta server/meta/address");
+producer.setMetaServer("http://<meta server address>/meta/address");
 producer.init();
 
 //每次发消息之前请使用generateMessage生成一个Message对象，然后填充数据
@@ -102,6 +102,11 @@ producer.setMaxQueueSize(10000);
 producer.setSendTryCount(10);
 ```
 
+* 注意
+```
+QMQ的Message.setProperty(key, value)如果value是字符串，则value的大小默认不能超过32K，如果你需要传输超大的字符串，请务必使用message.setLargeString(key, value)，这样你甚至可以传输十几兆的内容了，但是消费消息的时候也需要使用message.getLargeString(key)。
+```
+
 [上一页](trace.md)
-[回目录](../../readme.md)
-[下一页](consumer.md)
+[回目录](../../README.md)
+[下一页](unittest.md)

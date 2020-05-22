@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.metrics;
@@ -57,6 +57,10 @@ public class Metrics {
 
     public static QmqMeter meter(String name, String[] tags, String[] values) {
         return INSTANCE.newMeter(name, tags, values);
+    }
+
+    public static QmqMeter meter(String name) {
+        return INSTANCE.newMeter(name, EMPTY, EMPTY);
     }
 
     public static QmqTimer timer(String name, String[] tags, String[] values) {

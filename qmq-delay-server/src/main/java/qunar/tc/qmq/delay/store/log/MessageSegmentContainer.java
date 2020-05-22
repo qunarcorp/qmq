@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.delay.store.log;
@@ -24,12 +24,13 @@ import qunar.tc.qmq.delay.store.model.LogRecord;
 import qunar.tc.qmq.delay.store.model.MessageLogAttrEnum;
 import qunar.tc.qmq.delay.store.model.RawMessageExtend;
 import qunar.tc.qmq.delay.store.visitor.DelayMessageLogVisitor;
-import qunar.tc.qmq.delay.store.visitor.LogVisitor;
 import qunar.tc.qmq.store.*;
+import qunar.tc.qmq.store.buffer.SegmentBuffer;
 
 import java.io.File;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -56,7 +57,6 @@ public class MessageSegmentContainer implements SegmentContainer<AppendMessageRe
         this.messageAppender = new MessageSegmentContainer.DelayRawMessageAppender();
         this.logManager = new LogManager(new File(config.getMessageLogStorePath())
                 , config.getMessageLogSegmentFileSize()
-                , new StorageConfigImpl(config.getConfig())
                 , new MessageLogSegmentValidator());
         recoverSequence();
     }
@@ -182,8 +182,8 @@ public class MessageSegmentContainer implements SegmentContainer<AppendMessageRe
         logManager.flush();
     }
 
-    LogVisitor<LogRecord> newLogVisitor(final Long key) {
-        return new DelayMessageLogVisitor(logManager, key);
+    AbstractLogVisitor<LogRecord> newVisitor(final long startPos) {
+        return new DelayMessageLogVisitor(logManager, startPos);
     }
 
     long getMaxOffset() {
@@ -285,7 +285,7 @@ public class MessageSegmentContainer implements SegmentContainer<AppendMessageRe
 
     private class DelayRawMessageAppender implements MessageAppender<RawMessageExtend, Long> {
         private final ReentrantLock lock = new ReentrantLock();
-        private final ByteBuffer workingBuffer = ByteBuffer.allocate(config.getSingleMessageLimitSize());
+        private final ByteBuffer workingBuffer = ByteBuffer.allocate(1024);
 
         @Override
         public AppendMessageResult<Long> doAppend(long baseOffset, ByteBuffer targetBuffer, int freeSpace, RawMessageExtend message) {
@@ -304,17 +304,20 @@ public class MessageSegmentContainer implements SegmentContainer<AppendMessageRe
                 if (recordSize > config.getSingleMessageLimitSize()) {
                     return new AppendMessageResult<>(AppendMessageStatus.MESSAGE_SIZE_EXCEEDED, startWroteOffset, freeSpace, null);
                 }
-
-                workingBuffer.flip();
                 if (recordSize != freeSpace && recordSize + MIN_RECORD_BYTES > freeSpace) {
-                    workingBuffer.limit(freeSpace);
+                    workingBuffer.limit(MIN_RECORD_BYTES);
                     workingBuffer.putInt(MESSAGE_LOG_MAGIC_V1);
                     workingBuffer.put(MessageLogAttrEnum.ATTR_EMPTY_RECORD.getCode());
                     workingBuffer.putLong(System.currentTimeMillis());
-                    targetBuffer.put(workingBuffer.array(), 0, freeSpace);
+                    targetBuffer.put(workingBuffer.array(), 0, MIN_RECORD_BYTES);
+                    int fillZeroLen = freeSpace - MIN_RECORD_BYTES;
+                    if (fillZeroLen > 0) {
+                        targetBuffer.put(fillZero(fillZeroLen));
+                    }
                     return new AppendMessageResult<>(AppendMessageStatus.END_OF_FILE, startWroteOffset, freeSpace, null);
                 } else {
-                    workingBuffer.limit(recordSize);
+                    int headerSize = recordSize - message.getBodySize();
+                    workingBuffer.limit(headerSize);
                     workingBuffer.putInt(MESSAGE_LOG_MAGIC_V2);
                     workingBuffer.put(MessageLogAttrEnum.ATTR_MESSAGE_RECORD.getCode());
                     workingBuffer.putLong(System.currentTimeMillis());
@@ -326,15 +329,21 @@ public class MessageSegmentContainer implements SegmentContainer<AppendMessageRe
                     workingBuffer.put(subjectBytes);
                     workingBuffer.putLong(message.getHeader().getBodyCrc());
                     workingBuffer.putInt(message.getBodySize());
-                    workingBuffer.put(message.getBody().nioBuffer());
-                    targetBuffer.put(workingBuffer.array(), 0, recordSize);
+                    targetBuffer.put(workingBuffer.array(), 0, headerSize);
+                    targetBuffer.put(message.getBody().nioBuffer());
 
-                    final long payloadOffset = startWroteOffset + recordSize - message.getBodySize();
+                    final long payloadOffset = startWroteOffset + headerSize;
                     return new AppendMessageResult<>(AppendMessageStatus.SUCCESS, startWroteOffset, recordSize, payloadOffset);
                 }
             } finally {
                 lock.unlock();
             }
+        }
+
+        private byte[] fillZero(int len) {
+            byte[] zero = new byte[len];
+            Arrays.fill(zero, (byte) 0);
+            return zero;
         }
     }
 

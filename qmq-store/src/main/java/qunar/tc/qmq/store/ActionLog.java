@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.store;
@@ -20,6 +20,8 @@ import com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.monitor.QMon;
+import qunar.tc.qmq.store.action.ActionEvent;
+import qunar.tc.qmq.store.buffer.SegmentBuffer;
 
 import java.io.File;
 import java.nio.ByteBuffer;
@@ -28,16 +30,23 @@ import java.nio.ByteBuffer;
  * @author keli.wang
  * @since 2017/8/20
  */
-public class ActionLog {
-    public static final int PER_SEGMENT_FILE_SIZE = 100 * 1024 * 1024;
+public class ActionLog implements Visitable<ActionEvent> {
     private static final Logger LOG = LoggerFactory.getLogger(ActionLog.class);
+
+    public static final int PER_SEGMENT_FILE_SIZE = 100 * 1024 * 1024;
+    public static final int MIN_RECORD_BYTES = 5; // 4 bytes magic + 1 byte record type
+
+    public static final byte ATTR_BLANK_RECORD = 2;
+    public static final byte ATTR_EMPTY_RECORD = 1;
+    public static final byte ATTR_ACTION_RECORD = 0;
+
     private final StorageConfig config;
     private final LogManager logManager;
     private final MessageAppender<Action, MessageSequence> actionAppender = new ActionAppender();
 
     public ActionLog(final StorageConfig config) {
         this.config = config;
-        this.logManager = new LogManager(new File(config.getActionLogStorePath()), PER_SEGMENT_FILE_SIZE, config, new ActionLogSegmentValidator(), true);
+        this.logManager = new LogManager(new File(config.getActionLogStorePath()), PER_SEGMENT_FILE_SIZE, new ActionLogSegmentValidator());
     }
 
     public synchronized PutMessageResult addAction(final Action action) {
@@ -97,14 +106,17 @@ public class ActionLog {
         return segment.selectSegmentBuffer(pos);
     }
 
+    @Override
     public ActionLogVisitor newVisitor(final long start) {
         return new ActionLogVisitor(logManager, start);
     }
 
+    @Override
     public long getMaxOffset() {
         return logManager.getMaxOffset();
     }
 
+    @Override
     public long getMinOffset() {
         return logManager.getMinOffset();
     }

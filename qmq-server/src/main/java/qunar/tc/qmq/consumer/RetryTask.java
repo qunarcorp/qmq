@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.consumer;
@@ -69,9 +69,6 @@ class RetryTask {
         }
 
         QMon.retryTaskExecuteCountInc(subscriber.getSubject(), subscriber.getGroup());
-
-        if (processSkipRetry(consumerSequence)) return;
-
         while (true) {
             limiter.acquire();
 
@@ -84,12 +81,6 @@ class RetryTask {
                 if (lastPulledSequence < firstNotAckedSequence) return;
 
                 subscriber.renew();
-
-                if (isDryRun()) {
-                    LOG.info("dry run retry task, subject: {}, group: {}, consumerId: {}, firstNotAckedSequence: {}, lastPulledSequence: {}",
-                            subscriber.getSubject(), subscriber.getGroup(), subscriber.getConsumerId(), firstNotAckedSequence, lastPulledSequence);
-                    return;
-                }
 
                 LOG.info("put need retry message in retry task, subject: {}, group: {}, consumerId: {}, ack offset: {}, pull offset: {}",
                         subscriber.getSubject(), subscriber.getGroup(), subscriber.getConsumerId(), firstNotAckedSequence, lastPulledSequence);
@@ -105,28 +96,6 @@ class RetryTask {
                 consumerSequence.unlock();
             }
         }
-    }
-
-    private boolean processSkipRetry(ConsumerSequence consumerSequence) {
-        if (!consumerSequence.tryLock()) return true;
-        try {
-            final long firstNotAckedSequence = consumerSequence.getAckSequence() + 1;
-            final long lastPulledSequence = consumerSequence.getPullSequence();
-            if (lastPulledSequence < firstNotAckedSequence) return true;
-
-            // put ack action
-            final Action action = new RangeAckAction(subscriber.getSubject(), subscriber.getGroup(), subscriber.getConsumerId(), System.currentTimeMillis(), firstNotAckedSequence, lastPulledSequence);
-            if (consumerSequenceManager.putAction(action)) {
-                consumerSequence.setAckSequence(lastPulledSequence);
-            }
-        } finally {
-            consumerSequence.unlock();
-        }
-        return true;
-    }
-
-    private boolean isDryRun() {
-        return config.getBoolean("ConsumerStatusChecker.RetryTask.DryRun", false);
     }
 
     void cancel() {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.meta.store.impl;
@@ -35,7 +35,7 @@ public class BrokerStoreImpl implements BrokerStore {
     private static final String QUERY_BROKERS_SQL = "SELECT group_name,role,hostname,INET_NTOA(ip) AS ip,serve_port,sync_port FROM broker WHERE group_name=?";
     private static final String ALL_BROKERS_SQL = "SELECT group_name,role,hostname,INET_NTOA(ip) AS ip,serve_port,sync_port FROM broker";
     private static final String INSERT_BROKER_SQL = "INSERT IGNORE INTO broker(group_name,role,hostname,ip,serve_port,sync_port) VALUES (?,?,?,INET_ATON(?),?,?)";
-    private static final String REPLACE_BROKER_BY_ROLE_SQL = "UPDATE broker SET hostname=?,ip=INET_ATON(?),serve_port=?,sync_port=? WHERE group_name=? AND role=? AND hostname=? AND serve_port=INET_ATON(?)";
+    private static final String REPLACE_BROKER_BY_ROLE_SQL = "UPDATE broker SET hostname=?,ip=INET_ATON(?),serve_port=?,sync_port=? WHERE group_name=? AND role=? AND hostname=? AND serve_port=?";
 
     private static final RowMapper<BrokerMeta> MAPPER = (rs, i) -> {
         final String group = rs.getString("group_name");
@@ -95,5 +95,6 @@ public class BrokerStoreImpl implements BrokerStore {
         return jdbcTemplate.update(REPLACE_BROKER_BY_ROLE_SQL,
                 newBroker.getHostname(), newBroker.getIp(), newBroker.getServePort(), newBroker.getSyncPort(),
                 oldBroker.getGroup(), oldBroker.getRole().getCode(), oldBroker.getHostname(), oldBroker.getSyncPort());
+
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 package qunar.tc.qmq.base;
 
@@ -41,9 +41,11 @@ public class BaseMessage implements Message, Serializable {
 
     String subject;
 
-    private final transient Set<String> tags = new CopyOnWriteArraySet<>();
+    private final Set<String> tags = new CopyOnWriteArraySet<>();
 
     transient boolean isBigMessage = false;
+    private boolean storeAtFailed;
+    private boolean durable = true;
 
     public enum keys {
         qmq_createTime,
@@ -54,7 +56,9 @@ public class BaseMessage implements Message, Serializable {
         qmq_maxRetryNum,
         qmq_appCode,
         qmq_pullOffset,
-        qmq_corruptData
+        qmq_corruptData,
+        qmq_env,
+        qmq_subEnv
     }
 
     private static final Set<String> keyNames = Sets.newHashSet();
@@ -147,6 +151,7 @@ public class BaseMessage implements Message, Serializable {
     private void setObjectProperty(String name, Object value) {
         if (keyNames.contains(name))
             throw new IllegalArgumentException("property name [" + name + "] is protected. ");
+        if (name == null || name.length() == 0) return;
         attrs.put(name, value);
     }
 
@@ -394,6 +399,25 @@ public class BaseMessage implements Message, Serializable {
     @Override
     public int localRetries() {
         throw new UnsupportedOperationException("本地重试，只有消费端才支持");
+    }
+
+    @Override
+    public void setStoreAtFailed(boolean storeAtFailed) {
+        this.storeAtFailed = storeAtFailed;
+    }
+
+    public boolean isStoreAtFailed() {
+        return this.storeAtFailed;
+    }
+
+    @Override
+    public void setDurable(boolean durable) {
+        this.durable = durable;
+    }
+
+    @Override
+    public boolean isDurable() {
+        return this.durable;
     }
 
 }

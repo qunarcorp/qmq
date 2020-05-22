@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,12 +11,11 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.consumer.pull;
 
-import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
 import com.google.common.util.concurrent.RateLimiter;
 import io.netty.util.Timeout;
@@ -105,10 +104,10 @@ class AckSendQueue implements TimerTask {
         this.sendMessageBack = sendMessageBack;
         this.isBroadcast = isBroadcast;
 
-        String realSubject = RetrySubjectUtils.isRetrySubject(subject) ? RetrySubjectUtils.getRealSubject(subject) : subject;
+        String realSubject = RetrySubjectUtils.getRealSubject(subject);
         this.retrySubject = RetrySubjectUtils.buildRetrySubject(realSubject, group);
         this.deadRetrySubject = RetrySubjectUtils.buildDeadRetrySubject(realSubject, group);
-        this.pullBatchSize = PullSubjectsConfig.get().getPullBatchSize(subject);
+        this.pullBatchSize = PullSubjectsConfig.get().getPullBatchSize(realSubject);
     }
 
     void append(final List<AckEntry> batch) {
@@ -273,7 +272,7 @@ class AckSendQueue implements TimerTask {
                     LOGGER.error("ack send error: {}, {}", sendEntry, head);
                     sendErrorCount.inc();
                 } else {
-                    LOGGER.debug("AckSendRet", "ok [{}, {}]", sendEntry.getPullOffsetBegin(), sendEntry.getPullOffsetLast());
+                    LOGGER.debug("AckSendRet ok [{}, {}]", sendEntry.getPullOffsetBegin(), sendEntry.getPullOffsetLast());
                     sendEntryQueue.poll();
                 }
 
@@ -286,7 +285,7 @@ class AckSendQueue implements TimerTask {
                 if (ackSendFailLogLimit.tryAcquire()) {
                     LOGGER.warn("send ack fail, will retry next", ex);
                 }
-                LOGGER.debug("AckSendRet", "fail [{}, {}]", sendEntry.getPullOffsetBegin(), sendEntry.getPullOffsetLast());
+                LOGGER.debug("AckSendRet fail [{}, {}]", sendEntry.getPullOffsetBegin(), sendEntry.getPullOffsetLast());
                 sendFailCount.inc();
                 inSending.set(false);
             }
@@ -349,12 +348,12 @@ class AckSendQueue implements TimerTask {
     private static final AckService.SendAckCallback EMPTY_ACK_CALLBACK = new AckService.SendAckCallback() {
         @Override
         public void success() {
-            LOGGER.info("send empty Ack ok");
+            LOGGER.debug("send heartbeat ok");
         }
 
         @Override
         public void fail(Exception ex) {
-            LOGGER.error("send empty Ack fail: " + Strings.nullToEmpty(ex.getMessage()));
+            LOGGER.error("send heartbeat fail", ex);
         }
     };
 

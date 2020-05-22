@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.meta;
@@ -40,7 +40,7 @@ import java.util.concurrent.TimeUnit;
 public class BrokerRegisterService implements Disposable {
     private static final Logger LOG = LoggerFactory.getLogger(BrokerRegisterService.class);
 
-    private static final long TIMEOUT_MS = TimeUnit.SECONDS.toMillis(5);
+    private static final long TIMEOUT_MS = TimeUnit.SECONDS.toMillis(2);
     private static final int HEARTBEAT_DELAY_SECONDS = 10;
 
     private final ScheduledExecutorService heartbeatScheduler;
@@ -56,7 +56,10 @@ public class BrokerRegisterService implements Disposable {
         this.heartbeatScheduler = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("broker-register-heartbeat"));
         this.locator = locator;
         this.client = NettyClient.getClient();
-        this.client.start(new NettyClientConfig());
+        NettyClientConfig config = new NettyClientConfig();
+        config.setClientChannelMaxIdleTimeSeconds(HEARTBEAT_DELAY_SECONDS * 2);
+        config.setClientWorkerThreads(1);
+        this.client.start(config);
         this.port = port;
         this.brokerAddress = BrokerConfig.getBrokerAddress() + ":" + port;
         this.brokerState = BrokerState.NRW.getCode();
@@ -86,16 +89,20 @@ public class BrokerRegisterService implements Disposable {
     }
 
     private void heartbeat() {
-        Datagram datagram = null;
         try {
-            datagram = client.sendSync(endpoint, buildRegisterDatagram(BrokerRequestType.HEARTBEAT), TIMEOUT_MS);
-        } catch (Exception e) {
-            LOG.error("Send HEARTBEAT message to meta server failed", e);
-            repickEndpoint();
-        } finally {
-            if (datagram != null) {
-                datagram.release();
+            Datagram datagram = null;
+            try {
+                datagram = client.sendSync(endpoint, buildRegisterDatagram(BrokerRequestType.HEARTBEAT), TIMEOUT_MS);
+            } catch (Exception e) {
+                LOG.error("Send HEARTBEAT message to meta server failed", e);
+                repickEndpoint();
+            } finally {
+                if (datagram != null) {
+                    datagram.release();
+                }
             }
+        }catch (Exception e){
+            LOG.error("Heartbeat error", e);
         }
     }
 
@@ -180,6 +187,26 @@ public class BrokerRegisterService implements Disposable {
         request.setRequestType(checkType.getCode());
         request.setBrokerAddress(brokerAddress);
         return request;
+    }
+
+    public void unmarkReadonly() {
+        if (brokerState != BrokerState.R.getCode()) {
+            return;
+        }
+        updateBrokerState(BrokerState.RW);
+    }
+
+    public void markReadonly() {
+        if (brokerState != BrokerState.RW.getCode()) {
+            return;
+        }
+        updateBrokerState(BrokerState.R);
+    }
+
+    private void updateBrokerState(final BrokerState newState) {
+        LOG.info("update broker state from {} to {}", BrokerState.codeOf(brokerState), newState);
+        brokerState = newState.getCode();
+        heartbeat();
     }
 
     @Override

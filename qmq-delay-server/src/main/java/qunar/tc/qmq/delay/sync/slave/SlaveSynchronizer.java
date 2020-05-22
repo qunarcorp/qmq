@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.delay.sync.slave;
@@ -22,9 +22,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.common.Disposable;
 import qunar.tc.qmq.configuration.DynamicConfig;
-import qunar.tc.qmq.configuration.DynamicConfigLoader;
 import qunar.tc.qmq.delay.DelayLogFacade;
 import qunar.tc.qmq.metrics.Metrics;
+import qunar.tc.qmq.metrics.MetricsConstants;
 import qunar.tc.qmq.metrics.QmqTimer;
 import qunar.tc.qmq.netty.NettyClientConfig;
 import qunar.tc.qmq.netty.client.NettyClient;
@@ -113,7 +113,7 @@ public class SlaveSynchronizer implements Disposable {
                         LOGGER.error("sync data from master error", e);
                     }
                 } finally {
-                    final QmqTimer timer = Metrics.timer("SyncTask.ExecTimer", new String[]{"processor"}, new String[]{processorName});
+                    final QmqTimer timer = Metrics.timer("syncTaskExecTimer", MetricsConstants.PROCESSOR, new String[]{processorName});
                     timer.update(System.currentTimeMillis() - start, TimeUnit.MILLISECONDS);
                 }
             }
@@ -153,9 +153,9 @@ public class SlaveSynchronizer implements Disposable {
         public void writeBody(ByteBuf out) {
             out.writeByte(request.getSyncType());
             out.writeLong(request.getMessageLogOffset());
-            out.writeInt(request.getDispatchSegmentBaseOffset());
+            out.writeLong(request.getDispatchSegmentBaseOffset());
             out.writeLong(request.getDispatchLogOffset());
-            out.writeInt(request.getLastDispatchSegmentBaseOffset());
+            out.writeLong(request.getLastDispatchSegmentBaseOffset());
             out.writeLong(request.getLastDispatchSegmentOffset());
         }
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,10 +11,19 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.store;
+
+import static com.google.common.base.CharMatcher.BREAKING_WHITESPACE;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -24,13 +33,6 @@ import com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.monitor.QMon;
-
-import java.io.File;
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 
 /**
  * @author keli.wang
@@ -46,15 +48,15 @@ public class ConsumerLogManager implements AutoCloseable {
     private final ConcurrentMap<String, ConsumerLog> logs;
     private final ConcurrentMap<String, Long> offsets;
 
-    ConsumerLogManager(final StorageConfig config) {
+    ConsumerLogManager(final StorageConfig config, final Map<String, Long> maxSequences) {
         this.config = config;
         this.logs = new ConcurrentHashMap<>();
         this.offsets = new ConcurrentHashMap<>();
 
-        loadConsumerLogs();
+        loadConsumerLogs(maxSequences);
     }
 
-    private void loadConsumerLogs() {
+    private void loadConsumerLogs(final Map<String, Long> maxSequences) {
         LOG.info("Start load consumer logs");
 
         final File root = new File(config.getConsumerLogStorePath());
@@ -65,19 +67,33 @@ public class ConsumerLogManager implements AutoCloseable {
                     continue;
                 }
 
-                final String subject = consumerLogDir.getName();
-                final ConsumerLog consumerLog = new ConsumerLog(config, subject);
-                logs.put(subject, consumerLog);
+				final String subject = consumerLogDir.getName();
+				if (BREAKING_WHITESPACE.matchesAnyOf(subject)) {
+					LOG.error("consumer log directory name is invalid, skip. name: {}", subject);
+					continue;
+				}
+                final Long maxSequence = maxSequences.get(subject);
+                if (maxSequence == null) {
+                    LOG.warn("cannot find max sequence for subject {} in checkpoint.", subject);
+                    logs.put(subject, new ConsumerLog(config, subject));
+                } else {
+                    logs.put(subject, new ConsumerLog(config, subject, maxSequence));
+                }
             }
         }
 
         LOG.info("Load consumer logs done");
     }
 
-    void initConsumerLogOffset() {
+    void initConsumerLogOffset(final MessageMemTable table) {
         for (Map.Entry<String, ConsumerLog> entry : logs.entrySet()) {
             offsets.put(entry.getKey(), entry.getValue().nextSequence());
         }
+
+        if (table == null) {
+            return;
+        }
+        table.getNextSequences().forEach(offsets::put);
     }
 
     Map<String, Long> currentConsumerLogOffset() {
@@ -132,10 +148,18 @@ public class ConsumerLogManager implements AutoCloseable {
     }
 
     void adjustConsumerLogMinOffset(LogSegment firstSegment) {
+        adjustConsumerLogMinOffset(config.getMessageLogStorePath(), firstSegment);
+    }
+
+    void adjustConsumerLogMinOffsetForSMT(final LogSegment firstSegment) {
+        adjustConsumerLogMinOffset(config.getSMTStorePath(), firstSegment);
+    }
+
+    private void adjustConsumerLogMinOffset(final String path, final LogSegment firstSegment) {
         if (firstSegment == null) return;
 
         final String fileName = StoreUtils.offsetFileNameForSegment(firstSegment);
-        final CheckpointStore<Map<String, Long>> offsetStore = new CheckpointStore<>(config.getMessageLogStorePath(), fileName, new ConsumerLogMinOffsetSerde());
+        final CheckpointStore<Map<String, Long>> offsetStore = new CheckpointStore<>(path, fileName, new ConsumerLogMinOffsetSerde());
         final Map<String, Long> offsets = offsetStore.loadCheckpoint();
         if (offsets == null) return;
 

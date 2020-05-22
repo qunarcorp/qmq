@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.sync.master;
@@ -56,6 +56,7 @@ class SyncLogProcessor implements NettyRequestProcessor, Disposable {
         final ActionLogSyncWorker actionLogSyncWorker = new ActionLogSyncWorker(storage, config);
         final HeartbeatSyncWorker heartBeatSyncWorker = new HeartbeatSyncWorker(storage);
         processorMap.put(SyncType.message.getCode(), messageLogSyncWorker);
+        processorMap.put(SyncType.index.getCode(), new MessageIndexSyncWorker(storage, config));
         processorMap.put(SyncType.action.getCode(), actionLogSyncWorker);
         processorMap.put(SyncType.heartbeat.getCode(), heartBeatSyncWorker);
     }
@@ -74,6 +75,10 @@ class SyncLogProcessor implements NettyRequestProcessor, Disposable {
         final SyncRequestEntry entry = new SyncRequestEntry(ctx, request.getHeader(), syncRequest);
         executor.submit(new SyncRequestProcessTask(entry, processor));
         return null;
+    }
+
+    long getMessageLastCaughtUpTime() {
+        return messageLogSyncWorker.getLastCaughtUpTime();
     }
 
     @Override

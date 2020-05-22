@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.meta.store.impl;
@@ -20,9 +20,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+
+import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
 import qunar.tc.qmq.meta.model.ClientOfflineState;
 import qunar.tc.qmq.base.OnOfflineState;
-import qunar.tc.qmq.meta.store.JdbcTemplateHolder;
 import qunar.tc.qmq.meta.store.ClientOfflineStore;
 
 import java.sql.PreparedStatement;
@@ -62,7 +63,6 @@ public class ClientOfflineStoreImpl implements ClientOfflineStore {
 
     @Override
     public long now() {
-        JdbcTemplate jdbcTemplate = JdbcTemplateHolder.getOrCreate();
         List<Long> results = jdbcTemplate.query(SELECT_NOW_SQL, (rs, rowNum) -> {
             try {
                 return rs.getTimestamp("ts").getTime();

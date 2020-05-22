@@ -1,58 +1,77 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <artifactId>qmq</artifactId>
-        <groupId>qunar.tc</groupId>
-        <version>4.0.30</version>
+        <artifactId>qmq-parent</artifactId>
+        <groupId>com.qunar.qmq</groupId>
+        <version>1.1.22</version>
     </parent>
 
     <artifactId>qmq-dist</artifactId>
     <packaging>pom</packaging>
 
+    <properties>
+        <maven_deploy_skip>true</maven_deploy_skip>
+    </properties>
     <dependencies>
         <dependency>
-            <groupId>qunar.tc</groupId>
+            <groupId>${project.groupId}</groupId>
             <artifactId>qmq-metaserver</artifactId>
         </dependency>
         <dependency>
-            <groupId>qunar.tc</groupId>
+            <groupId>${project.groupId}</groupId>
             <artifactId>qmq-server</artifactId>
         </dependency>
         <dependency>
-            <groupId>qunar.tc</groupId>
+            <groupId>${project.groupId}</groupId>
             <artifactId>qmq-delay-server</artifactId>
         </dependency>
         <dependency>
-            <groupId>qunar.tc</groupId>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>qmq-watchdog</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>qmq-gateway</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
             <artifactId>qmq-tools</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>qmq-backup</artifactId>
         </dependency>
     </dependencies>
 
-    <build>
-        <plugins>
-            <plugin>
-                <artifactId>maven-assembly-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>assemble</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>single</goal>
-                        </goals>
-                        <configuration>
-                            <finalName>qmq-dist-${project.version}</finalName>
-                            <descriptors>
-                                <descriptor>assembly/bin.xml</descriptor>
-                            </descriptors>
-                            <tarLongFileMode>gnu</tarLongFileMode>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-        </plugins>
-    </build>
+    <profiles>
+        <profile>
+            <id>dist</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <artifactId>maven-assembly-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>assemble</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>single</goal>
+                                </goals>
+                                <configuration>
+                                    <finalName>qmq-dist-${project.version}</finalName>
+                                    <descriptors>
+                                        <descriptor>assembly/bin.xml</descriptor>
+                                    </descriptors>
+                                    <tarLongFileMode>gnu</tarLongFileMode>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

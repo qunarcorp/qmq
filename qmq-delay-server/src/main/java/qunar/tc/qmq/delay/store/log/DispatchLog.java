@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 
 package qunar.tc.qmq.delay.store.log;
@@ -21,7 +21,7 @@ import qunar.tc.qmq.delay.config.StoreConfiguration;
 import qunar.tc.qmq.delay.store.DefaultDelaySegmentValidator;
 import qunar.tc.qmq.delay.store.appender.DispatchLogAppender;
 import qunar.tc.qmq.store.PeriodicFlushService;
-import qunar.tc.qmq.store.SegmentBuffer;
+import qunar.tc.qmq.store.buffer.SegmentBuffer;
 import qunar.tc.qmq.sync.DelaySyncRequest;
 
 import java.io.File;
@@ -65,11 +65,11 @@ public class DispatchLog extends AbstractDelayLog<Boolean> {
         ((DispatchLogSegmentContainer) container).clean(hook);
     }
 
-    public SegmentBuffer getDispatchLogData(int segmentBaseOffset, long dispatchLogOffset) {
+    public SegmentBuffer getDispatchLogData(long segmentBaseOffset, long dispatchLogOffset) {
         return ((DispatchLogSegmentContainer) container).getDispatchData(segmentBaseOffset, dispatchLogOffset);
     }
 
-    public long getMaxOffset(int dispatchSegmentBaseOffset) {
+    public long getMaxOffset(long dispatchSegmentBaseOffset) {
         return ((DispatchLogSegmentContainer) container).getMaxOffset(dispatchSegmentBaseOffset);
     }
 
@@ -77,15 +77,15 @@ public class DispatchLog extends AbstractDelayLog<Boolean> {
         return ((DispatchLogSegmentContainer) container).getSyncMaxRequest();
     }
 
-    public boolean appendData(long startOffset, int baseOffset, ByteBuffer body) {
+    public boolean appendData(long startOffset, long baseOffset, ByteBuffer body) {
         return ((DispatchLogSegmentContainer) container).appendData(startOffset, baseOffset, body);
     }
 
-    public DispatchLogSegment lowerSegment(int latestOffset) {
+    public DispatchLogSegment lowerSegment(long latestOffset) {
         return ((DispatchLogSegmentContainer) container).lowerSegment(latestOffset);
     }
 
-    public int higherBaseOffset(int low) {
+    public long higherBaseOffset(long low) {
         return ((DispatchLogSegmentContainer) container).higherBaseOffset(low);
     }
 }

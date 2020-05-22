@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Qunar
+ * Copyright 2018 Qunar, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.com.qunar.pay.trade.api.card.service.usercard.UserCardQueryFacade
+ * limitations under the License.
  */
 package qunar.tc.qmq.producer.sender;
 
@@ -22,6 +22,7 @@ import qunar.tc.qmq.ProduceMessage;
 import qunar.tc.qmq.batch.BatchExecutor;
 import qunar.tc.qmq.batch.Processor;
 import qunar.tc.qmq.metrics.Metrics;
+import qunar.tc.qmq.metrics.MetricsConstants;
 import qunar.tc.qmq.metrics.QmqTimer;
 import qunar.tc.qmq.netty.exception.SubjectNotAssignedException;
 import qunar.tc.qmq.producer.QueueSender;
@@ -87,7 +88,10 @@ class RPCQueueSender implements QueueSender, SendErrorHandler, Processor<Produce
             //按照路由分组发送
             Collection<MessageSenderGroup> messages = groupBy(list);
             for (MessageSenderGroup group : messages) {
+                QmqTimer timer = Metrics.timer("qmq_client_producer_send_broker_time");
+                long startTime = System.currentTimeMillis();
                 group.send();
+                timer.update(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
             }
         } finally {
             timer.update(System.currentTimeMillis() - start, TimeUnit.MILLISECONDS);
