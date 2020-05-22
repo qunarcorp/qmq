@@ -152,8 +152,8 @@ public class CompositePullEntry implements PullEntry, Runnable {
                         });
             }
         } finally {
-            delay(1000);
             thread.setName(oldThreadName);
+            await(delay(1000));
         }
     }
 }
