@@ -137,9 +137,9 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
 
     private PullEntry createAndSubmitPullEntry(String subject, String consumerGroup, RegistParam param, PullStrategy pullStrategy) {
         PushConsumerParam pushConsumerParam = new PushConsumerParam(subject, consumerGroup, param);
-        PullEntry pullEntry = new CompositePullEntry(pushConsumerParam, pullService, ackService, brokerService, pullStrategy);
+        PullEntry pullEntry = new CompositePullEntry(pushConsumerParam, pullService, ackService, brokerService, pullStrategy, pullExecutor);
         String subscribeKey = MapKeyBuilder.buildSubscribeKey(subject, consumerGroup);
-        pullEntry.startPull(pullExecutor);
+        pullEntry.startPull();
         pullEntryMap.put(subscribeKey, pullEntry);
         return pullEntry;
     }

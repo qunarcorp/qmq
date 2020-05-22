@@ -16,15 +16,14 @@
 
 package qunar.tc.qmq.consumer.pull;
 
-import java.util.concurrent.Executor;
 import qunar.tc.qmq.Message;
 import qunar.tc.qmq.broker.BrokerClusterInfo;
 import qunar.tc.qmq.broker.BrokerGroupInfo;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.common.ClientType;
+import qunar.tc.qmq.common.StatusSource;
 
 import java.util.List;
-import qunar.tc.qmq.common.StatusSource;
 
 /**
  * @author yiqun.fan create on 17-9-21.
@@ -79,7 +78,7 @@ class PlainPullEntry extends AbstractPullEntry {
     }
 
     @Override
-    public void startPull(Executor executor) {
+    public void startPull() {
 
     }
 

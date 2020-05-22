@@ -1,6 +1,5 @@
 package qunar.tc.qmq.consumer.pull;
 
-import java.util.concurrent.Executor;
 import qunar.tc.qmq.common.StatusSource;
 
 /**
@@ -30,7 +29,7 @@ public interface PullEntry {
         }
 
         @Override
-        public void startPull(Executor executor) {
+        public void startPull() {
 
         }
 
@@ -48,7 +47,7 @@ public interface PullEntry {
 
     void offline(StatusSource src);
 
-    void startPull(Executor executor);
+    void startPull();
 
     void destroy();
 

@@ -48,7 +48,7 @@ class DefaultPullEntry extends AbstractPullEntry implements Runnable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PullEntry.class);
 
-    private static final ScheduledExecutorService DELAY_SCHEDULER = Executors
+    static final ScheduledExecutorService DELAY_SCHEDULER = Executors
             .newSingleThreadScheduledExecutor(new NamedThreadFactory("qmq-delay-scheduler"));
 
     private static final long PAUSETIME_OF_CLEAN_LAST_MESSAGE = 200;
@@ -92,7 +92,7 @@ class DefaultPullEntry extends AbstractPullEntry implements Runnable {
     }
 
     @Override
-    public void startPull(Executor executor) {
+    public void startPull() {
         executor.execute(this);
     }
 
@@ -108,7 +108,7 @@ class DefaultPullEntry extends AbstractPullEntry implements Runnable {
     public void run() {
         Thread thread = Thread.currentThread();
         String oldThreadName = thread.getName();
-        thread.setName("qmq-pull-entry-" + getBrokerGroup());
+        thread.setName("qmq-pull-entry-" + getSubject() + "-" + getConsumerGroup() + "-" + getBrokerGroup());
         try {
             switch (state.get()) {
                 case PREPARE_PULL:
