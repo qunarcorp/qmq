@@ -187,7 +187,7 @@ class DefaultPullEntry extends AbstractPullEntry implements Runnable {
 
     private ListenableFuture preparePull() {
         pullRunCounter.inc();
-        if (pushConsumer.cleanLocalBuffer()) {
+        if (!pushConsumer.cleanLocalBuffer()) {
             return delay("wait consumer", PAUSETIME_OF_CLEAN_LAST_MESSAGE);
         }
 
