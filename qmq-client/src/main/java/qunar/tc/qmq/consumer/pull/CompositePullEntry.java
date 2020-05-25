@@ -65,18 +65,21 @@ public class CompositePullEntry implements PullEntry, Runnable {
     @Override
     public void online(StatusSource src) {
         synchronized (onlineSwitcher) {
+            onlineSwitcher.on(src);
             final SettableFuture<Boolean> future = this.onlineFuture;
             if (future == null) return;
             future.set(true);
         }
-        onlineSwitcher.on(src);
         LOGGER.info("pullconsumer online. subject={}, group={}", getSubject(), getConsumerGroup());
         pullEntryMap.values().forEach(pe -> pe.online(src));
     }
 
     @Override
     public void offline(StatusSource src) {
-        onlineSwitcher.off(src);
+        synchronized (onlineSwitcher) {
+            onlineSwitcher.off(src);
+        }
+
         LOGGER.info("pullconsumer offline. subject={}, group={}", getSubject(), getConsumerGroup());
         pullEntryMap.values().forEach(pe -> pe.offline(src));
     }
