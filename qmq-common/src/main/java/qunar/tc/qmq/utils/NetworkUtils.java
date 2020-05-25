@@ -34,7 +34,9 @@ public class NetworkUtils {
     public static String getLocalHostname() {
         try {
             String customHost = System.getProperty("qmq.host");
+            String customIP = System.getProperty("qmq.ip");
             if (!Strings.isNullOrEmpty(customHost)) return customHost;
+            if (!Strings.isNullOrEmpty(customIP)) return customIP;
             return InetAddress.getLocalHost().getHostName();
         } catch (UnknownHostException e) {
             LOG.error("get local hostname failed. return local ip instead.", e);
