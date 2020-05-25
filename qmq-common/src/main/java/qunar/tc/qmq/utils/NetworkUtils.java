@@ -16,6 +16,7 @@
 
 package qunar.tc.qmq.utils;
 
+import com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,6 +33,8 @@ public class NetworkUtils {
 
     public static String getLocalHostname() {
         try {
+            String customHost = System.getProperty("qmq.host");
+            if (!Strings.isNullOrEmpty(customHost)) return customHost;
             return InetAddress.getLocalHost().getHostName();
         } catch (UnknownHostException e) {
             LOG.error("get local hostname failed. return local ip instead.", e);
@@ -41,6 +44,9 @@ public class NetworkUtils {
 
     public static String getLocalAddress() {
         try {
+            String customIP = System.getProperty("qmq.ip");
+            if (!Strings.isNullOrEmpty(customIP)) return customIP;
+
             final Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
             final ArrayList<String> ipv4Result = new ArrayList<>();
             final ArrayList<String> ipv6Result = new ArrayList<>();
