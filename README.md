@@ -78,10 +78,13 @@ qmq的客户端已经发布到maven中央仓库，可以通过下面的方式获
 ![公众号](docs/images/wx.jpg)
 
 ### QQ群
-![QQ](docs/images/support1.png)
+|QMQ技术交流群(2)|QMQ技术交流群(1)|
+|:------------:|:------------:|
+|群号:1018190609|群号:915826408(已满)|
+|![QQ群2](docs/images/support3.JPG)|![QQ群1(已满)](docs/images/support1.JPG)|
 
 # 开源协议
-[Apache 2 license](https://github.com/ctripcorp/apollo/blob/master/LICENSE)
+[Apache 2 license](https://github.com/qunarcorp/qmq/blob/master/LICENSE)
 
 # 用户(已经在生产使用)
 
