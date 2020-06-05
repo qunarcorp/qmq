@@ -1,7 +1,6 @@
 # QMQ
 
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.qunar.qmq/qmq/badge.svg)](http://search.maven.org/#search%7Cga%7C1%7Ccom.qunar.qmq)
-[![GitHub release](https://img.shields.io/github/release/qunarcorp/qmq.svg)](https://github.com/qunarcorp/qmq/releases)
 [![License](https://img.shields.io/badge/license-Apache%202-4EB1BA.svg)](https://www.apache.org/licenses/LICENSE-2.0.html)
 
 QMQ是去哪儿网内部广泛使用的消息中间件，自2012年诞生以来在去哪儿网所有业务场景中广泛的应用，包括跟交易息息相关的订单场景；
@@ -38,7 +37,7 @@ qmq的客户端已经发布到maven中央仓库，可以通过下面的方式获
 <dependency>
     <groupId>com.qunar.qmq</groupId>
     <artifactId>qmq</artifactId>
-    <version>1.1.5</version>
+    <version>{see maven}</version>
 </dependency>
 ```
 
@@ -66,6 +65,7 @@ qmq的客户端已经发布到maven中央仓库，可以通过下面的方式获
 * [消息备份](docs/cn/backup.md)
 * [在IDE里运行代码](docs/cn/debug.md)
 * [运维](docs/cn/operations.md)
+* [移植](docs/cn/local.md)
 * [支持其他DB](docs/cn/db.md)
 * [开源协议](docs/cn/opensource.md)
 * [技术支持](docs/cn/support.md)
@@ -93,3 +93,5 @@ qmq的客户端已经发布到maven中央仓库，可以通过下面的方式获
 ![便利蜂](docs/images/logo/bianlifeng.png)
 ![金汇金融](docs/images/logo/jinhui365.png)
 ![必贝证券](docs/images/logo/bbae.svg)
+<img src="docs/images/logo/soonchina.png" title="嵩云科技" width="126" height="43">
+![易宝支付](docs/images/logo/yeepay.png)

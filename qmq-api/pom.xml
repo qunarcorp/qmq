@@ -9,6 +9,6 @@
     </parent>
 
     <artifactId>qmq-api</artifactId>
-    <name>qmq api</name>
+    <name>qmq-api</name>
     <description>public api</description>
 </project>

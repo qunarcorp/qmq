@@ -1,4 +1,4 @@
-[上一页](operations.md)
+[上一页](local.md)
 [回目录](../../README.md)
 [下一页](opensource.md)
 
@@ -44,6 +44,6 @@ INSERT INTO qmq_produce.qmq_msg_queue(content,create_time) VALUES(?,?)
     </bean>
 ```
 
-[上一页](operations.md)
+[上一页](local.md)
 [回目录](../../README.md)
 [下一页](opensource.md)

@@ -1,6 +1,6 @@
 [上一页](debug.md)
 [回目录](../../README.md)
-[下一页](db.md)
+[下一页](local.md)
 
 # 运维
 
@@ -59,4 +59,4 @@ tools.sh ReplaceBroker --metaserver=<metaserver address> --token=<token> --broke
 
 [上一页](debug.md)
 [回目录](../../README.md)
-[下一页](db.md)
+[下一页](local.md)

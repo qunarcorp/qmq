@@ -9,7 +9,7 @@
     </parent>
 
     <artifactId>qmq-common</artifactId>
-    <name>qmq common</name>
+    <name>qmq-common</name>
     <description>qmq common logic share by all module</description>
 
     <dependencies>
