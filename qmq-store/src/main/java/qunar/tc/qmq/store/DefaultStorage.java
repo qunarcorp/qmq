@@ -399,21 +399,6 @@ public class DefaultStorage implements Storage {
     }
 
     @Override
-    public long getMaxMessageSequence(String subject) {
-        final Long maxMessageSequence = memTableManager.getMaxMessageSequence(subject);
-        if (maxMessageSequence != null) {
-            return maxMessageSequence + 1;
-        }
-
-        final ConsumerLog consumerLog = consumerLogManager.getConsumerLog(subject);
-        if (consumerLog == null) {
-            return 0;
-        } else {
-            return consumerLog.nextSequence();
-        }
-    }
-
-    @Override
     public PutMessageResult putAction(Action action) {
         return actionLog.addAction(action);
     }

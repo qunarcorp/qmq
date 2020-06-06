@@ -48,8 +48,6 @@ public class MessageMemTableManager implements AutoCloseable {
     private final LinkedBlockingQueue<MessageMemTable> pendingEvicted;
     private final LinkedBlockingDeque<MessageMemTable> currentActive;
 
-    private final ConcurrentMap<String, Long> maxMessageSequences;
-
     private final MemTableEvictedCallback evictedCallback;
     private final Thread evictThread;
     private volatile boolean running;
@@ -60,8 +58,6 @@ public class MessageMemTableManager implements AutoCloseable {
         this.notEvictedCount = new AtomicInteger(0);
         this.pendingEvicted = new LinkedBlockingQueue<>();
         this.currentActive = new LinkedBlockingDeque<>();
-
-        this.maxMessageSequences = new ConcurrentHashMap<>();
 
         this.evictedCallback = evictedCallback;
         this.evictThread = new Thread(this::evictLoop);
@@ -150,14 +146,6 @@ public class MessageMemTableManager implements AutoCloseable {
         final MessageMemTable table = new MessageMemTable(tabletId, beginOffset, tableCapacity);
         currentActive.addLast(table);
         return table;
-    }
-
-    public void updateMaxMessageSequence(final String subject, final long maxMessageSequence) {
-        maxMessageSequences.merge(subject, maxMessageSequence, Math::max);
-    }
-
-    public Long getMaxMessageSequence(final String subject) {
-        return maxMessageSequences.get(subject);
     }
 
     @Override

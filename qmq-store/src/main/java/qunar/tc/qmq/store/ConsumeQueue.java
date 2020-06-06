@@ -51,13 +51,7 @@ public class ConsumeQueue {
         this.nextSequence.set(nextSequence);
     }
 
-    public long getQueueCount() {
-        return storage.getMaxMessageSequence(subject) - nextSequence.get();
-    }
-
     public synchronized GetMessageResult pollMessages(final int maxMessages) {
-        enableLagMonitor();
-
         long currentSequence = nextSequence.get();
         if (RetrySubjectUtils.isRetrySubject(subject)) {
             return storage.pollMessages(subject, currentSequence, maxMessages, this::isDelayReached);
@@ -76,17 +70,6 @@ public class ConsumeQueue {
     private boolean isDelayReached(MessageFilter.WithTimestamp entry) {
         final int delayMillis = storage.getStorageConfig().getRetryDelaySeconds() * 1000;
         return entry.getTimestamp() + delayMillis <= System.currentTimeMillis();
-    }
-
-    private void enableLagMonitor() {
-        try {
-            if (monitorEnabled.compareAndSet(false, true)) {
-                QMon.messageSequenceLagGauge(subject, group, () -> (double) getQueueCount());
-                LOG.info("enable message sequence lag monitor:{} {}", subject, group);
-            }
-        } catch (Throwable e) {
-            LOG.error("enable message sequence lag monitor error:{} {}", subject, group, e);
-        }
     }
 
     void disableLagMonitor(String subject, String group) {

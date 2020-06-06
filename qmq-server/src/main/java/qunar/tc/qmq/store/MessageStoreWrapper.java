@@ -396,7 +396,4 @@ public class MessageStoreWrapper {
         return storage.getMessageSequenceByPullLog(pullRequest.getSubject(), pullRequest.getGroup(), pullRequest.getConsumerId(), offset);
     }
 
-    public long getQueueCount(String subject, String group) {
-        return storage.locateConsumeQueue(subject, group).getQueueCount();
-    }
 }

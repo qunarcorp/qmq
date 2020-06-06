@@ -55,8 +55,6 @@ public interface Storage extends Disposable {
 
     long getMinActionLogOffset();
 
-    long getMaxMessageSequence(final String subject);
-
     PutMessageResult putAction(final Action action);
 
     List<PutMessageResult> putPullLogs(final String subject, final String group, final String consumerId, final List<PullLogMessage> messages);
