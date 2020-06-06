@@ -32,13 +32,13 @@ public class BuildMessageMemTableEventListener implements FixedExecOrderEventBus
     private static final Logger LOG = LoggerFactory.getLogger(BuildMessageMemTableEventListener.class);
 
     private final StorageConfig config;
-    private final MessageMemTableManager manager;
+    private final MemTableManager manager;
     private final SortedMessagesTable smt;
 
     private volatile MessageMemTable currentMemTable;
     private volatile long tabletId;
 
-    public BuildMessageMemTableEventListener(final StorageConfig config, final MessageMemTableManager manager, final SortedMessagesTable smt) {
+    public BuildMessageMemTableEventListener(final StorageConfig config, final MemTableManager manager, final SortedMessagesTable smt) {
         this.config = config;
         this.manager = manager;
         this.smt = smt;
@@ -56,15 +56,13 @@ public class BuildMessageMemTableEventListener implements FixedExecOrderEventBus
             final long nextTabletId = smt.getNextTabletId(tabletId);
             LOG.info("rolling new memtable, nextTabletId: {}, event: {}", nextTabletId, event);
 
-            currentMemTable = manager.rollingNewMemTable(nextTabletId, event.getWroteOffset());
+            currentMemTable = (MessageMemTable) manager.rollingNewMemTable(nextTabletId, event.getWroteOffset());
             tabletId = nextTabletId;
         }
 
         if (currentMemTable == null) {
             throw new RuntimeException("lost first event of current log segment");
         }
-
-        manager.updateMaxMessageSequence(event.getSubject(), event.getSequence());
 
         final long offset = event.getWroteOffset() + event.getWroteBytes();
         final Result<MessageMemTable.AddResultStatus, MessageMemTable.MessageIndex> result = currentMemTable.add(

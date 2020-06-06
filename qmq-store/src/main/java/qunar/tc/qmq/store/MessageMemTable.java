@@ -33,7 +33,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * @author keli.wang
  * @since 2019-06-10
  */
-public class MessageMemTable implements Iterable<MessageMemTable.Entry>, AutoCloseable {
+public class MessageMemTable extends MemTable implements Iterable<MessageMemTable.Entry>, AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(MessageMemTable.class);
 
     // write extra sequence before each message
@@ -44,30 +44,18 @@ public class MessageMemTable implements Iterable<MessageMemTable.Entry>, AutoClo
     private final ByteBuf mem;
     private final ReadWriteLock rwLock;
 
-    private final long tabletId;
-    private final long beginOffset;
     private volatile long endOffset;
 
     public MessageMemTable(final long tabletId, final long beginOffset, final int capacity) {
+        super(tabletId, beginOffset, capacity);
         this.firstSequences = new HashMap<>();
         this.indexes = new HashMap<>();
         this.mem = ByteBufAllocator.DEFAULT.ioBuffer(capacity);
         this.rwLock = new ReentrantReadWriteLock();
-
-        this.tabletId = tabletId;
-        this.beginOffset = beginOffset;
     }
 
     public int getOverheadBytes() {
         return OVERHEAD_BYTES;
-    }
-
-    public long getTabletId() {
-        return tabletId;
-    }
-
-    public long getBeginOffset() {
-        return beginOffset;
     }
 
     public long getEndOffset() {
@@ -259,8 +247,8 @@ public class MessageMemTable implements Iterable<MessageMemTable.Entry>, AutoClo
     @Override
     public String toString() {
         return "MessageMemTable{" +
-                "tabletId=" + tabletId +
-                ", beginOffset=" + beginOffset +
+                "tabletId=" + getTabletId() +
+                ", beginOffset=" + getBeginOffset() +
                 ", endOffset=" + endOffset +
                 '}';
     }

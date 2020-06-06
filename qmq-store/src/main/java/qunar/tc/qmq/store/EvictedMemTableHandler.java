@@ -17,7 +17,7 @@
 package qunar.tc.qmq.store;
 
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
-import qunar.tc.qmq.store.MessageMemTableManager.MemTableEvictedCallback;
+import qunar.tc.qmq.store.MemTableManager.MemTableEvictedCallback;
 import qunar.tc.qmq.store.SortedMessagesTable.TabletBuilder;
 import qunar.tc.qmq.store.buffer.MemTableBuffer;
 import qunar.tc.qmq.store.result.Result;
@@ -45,9 +45,9 @@ class EvictedMemTableHandler implements MemTableEvictedCallback {
     }
 
     @Override
-    public boolean onEvicted(final MessageMemTable table) {
+    public boolean onEvicted(final MemTable table) {
         return smt.newTabletBuilder(table.getTabletId())
-                .map(builder -> buildTablet(builder, table))
+                .map(builder -> buildTablet(builder, (MessageMemTable) table))
                 .orElse(false);
     }
 

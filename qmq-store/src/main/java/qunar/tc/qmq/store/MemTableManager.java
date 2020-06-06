@@ -22,7 +22,9 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Iterator;
 import java.util.Optional;
-import java.util.concurrent.*;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -39,22 +41,24 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @author keli.wang
  * @since 2019-06-10
  */
-public class MessageMemTableManager implements AutoCloseable {
-    private static final Logger LOG = LoggerFactory.getLogger(MessageMemTableManager.class);
+public class MemTableManager implements AutoCloseable {
+    private static final Logger LOG = LoggerFactory.getLogger(MemTableManager.class);
 
     private final StorageConfig config;
     private final int tableCapacity;
+    private final MemTableFactory memTableFactory;
     private final AtomicInteger notEvictedCount;
-    private final LinkedBlockingQueue<MessageMemTable> pendingEvicted;
-    private final LinkedBlockingDeque<MessageMemTable> currentActive;
+    private final LinkedBlockingQueue<MemTable> pendingEvicted;
+    private final LinkedBlockingDeque<MemTable> currentActive;
 
     private final MemTableEvictedCallback evictedCallback;
     private final Thread evictThread;
     private volatile boolean running;
 
-    public MessageMemTableManager(final StorageConfig config, final int tableCapacity, final MemTableEvictedCallback evictedCallback) {
+    public MemTableManager(final StorageConfig config, final int tableCapacity, final MemTableFactory memTableFactory, final MemTableEvictedCallback evictedCallback) {
         this.config = config;
         this.tableCapacity = tableCapacity;
+        this.memTableFactory = memTableFactory;
         this.notEvictedCount = new AtomicInteger(0);
         this.pendingEvicted = new LinkedBlockingQueue<>();
         this.currentActive = new LinkedBlockingDeque<>();
@@ -90,7 +94,7 @@ public class MessageMemTableManager implements AutoCloseable {
                     LOG.info("evicted memtable success. table: {}, elapsed: {}ms", table, elapsed);
 
                     while (currentActive.size() > config.getMaxReservedMemTable()) {
-                        final MessageMemTable active = currentActive.peekFirst();
+                        final MemTable active = currentActive.peekFirst();
                         if (active == null) {
                             break;
                         }
@@ -110,9 +114,9 @@ public class MessageMemTableManager implements AutoCloseable {
         });
     }
 
-    private Optional<MessageMemTable> pollPendingEvictedTable() {
+    private Optional<MemTable> pollPendingEvictedTable() {
         try {
-            final MessageMemTable table = pendingEvicted.poll(1, TimeUnit.SECONDS);
+            final MemTable table = pendingEvicted.poll(1, TimeUnit.SECONDS);
             return Optional.ofNullable(table);
         } catch (InterruptedException e) {
             LOG.warn("poll pending evicted memtable interrupted.", e);
@@ -128,22 +132,22 @@ public class MessageMemTableManager implements AutoCloseable {
         return currentActive.size();
     }
 
-    public MessageMemTable latestMemTable() {
+    public MemTable latestMemTable() {
         return currentActive.peekFirst();
     }
 
-    public Iterator<MessageMemTable> iterator() {
+    public Iterator<MemTable> iterator() {
         return currentActive.descendingIterator();
     }
 
-    public MessageMemTable rollingNewMemTable(final long tabletId, final long beginOffset) {
-        final MessageMemTable lastActiveTable = currentActive.peekLast();
+    public MemTable rollingNewMemTable(final long tabletId, final long beginOffset) {
+        final MemTable lastActiveTable = currentActive.peekLast();
         if (lastActiveTable != null) {
             notEvictedCount.incrementAndGet();
             pendingEvicted.add(lastActiveTable);
         }
 
-        final MessageMemTable table = new MessageMemTable(tabletId, beginOffset, tableCapacity);
+        final MemTable table = memTableFactory.create(tabletId, beginOffset, tableCapacity);
         currentActive.addLast(table);
         return table;
     }
@@ -155,6 +159,6 @@ public class MessageMemTableManager implements AutoCloseable {
     }
 
     public interface MemTableEvictedCallback {
-        boolean onEvicted(final MessageMemTable table);
+        boolean onEvicted(final MemTable table);
     }
 }

@@ -54,7 +54,7 @@ public class DefaultStorage implements Storage {
     private final CheckpointManager checkpointManager;
 
     private final SortedMessagesTable sortedMessagesTable;
-    private final MessageMemTableManager memTableManager;
+    private final MemTableManager memTableManager;
 
     private final MessageLog messageLog;
     private final ConsumerLogManager consumerLogManager;
@@ -87,7 +87,7 @@ public class DefaultStorage implements Storage {
         final int tabletSize = MessageLog.PER_SEGMENT_FILE_SIZE / 4;
         this.sortedMessagesTable = new SortedMessagesTable(new File(config.getSMTStorePath()), tabletSize);
         final EvictedMemTableHandler evictedCallback = new EvictedMemTableHandler(sortedMessagesTable, consumerLogManager, checkpointManager);
-        this.memTableManager = new MessageMemTableManager(config, tabletSize - sortedMessagesTable.getTabletMetaSize(), evictedCallback);
+        this.memTableManager = new MemTableManager(config, tabletSize - sortedMessagesTable.getTabletMetaSize(), MessageMemTable::new, evictedCallback);
 
         // must init after offset manager created
         this.consumeQueueManager = new ConsumeQueueManager(this);
@@ -127,7 +127,7 @@ public class DefaultStorage implements Storage {
         actionLogIterateService.blockUntilReplayDone();
         blockUntilSMTWriteComplete();
         // must call this after message log replay done
-        consumerLogManager.initConsumerLogOffset(memTableManager.latestMemTable());
+        consumerLogManager.initConsumerLogOffset((MessageMemTable) memTableManager.latestMemTable());
 
         logCleanerExecutor.scheduleAtFixedRate(
                 new LogCleaner(), 0, config.getLogRetentionCheckIntervalSeconds(), TimeUnit.SECONDS);
@@ -227,9 +227,9 @@ public class DefaultStorage implements Storage {
     }
 
     private GetMessageResult pollFromMemTable(String subject, long beginSequence, int maxMessages, MessageFilter filter) {
-        final Iterator<MessageMemTable> iter = memTableManager.iterator();
+        final Iterator<MemTable> iter = memTableManager.iterator();
         while (iter.hasNext()) {
-            final MessageMemTable table = iter.next();
+            final MessageMemTable table = (MessageMemTable) iter.next();
             final GetMessageResult result = table.poll(subject, beginSequence, maxMessages, filter);
             switch (result.getStatus()) {
                 case SUBJECT_NOT_FOUND:
