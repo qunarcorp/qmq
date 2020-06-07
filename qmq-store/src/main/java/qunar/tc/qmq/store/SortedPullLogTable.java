@@ -93,6 +93,11 @@ public class SortedPullLogTable implements AutoCloseable {
                 }
 
                 ByteBuffer buffer = segment.selectBuffer(positionOfIndex, totalPayloadSize - positionOfIndex);
+                if (buffer == null) {
+                    validateResult = new ValidateResult(LogSegmentValidator.ValidateStatus.PARTIAL, segment.getBaseOffset());
+                    LOG.error("validate sorted pull log table failed: {}", segment);
+                    break;
+                }
                 while (buffer.remaining() > 0) {
                     final short len = buffer.getShort();
                     final byte[] bytes = new byte[len];
@@ -144,18 +149,18 @@ public class SortedPullLogTable implements AutoCloseable {
             return -1;
         }
 
-        SegmentLocation location = entry.getValue();
-        VarLogSegment logSegment = location.logSegment;
-        PullLogSequence pullLogSequence = entry.getKey();
+        final SegmentLocation location = entry.getValue();
+        final VarLogSegment logSegment = location.logSegment;
+        final PullLogSequence pullLogSequence = entry.getKey();
         long offset = pullSequence - pullLogSequence.startPullLogSequence;
         if (offset < 0) {
             return -1;
         }
 
-        int position = TABLET_HEADER_SIZE + location.position + (int) offset;
-        ByteBuffer buffer = logSegment.selectBuffer(position, PullLogMemTable.ENTRY_SIZE);
+        final int position = TABLET_HEADER_SIZE + location.position + (int) offset;
+        final ByteBuffer buffer = logSegment.selectBuffer(position, PullLogMemTable.ENTRY_SIZE);
         if (buffer == null) return -1;
-        int offsetOfMessageSequence = buffer.getInt();
+        final int offsetOfMessageSequence = buffer.getInt();
         return location.baseOfMessageSequence + offsetOfMessageSequence;
     }
 

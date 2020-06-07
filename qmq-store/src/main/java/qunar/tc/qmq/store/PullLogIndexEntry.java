@@ -17,13 +17,4 @@ public class PullLogIndexEntry {
         this.position = position;
     }
 
-    public int positionInSegment(long pullLogSequence) {
-        long offset = pullLogSequence - startOfPullLogSequence;
-        if (offset < 0) return -1;
-        return position + (int) offset;
-    }
-
-    public long getMessageSequence(int offset) {
-        return baseOfMessageSequence + offset;
-    }
 }
