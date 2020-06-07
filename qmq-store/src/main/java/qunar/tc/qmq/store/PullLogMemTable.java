@@ -14,7 +14,7 @@ import java.util.concurrent.ConcurrentMap;
  */
 public class PullLogMemTable extends MemTable {
 
-    public static final int SEQUENCE_SIZE = 100 * 1024 * 1024;
+    public static final int SEQUENCE_SIZE = 10 * 1024 * 1024;
 
     private final ConcurrentMap<String, PullLogSequence> messageSequences = new ConcurrentHashMap<>();
 

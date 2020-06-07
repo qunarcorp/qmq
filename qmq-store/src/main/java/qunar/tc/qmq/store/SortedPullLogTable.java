@@ -1,5 +1,8 @@
 package qunar.tc.qmq.store;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
+import io.netty.util.ReferenceCountUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.store.result.Result;
@@ -18,12 +21,12 @@ import java.util.concurrent.ConcurrentSkipListMap;
 /**
  * Created by zhaohui.yu
  * 2020/6/7
- *
+ * <p>
  * 这里记录的pull log信息，将所有consumer的pull log混合在一个文件里记录，所以文件格式分为四个部分
  * header: 文件头，记录了magic code, 数据部分总大小，action log回放开始位置，action log回放结束位置
  * consumer log sequence: 这一部分记录的就是pull log里的内容，pull sequence对应位置的consumer log sequence，每个consumer的是连续的放在一块的
  * index: 因为所有consumer的pull log都放到一个文件里，则需要记录一些索引信息才能定位到。索引格式是:
- *  consumer + pullLogSequence + base consumer log sequence(因为文件第二部分存储的都是int类型，所以这里记录一个base，这样可以缩小文件记录的长度)+position(该consumer记录块的开始位置)
+ * consumer + pullLogSequence + base consumer log sequence(因为文件第二部分存储的都是int类型，所以这里记录一个base，这样可以缩小文件记录的长度)+position(该consumer记录块的开始位置)
  * crc: 最后对文件的数据内容(第二部分和第三部分)计算一个crc放在这里，启动的时候用于校验
  */
 public class SortedPullLogTable implements AutoCloseable {
@@ -123,6 +126,7 @@ public class SortedPullLogTable implements AutoCloseable {
 
     /**
      * 查询的时候，首先要找到对应consumer在文件块的开始位置
+     *
      * @param subject
      * @param group
      * @param consumerId
@@ -203,16 +207,21 @@ public class SortedPullLogTable implements AutoCloseable {
             for (Map.Entry<String, PullLogIndexEntry> entry : indexMap.entrySet()) {
                 final byte[] consumerBytes = entry.getKey().getBytes(StandardCharsets.UTF_8);
                 int size = Short.BYTES + consumerBytes.length + Long.BYTES + Long.BYTES + Integer.BYTES;
-                ByteBuffer buffer = ByteBuffer.allocate(size);
-                buffer.putShort((short) consumerBytes.length);
-                buffer.put(consumerBytes);
                 PullLogIndexEntry indexEntry = entry.getValue();
-                buffer.putLong(indexEntry.startOfPullLogSequence);
-                buffer.putLong(indexEntry.baseOfMessageSequence);
-                buffer.putInt(indexEntry.position);
-                buffer.flip();
-                Checksums.update(crc, buffer, buffer.limit());
-                tablet.appendData(buffer);
+
+                ByteBuf buffer = ByteBufAllocator.DEFAULT.ioBuffer(size);
+                try {
+                    buffer.writeShort((short) consumerBytes.length);
+                    buffer.writeBytes(consumerBytes);
+                    buffer.writeLong(indexEntry.startOfPullLogSequence);
+                    buffer.writeLong(indexEntry.baseOfMessageSequence);
+                    buffer.writeLong(indexEntry.position);
+                    ByteBuffer nioBuffer = buffer.nioBuffer();
+                    Checksums.update(crc, nioBuffer, nioBuffer.limit());
+                    tablet.appendData(nioBuffer);
+                } finally {
+                    ReferenceCountUtil.safeRelease(buffer);
+                }
 
                 ConcurrentSkipListMap<PullLogSequence, SegmentLocation> index = sortedPullLogTable.index;
                 index.put(new PullLogSequence(entry.getKey(), indexEntry.startOfPullLogSequence), new SegmentLocation(indexEntry.baseOfMessageSequence, indexEntry.position, tablet));
