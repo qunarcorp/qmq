@@ -39,8 +39,6 @@ public class SortedPullLogTable implements AutoCloseable {
     private final File dir;
     private final int dataSize;
 
-    private final TreeMap<Long, VarLogSegment> segments = new TreeMap<>();
-
     private ConcurrentSkipListMap<PullLogSequence, SegmentLocation> index = new ConcurrentSkipListMap<>();
 
     private ValidateResult validateResult;
@@ -48,12 +46,16 @@ public class SortedPullLogTable implements AutoCloseable {
     public SortedPullLogTable(final File dir, final int dataSize) {
         this.dir = dir;
         this.dataSize = dataSize;
-        loadLogs();
         loadAndValidateLogs();
     }
 
-    private void loadLogs() {
+    /**
+     * 启动的时候首先会加载磁盘上的文件，然后使用crc进行校验
+     * 校验完毕后开始加载每个文件上的index部分信息，将这些信息放到内存的跳表里，供后面查询使用
+     */
+    private void loadAndValidateLogs() {
         LOG.info("Loading logs.");
+        final TreeMap<Long, VarLogSegment> segments = new TreeMap<>();
         try {
             final File[] files = dir.listFiles();
             if (files == null) return;
@@ -73,14 +75,6 @@ public class SortedPullLogTable implements AutoCloseable {
         } finally {
             LOG.info("Load logs done.");
         }
-    }
-
-    /**
-     * 启动的时候首先会加载磁盘上的文件，然后使用crc进行校验
-     * 校验完毕后开始加载每个文件上的index部分信息，将这些信息放到内存的跳表里，供后面查询使用
-     */
-    private void loadAndValidateLogs() {
-        LOG.info("Loading logs.");
         try {
             for (Map.Entry<Long, VarLogSegment> entry : segments.entrySet()) {
                 final VarLogSegment segment = entry.getValue();

@@ -58,7 +58,10 @@ class EvictedPullLogMemTableHandler implements MemTableEvictedCallback {
             } else {
                 flushExecutor.submit(() -> {
                     builder.flush();
-                    //这里可能有点问题，一个pull log table非常紧凑，如果写完一个table才保存action的checkpoint，会导致重启后大量的action log回放
+                    /**
+                     * TODO 这里可能有点问题，一个pull log table非常紧凑，如果写完一个table才保存action的checkpoint，会导致重启后大量的action log回放.
+                     * 因为pull log table是变长的，所以我们也不必等着一个table满了才刷到磁盘，比如在server正常关闭的时候，强制刷一个，但是如果是异常重启则没办法了
+                     */
                     updateCheckpoint(table);
                 });
                 return true;
