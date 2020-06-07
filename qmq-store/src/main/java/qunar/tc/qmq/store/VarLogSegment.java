@@ -73,6 +73,14 @@ public class VarLogSegment {
         }
     }
 
+    public long getFileSize() {
+        try {
+            return fileChannel.size();
+        } catch (IOException e) {
+            return -1;
+        }
+    }
+
     public int getWrotePosition() {
         return wrotePosition.get();
     }

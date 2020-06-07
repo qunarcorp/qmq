@@ -59,65 +59,73 @@ public class SortedPullLogTable implements AutoCloseable {
     private void loadAndValidateLogs() {
         LOG.info("Loading logs.");
         final TreeMap<Long, VarLogSegment> segments = new TreeMap<>();
-        try {
-            final File[] files = dir.listFiles();
-            if (files == null) return;
+        final File[] files = dir.listFiles();
+        if (files == null) return;
 
-            for (final File file : files) {
-                if (file.getName().startsWith(".")) {
-                    continue;
-                }
-                try {
-                    final VarLogSegment segment = new VarLogSegment(file);
-                    segments.put(segment.getBaseOffset(), segment);
-                    LOG.info("Load {} success.", file.getAbsolutePath());
-                } catch (IOException e) {
-                    LOG.error("Load {} failed.", file.getAbsolutePath());
-                }
+        for (final File file : files) {
+            if (file.getName().startsWith(".")) {
+                continue;
             }
-        } finally {
-            LOG.info("Load logs done.");
+            try {
+                final VarLogSegment segment = new VarLogSegment(file);
+                segments.put(segment.getBaseOffset(), segment);
+                LOG.info("Load {} success.", file.getAbsolutePath());
+            } catch (IOException e) {
+                LOG.error("Load {} failed.", file.getAbsolutePath());
+            }
         }
         try {
             for (Map.Entry<Long, VarLogSegment> entry : segments.entrySet()) {
                 final VarLogSegment segment = entry.getValue();
+                if (!validate(segment)) {
+                    validateResult = new ValidateResult(LogSegmentValidator.ValidateStatus.PARTIAL, segment.getBaseOffset());
+                    LOG.error("validate sorted pull log table failed: {}", segment);
+                    break;
+                }
+
                 final int positionOfIndex = TABLET_HEADER_SIZE + dataSize;
-                ByteBuffer header = segment.selectBuffer(0, TABLET_HEADER_SIZE);
-                header.position(POSITION_OF_TOTAL_PAYLOAD_SIZE);
+                final ByteBuffer header = segment.selectBuffer(0, TABLET_HEADER_SIZE);
+                header.getInt();
                 final int totalPayloadSize = header.getInt();
 
-                if (!validate(totalPayloadSize, segment)) {
+                ByteBuffer indexBuffer = segment.selectBuffer(positionOfIndex, totalPayloadSize - positionOfIndex);
+                if (indexBuffer == null) {
                     validateResult = new ValidateResult(LogSegmentValidator.ValidateStatus.PARTIAL, segment.getBaseOffset());
                     LOG.error("validate sorted pull log table failed: {}", segment);
                     break;
                 }
-
-                ByteBuffer buffer = segment.selectBuffer(positionOfIndex, totalPayloadSize - positionOfIndex);
-                if (buffer == null) {
-                    validateResult = new ValidateResult(LogSegmentValidator.ValidateStatus.PARTIAL, segment.getBaseOffset());
-                    LOG.error("validate sorted pull log table failed: {}", segment);
-                    break;
-                }
-                while (buffer.remaining() > 0) {
-                    final short len = buffer.getShort();
+                while (indexBuffer.remaining() > 0) {
+                    final short len = indexBuffer.getShort();
                     final byte[] bytes = new byte[len];
-                    buffer.get(bytes);
+                    indexBuffer.get(bytes);
                     final String consumer = new String(bytes, StandardCharsets.UTF_8);
-                    final long startOfPullLogSequence = buffer.getLong();
-                    final long baseOfMessageSequence = buffer.getLong();
-                    final int position = buffer.getInt();
+                    final long startOfPullLogSequence = indexBuffer.getLong();
+                    final long baseOfMessageSequence = indexBuffer.getLong();
+                    final int position = indexBuffer.getInt();
                     index.put(new PullLogSequence(consumer, startOfPullLogSequence), new SegmentLocation(baseOfMessageSequence, position, segment));
                 }
 
                 validateResult = new ValidateResult(LogSegmentValidator.ValidateStatus.COMPLETE, segment.getBaseOffset());
             }
         } finally {
-            LOG.info("Load logs done.");
+            LOG.info("Validate logs done.");
         }
     }
 
-    private boolean validate(int totalPayloadSize, VarLogSegment segment) {
-        ByteBuffer buffer = segment.selectBuffer(totalPayloadSize, TABLET_CRC_SIZE);
+    private boolean validate(VarLogSegment segment) {
+        long fileSize = segment.getFileSize();
+        long minFieSize = TABLET_CRC_SIZE + TABLET_HEADER_SIZE;
+        if (fileSize <= minFieSize) {
+            return false;
+        }
+
+        ByteBuffer header = segment.selectBuffer(0, TABLET_HEADER_SIZE);
+        int magicCode = header.getInt();
+        if (magicCode != MagicCode.SORTED_MESSAGES_TABLE_MAGIC_V1) return false;
+        int totalPayloadSize = header.getInt();
+        if (fileSize != TABLET_HEADER_SIZE + totalPayloadSize + TABLET_CRC_SIZE) return false;
+
+        ByteBuffer buffer = segment.selectBuffer(totalPayloadSize + TABLET_HEADER_SIZE, TABLET_CRC_SIZE);
         long crc = buffer.getLong();
 
         ByteBuffer payload = segment.selectBuffer(TABLET_HEADER_SIZE, totalPayloadSize);
