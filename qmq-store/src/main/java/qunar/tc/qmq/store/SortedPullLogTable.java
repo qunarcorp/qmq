@@ -262,7 +262,7 @@ public class SortedPullLogTable implements AutoCloseable {
         }
     }
 
-    private static class PullLogSequence {
+    private static class PullLogSequence implements Comparable<PullLogSequence> {
         private final String consumer;
 
         private final long startPullLogSequence;
@@ -272,7 +272,13 @@ public class SortedPullLogTable implements AutoCloseable {
             this.startPullLogSequence = startPullLogSequence;
         }
 
-
+        @Override
+        public int compareTo(PullLogSequence o) {
+            if (consumer.equals(o.consumer)) {
+                return Long.compare(startPullLogSequence, o.startPullLogSequence);
+            }
+            return consumer.compareTo(o.consumer);
+        }
     }
 
     private static class SegmentLocation {
