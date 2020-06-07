@@ -18,7 +18,10 @@ package qunar.tc.qmq.store.action;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.store.*;
+import qunar.tc.qmq.store.MemTableManager;
+import qunar.tc.qmq.store.PullLogMemTable;
+import qunar.tc.qmq.store.PullLogMessage;
+import qunar.tc.qmq.store.StorageConfig;
 import qunar.tc.qmq.store.event.FixedExecOrderEventBus;
 
 import java.util.ArrayList;
@@ -59,7 +62,7 @@ public class PullLogBuilder implements FixedExecOrderEventBus.Listener<ActionEve
         List<PullLogMessage> messages = createMessages(action);
         if (needRolling(messages)) {
             final long nextTabletId = event.getOffset();
-            LOG.info("rolling new memtable, nextTabletId: {}, event: {}", nextTabletId, event);
+            LOG.info("rolling new pull log memtable, nextTabletId: {}, event: {}", nextTabletId, event);
 
             currentMemTable = (PullLogMemTable) manager.rollingNewMemTable(nextTabletId, event.getOffset());
         }
@@ -73,6 +76,7 @@ public class PullLogBuilder implements FixedExecOrderEventBus.Listener<ActionEve
                 action.group(),
                 action.consumerId(),
                 messages);
+        currentMemTable.setEndOffset(event.getOffset());
 
         blockIfTooMuchActiveMemTable();
     }

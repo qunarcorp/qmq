@@ -30,7 +30,7 @@ public abstract class MemTable {
         return endOffset;
     }
 
-    protected void setEndOffset(long endOffset) {
+    public void setEndOffset(long endOffset) {
         this.endOffset = endOffset;
     }
 
