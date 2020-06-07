@@ -44,8 +44,6 @@ public class MessageMemTable extends MemTable implements Iterable<MessageMemTabl
     private final ByteBuf mem;
     private final ReadWriteLock rwLock;
 
-    private volatile long endOffset;
-
     public MessageMemTable(final long tabletId, final long beginOffset, final int capacity) {
         super(tabletId, beginOffset, capacity);
         this.firstSequences = new HashMap<>();
@@ -56,10 +54,6 @@ public class MessageMemTable extends MemTable implements Iterable<MessageMemTabl
 
     public int getOverheadBytes() {
         return OVERHEAD_BYTES;
-    }
-
-    public long getEndOffset() {
-        return endOffset;
     }
 
     public Map<String, Long> getFirstSequences() {
@@ -81,10 +75,12 @@ public class MessageMemTable extends MemTable implements Iterable<MessageMemTabl
         }
     }
 
+    @Override
     public int getTotalDataSize() {
         return mem.readableBytes();
     }
 
+    @Override
     public boolean checkWritable(final int writeBytes) {
         return mem.writableBytes() - getOverheadBytes() > writeBytes;
     }
@@ -209,7 +205,7 @@ public class MessageMemTable extends MemTable implements Iterable<MessageMemTabl
 
             final Result<AddResultStatus, MessageIndex> result = append(sequence, message);
             if (result.getStatus() == AddResultStatus.SUCCESS) {
-                endOffset = offset;
+                setEndOffset(offset);
                 firstSequences.putIfAbsent(subject, sequence);
                 indexes.computeIfAbsent(subject, (s) -> new ArrayList<>()).add(result.getData());
             }
@@ -249,7 +245,7 @@ public class MessageMemTable extends MemTable implements Iterable<MessageMemTabl
         return "MessageMemTable{" +
                 "tabletId=" + getTabletId() +
                 ", beginOffset=" + getBeginOffset() +
-                ", endOffset=" + endOffset +
+                ", endOffset=" + getEndOffset() +
                 '}';
     }
 

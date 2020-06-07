@@ -55,6 +55,7 @@ public class DefaultStorage implements Storage {
 
     private final SortedMessagesTable sortedMessagesTable;
     private final MemTableManager memTableManager;
+    private final MemTableManager pullLogMemTableManager;
 
     private final MessageLog messageLog;
     private final ConsumerLogManager consumerLogManager;
@@ -74,6 +75,7 @@ public class DefaultStorage implements Storage {
 
     private final PeriodicFlushService messageLogFlushService;
     private final PeriodicFlushService actionLogFlushService;
+    private final SortedPullLogTable sortedPullLogTable;
 
     public DefaultStorage(final BrokerRole role, final StorageConfig config, final CheckpointLoader loader) {
         this.config = config;
@@ -84,22 +86,32 @@ public class DefaultStorage implements Storage {
         this.pullLogManager = new PullLogManager(config, checkpointManager.allConsumerGroupProgresses());
         this.actionLog = new ActionLog(config);
 
-        final int tabletSize = MessageLog.PER_SEGMENT_FILE_SIZE / 4;
-        this.sortedMessagesTable = new SortedMessagesTable(new File(config.getSMTStorePath()), tabletSize);
-        final EvictedMemTableHandler evictedCallback = new EvictedMemTableHandler(sortedMessagesTable, consumerLogManager, checkpointManager);
-        this.memTableManager = new MemTableManager(config, tabletSize - sortedMessagesTable.getTabletMetaSize(), MessageMemTable::new, evictedCallback);
-
         // must init after offset manager created
         this.consumeQueueManager = new ConsumeQueueManager(this);
 
         this.pullLogFlusher = new PullLogFlusher(config, checkpointManager, pullLogManager);
+        this.sortedPullLogTable = new SortedPullLogTable(new File(config.getPullLogSMTStorePath()), PullLogMemTable.SEQUENCE_SIZE);
+        EvictedPullLogMemTableHandler evictedPullLogMemTableCallback = new EvictedPullLogMemTableHandler(sortedPullLogTable, checkpointManager);
+        this.pullLogMemTableManager = new MemTableManager(config, PullLogMemTable.SEQUENCE_SIZE, PullLogMemTable::new, evictedPullLogMemTableCallback);
         this.actionEventBus = new FixedExecOrderEventBus();
-        this.actionEventBus.subscribe(ActionEvent.class, new PullLogBuilder(this));
+        this.actionEventBus.subscribe(ActionEvent.class, new PullLogBuilder(config, pullLogMemTableManager));
         this.actionEventBus.subscribe(ActionEvent.class, new MaxSequencesUpdater(checkpointManager));
         this.actionEventBus.subscribe(ActionEvent.class, pullLogFlusher);
-        this.actionLogIterateService = new LogIterateService<>("ReplayActionLog", config.getLogDispatcherPauseMillis(), actionLog, checkpointManager.getActionCheckpointOffset(), actionEventBus);
+
+        //如果pull log table加载校验后有不完整的文件，则这些文件需要重新回放
+        SortedPullLogTable.ValidateResult validateResult = sortedPullLogTable.getValidateResult();
+        long actionLogReplayState = checkpointManager.getActionCheckpointOffset();
+        if (validateResult.getValidateStatus() == LogSegmentValidator.ValidateStatus.PARTIAL) {
+            actionLogReplayState = validateResult.getPosition();
+        }
+        this.actionLogIterateService = new LogIterateService<>("ReplayActionLog", config.getLogDispatcherPauseMillis(), actionLog, actionLogReplayState, actionEventBus);
 
         this.consumerLogFlusher = new ConsumerLogFlusher(config, checkpointManager, consumerLogManager);
+
+        final int tabletSize = MessageLog.PER_SEGMENT_FILE_SIZE / 4;
+        this.sortedMessagesTable = new SortedMessagesTable(new File(config.getSMTStorePath()), tabletSize);
+        final EvictedMemTableHandler evictedCallback = new EvictedMemTableHandler(sortedMessagesTable, consumerLogManager, checkpointManager);
+        this.memTableManager = new MemTableManager(config, tabletSize - sortedMessagesTable.getTabletMetaSize(), MessageMemTable::new, evictedCallback);
         this.messageEventBus = new FixedExecOrderEventBus();
         if (config.isSMTEnable()) {
             this.messageEventBus.subscribe(MessageLogRecord.class, new BuildMessageMemTableEventListener(config, memTableManager, sortedMessagesTable));
@@ -437,6 +449,16 @@ public class DefaultStorage implements Storage {
 
     @Override
     public long getMessageSequenceByPullLog(String subject, String group, String consumerId, long pullLogSequence) {
+        Iterator<MemTable> iterator = pullLogMemTableManager.iterator();
+        while (iterator.hasNext()) {
+            PullLogMemTable next = (PullLogMemTable) iterator.next();
+            long consumerLogSequence = next.getConsumerLogSequence(subject, group, consumerId, pullLogSequence);
+            if (consumerLogSequence >= 0) return consumerLogSequence;
+        }
+
+        long consumerLogSequence = sortedPullLogTable.getMessage(subject, group, consumerId, pullLogSequence);
+        if (consumerLogSequence >= 0) return consumerLogSequence;
+
         final PullLog log = pullLogManager.get(subject, group, consumerId);
         if (log == null) {
             return -1;

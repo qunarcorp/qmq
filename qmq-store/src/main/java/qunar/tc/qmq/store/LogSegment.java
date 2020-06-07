@@ -45,7 +45,6 @@ public class LogSegment extends ReferenceObject {
 
     private final AtomicInteger wrotePosition = new AtomicInteger(0);
 
-    private RandomAccessFile rawFile;
     private FileChannel fileChannel;
     private MappedByteBuffer mappedByteBuffer;
 
@@ -57,7 +56,7 @@ public class LogSegment extends ReferenceObject {
 
         boolean success = false;
         try {
-            rawFile = new RandomAccessFile(file, "rw");
+            final RandomAccessFile rawFile = new RandomAccessFile(file, "rw");
             fileChannel = rawFile.getChannel();
             mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, 0, fileSize);
             success = true;

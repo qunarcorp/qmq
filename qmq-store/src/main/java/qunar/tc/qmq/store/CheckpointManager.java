@@ -177,12 +177,20 @@ public class CheckpointManager implements AutoCloseable {
         }
     }
 
-    public void updateActionReplayState(final long offset, final PullAction action) {
+    public void updateActionCheckpoint(final long offset) {
+        actionCheckpointGuard.lock();
+        try {
+            actionCheckpoint.setOffset(offset);
+        } finally {
+            actionCheckpointGuard.unlock();
+        }
+    }
+
+    public void updateActionReplayState(final PullAction action) {
         actionCheckpointGuard.lock();
         try {
             updateMaxPulledMessageSequence(action);
             updateConsumerMaxPullLogSequence(action);
-            actionCheckpoint.setOffset(offset);
         } finally {
             actionCheckpointGuard.unlock();
         }
@@ -251,7 +259,7 @@ public class CheckpointManager implements AutoCloseable {
         return consumers.get(consumerId);
     }
 
-    public void updateActionReplayState(final long offset, final RangeAckAction action) {
+    public void updateActionReplayState(final RangeAckAction action) {
         actionCheckpointGuard.lock();
         try {
             final String subject = action.subject();
@@ -268,7 +276,6 @@ public class CheckpointManager implements AutoCloseable {
                 updateConsumerMaxAckedPullLogSequence(subject, group, consumerId, lastSequence);
             }
 
-            actionCheckpoint.setOffset(offset);
         } finally {
             actionCheckpointGuard.unlock();
         }

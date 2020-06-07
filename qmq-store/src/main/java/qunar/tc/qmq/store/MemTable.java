@@ -9,7 +9,9 @@ public abstract class MemTable {
     private final long beginOffset;
     private final int capacity;
 
-    public MemTable(final long tabletId, final long beginOffset, final int capacity){
+    private volatile long endOffset;
+
+    public MemTable(final long tabletId, final long beginOffset, final int capacity) {
 
         this.tabletId = tabletId;
         this.beginOffset = beginOffset;
@@ -23,6 +25,22 @@ public abstract class MemTable {
     public long getBeginOffset() {
         return beginOffset;
     }
+
+    public long getEndOffset() {
+        return endOffset;
+    }
+
+    protected void setEndOffset(long endOffset) {
+        this.endOffset = endOffset;
+    }
+
+    public abstract int getTotalDataSize();
+
+    public int getCapacity() {
+        return capacity;
+    }
+
+    public abstract boolean checkWritable(final int writeBytes);
 
     public abstract void close();
 }

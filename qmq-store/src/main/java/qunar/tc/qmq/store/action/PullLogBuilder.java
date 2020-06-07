@@ -16,22 +16,29 @@
 
 package qunar.tc.qmq.store.action;
 
-import qunar.tc.qmq.store.Storage;
-import qunar.tc.qmq.store.PullLogMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.store.*;
 import qunar.tc.qmq.store.event.FixedExecOrderEventBus;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author keli.wang
  * @since 2017/8/21
  */
 public class PullLogBuilder implements FixedExecOrderEventBus.Listener<ActionEvent> {
-    private final Storage storage;
+    private static final Logger LOG = LoggerFactory.getLogger(PullLogBuilder.class);
 
-    public PullLogBuilder(final Storage storage) {
-        this.storage = storage;
+    private final StorageConfig config;
+    private final MemTableManager manager;
+    private volatile PullLogMemTable currentMemTable;
+
+    public PullLogBuilder(final StorageConfig config, final MemTableManager manager) {
+        this.config = config;
+        this.manager = manager;
     }
 
     @Override
@@ -48,7 +55,45 @@ public class PullLogBuilder implements FixedExecOrderEventBus.Listener<ActionEve
         if (action.isBroadcast()) return;
 
         if (action.getFirstSequence() - action.getLastSequence() > 0) return;
-        storage.putPullLogs(action.subject(), action.group(), action.consumerId(), createMessages(action));
+
+        List<PullLogMessage> messages = createMessages(action);
+        if (needRolling(messages)) {
+            final long nextTabletId = event.getOffset();
+            LOG.info("rolling new memtable, nextTabletId: {}, event: {}", nextTabletId, event);
+
+            currentMemTable = (PullLogMemTable) manager.rollingNewMemTable(nextTabletId, event.getOffset());
+        }
+
+        if (currentMemTable == null) {
+            throw new RuntimeException("lost first event of current log segment");
+        }
+
+        currentMemTable.putPullLogMessages(
+                action.subject(),
+                action.group(),
+                action.consumerId(),
+                messages);
+
+        blockIfTooMuchActiveMemTable();
+    }
+
+    private boolean needRolling(final List<PullLogMessage> messages) {
+        if (currentMemTable == null) {
+            return true;
+        }
+
+        int wroteBytes = messages.size() * PullLogMemTable.ENTRY_SIZE;
+        return !currentMemTable.checkWritable(wroteBytes);
+    }
+
+    private void blockIfTooMuchActiveMemTable() {
+        while (manager.getActiveCount() > config.getMaxActiveMemTable()) {
+            try {
+                TimeUnit.MILLISECONDS.sleep(500);
+            } catch (InterruptedException ignore) {
+                LOG.error("sleep interrupted");
+            }
+        }
     }
 
     private List<PullLogMessage> createMessages(final PullAction action) {

@@ -32,14 +32,12 @@ public class MaxSequencesUpdater implements FixedExecOrderEventBus.Listener<Acti
 
     @Override
     public void onEvent(final ActionEvent event) {
-        final long offset = event.getOffset();
-
         switch (event.getAction().type()) {
             case PULL:
-                manager.updateActionReplayState(offset, (PullAction) event.getAction());
+                manager.updateActionReplayState((PullAction) event.getAction());
                 break;
             case RANGE_ACK:
-                manager.updateActionReplayState(offset, (RangeAckAction) event.getAction());
+                manager.updateActionReplayState((RangeAckAction) event.getAction());
                 break;
         }
 

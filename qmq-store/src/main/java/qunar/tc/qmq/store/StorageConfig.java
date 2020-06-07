@@ -45,6 +45,8 @@ public interface StorageConfig {
 
     String getSMTStorePath();
 
+    String getPullLogSMTStorePath();
+
     long getSMTRetentionMs();
 
     int getRetryDelaySeconds();
