@@ -52,8 +52,9 @@ public class PullLogMemTable extends MemTable {
         for (Map.Entry<String, PullLogSequence> entry : messageSequences.entrySet()) {
             PullLogIndexEntry indexEntry = new PullLogIndexEntry(entry.getValue().basePullSequence, entry.getValue().baseMessageSequence, buffer.writerIndex());
             indexMap.put(entry.getKey(), indexEntry);
-            for (Integer offset : entry.getValue().messageOffsets) {
-                buffer.writeInt(offset);
+            IntArrayList messageOffsets = entry.getValue().messageOffsets;
+            for (int i = 0; i < messageOffsets.size(); ++i) {
+                buffer.writeInt(messageOffsets.get(i));
             }
         }
     }
@@ -65,7 +66,7 @@ public class PullLogMemTable extends MemTable {
 
         int offset = (int) (pullSequence - pullLogSequence.basePullSequence);
         if (offset < 0 || offset >= pullLogSequence.messageOffsets.size()) return -1L;
-        Integer messageSequenceOffset = pullLogSequence.messageOffsets.get(offset);
+        int messageSequenceOffset = pullLogSequence.messageOffsets.get(offset);
         return pullLogSequence.baseMessageSequence + messageSequenceOffset;
     }
 
@@ -80,7 +81,7 @@ public class PullLogMemTable extends MemTable {
 
         private long baseMessageSequence = -1L;
 
-        private List<Integer> messageOffsets = new ArrayList<>();
+        private final IntArrayList messageOffsets = new IntArrayList();
 
         public void add(long pullSequence, long messageSequence) {
             if (basePullSequence == -1L) {
