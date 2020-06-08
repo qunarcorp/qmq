@@ -95,6 +95,7 @@ public class SortedPullLogTable implements AutoCloseable {
                     break;
                 }
                 while (indexBuffer.remaining() > 0) {
+                    indexBuffer.getInt();
                     final short len = indexBuffer.getShort();
                     final byte[] bytes = new byte[len];
                     indexBuffer.get(bytes);
@@ -219,11 +220,12 @@ public class SortedPullLogTable implements AutoCloseable {
         public void appendIndex(Map<String, PullLogIndexEntry> indexMap) {
             for (Map.Entry<String, PullLogIndexEntry> entry : indexMap.entrySet()) {
                 final byte[] consumerBytes = entry.getKey().getBytes(StandardCharsets.UTF_8);
-                int size = Short.BYTES + consumerBytes.length + Long.BYTES + Long.BYTES + Integer.BYTES;
+                int size = Integer.BYTES + Short.BYTES + consumerBytes.length + Long.BYTES + Long.BYTES + Integer.BYTES;
                 PullLogIndexEntry indexEntry = entry.getValue();
 
                 ByteBuf buffer = ByteBufAllocator.DEFAULT.ioBuffer(size);
                 try {
+                    buffer.writeInt(MagicCode.PULL_LOG_MAGIC_V1);
                     buffer.writeShort((short) consumerBytes.length);
                     buffer.writeBytes(consumerBytes);
                     buffer.writeLong(indexEntry.startOfPullLogSequence);
