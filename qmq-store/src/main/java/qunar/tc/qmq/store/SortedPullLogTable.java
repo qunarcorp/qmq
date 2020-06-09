@@ -235,17 +235,12 @@ public class SortedPullLogTable implements AutoCloseable {
             return tablet.appendData(buffer);
         }
 
-        public Result<TabletBuilder.AppendStatus, Integer> append(final ByteBuffer buffer) {
+        public boolean append(final ByteBuffer buffer) {
             Checksums.update(crc, buffer, buffer.limit());
-            final int position = tablet.getWrotePosition();
-            if (tablet.appendData(buffer)) {
-                return new Result<>(TabletBuilder.AppendStatus.SUCCESS, position);
-            } else {
-                return new Result<>(TabletBuilder.AppendStatus.ERROR, 0);
-            }
+            return tablet.appendData(buffer);
         }
 
-        public void appendIndex(Map<String, PullLogIndexEntry> indexMap) {
+        public boolean appendIndex(Map<String, PullLogIndexEntry> indexMap) {
             for (Map.Entry<String, PullLogIndexEntry> entry : indexMap.entrySet()) {
                 final byte[] consumerBytes = entry.getKey().getBytes(StandardCharsets.UTF_8);
                 int size = Integer.BYTES + Short.BYTES + consumerBytes.length + Long.BYTES + Long.BYTES + Integer.BYTES;
@@ -261,7 +256,8 @@ public class SortedPullLogTable implements AutoCloseable {
                     buffer.writeLong(indexEntry.position);
                     ByteBuffer nioBuffer = buffer.nioBuffer();
                     Checksums.update(crc, nioBuffer, nioBuffer.limit());
-                    tablet.appendData(nioBuffer);
+                    boolean result = tablet.appendData(nioBuffer);
+                    if (!result) return false;
                 } finally {
                     ReferenceCountUtil.safeRelease(buffer);
                 }
@@ -269,6 +265,7 @@ public class SortedPullLogTable implements AutoCloseable {
                 ConcurrentSkipListMap<PullLogSequence, SegmentLocation> index = sortedPullLogTable.index;
                 index.put(new PullLogSequence(entry.getKey(), indexEntry.startOfPullLogSequence), new SegmentLocation(indexEntry.baseOfMessageSequence, indexEntry.position, tablet));
             }
+            return true;
         }
 
         public boolean finish() {
