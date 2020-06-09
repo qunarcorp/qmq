@@ -21,7 +21,6 @@ import io.netty.buffer.ByteBufAllocator;
 import io.netty.util.ReferenceCountUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.store.result.Result;
 import qunar.tc.qmq.utils.Checksums;
 import qunar.tc.qmq.utils.Crc32;
 
@@ -29,6 +28,9 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
@@ -55,17 +57,36 @@ public class SortedPullLogTable implements AutoCloseable {
     private static final int TOTAL_PAYLOAD_SIZE_LEN = Integer.BYTES;
     private static final int POSITION_OF_TOTAL_PAYLOAD_SIZE = Integer.BYTES;
 
-    private final File dir;
+    private final File logDir;
     private final int dataSize;
 
     private ConcurrentSkipListMap<PullLogSequence, SegmentLocation> index = new ConcurrentSkipListMap<>();
 
     private volatile long actionReplayState;
 
-    public SortedPullLogTable(final File dir, final int dataSize) {
-        this.dir = dir;
+    public SortedPullLogTable(final File logDir, final int dataSize) {
+        this.logDir = logDir;
         this.dataSize = dataSize;
+        createAndValidateLogDir();
         loadAndValidateLogs();
+    }
+
+    private void createAndValidateLogDir() {
+        if (!logDir.exists()) {
+            LOG.info("Log directory {} not found, try create it.", logDir.getAbsoluteFile());
+            try {
+                Files.createDirectories(logDir.toPath());
+            } catch (InvalidPathException e) {
+                LOG.error("log directory char array: {}", Arrays.toString(logDir.getAbsolutePath().toCharArray()));
+                throw new RuntimeException("Failed to create log directory " + logDir.getAbsolutePath(), e);
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to create log directory " + logDir.getAbsolutePath(), e);
+            }
+        }
+
+        if (!logDir.isDirectory() || !logDir.canRead()) {
+            throw new RuntimeException(logDir.getAbsolutePath() + " is not a readable log directory");
+        }
     }
 
     /**
@@ -75,7 +96,7 @@ public class SortedPullLogTable implements AutoCloseable {
     private void loadAndValidateLogs() {
         LOG.info("Loading logs.");
         final TreeMap<Long, VarLogSegment> segments = new TreeMap<>();
-        final File[] files = dir.listFiles();
+        final File[] files = logDir.listFiles();
         if (files == null) return;
 
         for (final File file : files) {
@@ -163,7 +184,7 @@ public class SortedPullLogTable implements AutoCloseable {
     }
 
     public Optional<TabletBuilder> newTabletBuilder(final long tabletId) throws IOException {
-        return Optional.of(new TabletBuilder(this, new VarLogSegment(new File(dir, String.valueOf(tabletId)))));
+        return Optional.of(new TabletBuilder(this, new VarLogSegment(new File(logDir, String.valueOf(tabletId)))));
     }
 
     /**
