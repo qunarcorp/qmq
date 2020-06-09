@@ -142,6 +142,7 @@ public class SortedPullLogTable implements AutoCloseable {
         if (fileSize <= minFieSize) Optional.empty();
 
         ByteBuffer header = segment.selectBuffer(0, TABLET_HEADER_SIZE);
+        if (header == null) return Optional.empty();
         int magicCode = header.getInt();
         if (magicCode != MagicCode.SORTED_MESSAGES_TABLE_MAGIC_V1) return Optional.empty();
         int totalPayloadSize = header.getInt();
@@ -152,9 +153,11 @@ public class SortedPullLogTable implements AutoCloseable {
         if (lastFileHeader != null && (lastFileHeader.endOffset + 1) != beginOffset) return Optional.empty();
 
         ByteBuffer buffer = segment.selectBuffer(totalPayloadSize + TABLET_HEADER_SIZE, TABLET_CRC_SIZE);
+        if (buffer == null) return Optional.empty();
         long crc = buffer.getLong();
 
         ByteBuffer payload = segment.selectBuffer(TABLET_HEADER_SIZE, totalPayloadSize);
+        if (payload == null) return Optional.empty();
         long computedCrc = Crc32.crc32(payload, 0, totalPayloadSize);
         return crc == computedCrc ? Optional.of(new FileHeader(totalPayloadSize, beginOffset, endOffset)) : Optional.empty();
     }

@@ -69,6 +69,7 @@ public class VarLogSegment {
             buffer.flip();
             return buffer;
         } catch (IOException e) {
+            LOG.error("Select buffer from segment failed.", e);
             return null;
         }
     }
