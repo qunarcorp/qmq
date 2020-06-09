@@ -100,6 +100,8 @@ public class DefaultStorage implements Storage {
 
         //如果pull log table加载校验后有不完整的文件，则这些文件需要重新回放
         long actionReplayState = sortedPullLogTable.getActionReplayState();
+        long actionCheckpointOffset = checkpointManager.getActionCheckpointOffset();
+        actionReplayState = actionReplayState == 0 ? actionCheckpointOffset : actionReplayState;
         this.actionLogIterateService = new LogIterateService<>("ReplayActionLog", config.getLogDispatcherPauseMillis(), actionLog, actionReplayState, actionEventBus);
 
         this.consumerLogFlusher = new ConsumerLogFlusher(config, checkpointManager, consumerLogManager);
