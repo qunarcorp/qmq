@@ -235,7 +235,7 @@ public class CheckpointManager implements AutoCloseable {
         }
     }
 
-    private long getConsumerMaxPullLogSequence(final String subject, final String group, final String consumerId) {
+    public long getConsumerMaxPullLogSequence(final String subject, final String group, final String consumerId) {
         final ConsumerProgress consumer = getConsumerProgress(subject, group, consumerId);
         if (consumer == null) {
             return -1;
