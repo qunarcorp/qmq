@@ -99,12 +99,8 @@ public class DefaultStorage implements Storage {
         this.actionEventBus.subscribe(ActionEvent.class, pullLogFlusher);
 
         //如果pull log table加载校验后有不完整的文件，则这些文件需要重新回放
-        SortedPullLogTable.ValidateResult validateResult = sortedPullLogTable.getValidateResult();
-        long actionLogReplayState = checkpointManager.getActionCheckpointOffset();
-        if (validateResult.getValidateStatus() == LogSegmentValidator.ValidateStatus.PARTIAL) {
-            actionLogReplayState = validateResult.getPosition();
-        }
-        this.actionLogIterateService = new LogIterateService<>("ReplayActionLog", config.getLogDispatcherPauseMillis(), actionLog, actionLogReplayState, actionEventBus);
+        long actionReplayState = sortedPullLogTable.getActionReplayState();
+        this.actionLogIterateService = new LogIterateService<>("ReplayActionLog", config.getLogDispatcherPauseMillis(), actionLog, actionReplayState, actionEventBus);
 
         this.consumerLogFlusher = new ConsumerLogFlusher(config, checkpointManager, consumerLogManager);
 

@@ -44,7 +44,7 @@ public class SortedPullLogTable implements AutoCloseable {
 
     private ConcurrentSkipListMap<PullLogSequence, SegmentLocation> index = new ConcurrentSkipListMap<>();
 
-    private ValidateResult validateResult;
+    private volatile long actionReplayState;
 
     public SortedPullLogTable(final File dir, final int dataSize) {
         this.dir = dir;
@@ -75,22 +75,29 @@ public class SortedPullLogTable implements AutoCloseable {
             }
         }
         try {
+            FileHeader lastSegmentHeader = null;
             for (Map.Entry<Long, VarLogSegment> entry : segments.entrySet()) {
                 final VarLogSegment segment = entry.getValue();
-                if (!validate(segment)) {
-                    validateResult = new ValidateResult(LogSegmentValidator.ValidateStatus.PARTIAL, segment.getBaseOffset());
-                    LOG.error("validate sorted pull log table failed: {}", segment);
+                Optional<FileHeader> validateResult = validate(lastSegmentHeader, segment);
+                FileHeader currentHeader = null;
+                if (validateResult.isPresent()) {
+                    currentHeader = validateResult.get();
+                    lastSegmentHeader = validateResult.get();
+                } else if (lastSegmentHeader == null) {
+                    LOG.error("validate pull log sorted table failed, no valid segments");
+                    actionReplayState = 0;
+                    break;
+                } else {
+                    actionReplayState = lastSegmentHeader.endOffset + 1;
+                    LOG.error("validate pull log sorted table failed, in validate segment: {}", segment);
                     break;
                 }
 
                 final int positionOfIndex = TABLET_HEADER_SIZE + dataSize;
-                final ByteBuffer header = segment.selectBuffer(0, TABLET_HEADER_SIZE);
-                header.getInt();
-                final int totalPayloadSize = header.getInt();
-
+                final int totalPayloadSize = currentHeader.totalPayloadSize;
                 ByteBuffer indexBuffer = segment.selectBuffer(positionOfIndex, totalPayloadSize - positionOfIndex);
                 if (indexBuffer == null) {
-                    validateResult = new ValidateResult(LogSegmentValidator.ValidateStatus.PARTIAL, segment.getBaseOffset());
+                    actionReplayState = segment.getBaseOffset();
                     LOG.error("validate sorted pull log table failed: {}", segment);
                     break;
                 }
@@ -106,32 +113,34 @@ public class SortedPullLogTable implements AutoCloseable {
                     index.put(new PullLogSequence(consumer, startOfPullLogSequence), new SegmentLocation(baseOfMessageSequence, position, segment));
                 }
 
-                validateResult = new ValidateResult(LogSegmentValidator.ValidateStatus.COMPLETE, segment.getBaseOffset());
+                actionReplayState = currentHeader.endOffset + 1;
             }
         } finally {
             LOG.info("Validate logs done.");
         }
     }
 
-    private boolean validate(VarLogSegment segment) {
+    private Optional<FileHeader> validate(FileHeader lastFileHeader, VarLogSegment segment) {
         long fileSize = segment.getFileSize();
         long minFieSize = TABLET_CRC_SIZE + TABLET_HEADER_SIZE;
-        if (fileSize <= minFieSize) {
-            return false;
-        }
+        if (fileSize <= minFieSize) Optional.empty();
 
         ByteBuffer header = segment.selectBuffer(0, TABLET_HEADER_SIZE);
         int magicCode = header.getInt();
-        if (magicCode != MagicCode.SORTED_MESSAGES_TABLE_MAGIC_V1) return false;
+        if (magicCode != MagicCode.SORTED_MESSAGES_TABLE_MAGIC_V1) return Optional.empty();
         int totalPayloadSize = header.getInt();
-        if (fileSize != TABLET_HEADER_SIZE + totalPayloadSize + TABLET_CRC_SIZE) return false;
+        if (fileSize != TABLET_HEADER_SIZE + totalPayloadSize + TABLET_CRC_SIZE) return Optional.empty();
+        long beginOffset = header.getLong();
+        long endOffset = header.getLong();
+
+        if (lastFileHeader != null && (lastFileHeader.endOffset + 1) != beginOffset) return Optional.empty();
 
         ByteBuffer buffer = segment.selectBuffer(totalPayloadSize + TABLET_HEADER_SIZE, TABLET_CRC_SIZE);
         long crc = buffer.getLong();
 
         ByteBuffer payload = segment.selectBuffer(TABLET_HEADER_SIZE, totalPayloadSize);
         long computedCrc = Crc32.crc32(payload, 0, totalPayloadSize);
-        return crc == computedCrc;
+        return crc == computedCrc ? Optional.of(new FileHeader(totalPayloadSize, beginOffset, endOffset)) : Optional.empty();
     }
 
     public Optional<TabletBuilder> newTabletBuilder(final long tabletId) throws IOException {
@@ -177,8 +186,8 @@ public class SortedPullLogTable implements AutoCloseable {
     public void close() {
     }
 
-    public ValidateResult getValidateResult() {
-        return validateResult;
+    public long getActionReplayState() {
+        return actionReplayState;
     }
 
     public static final class TabletBuilder {
@@ -311,22 +320,17 @@ public class SortedPullLogTable implements AutoCloseable {
         }
     }
 
-    public static class ValidateResult {
-        private final LogSegmentValidator.ValidateStatus validateStatus;
+    private static class FileHeader {
+        private final int totalPayloadSize;
 
-        private final long position;
+        private final long beginOffset;
 
-        public ValidateResult(LogSegmentValidator.ValidateStatus validateStatus, long position) {
-            this.validateStatus = validateStatus;
-            this.position = position;
-        }
+        private final long endOffset;
 
-        public LogSegmentValidator.ValidateStatus getValidateStatus() {
-            return validateStatus;
-        }
-
-        public long getPosition() {
-            return position;
+        private FileHeader(int totalPayloadSize, long beginOffset, long endOffset) {
+            this.totalPayloadSize = totalPayloadSize;
+            this.beginOffset = beginOffset;
+            this.endOffset = endOffset;
         }
     }
 
