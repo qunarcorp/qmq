@@ -615,6 +615,7 @@ public class DefaultStorage implements Storage {
                 messageLog.clean();
                 consumerLogManager.clean();
                 pullLogManager.clean(allConsumerGroupProgresses().values());
+                sortedPullLogTable.clean(allConsumerGroupProgresses().values());
                 actionLog.clean();
                 sortedMessagesTable.clean(config, (logManager, deletedSegment) -> {
                     consumerLogManager.adjustConsumerLogMinOffsetForSMT(logManager.firstSegment());

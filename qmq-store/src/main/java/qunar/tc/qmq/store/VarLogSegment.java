@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * <p>
  * 变长log，也就是一个segment的长度是不固定的
  */
-public class VarLogSegment {
+public class VarLogSegment extends ReferenceObject {
     private static final Logger LOG = LoggerFactory.getLogger(VarLogSegment.class);
 
     private final File file;

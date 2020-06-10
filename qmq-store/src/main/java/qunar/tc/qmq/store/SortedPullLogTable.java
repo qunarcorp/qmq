@@ -30,10 +30,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
-import java.util.Arrays;
-import java.util.Map;
-import java.util.Optional;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.concurrent.ConcurrentSkipListMap;
 
 /**
@@ -69,24 +66,6 @@ public class SortedPullLogTable implements AutoCloseable {
         this.dataSize = dataSize;
         createAndValidateLogDir();
         loadAndValidateLogs();
-    }
-
-    private void createAndValidateLogDir() {
-        if (!logDir.exists()) {
-            LOG.info("Log directory {} not found, try create it.", logDir.getAbsoluteFile());
-            try {
-                Files.createDirectories(logDir.toPath());
-            } catch (InvalidPathException e) {
-                LOG.error("log directory char array: {}", Arrays.toString(logDir.getAbsolutePath().toCharArray()));
-                throw new RuntimeException("Failed to create log directory " + logDir.getAbsolutePath(), e);
-            } catch (Exception e) {
-                throw new RuntimeException("Failed to create log directory " + logDir.getAbsolutePath(), e);
-            }
-        }
-
-        if (!logDir.isDirectory() || !logDir.canRead()) {
-            throw new RuntimeException(logDir.getAbsolutePath() + " is not a readable log directory");
-        }
     }
 
     /**
@@ -147,6 +126,7 @@ public class SortedPullLogTable implements AutoCloseable {
                     final long startOfPullLogSequence = indexBuffer.getLong();
                     final long baseOfMessageSequence = indexBuffer.getLong();
                     final int position = indexBuffer.getInt();
+                    segment.retain();
                     index.put(new PullLogSequence(consumer, startOfPullLogSequence), new SegmentLocation(baseOfMessageSequence, position, segment));
                 }
 
@@ -222,6 +202,76 @@ public class SortedPullLogTable implements AutoCloseable {
         return location.baseOfMessageSequence + offsetOfMessageSequence;
     }
 
+    private void createAndValidateLogDir() {
+        if (!logDir.exists()) {
+            LOG.info("Log directory {} not found, try create it.", logDir.getAbsoluteFile());
+            try {
+                Files.createDirectories(logDir.toPath());
+            } catch (InvalidPathException e) {
+                LOG.error("log directory char array: {}", Arrays.toString(logDir.getAbsolutePath().toCharArray()));
+                throw new RuntimeException("Failed to create log directory " + logDir.getAbsolutePath(), e);
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to create log directory " + logDir.getAbsolutePath(), e);
+            }
+        }
+
+        if (!logDir.isDirectory() || !logDir.canRead()) {
+            throw new RuntimeException(logDir.getAbsolutePath() + " is not a readable log directory");
+        }
+    }
+
+    /**
+     * 根据每个consumer的ack进度来删除pull log table的segment文件
+     * 每个segment有个引用计数，计数为0的时候可以删除
+     * <p>
+     * 寻找可以删除的LogSegment: 用ack进度在index跳表里查lowerEntry，再以这个lowerEntry查下一个lowerEntry，如果这个存在的话则说明这一段的pull sequence都可以不保留了
+     * 这个时候就将对应LogSegment的引用计数减一，减为0的时候就可以删了
+     *
+     * @param progresses
+     */
+    public void clean(Collection<ConsumerGroupProgress> progresses) {
+        for (ConsumerGroupProgress progress : progresses) {
+            if (progress.isBroadcast()) continue;
+            Map<String, ConsumerProgress> consumerProgress = progress.getConsumers();
+            for (Map.Entry<String, ConsumerProgress> entry : consumerProgress.entrySet()) {
+                PullLogSequence ackSequence = new PullLogSequence(PullLogMemTable.keyOf(progress.getSubject(), progress.getGroup(), entry.getKey()), entry.getValue().getAck());
+                Map.Entry<PullLogSequence, SegmentLocation> lowerEntry = index.lowerEntry(ackSequence);
+                if (!isSameConsumer(lowerEntry, ackSequence.consumer)) continue;
+
+                Map.Entry<PullLogSequence, SegmentLocation> lowerLowerEntry = index.lowerEntry(lowerEntry.getKey());
+
+                recursionDelete(lowerLowerEntry, ackSequence.consumer);
+                if (!isSameConsumer(lowerLowerEntry, ackSequence.consumer)) continue;
+            }
+        }
+    }
+
+
+    /**
+     * 递归删除
+     *
+     * @param start
+     * @param consumer
+     */
+    private void recursionDelete(Map.Entry<PullLogSequence, SegmentLocation> start, String consumer) {
+        if (!isSameConsumer(start, consumer)) return;
+        SegmentLocation location = index.remove(start.getKey());
+        if (location != null) {
+            VarLogSegment logSegment = location.logSegment;
+            logSegment.release();
+            if (logSegment.disable()) {
+                logSegment.destroy();
+            }
+        }
+        Map.Entry<PullLogSequence, SegmentLocation> lowerEntry = index.lowerEntry(start.getKey());
+        recursionDelete(lowerEntry, consumer);
+    }
+
+    private boolean isSameConsumer(Map.Entry<PullLogSequence, SegmentLocation> entry, String consumer) {
+        if (entry == null) return false;
+        return entry.getKey().consumer.equals(consumer);
+    }
+
     @Override
     public void close() {
     }
@@ -246,6 +296,7 @@ public class SortedPullLogTable implements AutoCloseable {
         }
 
         public boolean begin(final long beginOffset, final long endOffset) {
+            tablet.retain();
             final ByteBuffer buffer = ByteBuffer.allocate(TABLET_HEADER_SIZE);
             buffer.putInt(MagicCode.SORTED_MESSAGES_TABLE_MAGIC_V1);
             buffer.position(buffer.position() + Integer.BYTES);
@@ -284,6 +335,7 @@ public class SortedPullLogTable implements AutoCloseable {
                 }
 
                 ConcurrentSkipListMap<PullLogSequence, SegmentLocation> index = sortedPullLogTable.index;
+                tablet.retain();
                 index.put(new PullLogSequence(entry.getKey(), indexEntry.startOfPullLogSequence), new SegmentLocation(indexEntry.baseOfMessageSequence, indexEntry.position, tablet));
             }
             return true;
@@ -299,6 +351,7 @@ public class SortedPullLogTable implements AutoCloseable {
             if (ok) {
                 tablet.setWrotePosition(tablet.getWrotePosition());
             }
+            tablet.release();
             return ok;
         }
 
@@ -315,11 +368,6 @@ public class SortedPullLogTable implements AutoCloseable {
 
         public void flush() {
             tablet.flush();
-        }
-
-        public enum AppendStatus {
-            SUCCESS,
-            ERROR
         }
     }
 
