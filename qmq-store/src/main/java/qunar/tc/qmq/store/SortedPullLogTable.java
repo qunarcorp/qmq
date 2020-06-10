@@ -367,6 +367,11 @@ public class SortedPullLogTable implements AutoCloseable {
         }
 
         public void flush() {
+            //有可能在文件要flush的时候，消费进度已经全部超过了这个文件里的pull sequence，这样就不用flush了，直接将文件删除掉
+            if (tablet.disable()) {
+                tablet.destroy();
+                return;
+            }
             tablet.flush();
         }
     }
