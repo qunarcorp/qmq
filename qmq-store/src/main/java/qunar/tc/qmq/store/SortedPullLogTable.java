@@ -241,7 +241,6 @@ public class SortedPullLogTable implements AutoCloseable {
                 Map.Entry<PullLogSequence, SegmentLocation> lowerLowerEntry = index.lowerEntry(lowerEntry.getKey());
 
                 recursionDelete(lowerLowerEntry, ackSequence.consumer);
-                if (!isSameConsumer(lowerLowerEntry, ackSequence.consumer)) continue;
             }
         }
     }
