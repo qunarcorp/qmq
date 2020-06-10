@@ -8,7 +8,7 @@ import qunar.tc.qmq.store.MessageQueryIndex;
  * @author xiao.liang
  * @since 08 June 2020
  */
-public interface DeadMessageHandler {
+public interface DeadMessageSpiHandler {
 
 	void handle(MessageQueryIndex index);
 

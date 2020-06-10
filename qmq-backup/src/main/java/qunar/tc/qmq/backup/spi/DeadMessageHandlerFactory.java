@@ -2,7 +2,7 @@ package qunar.tc.qmq.backup.spi;
 
 import java.util.ServiceLoader;
 
-import qunar.tc.qmq.backup.spi.impl.DefaultDeadMessageHandler;
+import qunar.tc.qmq.backup.spi.impl.DefaultDeadMessageSpiHandler;
 
 /**
  * TODO completion javadoc.
@@ -12,23 +12,23 @@ import qunar.tc.qmq.backup.spi.impl.DefaultDeadMessageHandler;
  */
 public class DeadMessageHandlerFactory {
 
-	private static DeadMessageHandler INSTANCE;
+	private static DeadMessageSpiHandler INSTANCE;
 
 	static {
-		ServiceLoader<DeadMessageHandler> services = ServiceLoader.load(DeadMessageHandler.class);
-		DeadMessageHandler instance = null;
-		for (DeadMessageHandler registry : services) {
+		ServiceLoader<DeadMessageSpiHandler> services = ServiceLoader.load(DeadMessageSpiHandler.class);
+		DeadMessageSpiHandler instance = null;
+		for (DeadMessageSpiHandler registry : services) {
 			instance = registry;
 			break;
 		}
 		if (instance == null) {
-			instance = new DefaultDeadMessageHandler();
+			instance = new DefaultDeadMessageSpiHandler();
 		}
 
 		INSTANCE = instance;
 	}
 
-	public static DeadMessageHandler load() {
+	public static DeadMessageSpiHandler load() {
 		return INSTANCE;
 	}
 

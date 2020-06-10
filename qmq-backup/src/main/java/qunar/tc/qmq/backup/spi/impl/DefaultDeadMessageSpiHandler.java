@@ -1,6 +1,6 @@
 package qunar.tc.qmq.backup.spi.impl;
 
-import qunar.tc.qmq.backup.spi.DeadMessageHandler;
+import qunar.tc.qmq.backup.spi.DeadMessageSpiHandler;
 import qunar.tc.qmq.store.MessageQueryIndex;
 
 /**
@@ -9,7 +9,7 @@ import qunar.tc.qmq.store.MessageQueryIndex;
  * @author xiao.liang
  * @since 08 June 2020
  */
-public class DefaultDeadMessageHandler implements DeadMessageHandler {
+public class DefaultDeadMessageSpiHandler implements DeadMessageSpiHandler {
 
 	@Override
 	public void handle(MessageQueryIndex index) {
