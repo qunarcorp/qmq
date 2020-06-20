@@ -35,7 +35,7 @@ public class PullLogMemTable extends MemTable {
 
     public static final int ENTRY_SIZE = Integer.BYTES;
 
-    private int writerIndex;
+    private volatile int writerIndex;
 
     public PullLogMemTable(final long tabletId, final long beginOffset, final int capacity) {
         super(tabletId, beginOffset, capacity);
@@ -52,6 +52,25 @@ public class PullLogMemTable extends MemTable {
             pullLogSequence.add(message.getSequence(), message.getMessageSequence());
         }
         writerIndex += (messages.size() * ENTRY_SIZE);
+    }
+
+    public void ack(String subject, String group, String consumerId, long firstSequence, long lastSequence) {
+        PullLogSequence pullLogSequence = messageSequences.get(keyOf(subject, group, consumerId));
+        if (pullLogSequence == null) return;
+
+        //ack的范围已经被挤出了内存
+        if (lastSequence < pullLogSequence.basePullSequence) return;
+        //这种情况一般不会出现，ack的返回还没回放
+        if (firstSequence > (pullLogSequence.basePullSequence + pullLogSequence.messageOffsets.size() - 1)) return;
+        //这也是异常情况，ack不连续，ack了中间的一个区间，应该是什么地方出问题了
+        if (firstSequence > pullLogSequence.basePullSequence) return;
+
+        //ack的范围覆盖了多少pull log
+        int ackSize = (int) (lastSequence - pullLogSequence.basePullSequence);
+        pullLogSequence.basePullSequence = lastSequence;
+        //将已经ack的pull log截断
+        pullLogSequence.messageOffsets.cut(ackSize + 1);
+        writerIndex -= ackSize * ENTRY_SIZE;
     }
 
     public static String keyOf(String subject, String group, String consumerId) {

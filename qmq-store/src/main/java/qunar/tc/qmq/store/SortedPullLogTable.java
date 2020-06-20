@@ -259,6 +259,7 @@ public class SortedPullLogTable implements AutoCloseable {
             VarLogSegment logSegment = location.logSegment;
             logSegment.release();
             if (logSegment.disable()) {
+
                 logSegment.destroy();
             }
         }

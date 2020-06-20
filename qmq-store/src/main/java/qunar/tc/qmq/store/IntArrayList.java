@@ -72,4 +72,13 @@ public class IntArrayList {
         elementData[size++] = e;
         return true;
     }
+
+    public void cut(int count) {
+        if (count == size) {
+            size = 0;
+            return;
+        }
+        System.arraycopy(elementData, count, elementData, 0, size - count);
+        size -= count;
+    }
 }

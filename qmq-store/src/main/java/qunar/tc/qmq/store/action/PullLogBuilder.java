@@ -50,7 +50,18 @@ public class PullLogBuilder implements FixedExecOrderEventBus.Listener<ActionEve
             case PULL:
                 buildPullLog(event);
                 break;
+            case RANGE_ACK:
+                ack(event);
+                break;
         }
+    }
+
+    private void ack(ActionEvent event) {
+        final RangeAckAction action = (RangeAckAction) event.getAction();
+        PullLogMemTable memTable = this.currentMemTable;
+        if (memTable == null) return;
+
+        memTable.ack(action.subject(), action.group(), action.consumerId(), action.getFirstSequence(), action.getLastSequence());
     }
 
     private void buildPullLog(ActionEvent event) {

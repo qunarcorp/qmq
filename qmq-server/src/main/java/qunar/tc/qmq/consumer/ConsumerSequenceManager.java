@@ -270,18 +270,8 @@ public class ConsumerSequenceManager {
     }
 
     public ConsumerSequence getOrCreateConsumerSequence(String subject, String group, String consumerId) {
-        ConcurrentMap<ConsumerGroup, ConsumerSequence> consumerSequences = this.sequences.get(consumerId);
-        if (consumerSequences == null) {
-            final ConcurrentMap<ConsumerGroup, ConsumerSequence> newConsumerSequences = new ConcurrentHashMap<>();
-            consumerSequences = ObjectUtils.defaultIfNull(sequences.putIfAbsent(consumerId, newConsumerSequences), newConsumerSequences);
-        }
-
+        ConcurrentMap<ConsumerGroup, ConsumerSequence> consumerSequences = this.sequences.computeIfAbsent(consumerId, c -> new ConcurrentHashMap<>());
         final ConsumerGroup consumerGroup = new ConsumerGroup(subject, group);
-        ConsumerSequence consumerSequence = consumerSequences.get(consumerGroup);
-        if (consumerSequence == null) {
-            final ConsumerSequence newConsumerSequence = new ConsumerSequence(ACTION_LOG_ORIGIN_OFFSET, ACTION_LOG_ORIGIN_OFFSET);
-            consumerSequence = ObjectUtils.defaultIfNull(consumerSequences.putIfAbsent(consumerGroup, newConsumerSequence), newConsumerSequence);
-        }
-        return consumerSequence;
+        return consumerSequences.computeIfAbsent(consumerGroup, g -> new ConsumerSequence(ACTION_LOG_ORIGIN_OFFSET, ACTION_LOG_ORIGIN_OFFSET));
     }
 }
