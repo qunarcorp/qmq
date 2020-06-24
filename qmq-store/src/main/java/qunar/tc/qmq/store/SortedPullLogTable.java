@@ -325,7 +325,7 @@ public class SortedPullLogTable implements AutoCloseable {
                     buffer.writeBytes(consumerBytes);
                     buffer.writeLong(indexEntry.startOfPullLogSequence);
                     buffer.writeLong(indexEntry.baseOfMessageSequence);
-                    buffer.writeLong(indexEntry.position);
+                    buffer.writeInt(indexEntry.position);
                     ByteBuffer nioBuffer = buffer.nioBuffer();
                     Checksums.update(crc, nioBuffer, nioBuffer.limit());
                     boolean result = tablet.appendData(nioBuffer);
