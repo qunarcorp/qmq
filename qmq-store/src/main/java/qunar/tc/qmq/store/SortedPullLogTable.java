@@ -111,7 +111,7 @@ public class SortedPullLogTable implements AutoCloseable {
 
                 final int positionOfIndex = TABLET_HEADER_SIZE + dataSize;
                 final int totalPayloadSize = currentHeader.totalPayloadSize;
-                ByteBuffer indexBuffer = segment.selectBuffer(positionOfIndex, totalPayloadSize - positionOfIndex);
+                ByteBuffer indexBuffer = segment.selectBuffer(positionOfIndex, totalPayloadSize - dataSize);
                 if (indexBuffer == null) {
                     actionReplayState = segment.getBaseOffset();
                     LOG.error("validate sorted pull log table failed: {}", segment);
@@ -358,10 +358,10 @@ public class SortedPullLogTable implements AutoCloseable {
         private void setTotalPayloadSize() {
             int current = tablet.getWrotePosition();
             int totalPayloadSize = current - TABLET_HEADER_SIZE;
-            tablet.setWrotePosition(POSITION_OF_TOTAL_PAYLOAD_SIZE);
             final ByteBuffer totalPayloadSizeBuffer = ByteBuffer.allocate(TOTAL_PAYLOAD_SIZE_LEN);
             totalPayloadSizeBuffer.putInt(totalPayloadSize);
             totalPayloadSizeBuffer.flip();
+            tablet.setWrotePosition(POSITION_OF_TOTAL_PAYLOAD_SIZE);
             tablet.appendData(totalPayloadSizeBuffer);
             tablet.setWrotePosition(current);
         }
