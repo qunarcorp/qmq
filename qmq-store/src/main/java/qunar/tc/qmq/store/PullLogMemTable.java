@@ -66,10 +66,10 @@ public class PullLogMemTable extends MemTable {
         if (firstSequence > pullLogSequence.basePullSequence) return;
 
         //ack的范围覆盖了多少pull log
-        int ackSize = (int) (lastSequence - pullLogSequence.basePullSequence);
+        int ackSize = (int) (lastSequence - pullLogSequence.basePullSequence) + 1;
         pullLogSequence.basePullSequence = lastSequence;
         //将已经ack的pull log截断
-        pullLogSequence.messageOffsets.cut(ackSize + 1);
+        pullLogSequence.messageOffsets.cut(ackSize);
         writerIndex -= ackSize * ENTRY_SIZE;
     }
 
