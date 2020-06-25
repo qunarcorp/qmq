@@ -17,6 +17,8 @@
 package qunar.tc.qmq.store;
 
 import io.netty.buffer.ByteBuf;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
@@ -28,6 +30,7 @@ import java.util.concurrent.ConcurrentMap;
  * 2020/6/6
  */
 public class PullLogMemTable extends MemTable {
+    private static final Logger LOGGER = LoggerFactory.getLogger(PullLogMemTable.class);
 
     public static final int SEQUENCE_SIZE = 10 * 1024 * 1024;
 
@@ -59,11 +62,14 @@ public class PullLogMemTable extends MemTable {
         if (pullLogSequence == null) return;
 
         //ack的范围已经被挤出了内存
-        if (lastSequence < pullLogSequence.basePullSequence) return;
-        //这种情况一般不会出现，ack的返回还没回放
-        if (firstSequence > (pullLogSequence.basePullSequence + pullLogSequence.messageOffsets.size() - 1)) return;
+        if (lastSequence < pullLogSequence.basePullSequence) {
+            return;
+        }
+
         //这也是异常情况，ack不连续，ack了中间的一个区间，应该是什么地方出问题了
-        if (firstSequence > pullLogSequence.basePullSequence) return;
+        if (firstSequence > pullLogSequence.basePullSequence) {
+            return;
+        }
 
         //ack的范围覆盖了多少pull log
         int ackSize = (int) (lastSequence - pullLogSequence.basePullSequence) + 1;
