@@ -79,9 +79,10 @@ public class PullLogMemTable extends MemTable {
 
     public void dump(ByteBuf buffer, Map<String, PullLogIndexEntry> indexMap) {
         for (Map.Entry<String, PullLogSequence> entry : messageSequences.entrySet()) {
+            IntArrayList messageOffsets = entry.getValue().messageOffsets;
+            if (messageOffsets.isEmpty()) continue;
             PullLogIndexEntry indexEntry = new PullLogIndexEntry(entry.getValue().basePullSequence, entry.getValue().baseMessageSequence, buffer.writerIndex());
             indexMap.put(entry.getKey(), indexEntry);
-            IntArrayList messageOffsets = entry.getValue().messageOffsets;
             for (int i = 0; i < messageOffsets.size(); ++i) {
                 buffer.writeInt(messageOffsets.get(i));
             }
