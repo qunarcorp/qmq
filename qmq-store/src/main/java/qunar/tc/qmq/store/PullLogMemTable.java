@@ -71,11 +71,8 @@ public class PullLogMemTable extends MemTable {
             return;
         }
 
-        //ack的范围覆盖了多少pull log
-        int ackSize = (int) (lastSequence - pullLogSequence.basePullSequence) + 1;
-        pullLogSequence.basePullSequence = lastSequence;
         //将已经ack的pull log截断
-        pullLogSequence.messageOffsets.cut(ackSize);
+        int ackSize = pullLogSequence.ack(lastSequence);
         writerIndex -= ackSize * ENTRY_SIZE;
     }
 
@@ -134,6 +131,23 @@ public class PullLogMemTable extends MemTable {
 
             int offset = (int) (messageSequence - baseMessageSequence);
             messageOffsets.add(offset);
+        }
+
+        public int ack(long lastSequence) {
+            //ack的范围覆盖了多少pull log
+            int ackSize = (int) (lastSequence - basePullSequence) + 1;
+            messageOffsets.cut(ackSize);
+            if (messageOffsets.size() == 0) {
+                basePullSequence = -1;
+                baseMessageSequence = -1;
+            } else {
+                //这个应该是ack后的下一个位置
+                //比如pull [0,0] -> basePullSequence = 0
+                //pull [1,1] -> basePullSequence = 0
+                //ack [0,0] -> basePullSequence = 1 这个时候应该等于lastSequence + 1了，不能等于lastSequence
+                basePullSequence = lastSequence + 1;
+            }
+            return ackSize;
         }
     }
 }
