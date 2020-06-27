@@ -42,6 +42,7 @@ class EvictedPullLogMemTableHandler implements MemTableEvictedCallback {
 
     private boolean buildTablet(final SortedPullLogTable.TabletBuilder builder, final PullLogMemTable table) {
         if (table.getTotalDataSize() <= 0) {
+            updateCheckpoint(table);
             return true;
         }
 
