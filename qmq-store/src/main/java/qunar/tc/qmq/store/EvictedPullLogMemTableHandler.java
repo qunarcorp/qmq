@@ -50,7 +50,6 @@ class EvictedPullLogMemTableHandler implements MemTableEvictedCallback {
         final ByteBuf buffer = ByteBufAllocator.DEFAULT.ioBuffer(table.getCapacity());
         try {
             table.dump(buffer, indexMap);
-            fillBlank(buffer, table.getCapacity());
             if (!builder.append(buffer.nioBuffer())) return false;
         } finally {
             ReferenceCountUtil.safeRelease(buffer);
@@ -70,15 +69,6 @@ class EvictedPullLogMemTableHandler implements MemTableEvictedCallback {
                 updateCheckpoint(table);
             });
             return true;
-        }
-    }
-
-    private void fillBlank(ByteBuf buffer, int capacity) {
-        int position = buffer.writerIndex();
-        if (position == capacity) return;
-
-        for (int i = 0; i < capacity - position; ++i) {
-            buffer.writeByte(0);
         }
     }
 

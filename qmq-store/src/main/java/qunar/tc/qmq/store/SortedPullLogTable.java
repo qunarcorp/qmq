@@ -48,7 +48,7 @@ public class SortedPullLogTable implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(SortedPullLogTable.class);
 
     // magic::<int> + payloadSize::<int>  + beginOffset::<long> + endOffset::<long>
-    public final static int TABLET_HEADER_SIZE = Integer.BYTES * 2 + Long.BYTES * 2;
+    public final static int TABLET_HEADER_SIZE = Integer.BYTES * 3 + Long.BYTES * 2;
     private static final int TABLET_CRC_SIZE = Long.BYTES;
 
     private static final int TOTAL_PAYLOAD_SIZE_LEN = Integer.BYTES;
@@ -109,9 +109,9 @@ public class SortedPullLogTable implements AutoCloseable {
                     break;
                 }
 
-                final int positionOfIndex = TABLET_HEADER_SIZE + dataSize;
+                final int positionOfIndex = currentHeader.positionOfIndex;
                 final int totalPayloadSize = currentHeader.totalPayloadSize;
-                ByteBuffer indexBuffer = segment.selectBuffer(positionOfIndex, totalPayloadSize - dataSize);
+                ByteBuffer indexBuffer = segment.selectBuffer(positionOfIndex, (totalPayloadSize + TABLET_HEADER_SIZE) - positionOfIndex);
                 if (indexBuffer == null) {
                     actionReplayState = segment.getBaseOffset();
                     LOG.error("validate sorted pull log table failed: {}", segment);
@@ -140,11 +140,13 @@ public class SortedPullLogTable implements AutoCloseable {
     private Optional<FileHeader> validate(FileHeader lastFileHeader, VarLogSegment segment) {
         ByteBuffer header = segment.selectBuffer(0, TABLET_HEADER_SIZE);
         if (header == null) return Optional.empty();
-        int magicCode = header.getInt();
+        final int magicCode = header.getInt();
         if (magicCode != MagicCode.SORTED_MESSAGES_TABLE_MAGIC_V1) return Optional.empty();
-        int totalPayloadSize = header.getInt();
-        long beginOffset = header.getLong();
-        long endOffset = header.getLong();
+
+        final int totalPayloadSize = header.getInt();
+        final int positionOfIndex = header.getInt();
+        final long beginOffset = header.getLong();
+        final long endOffset = header.getLong();
 
         if (lastFileHeader != null && (lastFileHeader.endOffset + 1) != beginOffset) return Optional.empty();
 
@@ -155,7 +157,7 @@ public class SortedPullLogTable implements AutoCloseable {
         ByteBuffer payload = segment.selectBuffer(TABLET_HEADER_SIZE, totalPayloadSize);
         if (payload == null) return Optional.empty();
         long computedCrc = Crc32.crc32(payload, 0, totalPayloadSize);
-        return crc == computedCrc ? Optional.of(new FileHeader(totalPayloadSize, beginOffset, endOffset)) : Optional.empty();
+        return crc == computedCrc ? Optional.of(new FileHeader(totalPayloadSize, positionOfIndex, beginOffset, endOffset)) : Optional.empty();
     }
 
     public Optional<TabletBuilder> newTabletBuilder(final long tabletId) throws IOException {
@@ -280,6 +282,8 @@ public class SortedPullLogTable implements AutoCloseable {
         private final VarLogSegment tablet;
         private final Crc32 crc;
 
+        private int positionOfIndex;
+
         private TabletBuilder(final SortedPullLogTable sortedPullLogTable, final VarLogSegment tablet) {
             this.sortedPullLogTable = sortedPullLogTable;
             this.tablet = tablet;
@@ -294,7 +298,7 @@ public class SortedPullLogTable implements AutoCloseable {
             tablet.retain();
             final ByteBuffer buffer = ByteBuffer.allocate(TABLET_HEADER_SIZE);
             buffer.putInt(MagicCode.SORTED_MESSAGES_TABLE_MAGIC_V1);
-            buffer.position(buffer.position() + Integer.BYTES);
+            buffer.position(buffer.position() + (Integer.BYTES * 2));
             buffer.putLong(beginOffset);
             buffer.putLong(endOffset);
             buffer.flip();
@@ -308,6 +312,8 @@ public class SortedPullLogTable implements AutoCloseable {
         }
 
         public boolean appendIndex(Map<String, PullLogIndexEntry> indexMap) {
+            positionOfIndex = tablet.getWrotePosition();
+
             for (Map.Entry<String, PullLogIndexEntry> entry : indexMap.entrySet()) {
                 final byte[] consumerBytes = entry.getKey().getBytes(StandardCharsets.UTF_8);
                 int size = Integer.BYTES + Short.BYTES + consumerBytes.length + Long.BYTES + Long.BYTES + Integer.BYTES;
@@ -337,7 +343,7 @@ public class SortedPullLogTable implements AutoCloseable {
         }
 
         public boolean finish() {
-            setTotalPayloadSize();
+            fillMeta();
             final ByteBuffer buffer = ByteBuffer.allocate(TABLET_CRC_SIZE);
             buffer.putLong(crc.getValue());
             buffer.flip();
@@ -350,14 +356,15 @@ public class SortedPullLogTable implements AutoCloseable {
             return ok;
         }
 
-        private void setTotalPayloadSize() {
+        private void fillMeta() {
             int current = tablet.getWrotePosition();
             int totalPayloadSize = current - TABLET_HEADER_SIZE;
-            final ByteBuffer totalPayloadSizeBuffer = ByteBuffer.allocate(TOTAL_PAYLOAD_SIZE_LEN);
-            totalPayloadSizeBuffer.putInt(totalPayloadSize);
-            totalPayloadSizeBuffer.flip();
+            final ByteBuffer meta = ByteBuffer.allocate(Integer.BYTES * 2);
+            meta.putInt(totalPayloadSize);
+            meta.putInt(positionOfIndex);
+            meta.flip();
             tablet.setWrotePosition(POSITION_OF_TOTAL_PAYLOAD_SIZE);
-            tablet.appendData(totalPayloadSizeBuffer);
+            tablet.appendData(meta);
             tablet.setWrotePosition(current);
         }
 
@@ -408,12 +415,15 @@ public class SortedPullLogTable implements AutoCloseable {
     private static class FileHeader {
         private final int totalPayloadSize;
 
+        private final int positionOfIndex;
+
         private final long beginOffset;
 
         private final long endOffset;
 
-        private FileHeader(int totalPayloadSize, long beginOffset, long endOffset) {
+        private FileHeader(int totalPayloadSize, int positionOfIndex, long beginOffset, long endOffset) {
             this.totalPayloadSize = totalPayloadSize;
+            this.positionOfIndex = positionOfIndex;
             this.beginOffset = beginOffset;
             this.endOffset = endOffset;
         }
