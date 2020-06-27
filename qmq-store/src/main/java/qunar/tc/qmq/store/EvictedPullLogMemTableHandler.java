@@ -41,12 +41,15 @@ class EvictedPullLogMemTableHandler implements MemTableEvictedCallback {
     }
 
     private boolean buildTablet(final SortedPullLogTable.TabletBuilder builder, final PullLogMemTable table) {
+        if (table.getTotalDataSize() <= 0) {
+            return true;
+        }
+
         if (!builder.begin(table.getBeginOffset(), table.getEndOffset())) {
             return false;
         }
 
         Map<String, PullLogIndexEntry> indexMap = new HashMap<>();
-
         final ByteBuf buffer = ByteBufAllocator.DEFAULT.ioBuffer(table.getCapacity());
         try {
             table.dump(buffer, indexMap);

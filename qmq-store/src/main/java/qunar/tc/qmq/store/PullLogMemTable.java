@@ -25,6 +25,7 @@ import java.util.LinkedList;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Created by zhaohui.yu
@@ -35,19 +36,25 @@ public class PullLogMemTable extends MemTable {
 
     public static final int SEQUENCE_SIZE = 10 * 1024 * 1024;
 
+    private static final long MAX_FLUSH_TIME = TimeUnit.MINUTES.toNanos(10);
+
     private final ConcurrentMap<String, PullLogSequence> messageSequences = new ConcurrentHashMap<>();
 
     public static final int ENTRY_SIZE = Integer.BYTES;
 
     private volatile int writerIndex;
 
+    private final long createTs;
+
     public PullLogMemTable(final long tabletId, final long beginOffset, final int capacity) {
         super(tabletId, beginOffset, capacity);
+        this.createTs = System.nanoTime();
     }
 
+    //为了避免长时间不做checkpoint，强制10分钟刷一次
     @Override
     public boolean checkWritable(final int writeBytes) {
-        return getCapacity() - writerIndex > writeBytes;
+        return (getCapacity() - writerIndex > writeBytes) || (System.nanoTime() - createTs >= MAX_FLUSH_TIME);
     }
 
     public void putPullLogMessages(String subject, String group, String consumerId, long firstPullSequence, int count,
@@ -101,7 +108,7 @@ public class PullLogMemTable extends MemTable {
 
     @Override
     public int getTotalDataSize() {
-        return 0;
+        return writerIndex;
     }
 
     private static class PullLogSequence {
