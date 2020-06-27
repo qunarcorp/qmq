@@ -59,6 +59,7 @@ public class PullLogBuilder implements FixedExecOrderEventBus.Listener<ActionEve
         if (memTable == null) return;
 
         memTable.ack(action.subject(), action.group(), action.consumerId(), action.getFirstSequence(), action.getLastSequence());
+        memTable.setEndOffset(event.getOffset());
     }
 
     private void buildPullLog(ActionEvent event) {
@@ -92,7 +93,7 @@ public class PullLogBuilder implements FixedExecOrderEventBus.Listener<ActionEve
     }
 
     private void captureCheckpoint() {
-        if(currentMemTable == null)return;
+        if (currentMemTable == null) return;
 
         checkpointManager.updateActionCheckpoint(currentMemTable.getEndOffset());
         final Snapshot<ActionCheckpoint> snapshot = checkpointManager.createActionCheckpointSnapshot();
