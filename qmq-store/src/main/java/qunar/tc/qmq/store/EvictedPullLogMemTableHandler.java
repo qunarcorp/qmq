@@ -31,6 +31,10 @@ class EvictedPullLogMemTableHandler implements MemTableEvictedCallback {
 
     @Override
     public boolean onEvicted(MemTable table) {
+        if (table.getTotalDataSize() <= 0) {
+            updateCheckpoint((PullLogMemTable) table);
+            return true;
+        }
         try {
             return smt.newTabletBuilder(table.getTabletId())
                     .map(builder -> buildTablet(builder, (PullLogMemTable) table))
@@ -41,11 +45,6 @@ class EvictedPullLogMemTableHandler implements MemTableEvictedCallback {
     }
 
     private boolean buildTablet(final SortedPullLogTable.TabletBuilder builder, final PullLogMemTable table) {
-        if (table.getTotalDataSize() <= 0) {
-            updateCheckpoint(table);
-            return true;
-        }
-
         if (!builder.begin(table.getBeginOffset(), table.getEndOffset())) {
             return false;
         }
