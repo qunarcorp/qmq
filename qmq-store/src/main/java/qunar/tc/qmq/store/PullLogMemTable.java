@@ -45,6 +45,7 @@ public class PullLogMemTable extends MemTable {
     private volatile int writerIndex;
 
     private final long createTs;
+    private Snapshot<ActionCheckpoint> snapshot;
 
     public PullLogMemTable(final long tabletId, final long beginOffset, final int capacity) {
         super(tabletId, beginOffset, capacity);
@@ -109,6 +110,14 @@ public class PullLogMemTable extends MemTable {
     @Override
     public int getTotalDataSize() {
         return writerIndex;
+    }
+
+    public void setCheckpointSnapshot(Snapshot<ActionCheckpoint> snapshot) {
+        this.snapshot = snapshot;
+    }
+
+    public Snapshot<ActionCheckpoint> getCheckpointSnapshot() {
+        return snapshot;
     }
 
     private static class PullLogSequence {

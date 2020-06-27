@@ -76,9 +76,9 @@ class EvictedPullLogMemTableHandler implements MemTableEvictedCallback {
         }
     }
 
-    private void updateCheckpoint(final MemTable table) {
-        checkpointManager.updateActionCheckpoint(table.getEndOffset());
-        final Snapshot<ActionCheckpoint> snapshot = checkpointManager.createActionCheckpointSnapshot();
+    private void updateCheckpoint(final PullLogMemTable table) {
+        Snapshot<ActionCheckpoint> snapshot = table.getCheckpointSnapshot();
+        if (snapshot == null) return;
         checkpointManager.saveActionCheckpointSnapshot(snapshot);
     }
 }

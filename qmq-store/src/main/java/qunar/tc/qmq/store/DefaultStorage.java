@@ -94,9 +94,8 @@ public class DefaultStorage implements Storage {
         EvictedPullLogMemTableHandler evictedPullLogMemTableCallback = new EvictedPullLogMemTableHandler(sortedPullLogTable, checkpointManager);
         this.pullLogMemTableManager = new MemTableManager(config, PullLogMemTable.SEQUENCE_SIZE, PullLogMemTable::new, evictedPullLogMemTableCallback);
         this.actionEventBus = new FixedExecOrderEventBus();
-        this.actionEventBus.subscribe(ActionEvent.class, new PullLogBuilder(config, pullLogMemTableManager));
         this.actionEventBus.subscribe(ActionEvent.class, new MaxSequencesUpdater(checkpointManager));
-        this.actionEventBus.subscribe(ActionEvent.class, pullLogFlusher);
+        this.actionEventBus.subscribe(ActionEvent.class, new PullLogBuilder(config, pullLogMemTableManager, checkpointManager));
 
         //如果pull log table加载校验后有不完整的文件，则这些文件需要重新回放
         long actionReplayState = sortedPullLogTable.getActionReplayState();

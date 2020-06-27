@@ -376,7 +376,7 @@ public class CheckpointManager implements AutoCloseable {
         return new Snapshot<>(checkpoint.getOffset(), checkpoint);
     }
 
-    Snapshot<ActionCheckpoint> createActionCheckpointSnapshot() {
+    public Snapshot<ActionCheckpoint> createActionCheckpointSnapshot() {
         final ActionCheckpoint checkpoint = duplicateActionCheckpoint();
         return new Snapshot<>(checkpoint.getOffset(), checkpoint);
     }

@@ -18,9 +18,7 @@ package qunar.tc.qmq.store.action;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.store.MemTableManager;
-import qunar.tc.qmq.store.PullLogMemTable;
-import qunar.tc.qmq.store.StorageConfig;
+import qunar.tc.qmq.store.*;
 import qunar.tc.qmq.store.event.FixedExecOrderEventBus;
 
 import java.util.concurrent.TimeUnit;
@@ -34,11 +32,13 @@ public class PullLogBuilder implements FixedExecOrderEventBus.Listener<ActionEve
 
     private final StorageConfig config;
     private final MemTableManager manager;
+    private final CheckpointManager checkpointManager;
     private volatile PullLogMemTable currentMemTable;
 
-    public PullLogBuilder(final StorageConfig config, final MemTableManager manager) {
+    public PullLogBuilder(final StorageConfig config, final MemTableManager manager, CheckpointManager checkpointManager) {
         this.config = config;
         this.manager = manager;
+        this.checkpointManager = checkpointManager;
     }
 
     @Override
@@ -71,7 +71,7 @@ public class PullLogBuilder implements FixedExecOrderEventBus.Listener<ActionEve
         if (needRolling(count)) {
             final long nextTabletId = event.getOffset();
             LOG.info("rolling new pull log memtable, nextTabletId: {}, event: {}", nextTabletId, event);
-
+            captureCheckpoint();
             currentMemTable = (PullLogMemTable) manager.rollingNewMemTable(nextTabletId, event.getOffset());
         }
 
@@ -89,6 +89,14 @@ public class PullLogBuilder implements FixedExecOrderEventBus.Listener<ActionEve
         currentMemTable.setEndOffset(event.getOffset());
 
         blockIfTooMuchActiveMemTable();
+    }
+
+    private void captureCheckpoint() {
+        if(currentMemTable == null)return;
+
+        checkpointManager.updateActionCheckpoint(currentMemTable.getEndOffset());
+        final Snapshot<ActionCheckpoint> snapshot = checkpointManager.createActionCheckpointSnapshot();
+        currentMemTable.setCheckpointSnapshot(snapshot);
     }
 
     private boolean needRolling(int count) {
