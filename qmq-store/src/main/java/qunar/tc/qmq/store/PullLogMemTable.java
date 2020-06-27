@@ -55,7 +55,7 @@ public class PullLogMemTable extends MemTable {
     //为了避免长时间不做checkpoint，强制10分钟刷一次
     @Override
     public boolean checkWritable(final int writeBytes) {
-        return (getCapacity() - writerIndex > writeBytes) || (System.nanoTime() - createTs >= MAX_FLUSH_TIME);
+        return (getCapacity() - writerIndex > writeBytes) && (System.nanoTime() - createTs < MAX_FLUSH_TIME);
     }
 
     public void putPullLogMessages(String subject, String group, String consumerId, long firstPullSequence, int count,
