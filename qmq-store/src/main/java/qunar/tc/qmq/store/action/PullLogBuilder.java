@@ -20,12 +20,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.store.MemTableManager;
 import qunar.tc.qmq.store.PullLogMemTable;
-import qunar.tc.qmq.store.PullLogMessage;
 import qunar.tc.qmq.store.StorageConfig;
 import qunar.tc.qmq.store.event.FixedExecOrderEventBus;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -70,8 +67,8 @@ public class PullLogBuilder implements FixedExecOrderEventBus.Listener<ActionEve
 
         if (action.getFirstSequence() - action.getLastSequence() > 0) return;
 
-        List<PullLogMessage> messages = createMessages(action);
-        if (needRolling(messages)) {
+        final int count = (int) (action.getLastSequence() - action.getFirstSequence() + 1);
+        if (needRolling(count)) {
             final long nextTabletId = event.getOffset();
             LOG.info("rolling new pull log memtable, nextTabletId: {}, event: {}", nextTabletId, event);
 
@@ -82,22 +79,24 @@ public class PullLogBuilder implements FixedExecOrderEventBus.Listener<ActionEve
             throw new RuntimeException("lost first event of current log segment");
         }
 
+
         currentMemTable.putPullLogMessages(
                 action.subject(),
                 action.group(),
                 action.consumerId(),
-                messages);
+                action.getFirstSequence(), count,
+                action.getFirstMessageSequence(), action.getLastMessageSequence());
         currentMemTable.setEndOffset(event.getOffset());
 
         blockIfTooMuchActiveMemTable();
     }
 
-    private boolean needRolling(final List<PullLogMessage> messages) {
+    private boolean needRolling(int count) {
         if (currentMemTable == null) {
             return true;
         }
 
-        int wroteBytes = messages.size() * PullLogMemTable.ENTRY_SIZE;
+        int wroteBytes = count * PullLogMemTable.ENTRY_SIZE;
         return !currentMemTable.checkWritable(wroteBytes);
     }
 
@@ -111,13 +110,4 @@ public class PullLogBuilder implements FixedExecOrderEventBus.Listener<ActionEve
         }
     }
 
-    private List<PullLogMessage> createMessages(final PullAction action) {
-        final int count = (int) (action.getLastSequence() - action.getFirstSequence() + 1);
-        final List<PullLogMessage> messages = new ArrayList<>(count);
-        for (int i = 0; i < count; i++) {
-            messages.add(new PullLogMessage(action.getFirstSequence() + i, action.getFirstMessageSequence() + i));
-        }
-
-        return messages;
-    }
 }

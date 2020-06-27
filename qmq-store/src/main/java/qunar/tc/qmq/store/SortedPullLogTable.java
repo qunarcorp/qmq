@@ -48,7 +48,7 @@ public class SortedPullLogTable implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(SortedPullLogTable.class);
 
     // magic::<int> + payloadSize::<int>  + beginOffset::<long> + endOffset::<long>
-    private final static int TABLET_HEADER_SIZE = Integer.BYTES * 2 + Long.BYTES * 2;
+    public final static int TABLET_HEADER_SIZE = Integer.BYTES * 2 + Long.BYTES * 2;
     private static final int TABLET_CRC_SIZE = Long.BYTES;
 
     private static final int TOTAL_PAYLOAD_SIZE_LEN = Integer.BYTES;
@@ -138,16 +138,11 @@ public class SortedPullLogTable implements AutoCloseable {
     }
 
     private Optional<FileHeader> validate(FileHeader lastFileHeader, VarLogSegment segment) {
-        long fileSize = segment.getFileSize();
-        long minFieSize = TABLET_CRC_SIZE + TABLET_HEADER_SIZE;
-        if (fileSize <= minFieSize) Optional.empty();
-
         ByteBuffer header = segment.selectBuffer(0, TABLET_HEADER_SIZE);
         if (header == null) return Optional.empty();
         int magicCode = header.getInt();
         if (magicCode != MagicCode.SORTED_MESSAGES_TABLE_MAGIC_V1) return Optional.empty();
         int totalPayloadSize = header.getInt();
-        if (fileSize != TABLET_HEADER_SIZE + totalPayloadSize + TABLET_CRC_SIZE) return Optional.empty();
         long beginOffset = header.getLong();
         long endOffset = header.getLong();
 

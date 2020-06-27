@@ -20,7 +20,8 @@ import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
+import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -49,30 +50,18 @@ public class PullLogMemTable extends MemTable {
         return getCapacity() - writerIndex > writeBytes;
     }
 
-    public void putPullLogMessages(String subject, String group, String consumerId, List<PullLogMessage> messages) {
+    public void putPullLogMessages(String subject, String group, String consumerId, long firstPullSequence, int count,
+                                   long firstMessageSequence, long lastMessageSequence) {
         PullLogSequence pullLogSequence = messageSequences.computeIfAbsent(keyOf(subject, group, consumerId), k -> new PullLogSequence());
-        for (PullLogMessage message : messages) {
-            pullLogSequence.add(message.getSequence(), message.getMessageSequence());
-        }
-        writerIndex += (messages.size() * ENTRY_SIZE);
+        pullLogSequence.add(firstPullSequence, firstMessageSequence, lastMessageSequence);
+        writerIndex += (count * ENTRY_SIZE);
     }
 
     public void ack(String subject, String group, String consumerId, long firstSequence, long lastSequence) {
         PullLogSequence pullLogSequence = messageSequences.get(keyOf(subject, group, consumerId));
         if (pullLogSequence == null) return;
-
-        //ack的范围已经被挤出了内存
-        if (lastSequence < pullLogSequence.basePullSequence) {
-            return;
-        }
-
-        //这也是异常情况，ack不连续，ack了中间的一个区间，应该是什么地方出问题了
-        if (firstSequence > pullLogSequence.basePullSequence) {
-            return;
-        }
-
         //将已经ack的pull log截断
-        int ackSize = pullLogSequence.ack(lastSequence);
+        int ackSize = pullLogSequence.ack(firstSequence, lastSequence);
         writerIndex -= ackSize * ENTRY_SIZE;
     }
 
@@ -82,12 +71,16 @@ public class PullLogMemTable extends MemTable {
 
     public void dump(ByteBuf buffer, Map<String, PullLogIndexEntry> indexMap) {
         for (Map.Entry<String, PullLogSequence> entry : messageSequences.entrySet()) {
-            IntArrayList messageOffsets = entry.getValue().messageOffsets;
-            if (messageOffsets.isEmpty()) continue;
-            PullLogIndexEntry indexEntry = new PullLogIndexEntry(entry.getValue().basePullSequence, entry.getValue().baseMessageSequence, buffer.writerIndex());
+            LinkedList<Range> messagesInRange = entry.getValue().messagesInRange;
+            if (messagesInRange.isEmpty()) continue;
+            Range first = messagesInRange.getFirst();
+            long baseMessageSequence = first.start;
+            PullLogIndexEntry indexEntry = new PullLogIndexEntry(entry.getValue().basePullSequence, baseMessageSequence, buffer.writerIndex());
             indexMap.put(entry.getKey(), indexEntry);
-            for (int i = 0; i < messageOffsets.size(); ++i) {
-                buffer.writeInt(messageOffsets.get(i));
+            for (Range range : messagesInRange) {
+                for (long i = range.start; i <= range.end; ++i) {
+                    buffer.writeInt((int) (i - baseMessageSequence));
+                }
             }
         }
     }
@@ -97,10 +90,7 @@ public class PullLogMemTable extends MemTable {
         PullLogSequence pullLogSequence = messageSequences.get(key);
         if (pullLogSequence == null) return -1L;
 
-        int offset = (int) (pullSequence - pullLogSequence.basePullSequence);
-        if (offset < 0 || offset >= pullLogSequence.messageOffsets.size()) return -1L;
-        int messageSequenceOffset = pullLogSequence.messageOffsets.get(offset);
-        return pullLogSequence.baseMessageSequence + messageSequenceOffset;
+        return pullLogSequence.getMessageSequence(pullSequence);
     }
 
     @Override
@@ -113,41 +103,110 @@ public class PullLogMemTable extends MemTable {
         return 0;
     }
 
+    private static class Range {
+        private long start;
+
+        private long end;
+
+        public static Range create(long start, long end) {
+            Range range = new Range();
+            range.start = start;
+            range.end = end;
+            return range;
+        }
+
+        public boolean in(long sequence) {
+            return sequence > start && sequence < end;
+        }
+
+        public long size() {
+            return end - start + 1;
+        }
+
+        public long range() {
+            return end - start;
+        }
+    }
+
     private static class PullLogSequence {
 
         private long basePullSequence = -1L;
 
-        private long baseMessageSequence = -1L;
+        private final LinkedList<Range> messagesInRange = new LinkedList<>();
 
-        private final IntArrayList messageOffsets = new IntArrayList();
-
-        public void add(long pullSequence, long messageSequence) {
+        public void add(long pullSequence, long startOfMessageSequence, long endOfMessageSequence) {
             if (basePullSequence == -1L) {
                 basePullSequence = pullSequence;
             }
-            if (baseMessageSequence == -1L) {
-                baseMessageSequence = messageSequence;
+
+            Range last = messagesInRange.getLast();
+            if (last != null) {
+                long lastEnd = last.end;
+                if (lastEnd + 1 == startOfMessageSequence) {
+                    last.end = endOfMessageSequence;
+                    return;
+                }
             }
 
-            int offset = (int) (messageSequence - baseMessageSequence);
-            messageOffsets.add(offset);
+            messagesInRange.add(Range.create(startOfMessageSequence, endOfMessageSequence));
         }
 
-        public int ack(long lastSequence) {
-            //ack的范围覆盖了多少pull log
-            int ackSize = (int) (lastSequence - basePullSequence) + 1;
-            messageOffsets.cut(ackSize);
-            if (messageOffsets.size() == 0) {
-                basePullSequence = -1;
-                baseMessageSequence = -1;
-            } else {
-                //这个应该是ack后的下一个位置
-                //比如pull [0,0] -> basePullSequence = 0
-                //pull [1,1] -> basePullSequence = 0
-                //ack [0,0] -> basePullSequence = 1 这个时候应该等于lastSequence + 1了，不能等于lastSequence
-                basePullSequence = lastSequence + 1;
+        public int ack(long firstSequence, long lastSequence) {
+            //ack的范围已经被挤出了内存
+            if (lastSequence < basePullSequence) {
+                return 0;
             }
-            return ackSize;
+
+            //这也是异常情况，ack不连续，ack了中间的一个区间，应该是什么地方出问题了
+            if (firstSequence > basePullSequence) {
+                return 0;
+            }
+
+            //lastSequence = 1234, basePullSequence = 1234, then nextAckSequence = 1235, ackSize = 1
+            long ackSize = lastSequence - basePullSequence + 1;
+            int result = (int) ackSize;
+            Iterator<Range> iterator = messagesInRange.iterator();
+            while (iterator.hasNext() && ackSize > 0) {
+                Range range = iterator.next();
+
+                //1234, 1235, 1236
+                // [5, 7] => 5, 6, 7
+
+                //ackSize = 1
+                //range.size() => 3
+                //ackSize <= range.size(), range.start = range.start + ackSize = 5 + 1 = 6
+                if (ackSize < range.size()) {
+                    range.start += ackSize;
+                    break;
+                }
+
+                //if lastSequence = 1237, basePullSequence = 1234, then nextAckSequence = 1238, ackSize = 4
+                //1234, 1235, 1236
+                //first size: [5, 7] => 5, 6, 7, first range.size() => 3
+
+                //1237, 1238, 1239, 1240
+                //second size: [12, 15] => 12, 13, 14, 15, second range.size() => 4
+                //then remove first size, second size range.start = second range.start + 1 = 12 + 1 = 13
+                if (ackSize >= range.size()) {
+                    iterator.remove();
+                    ackSize -= range.size();
+                }
+            }
+            basePullSequence = lastSequence + 1;
+            return result;
+        }
+
+        public long getMessageSequence(long pullSequence) {
+            long offset = pullSequence - basePullSequence;
+            if (offset < 0) return -1L;
+
+            for (Range range : messagesInRange) {
+                if (offset <= range.range()) {
+                    return range.start + offset;
+                }
+                offset -= range.range();
+            }
+            return -1L;
         }
     }
 }
