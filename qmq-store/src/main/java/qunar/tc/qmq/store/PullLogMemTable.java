@@ -65,6 +65,14 @@ public class PullLogMemTable extends MemTable {
         writerIndex -= ackSize * ENTRY_SIZE;
     }
 
+    public long getConsumerLogSequence(String subject, String group, String consumerId, long pullSequence) {
+        String key = keyOf(subject, group, consumerId);
+        PullLogSequence pullLogSequence = messageSequences.get(key);
+        if (pullLogSequence == null) return -1L;
+
+        return pullLogSequence.getMessageSequence(pullSequence);
+    }
+
     public static String keyOf(String subject, String group, String consumerId) {
         return consumerId + "@" + group + "@" + subject;
     }
@@ -72,8 +80,9 @@ public class PullLogMemTable extends MemTable {
     public void dump(ByteBuf buffer, Map<String, PullLogIndexEntry> indexMap) {
         for (Map.Entry<String, PullLogSequence> entry : messageSequences.entrySet()) {
             LinkedList<Range> messagesInRange = entry.getValue().messagesInRange;
-            if (messagesInRange.isEmpty()) continue;
-            Range first = messagesInRange.getFirst();
+            Range first = messagesInRange.pollFirst();
+            if (first == null) continue;
+
             long baseMessageSequence = first.start;
             PullLogIndexEntry indexEntry = new PullLogIndexEntry(entry.getValue().basePullSequence, baseMessageSequence, buffer.writerIndex());
             indexMap.put(entry.getKey(), indexEntry);
@@ -85,14 +94,6 @@ public class PullLogMemTable extends MemTable {
         }
     }
 
-    public long getConsumerLogSequence(String subject, String group, String consumerId, long pullSequence) {
-        String key = keyOf(subject, group, consumerId);
-        PullLogSequence pullLogSequence = messageSequences.get(key);
-        if (pullLogSequence == null) return -1L;
-
-        return pullLogSequence.getMessageSequence(pullSequence);
-    }
-
     @Override
     public void close() {
 
@@ -101,31 +102,6 @@ public class PullLogMemTable extends MemTable {
     @Override
     public int getTotalDataSize() {
         return 0;
-    }
-
-    private static class Range {
-        private long start;
-
-        private long end;
-
-        public static Range create(long start, long end) {
-            Range range = new Range();
-            range.start = start;
-            range.end = end;
-            return range;
-        }
-
-        public boolean in(long sequence) {
-            return sequence > start && sequence < end;
-        }
-
-        public long size() {
-            return end - start + 1;
-        }
-
-        public long range() {
-            return end - start;
-        }
     }
 
     private static class PullLogSequence {
@@ -139,16 +115,21 @@ public class PullLogMemTable extends MemTable {
                 basePullSequence = pullSequence;
             }
 
-            Range last = messagesInRange.getLast();
+            if (!merge(startOfMessageSequence, endOfMessageSequence)) {
+                messagesInRange.add(Range.create(startOfMessageSequence, endOfMessageSequence));
+            }
+        }
+
+        private boolean merge(long start, long end) {
+            Range last = messagesInRange.pollLast();
             if (last != null) {
                 long lastEnd = last.end;
-                if (lastEnd + 1 == startOfMessageSequence) {
-                    last.end = endOfMessageSequence;
-                    return;
+                if (lastEnd + 1 == start) {
+                    last.end = end;
+                    return true;
                 }
             }
-
-            messagesInRange.add(Range.create(startOfMessageSequence, endOfMessageSequence));
+            return false;
         }
 
         public int ack(long firstSequence, long lastSequence) {
@@ -162,7 +143,7 @@ public class PullLogMemTable extends MemTable {
                 return 0;
             }
 
-            //lastSequence = 1234, basePullSequence = 1234, then nextAckSequence = 1235, ackSize = 1
+            //eg. lastSequence = 1234, basePullSequence = 1234, then nextAckSequence = 1235, ackSize = 1
             long ackSize = lastSequence - basePullSequence + 1;
             int result = (int) ackSize;
             Iterator<Range> iterator = messagesInRange.iterator();
@@ -207,6 +188,31 @@ public class PullLogMemTable extends MemTable {
                 offset -= range.range();
             }
             return -1L;
+        }
+    }
+
+    private static class Range {
+        private long start;
+
+        private long end;
+
+        public static Range create(long start, long end) {
+            Range range = new Range();
+            range.start = start;
+            range.end = end;
+            return range;
+        }
+
+        boolean in(long sequence) {
+            return sequence > start && sequence < end;
+        }
+
+        long size() {
+            return end - start + 1;
+        }
+
+        long range() {
+            return end - start;
         }
     }
 }
