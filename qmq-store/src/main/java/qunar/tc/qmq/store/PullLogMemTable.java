@@ -92,7 +92,7 @@ public class PullLogMemTable extends MemTable {
             if (first == null) continue;
 
             long baseMessageSequence = first.start;
-            PullLogIndexEntry indexEntry = new PullLogIndexEntry(entry.getValue().basePullSequence, baseMessageSequence, buffer.writerIndex());
+            PullLogIndexEntry indexEntry = new PullLogIndexEntry(entry.getValue().basePullSequence, baseMessageSequence, buffer.writerIndex(), messagesInRange.size());
             indexMap.put(entry.getKey(), indexEntry);
             for (Range range : messagesInRange) {
                 for (long i = range.start; i <= range.end; ++i) {

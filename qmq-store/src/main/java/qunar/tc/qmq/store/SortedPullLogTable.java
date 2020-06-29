@@ -51,19 +51,16 @@ public class SortedPullLogTable implements AutoCloseable {
     public final static int TABLET_HEADER_SIZE = Integer.BYTES * 3 + Long.BYTES * 2;
     private static final int TABLET_CRC_SIZE = Long.BYTES;
 
-    private static final int TOTAL_PAYLOAD_SIZE_LEN = Integer.BYTES;
     private static final int POSITION_OF_TOTAL_PAYLOAD_SIZE = Integer.BYTES;
 
     private final File logDir;
-    private final int dataSize;
 
     private ConcurrentSkipListMap<PullLogSequence, SegmentLocation> index = new ConcurrentSkipListMap<>();
 
     private volatile long actionReplayState;
 
-    public SortedPullLogTable(final File logDir, final int dataSize) {
+    public SortedPullLogTable(final File logDir) {
         this.logDir = logDir;
-        this.dataSize = dataSize;
         createAndValidateLogDir();
         loadAndValidateLogs();
     }
@@ -126,8 +123,9 @@ public class SortedPullLogTable implements AutoCloseable {
                     final long startOfPullLogSequence = indexBuffer.getLong();
                     final long baseOfMessageSequence = indexBuffer.getLong();
                     final int position = indexBuffer.getInt();
+                    final int num = indexBuffer.getInt();
                     segment.retain();
-                    index.put(new PullLogSequence(consumer, startOfPullLogSequence), new SegmentLocation(baseOfMessageSequence, position, segment));
+                    index.put(new PullLogSequence(consumer, startOfPullLogSequence), new SegmentLocation(baseOfMessageSequence, position, num, segment));
                 }
 
                 actionReplayState = currentHeader.endOffset + 1;
@@ -235,8 +233,15 @@ public class SortedPullLogTable implements AutoCloseable {
                 Map.Entry<PullLogSequence, SegmentLocation> lowerEntry = index.lowerEntry(ackSequence);
                 if (!isSameConsumer(lowerEntry, ackSequence.consumer)) continue;
 
-                Map.Entry<PullLogSequence, SegmentLocation> lowerLowerEntry = index.lowerEntry(lowerEntry.getKey());
-
+                SegmentLocation location = lowerEntry.getValue();
+                PullLogSequence pullLogSequence = lowerEntry.getKey();
+                long maxPullSequence = pullLogSequence.startPullLogSequence + location.num - 1;
+                Map.Entry<PullLogSequence, SegmentLocation> lowerLowerEntry;
+                if (maxPullSequence <= entry.getValue().getAck()) {
+                    lowerLowerEntry = lowerEntry;
+                } else {
+                    lowerLowerEntry = index.lowerEntry(pullLogSequence);
+                }
                 recursionDelete(lowerLowerEntry, ackSequence.consumer);
             }
         }
@@ -256,7 +261,6 @@ public class SortedPullLogTable implements AutoCloseable {
             VarLogSegment logSegment = location.logSegment;
             logSegment.release();
             if (logSegment.disable()) {
-
                 logSegment.destroy();
             }
         }
@@ -316,7 +320,7 @@ public class SortedPullLogTable implements AutoCloseable {
 
             for (Map.Entry<String, PullLogIndexEntry> entry : indexMap.entrySet()) {
                 final byte[] consumerBytes = entry.getKey().getBytes(StandardCharsets.UTF_8);
-                int size = Integer.BYTES + Short.BYTES + consumerBytes.length + Long.BYTES + Long.BYTES + Integer.BYTES;
+                int size = Integer.BYTES + Short.BYTES + consumerBytes.length + Long.BYTES + Long.BYTES + Integer.BYTES + Integer.BYTES;
                 PullLogIndexEntry indexEntry = entry.getValue();
 
                 ByteBuf buffer = ByteBufAllocator.DEFAULT.ioBuffer(size);
@@ -327,6 +331,7 @@ public class SortedPullLogTable implements AutoCloseable {
                     buffer.writeLong(indexEntry.startOfPullLogSequence);
                     buffer.writeLong(indexEntry.baseOfMessageSequence);
                     buffer.writeInt(indexEntry.position);
+                    buffer.writeInt(indexEntry.num);
                     ByteBuffer nioBuffer = buffer.nioBuffer();
                     Checksums.update(crc, nioBuffer, nioBuffer.limit());
                     boolean result = tablet.appendData(nioBuffer);
@@ -336,8 +341,8 @@ public class SortedPullLogTable implements AutoCloseable {
                 }
 
                 ConcurrentSkipListMap<PullLogSequence, SegmentLocation> index = sortedPullLogTable.index;
+                index.put(new PullLogSequence(entry.getKey(), indexEntry.startOfPullLogSequence), new SegmentLocation(indexEntry.baseOfMessageSequence, indexEntry.position, indexEntry.num, tablet));
                 tablet.retain();
-                index.put(new PullLogSequence(entry.getKey(), indexEntry.startOfPullLogSequence), new SegmentLocation(indexEntry.baseOfMessageSequence, indexEntry.position, tablet));
             }
             return true;
         }
@@ -402,12 +407,14 @@ public class SortedPullLogTable implements AutoCloseable {
 
         private final int position;
 
+        private final int num;
+
         private final VarLogSegment logSegment;
 
-        public SegmentLocation(long baseOfMessageSequence, int position, VarLogSegment logSegment) {
+        public SegmentLocation(long baseOfMessageSequence, int position, int num, VarLogSegment logSegment) {
             this.baseOfMessageSequence = baseOfMessageSequence;
-
             this.position = position;
+            this.num = num;
             this.logSegment = logSegment;
         }
     }

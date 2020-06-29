@@ -27,10 +27,13 @@ public class PullLogIndexEntry {
 
     public final int position;
 
-    public PullLogIndexEntry(final long startOfPullLogSequence, final long baseOfMessageSequence, int position) {
+    public final int num;
+
+    public PullLogIndexEntry(final long startOfPullLogSequence, final long baseOfMessageSequence, int position, int num) {
         this.startOfPullLogSequence = startOfPullLogSequence;
         this.baseOfMessageSequence = baseOfMessageSequence;
         this.position = position;
+        this.num = num;
     }
 
 }

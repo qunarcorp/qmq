@@ -90,7 +90,7 @@ public class DefaultStorage implements Storage {
         this.consumeQueueManager = new ConsumeQueueManager(this);
 
         this.pullLogFlusher = new PullLogFlusher(config, checkpointManager, pullLogManager);
-        this.sortedPullLogTable = new SortedPullLogTable(new File(config.getPullLogSMTStorePath()), PullLogMemTable.SEQUENCE_SIZE);
+        this.sortedPullLogTable = new SortedPullLogTable(new File(config.getPullLogSMTStorePath()));
         EvictedPullLogMemTableHandler evictedPullLogMemTableCallback = new EvictedPullLogMemTableHandler(sortedPullLogTable, checkpointManager);
         this.pullLogMemTableManager = new MemTableManager(config, PullLogMemTable.SEQUENCE_SIZE, PullLogMemTable::new, evictedPullLogMemTableCallback);
         this.actionEventBus = new FixedExecOrderEventBus();
