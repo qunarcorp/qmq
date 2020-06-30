@@ -88,11 +88,11 @@ public class PullLogMemTable extends MemTable {
     public void dump(ByteBuf buffer, Map<String, PullLogIndexEntry> indexMap) {
         for (Map.Entry<String, PullLogSequence> entry : messageSequences.entrySet()) {
             LinkedList<Range> messagesInRange = entry.getValue().messagesInRange;
-            Range first = messagesInRange.pollFirst();
+            Range first = messagesInRange.peekFirst();
             if (first == null) continue;
 
             long baseMessageSequence = first.start;
-            PullLogIndexEntry indexEntry = new PullLogIndexEntry(entry.getValue().basePullSequence, baseMessageSequence, buffer.writerIndex(), messagesInRange.size());
+            PullLogIndexEntry indexEntry = new PullLogIndexEntry(entry.getValue().basePullSequence, baseMessageSequence, buffer.writerIndex(), size(messagesInRange));
             indexMap.put(entry.getKey(), indexEntry);
             for (Range range : messagesInRange) {
                 for (long i = range.start; i <= range.end; ++i) {
@@ -100,6 +100,14 @@ public class PullLogMemTable extends MemTable {
                 }
             }
         }
+    }
+
+    private int size(LinkedList<Range> messagesInRange){
+        int sum = 0;
+        for (Range range : messagesInRange) {
+            sum += range.size();
+        }
+        return sum;
     }
 
     @Override
@@ -137,7 +145,7 @@ public class PullLogMemTable extends MemTable {
         }
 
         private boolean merge(long start, long end) {
-            Range last = messagesInRange.pollLast();
+            Range last = messagesInRange.peekLast();
             if (last != null) {
                 long lastEnd = last.end;
                 if (lastEnd + 1 == start) {
