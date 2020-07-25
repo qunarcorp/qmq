@@ -99,3 +99,4 @@ qmq的客户端已经发布到maven中央仓库，可以通过下面的方式获
 <img src="docs/images/logo/soonchina.png" title="嵩云科技" width="126" height="43">
 ![易宝支付](docs/images/logo/yeepay.png)
 ![三节课](docs/images/logo/teammark.png)
+![红松学堂](docs/images/logo/hongsong.png)
