@@ -83,7 +83,8 @@ public class DefaultMessageStore implements MessageStore {
         platform.update(this.insertStatementFactory.newPreparedStatementCreator(new Object[] {json, new Timestamp(System.currentTimeMillis())}), holder);
 
         message.setRouteKey(routerSelector.getRouteKey(platform.getDataSource()));
-        return holder.getKey().longValue();
+
+        return holder.getKeys().size() > 1 ? (Long)holder.getKeys().get("id") : holder.getKey().longValue();
     }
 
     @Override
