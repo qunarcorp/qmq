@@ -16,6 +16,8 @@
 
 package qunar.tc.qmq.metainfoclient;
 
+import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_GROUP_ARRAY;
+
 import com.google.common.base.Optional;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
@@ -29,6 +31,7 @@ import io.netty.util.concurrent.DefaultEventExecutorGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.meta.MetaServerLocator;
+import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.netty.DecodeHandler;
 import qunar.tc.qmq.netty.EncodeHandler;
 import qunar.tc.qmq.netty.NettyClientConfig;
@@ -105,11 +108,14 @@ class MetaInfoClientNettyImpl extends AbstractNettyClient implements MetaInfoCli
                         LOGGER.debug("request meta info send success. {}", request);
                     } else {
                         LOGGER.debug("request meta info send fail. {}", request);
+                        Metrics.counter("qmq_pull_metainfo_request_fail", SUBJECT_GROUP_ARRAY, new String[]{request.getSubject(), request.getConsumerGroup()}).inc();
                     }
                 }
             });
         } catch (Exception e) {
             LOGGER.debug("request meta info exception. {}", request, e);
+            Metrics.counter("qmq_pull_metainfo_request_fail", SUBJECT_GROUP_ARRAY, new String[]{request.getSubject(), request.getConsumerGroup()}).inc();
+
         }
     }
 
