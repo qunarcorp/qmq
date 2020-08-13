@@ -173,7 +173,7 @@ public class SortedPullLogTable implements AutoCloseable {
      */
     public long getMessage(String subject, String group, String consumerId, long pullSequence) {
         String consumer = PullLogMemTable.keyOf(subject, group, consumerId);
-        Map.Entry<PullLogSequence, SegmentLocation> entry = index.lowerEntry(new PullLogSequence(consumer, pullSequence));
+        Map.Entry<PullLogSequence, SegmentLocation> entry = index.floorEntry(new PullLogSequence(consumer, pullSequence));
         if (entry == null) {
             return -1;
         }
@@ -185,12 +185,14 @@ public class SortedPullLogTable implements AutoCloseable {
         final SegmentLocation location = entry.getValue();
         final VarLogSegment logSegment = location.logSegment;
         final PullLogSequence pullLogSequence = entry.getKey();
+        //算出逻辑偏移
         long offset = pullSequence - pullLogSequence.startPullLogSequence;
         if (offset < 0) {
             return -1;
         }
 
-        final int position = TABLET_HEADER_SIZE + location.position + (int) offset;
+        //TABLET_HEADER_SIZE + location.position -> 是这个区段物理偏移起点
+        final int position = TABLET_HEADER_SIZE + location.position + ((int) offset * PullLogMemTable.ENTRY_SIZE);
         final ByteBuffer buffer = logSegment.selectBuffer(position, PullLogMemTable.ENTRY_SIZE);
         if (buffer == null) return -1;
         final int offsetOfMessageSequence = buffer.getInt();
@@ -230,7 +232,7 @@ public class SortedPullLogTable implements AutoCloseable {
             Map<String, ConsumerProgress> consumerProgress = progress.getConsumers();
             for (Map.Entry<String, ConsumerProgress> entry : consumerProgress.entrySet()) {
                 PullLogSequence ackSequence = new PullLogSequence(PullLogMemTable.keyOf(progress.getSubject(), progress.getGroup(), entry.getKey()), entry.getValue().getAck());
-                Map.Entry<PullLogSequence, SegmentLocation> lowerEntry = index.lowerEntry(ackSequence);
+                Map.Entry<PullLogSequence, SegmentLocation> lowerEntry = index.floorEntry(ackSequence);
                 if (!isSameConsumer(lowerEntry, ackSequence.consumer)) continue;
 
                 SegmentLocation location = lowerEntry.getValue();
