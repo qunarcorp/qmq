@@ -206,10 +206,10 @@ public class PullLogMemTable extends MemTable {
             if (offset < 0) return -1L;
 
             for (Range range : messagesInRange) {
-                if (offset <= range.range()) {
+                if (offset < range.size()) {
                     return range.start + offset;
                 }
-                offset -= range.range();
+                offset -= range.size();
             }
             return -1L;
         }
@@ -227,16 +227,8 @@ public class PullLogMemTable extends MemTable {
             return range;
         }
 
-        boolean in(long sequence) {
-            return sequence > start && sequence < end;
-        }
-
         long size() {
             return end - start + 1;
-        }
-
-        long range() {
-            return end - start;
         }
     }
 }
