@@ -146,7 +146,8 @@ public class SortedPullLogTable implements AutoCloseable {
         final long beginOffset = header.getLong();
         final long endOffset = header.getLong();
 
-        if (lastFileHeader != null && (lastFileHeader.endOffset + 1) != beginOffset) return Optional.empty();
+        //FIXME: 这里校验文件连续是否有必要呢？如果文件中间有空洞又如何？
+        //if (lastFileHeader != null && (lastFileHeader.endOffset + 1) != beginOffset) return Optional.empty();
 
         ByteBuffer buffer = segment.selectBuffer(totalPayloadSize + TABLET_HEADER_SIZE, TABLET_CRC_SIZE);
         if (buffer == null) return Optional.empty();
