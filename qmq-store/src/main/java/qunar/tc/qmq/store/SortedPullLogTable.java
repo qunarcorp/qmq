@@ -130,6 +130,10 @@ public class SortedPullLogTable implements AutoCloseable {
 
                 actionReplayState = currentHeader.endOffset + 1;
             }
+
+            segments.tailMap(actionReplayState, true).forEach((offset, segment) -> {
+                segment.destroy();
+            });
         } finally {
             LOG.info("Validate logs done.");
         }
@@ -231,7 +235,8 @@ public class SortedPullLogTable implements AutoCloseable {
             if (progress.isBroadcast()) continue;
             Map<String, ConsumerProgress> consumerProgress = progress.getConsumers();
             for (Map.Entry<String, ConsumerProgress> entry : consumerProgress.entrySet()) {
-                PullLogSequence ackSequence = new PullLogSequence(PullLogMemTable.keyOf(progress.getSubject(), progress.getGroup(), entry.getKey()), entry.getValue().getAck());
+                String consumer = PullLogMemTable.keyOf(progress.getSubject(), progress.getGroup(), entry.getKey());
+                PullLogSequence ackSequence = new PullLogSequence(consumer, entry.getValue().getAck());
                 Map.Entry<PullLogSequence, SegmentLocation> lowerEntry = index.floorEntry(ackSequence);
                 if (!isSameConsumer(lowerEntry, ackSequence.consumer)) continue;
 
