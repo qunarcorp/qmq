@@ -497,9 +497,8 @@ public class DefaultStorage implements Storage {
 
     @Override
     public void destroyPullLog(String subject, String group, String consumerId) {
-        if (pullLogManager.destroy(subject, group, consumerId)) {
-            checkpointManager.removeConsumerProgress(subject, group, consumerId);
-        }
+        pullLogManager.destroy(subject, group, consumerId);
+        checkpointManager.removeConsumerProgress(subject, group, consumerId);
     }
 
     @Override
