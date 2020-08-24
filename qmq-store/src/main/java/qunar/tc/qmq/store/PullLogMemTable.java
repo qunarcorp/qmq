@@ -66,11 +66,17 @@ public class PullLogMemTable extends MemTable {
     }
 
     public void ack(String subject, String group, String consumerId, long firstSequence, long lastSequence) {
-        PullLogSequence pullLogSequence = messageSequences.get(keyOf(subject, group, consumerId));
+        String consumer = keyOf(subject, group, consumerId);
+        PullLogSequence pullLogSequence = messageSequences.get(consumer);
         if (pullLogSequence == null) return;
         //将已经ack的pull log截断
         int ackSize = pullLogSequence.ack(firstSequence, lastSequence);
         writerIndex -= ackSize * ENTRY_SIZE;
+
+        //如果全部ack掉了，则将该consumer删除掉
+        if (pullLogSequence.messagesInRange.isEmpty()) {
+            messageSequences.remove(consumer);
+        }
     }
 
     public long getConsumerLogSequence(String subject, String group, String consumerId, long pullSequence) {
@@ -91,7 +97,7 @@ public class PullLogMemTable extends MemTable {
             Range first = messagesInRange.peekFirst();
             if (first == null) continue;
 
-            long baseMessageSequence = first.start;
+            final long baseMessageSequence = first.start;
             PullLogIndexEntry indexEntry = new PullLogIndexEntry(entry.getValue().basePullSequence, baseMessageSequence, buffer.writerIndex(), size(messagesInRange));
             indexMap.put(entry.getKey(), indexEntry);
             for (Range range : messagesInRange) {
@@ -102,7 +108,7 @@ public class PullLogMemTable extends MemTable {
         }
     }
 
-    private int size(LinkedList<Range> messagesInRange){
+    private int size(LinkedList<Range> messagesInRange) {
         int sum = 0;
         for (Range range : messagesInRange) {
             sum += range.size();
@@ -144,10 +150,10 @@ public class PullLogMemTable extends MemTable {
             }
         }
 
-        private boolean merge(long start, long end) {
-            Range last = messagesInRange.peekLast();
+        private boolean merge(final long start, final long end) {
+            final Range last = messagesInRange.peekLast();
             if (last != null) {
-                long lastEnd = last.end;
+                final long lastEnd = last.end;
                 if (lastEnd + 1 == start) {
                     last.end = end;
                     return true;
@@ -156,7 +162,7 @@ public class PullLogMemTable extends MemTable {
             return false;
         }
 
-        public int ack(long firstSequence, long lastSequence) {
+        public int ack(final long firstSequence, final long lastSequence) {
             //ack的范围已经被挤出了内存
             if (lastSequence < basePullSequence) {
                 return 0;
@@ -169,10 +175,10 @@ public class PullLogMemTable extends MemTable {
 
             //eg. lastSequence = 1234, basePullSequence = 1234, then nextAckSequence = 1235, ackSize = 1
             long ackSize = lastSequence - basePullSequence + 1;
-            int result = (int) ackSize;
+            final int result = (int) ackSize;
             Iterator<Range> iterator = messagesInRange.iterator();
             while (iterator.hasNext() && ackSize > 0) {
-                Range range = iterator.next();
+                final Range range = iterator.next();
 
                 //1234, 1235, 1236
                 // [5, 7] => 5, 6, 7
