@@ -42,9 +42,11 @@ import java.util.function.Supplier;
  */
 public class CachedOfflineStateManager implements Disposable {
     private static final Logger log = LoggerFactory.getLogger(CachedOfflineStateManager.class);
+
     private static final long REFRESH_PERIOD_SECONDS = 30L;
     private static final String CLIENT_STATE_KEY_SEPARATOR = "$";
-    private static final String CLIENTID_OF_GROUP = "*";
+    private static final String ANY = "*";
+
     private static final QmqCounter REFRESH_ERROR = Metrics.counter("refresh_onofflinestate_error");
 
     public static final Supplier<CachedOfflineStateManager> SUPPLIER = Suppliers.memoize(CachedOfflineStateManager::new)::get;
@@ -53,11 +55,14 @@ public class CachedOfflineStateManager implements Disposable {
     private final ScheduledExecutorService scheduledExecutor;
 
     private volatile long updateTime = -1;
-    private volatile Map<String, OnOfflineState> groupStateMap = new HashMap<>();
     private volatile Map<String, OnOfflineState> clientStateMap = new HashMap<>();
 
     private static String clientStateKey(String clientId, String subject, String consumerGroup) {
         return clientId + CLIENT_STATE_KEY_SEPARATOR + subject + CLIENT_STATE_KEY_SEPARATOR + consumerGroup;
+    }
+
+    private static String clientStateKey(String clientId) {
+        return clientId + CLIENT_STATE_KEY_SEPARATOR + ANY + CLIENT_STATE_KEY_SEPARATOR + ANY;
     }
 
     private CachedOfflineStateManager() {
@@ -71,20 +76,14 @@ public class CachedOfflineStateManager implements Disposable {
         try {
             long updateTime = store.now();
             List<ClientOfflineState> states = store.selectAll();
-            Map<String, OnOfflineState> groupStateMap = new HashMap<>();
             Map<String, OnOfflineState> clientStateMap = new HashMap<>();
             for (ClientOfflineState state : states) {
                 if (state == null) continue;
 
                 String key = clientStateKey(state.getClientId(), state.getSubject(), state.getConsumerGroup());
-                if (CLIENTID_OF_GROUP.equals(state.getClientId())) {
-                    groupStateMap.put(key, state.getState());
-                } else {
-                    clientStateMap.put(key, state.getState());
-                }
+                clientStateMap.put(key, state.getState());
             }
             this.updateTime = updateTime;
-            this.groupStateMap = groupStateMap;
             this.clientStateMap = clientStateMap;
             log.info("refreshed onoffline state {}", updateTime);
         } catch (Exception e) {
@@ -98,11 +97,15 @@ public class CachedOfflineStateManager implements Disposable {
     }
 
     public OnOfflineState queryClientState(String clientId, String subject, String consumerGroup) {
-        OnOfflineState state = groupStateMap.get(clientStateKey(CLIENTID_OF_GROUP, subject, consumerGroup));
+        OnOfflineState state = clientStateMap.get(clientStateKey(clientId, subject, consumerGroup));
         if (state != null) {
             return state;
         }
-        state = clientStateMap.get(clientStateKey(clientId, subject, consumerGroup));
+        state = clientStateMap.get(clientStateKey(ANY, subject, consumerGroup));
+        if (state != null) {
+            return state;
+        }
+        state = clientStateMap.get(clientStateKey(clientId));
         return state == null ? OnOfflineState.ONLINE : state;
     }
 
@@ -110,7 +113,7 @@ public class CachedOfflineStateManager implements Disposable {
         if (clientState.getState() == OnOfflineState.OFFLINE) {
             store.insertOrUpdate(clientState);
         } else {
-            if (CLIENTID_OF_GROUP.equals(clientState.getClientId())) {
+            if (ANY.equals(clientState.getClientId())) {
                 store.delete(clientState.getSubject(), clientState.getConsumerGroup());
             } else {
                 store.delete(clientState.getClientId(), clientState.getSubject(), clientState.getConsumerGroup());

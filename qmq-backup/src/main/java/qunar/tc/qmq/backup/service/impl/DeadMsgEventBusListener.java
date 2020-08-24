@@ -17,6 +17,8 @@
 package qunar.tc.qmq.backup.service.impl;
 
 import qunar.tc.qmq.backup.service.BatchBackup;
+import qunar.tc.qmq.backup.spi.DeadMessageSpiHandler;
+import qunar.tc.qmq.backup.spi.DeadMessageHandlerFactory;
 import qunar.tc.qmq.store.MessageQueryIndex;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
 
@@ -31,6 +33,7 @@ public class DeadMsgEventBusListener extends AbstractEventBusListener {
     private final BatchBackup<MessageQueryIndex> deadMessageContentBatchBackup;
     private final BatchBackup<MessageQueryIndex> deadRecordBatchBackup;
     private final Consumer<MessageQueryIndex> consumer;
+    private final DeadMessageSpiHandler deadMessageSpiHandler = DeadMessageHandlerFactory.load();
 
     public DeadMsgEventBusListener(BatchBackup<MessageQueryIndex> deadMessageBatchBackup,
                                    BatchBackup<MessageQueryIndex> deadMessageContentBatchBackup,
@@ -48,6 +51,7 @@ public class DeadMsgEventBusListener extends AbstractEventBusListener {
         if (RetrySubjectUtils.isDeadRetrySubject(index.getSubject())) {
             // additionally, generate a consume record
             saveDeadMessage(index);
+            deadMessageSpiHandler.handle(index);
             return;
         }
 
