@@ -81,7 +81,7 @@ public class PullLogBuilder implements FixedExecOrderEventBus.Listener<ActionEve
         }
 
 
-        currentMemTable.putPullLogMessages(
+        currentMemTable.pull(
                 action.subject(),
                 action.group(),
                 action.consumerId(),

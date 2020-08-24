@@ -58,10 +58,10 @@ public class PullLogMemTable extends MemTable {
         return (getCapacity() - writerIndex > writeBytes) && (System.nanoTime() - createTs < MAX_FLUSH_TIME);
     }
 
-    public void putPullLogMessages(String subject, String group, String consumerId, long firstPullSequence, int count,
-                                   long firstMessageSequence, long lastMessageSequence) {
+    public void pull(String subject, String group, String consumerId, long firstPullSequence, int count,
+                     long firstMessageSequence, long lastMessageSequence) {
         PullLogSequence pullLogSequence = messageSequences.computeIfAbsent(keyOf(subject, group, consumerId), k -> new PullLogSequence());
-        pullLogSequence.add(firstPullSequence, firstMessageSequence, lastMessageSequence);
+        pullLogSequence.pull(firstPullSequence, firstMessageSequence, lastMessageSequence);
         writerIndex += (count * ENTRY_SIZE);
     }
 
@@ -140,7 +140,7 @@ public class PullLogMemTable extends MemTable {
 
         private final LinkedList<Range> messagesInRange = new LinkedList<>();
 
-        public void add(long pullSequence, long startOfMessageSequence, long endOfMessageSequence) {
+        public void pull(long pullSequence, long startOfMessageSequence, long endOfMessageSequence) {
             if (basePullSequence == -1L) {
                 basePullSequence = pullSequence;
             }

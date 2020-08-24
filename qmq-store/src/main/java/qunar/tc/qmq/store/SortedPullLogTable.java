@@ -160,7 +160,7 @@ public class SortedPullLogTable implements AutoCloseable {
         ByteBuffer payload = segment.selectBuffer(TABLET_HEADER_SIZE, totalPayloadSize);
         if (payload == null) return Optional.empty();
         long computedCrc = Crc32.crc32(payload, 0, totalPayloadSize);
-        return crc == computedCrc ? Optional.of(new FileHeader(totalPayloadSize, positionOfIndex, beginOffset, endOffset)) : Optional.empty();
+        return crc == computedCrc ? Optional.of(new FileHeader(totalPayloadSize, positionOfIndex, endOffset)) : Optional.empty();
     }
 
     public Optional<TabletBuilder> newTabletBuilder(final long tabletId) throws IOException {
@@ -432,14 +432,11 @@ public class SortedPullLogTable implements AutoCloseable {
 
         private final int positionOfIndex;
 
-        private final long beginOffset;
-
         private final long endOffset;
 
-        private FileHeader(int totalPayloadSize, int positionOfIndex, long beginOffset, long endOffset) {
+        private FileHeader(int totalPayloadSize, int positionOfIndex, long endOffset) {
             this.totalPayloadSize = totalPayloadSize;
             this.positionOfIndex = positionOfIndex;
-            this.beginOffset = beginOffset;
             this.endOffset = endOffset;
         }
     }
