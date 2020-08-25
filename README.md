@@ -100,3 +100,4 @@ qmq的客户端已经发布到maven中央仓库，可以通过下面的方式获
 ![易宝支付](docs/images/logo/yeepay.png)
 ![三节课](docs/images/logo/teammark.png)
 ![红松学堂](docs/images/logo/hongsong.png)
+![跨越速运](docs/images/logo/kuayueexpress.svg)
