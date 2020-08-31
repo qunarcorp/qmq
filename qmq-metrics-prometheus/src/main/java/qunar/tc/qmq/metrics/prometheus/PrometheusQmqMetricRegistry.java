@@ -74,31 +74,36 @@ public class PrometheusQmqMetricRegistry implements QmqMetricRegistry {
     }
 
     @Override
-    public void newGauge(final String name, final String[] tags, final String[] values, final Supplier<Double> supplier) {
+    public void newGauge(String name, final String[] tags, final String[] values, final Supplier<Double> supplier) {
+        name = Collector.sanitizeMetricName(name);
         final PrometheusQmqGauge gauge = cacheFor(new GuageKey(name, tags));
         gauge.labels(values).setSupplier(supplier);
     }
 
     @Override
-    public QmqCounter newCounter(final String name, final String[] tags, final String[] values) {
+    public QmqCounter newCounter(String name, final String[] tags, final String[] values) {
+        name = Collector.sanitizeMetricName(name);
         final Gauge gauge = cacheFor(new CounterKey(name, tags));
         return new PrometheusQmqCounter(gauge, values);
     }
 
     @Override
-    public QmqMeter newMeter(final String name, final String[] tags, final String[] values) {
+    public QmqMeter newMeter(String name, final String[] tags, final String[] values) {
+        name = Collector.sanitizeMetricName(name);
         final Summary summary = cacheFor(new MeterKey(name, tags));
         return new PrometheusQmqMeter(summary, values);
     }
 
     @Override
-    public QmqTimer newTimer(final String name, final String[] tags, final String[] values) {
+    public QmqTimer newTimer(String name, final String[] tags, final String[] values) {
+        name = Collector.sanitizeMetricName(name);
         final Summary summary = cacheFor(new TimerKey(name, tags));
         return new PrometheusQmqTimer(summary, values);
     }
 
     @Override
-    public void remove(final String name, final String[] tags, final String[] values) {
+    public void remove(String name, final String[] tags, final String[] values) {
+        name = Collector.sanitizeMetricName(name);
         final Collector collector = CACHE.getIfPresent(new SimpleCollectorKey(name, tags));
         if (collector == null) return;
         CollectorRegistry.defaultRegistry.unregister(collector);
