@@ -162,7 +162,7 @@ public class PullLogMemTable extends MemTable {
             return false;
         }
 
-        public int ack(final long firstSequence, final long lastSequence) {
+        public synchronized int ack(final long firstSequence, final long lastSequence) {
             //ack的范围已经被挤出了内存
             if (lastSequence < basePullSequence) {
                 return 0;
@@ -207,7 +207,7 @@ public class PullLogMemTable extends MemTable {
             return result;
         }
 
-        public long getMessageSequence(long pullSequence) {
+        public synchronized long getMessageSequence(long pullSequence) {
             long offset = pullSequence - basePullSequence;
             if (offset < 0) return -1L;
 
