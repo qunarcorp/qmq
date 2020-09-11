@@ -128,6 +128,11 @@ class DefaultPullEntry extends AbstractPullEntry implements Runnable {
                         return;
                     }
 
+                    //resetDoPullParam里会访问meta，如果这个时候meta里将消费者下线了，则需要重新判断
+                    if (await(waitOnline())) {
+                        return;
+                    }
+
                     AckSendInfo ackSendInfo = ackService.getAckSendInfo(getBrokerGroup(), getSubject(), getConsumerGroup());
                     pullParam = buildPullParam(pushConsumer.consumeParam(), getBrokerGroup(), ackSendInfo, pullBatchSize.get(), pullTimeout.get());
                     pullFuture = pullService.pullAsync(pullParam);
