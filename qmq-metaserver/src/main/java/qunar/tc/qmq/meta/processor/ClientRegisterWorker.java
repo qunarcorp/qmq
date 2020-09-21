@@ -110,7 +110,7 @@ class ClientRegisterWorker implements ActorSystem.Processor<ClientRegisterProces
 
             List<BrokerGroup> removedReadonlyGroups = readonlyBrokerGroupManager.disableReadonlyBrokerGroup(realSubject, request.getClientTypeCode(), brokerGroups);
             final List<BrokerGroup> filteredBrokerGroups = filterBrokerGroups(removedReadonlyGroups);
-            final OnOfflineState clientState = offlineStateManager.queryClientState(request.getClientId(), request.getSubject(), request.getConsumerGroup());
+            final OnOfflineState clientState = offlineStateManager.queryClientState(request.getClientId(), realSubject, request.getConsumerGroup());
 
             ClientLogUtils.log(realSubject,
                     "client register response, request:{}, realSubject:{}, brokerGroups:{}, clientState:{}",
