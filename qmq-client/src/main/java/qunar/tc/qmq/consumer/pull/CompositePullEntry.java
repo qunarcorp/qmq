@@ -70,7 +70,7 @@ public class CompositePullEntry implements PullEntry, Runnable {
             if (future == null) return;
             future.set(true);
         }
-        LOGGER.info("pullconsumer online. subject={}, group={}", getSubject(), getConsumerGroup());
+        LOGGER.info("pull consumer online. subject={}, group={}", getSubject(), getConsumerGroup());
         pullEntryMap.values().forEach(pe -> pe.online(src));
     }
 
@@ -80,7 +80,7 @@ public class CompositePullEntry implements PullEntry, Runnable {
             onlineSwitcher.off(src);
         }
 
-        LOGGER.info("pullconsumer offline. subject={}, group={}", getSubject(), getConsumerGroup());
+        LOGGER.info("pull consumer offline. subject={}, group={}", getSubject(), getConsumerGroup());
         pullEntryMap.values().forEach(pe -> pe.offline(src));
     }
 
@@ -140,8 +140,7 @@ public class CompositePullEntry implements PullEntry, Runnable {
         String oldThreadName = thread.getName();
         thread.setName("qmq-pull-entry-" + getSubject() + "-" + getConsumerGroup());
         try {
-            BrokerClusterInfo brokerCluster = brokerService
-                    .getClusterBySubject(ClientType.CONSUMER, getSubject(), getConsumerGroup());
+            BrokerClusterInfo brokerCluster = brokerService.getClusterBySubject(ClientType.CONSUMER, getSubject(), getConsumerGroup());
             for (BrokerGroupInfo brokerGroup : brokerCluster.getGroups()) {
                 String brokerGroupName = brokerGroup.getGroupName();
                 pullEntryMap.computeIfAbsent(brokerGroupName,

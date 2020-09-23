@@ -17,6 +17,7 @@
 package qunar.tc.qmq.delay.receiver.filter;
 
 import qunar.tc.qmq.delay.base.ReceivedDelayMessage;
+import qunar.tc.qmq.delay.monitor.QMon;
 import qunar.tc.qmq.delay.receiver.Invoker;
 
 /**
@@ -28,6 +29,7 @@ public class PastDelayFilter implements Filter {
     public void invoke(Invoker invoker, ReceivedDelayMessage message) {
         long now = System.currentTimeMillis();
         if (message.getScheduleTime() < now) {
+            QMon.pastMessages(message.getSubject());
             message.adjustScheduleTime(now);
         }
 

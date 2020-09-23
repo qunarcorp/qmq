@@ -85,6 +85,11 @@ public class SwitchWaiter {
     }
 
     public boolean isOnline() {
-        return this.state == 7;
+        lock.lock();
+        try {
+            return this.state == 7;
+        } finally {
+            lock.unlock();
+        }
     }
 }

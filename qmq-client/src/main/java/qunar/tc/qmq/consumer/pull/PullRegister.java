@@ -22,8 +22,8 @@ import static qunar.tc.qmq.common.StatusSource.OPS;
 
 import com.google.common.base.Strings;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReentrantLock;
@@ -52,11 +52,11 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
 
     private static final Logger LOG = LoggerFactory.getLogger(PullRegister.class);
 
-    private volatile Boolean isOnline = false;
+    private volatile boolean isOnline = false;
 
-    private final Map<String, PullEntry> pullEntryMap = new HashMap<>();
+    private final Map<String, PullEntry> pullEntryMap = new ConcurrentHashMap<>();
 
-    private final Map<String, DefaultPullConsumer> pullConsumerMap = new HashMap<>();
+    private final Map<String, DefaultPullConsumer> pullConsumerMap = new ConcurrentHashMap<>();
 
     private final ExecutorService pullExecutor = Executors.newCachedThreadPool(new NamedThreadFactory("qmq-pull"));
 
@@ -132,15 +132,14 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         } else {
             pullEntry.offline(param.getActionSrc());
         }
-
     }
 
     private PullEntry createAndSubmitPullEntry(String subject, String consumerGroup, RegistParam param, PullStrategy pullStrategy) {
-        PushConsumerParam pushConsumerParam = new PushConsumerParam(subject, consumerGroup, param);
-        PullEntry pullEntry = new CompositePullEntry(pushConsumerParam, pullService, ackService, brokerService, pullStrategy, pullExecutor);
-        String subscribeKey = MapKeyBuilder.buildSubscribeKey(subject, consumerGroup);
-        pullEntry.startPull();
+        final PushConsumerParam pushConsumerParam = new PushConsumerParam(subject, consumerGroup, param);
+        final PullEntry pullEntry = new CompositePullEntry(pushConsumerParam, pullService, ackService, brokerService, pullStrategy, pullExecutor);
+        final String subscribeKey = MapKeyBuilder.buildSubscribeKey(subject, consumerGroup);
         pullEntryMap.put(subscribeKey, pullEntry);
+        pullEntry.startPull();
         return pullEntry;
     }
 
@@ -190,8 +189,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
             final PullEntry pullEntry = pullEntryMap.get(key);
             changeOnOffline(pullEntry, isOnline, src);
 
-            final PullEntry retryPullEntry = pullEntryMap
-                    .get(MapKeyBuilder.buildSubscribeKey(retrySubject, consumerGroup));
+            final PullEntry retryPullEntry = pullEntryMap.get(MapKeyBuilder.buildSubscribeKey(retrySubject, consumerGroup));
             changeOnOffline(retryPullEntry, isOnline, src);
 
             final DefaultPullConsumer pullConsumer = pullConsumerMap.get(key);

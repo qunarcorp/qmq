@@ -43,6 +43,7 @@ public class PullSubjectsConfig {
     private final AtomicIntegerConfig pullTimeoutConfig;
     private final AtomicIntegerConfig pullRequestTimeoutConfig;
     private final AtomicIntegerConfig ackNosendLimit;
+    private final AtomicIntegerConfig globalAckNosendLimit;
     private final AtomicIntegerConfig maxRetryNum;
 
     private PullSubjectsConfig() {
@@ -50,6 +51,7 @@ public class PullSubjectsConfig {
         pullTimeoutConfig = new AtomicIntegerConfig(2000, -1, Integer.MAX_VALUE);
         pullRequestTimeoutConfig = new AtomicIntegerConfig(8000, 5000, Integer.MAX_VALUE);
         ackNosendLimit = new AtomicIntegerConfig(100, Integer.MIN_VALUE, Integer.MAX_VALUE);
+        globalAckNosendLimit = new AtomicIntegerConfig(-1, 0, Integer.MAX_VALUE);
         maxRetryNum = new AtomicIntegerConfig(32, 0, Integer.MAX_VALUE);
 
         configMap = new HashMap<>();
@@ -57,6 +59,7 @@ public class PullSubjectsConfig {
         configMap.put(ConfigType.PULL_TIMEOUT, pullTimeoutConfig);
         configMap.put(ConfigType.PULL_REQUEST_TIMEOUT, pullRequestTimeoutConfig);
         configMap.put(ConfigType.ACK_NOSEND_LIMIT, ackNosendLimit);
+        configMap.put(ConfigType.GLOBAL_ACK_NOSEND_LIMIT, globalAckNosendLimit);
         configMap.put(ConfigType.MAX_RETRY_NUM, maxRetryNum);
         loadConfig();
     }
@@ -122,6 +125,10 @@ public class PullSubjectsConfig {
         return ackNosendLimit.get(subject);
     }
 
+    public AtomicReference<Integer> getGlobalAckNoSendLimit(String subject, String consumerGroup) {
+        return globalAckNosendLimit.get(subject + "_" + consumerGroup);
+    }
+
     public AtomicReference<Integer> getMaxRetryNum(String subject) {
         return maxRetryNum.get(subject);
     }
@@ -132,6 +139,7 @@ public class PullSubjectsConfig {
         PULL_REQUEST_TIMEOUT("_pullRequestTimeout"),
         ACK_TIMEOUT("_ackTimeout"),
         ACK_NOSEND_LIMIT("_ackNosendLimit"),
+        GLOBAL_ACK_NOSEND_LIMIT("_globalAckNosendLimit"),
         MAX_RETRY_NUM("_maxRetryNum");
 
         private final String suffix;
