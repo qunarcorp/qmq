@@ -37,7 +37,6 @@ import qunar.tc.qmq.util.RemotingBuilder;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
@@ -56,7 +55,7 @@ class AckService {
 
     private final NettyClient client = NettyClient.getClient();
 
-    private final ConcurrentMap<String, ConcurrentMap<String, AckSendQueue>> senderMap = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, AckSendQueue> senderMap = new ConcurrentHashMap<>();
 
     private final BrokerService brokerService;
     private final SendMessageBack sendMessageBack;
@@ -131,10 +130,9 @@ class AckService {
     }
 
     private AckSendQueue getOrCreateSendQueue(BrokerGroupInfo brokerGroup, String subject, String group, boolean isBroadcast) {
-        final String subscribeKey = MapKeyBuilder.buildSubscribeKey(subject, group);
-        ConcurrentMap<String, AckSendQueue> senderPerBrokerGroup = senderMap.computeIfAbsent(subscribeKey, k -> new ConcurrentHashMap<>());
-        AckSendQueue sender = senderPerBrokerGroup.computeIfAbsent(brokerGroup.getGroupName(), b -> {
-                    AckSendQueue ackSendQueue = new AckSendQueue(b, subject, group, AckService.this, brokerService, sendMessageBack, isBroadcast);
+        final String subscribeKey = MapKeyBuilder.buildSenderKey(brokerGroup.getGroupName(), subject, group);
+        AckSendQueue sender = senderMap.computeIfAbsent(subscribeKey, b -> {
+                    AckSendQueue ackSendQueue = new AckSendQueue(brokerGroup.getGroupName(), subject, group, AckService.this, brokerService, sendMessageBack, isBroadcast);
                     ackSendQueue.init();
                     return ackSendQueue;
                 }
@@ -231,25 +229,19 @@ class AckService {
     }
 
     void tryCleanAck() {
-        for (Map.Entry<String, ConcurrentMap<String, AckSendQueue>> entry : senderMap.entrySet()) {
-            final ConcurrentMap<String, AckSendQueue> senderPerBrokerGroup = entry.getValue();
-            for (AckSendQueue sendQueue : senderPerBrokerGroup.values()) {
-                try {
-                    sendQueue.trySendAck(1000);
-                } catch (Exception e) {
-                    LOGGER.error("try clean ack exception", e);
-                }
+        for (AckSendQueue sendQueue : senderMap.values()) {
+            try {
+                sendQueue.trySendAck(1000);
+            } catch (Exception e) {
+                LOGGER.error("try clean ack exception", e);
             }
         }
     }
 
     void destroy() {
         tryCleanAck();
-        for (Map.Entry<String, ConcurrentMap<String, AckSendQueue>> entry : senderMap.entrySet()) {
-            final ConcurrentMap<String, AckSendQueue> senders = entry.getValue();
-            for (AckSendQueue sendQueue : senders.values()) {
-                sendQueue.destroy(destroyWaitInSeconds * 1000L);
-            }
+        for (AckSendQueue sendQueue : senderMap.values()) {
+            sendQueue.destroy(destroyWaitInSeconds * 1000L);
         }
     }
 
@@ -263,28 +255,8 @@ class AckService {
     }
 
     AckSendInfo getAckSendInfo(BrokerGroupInfo brokerGroup, String subject, String group) {
-        ConcurrentMap<String, AckSendQueue> senderPerBrokerGroup = senderMap.get(MapKeyBuilder.buildSubscribeKey(subject, group));
-        if (senderPerBrokerGroup == null) {
-            return new AckSendInfo();
-        }
-        AckSendQueue sender = senderPerBrokerGroup.get(brokerGroup.getGroupName());
-        return sender != null ? sender.getAckSendInfo() : new AckSendInfo();
-    }
-
-    AckSendInfo getAckSendInfo(String subject, String group) {
-        ConcurrentMap<String, AckSendQueue> senderPerBrokerGroup = senderMap.get(MapKeyBuilder.buildSubscribeKey(subject, group));
-        if (senderPerBrokerGroup == null) {
-            return new AckSendInfo();
-        }
-
-        AckSendInfo result = new AckSendInfo();
-        int toSendNum = 0;
-        for (AckSendQueue sendQueue : senderPerBrokerGroup.values()) {
-            AckSendInfo ackSendInfo = sendQueue.getAckSendInfo();
-            toSendNum += ackSendInfo.getToSendNum();
-        }
-        result.setToSendNum(toSendNum);
-        return result;
+        AckSendQueue sendQueue = senderMap.get(MapKeyBuilder.buildSenderKey(brokerGroup.getGroupName(), subject, group));
+        return sendQueue == null ? new AckSendInfo() : sendQueue.getAckSendInfo();
     }
 
 

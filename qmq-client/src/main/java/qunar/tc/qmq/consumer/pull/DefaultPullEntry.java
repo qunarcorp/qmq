@@ -59,7 +59,6 @@ class DefaultPullEntry extends AbstractPullEntry implements Runnable {
     private final AtomicReference<Integer> pullBatchSize;
     private final AtomicReference<Integer> pullTimeout;
     private final AtomicReference<Integer> ackNosendLimit;
-    private final AtomicReference<Integer> globalAckNoSendLimit;
 
     private final AtomicBoolean isRunning = new AtomicBoolean(true);
     private final SwitchWaiter onlineSwitcher;
@@ -83,7 +82,6 @@ class DefaultPullEntry extends AbstractPullEntry implements Runnable {
         this.pullBatchSize = PullSubjectsConfig.get().getPullBatchSize(realSubject);
         this.pullTimeout = PullSubjectsConfig.get().getPullTimeout(realSubject);
         this.ackNosendLimit = PullSubjectsConfig.get().getAckNosendLimit(realSubject);
-        this.globalAckNoSendLimit = PullSubjectsConfig.get().getGlobalAckNoSendLimit(realSubject, group);
         this.pullStrategy = pullStrategy;
         this.onlineSwitcher = switchWaiter;
         this.executor = executor;
@@ -213,14 +211,6 @@ class DefaultPullEntry extends AbstractPullEntry implements Runnable {
         AckSendInfo ackSendInfo = ackService.getAckSendInfo(brokerGroup, getSubject(), getConsumerGroup());
         if (ackSendInfo.getToSendNum() > ackNosendLimit.get()) {
             return delay("wait ack", PAUSETIME_OF_NOAVAILABLE_BROKER);
-        }
-
-        Integer value = globalAckNoSendLimit.get();
-        if (value >= 0) {
-            ackSendInfo = ackService.getAckSendInfo(getSubject(), getConsumerGroup());
-            if (ackSendInfo.getToSendNum() > value) {
-                return delay("wait ack", PAUSETIME_OF_NOAVAILABLE_BROKER);
-            }
         }
         return null;
     }
