@@ -25,9 +25,9 @@ import static qunar.tc.qmq.consumer.pull.DefaultPullEntry.DELAY_SCHEDULER;
  * @author zhenwei.liu
  * @since 2019-10-15
  */
-public class CompositePullEntry implements PullEntry, Runnable {
+public class ParallelPullEntry implements PullEntry, Runnable {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(CompositePullEntry.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ParallelPullEntry.class);
 
     private final Map<String, PullEntry> pullEntryMap = Maps.newConcurrentMap();
     private final SwitchWaiter onlineSwitcher = new SwitchWaiter(false);
@@ -42,8 +42,8 @@ public class CompositePullEntry implements PullEntry, Runnable {
 
     private volatile SettableFuture<Boolean> onlineFuture;
 
-    public CompositePullEntry(PushConsumerParam pushConsumerParam, PullService pullService, AckService ackService,
-                              BrokerService brokerService, PullStrategy pullStrategy, Executor executor) {
+    public ParallelPullEntry(PushConsumerParam pushConsumerParam, PullService pullService, AckService ackService,
+                             BrokerService brokerService, PullStrategy pullStrategy, Executor executor) {
         this.pushConsumerParam = pushConsumerParam;
         this.pullService = pullService;
         this.ackService = ackService;
