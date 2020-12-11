@@ -40,8 +40,6 @@ import java.util.function.Consumer;
 public abstract class AbstractBatchBackup<T> implements BatchBackup<T> {
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractBatchBackup.class);
 
-    private static final long MAX_STORE_INTERVAL = TimeUnit.SECONDS.toMillis(30);
-
     protected static final String[] TYPE_ARRAY = new String[]{"type"};
     protected static final String[] INDEX_TYPE = new String[]{"messageIndex"};
     protected static final String[] RECORD_TYPE = new String[]{"record"};
@@ -58,7 +56,6 @@ public abstract class AbstractBatchBackup<T> implements BatchBackup<T> {
 
     private final ReentrantLock batchGuard = new ReentrantLock();
     private List<T> batch = new ArrayList<>();
-    private volatile long latestStoreTime = -1;
 
     AbstractBatchBackup(String backupName, BackupConfig config) {
         this.config = config.getDynamicConfig();
@@ -76,11 +73,6 @@ public abstract class AbstractBatchBackup<T> implements BatchBackup<T> {
 
     private void tryForceStore() {
         try {
-            final long interval = System.currentTimeMillis() - latestStoreTime;
-            if (interval < MAX_STORE_INTERVAL) {
-                return;
-            }
-
             List<T> batch;
             batchGuard.lock();
             try {
@@ -126,7 +118,6 @@ public abstract class AbstractBatchBackup<T> implements BatchBackup<T> {
 
         try {
             store(batch, fi);
-            latestStoreTime = System.currentTimeMillis();
         } catch (Exception e) {
             storeExceptionCounter.inc();
             LOGGER.error("{} store backup error", backupName, e);
