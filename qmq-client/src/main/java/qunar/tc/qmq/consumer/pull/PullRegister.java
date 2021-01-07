@@ -110,7 +110,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
             if (RetrySubjectUtils.isDeadRetrySubject(subject)) {
                 return;
             }
-            registPullEntry(RetrySubjectUtils.buildRetrySubject(subject, group), group, param, new WeightPullStrategy());
+            registPullEntry(RetrySubjectUtils.buildRetrySubject(subject, group), group, param, new AlwaysPullStrategy());
         }
     }
 

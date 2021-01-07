@@ -50,7 +50,7 @@ abstract class AbstractPullConsumer implements PullConsumer {
         this.consumeParam = new ConsumeParam(subject, consumerGroup, isBroadcast, false, clientId);
         this.retryConsumeParam = new ConsumeParam(consumeParam.getRetrySubject(), consumerGroup, isBroadcast, false, clientId);
         this.pullEntry = new PlainPullEntry(consumeParam, pullService, ackService, brokerService, new AlwaysPullStrategy());
-        this.retryPullEntry = new PlainPullEntry(retryConsumeParam, pullService, ackService, brokerService, new WeightPullStrategy());
+        this.retryPullEntry = new PlainPullEntry(retryConsumeParam, pullService, ackService, brokerService, new AlwaysPullStrategy());
     }
 
     private static long checkAndGetTimeout(long timeout) {
