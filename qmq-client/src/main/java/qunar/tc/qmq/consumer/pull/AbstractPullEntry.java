@@ -94,7 +94,9 @@ abstract class AbstractPullEntry implements PullEntry {
 
     protected void markFailed(BrokerGroupInfo group) {
         pullFailCounter.inc();
-        group.markFailed();
+        if (group != null) {
+            group.markFailed();
+        }
         loadBalance.timeout(group);
     }
 
