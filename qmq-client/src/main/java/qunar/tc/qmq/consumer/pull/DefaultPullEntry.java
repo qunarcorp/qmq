@@ -110,6 +110,7 @@ class DefaultPullEntry extends AbstractPullEntry implements Runnable {
         String oldThreadName = thread.getName();
         thread.setName("qmq-pull-entry-" + getSubject() + "-" + getConsumerGroup() + "-" + getBrokerGroup());
         try {
+            final BrokerGroupInfo brokerGroup = getBrokerGroup();
             switch (state.get()) {
                 case PREPARE_PULL:
                     if (!isRunning.get()) {
@@ -124,7 +125,7 @@ class DefaultPullEntry extends AbstractPullEntry implements Runnable {
                         return;
                     }
 
-                    if (await(resetDoPullParam())) {
+                    if (await(validate(brokerGroup))) {
                         return;
                     }
 
@@ -133,8 +134,8 @@ class DefaultPullEntry extends AbstractPullEntry implements Runnable {
                         return;
                     }
 
-                    AckSendInfo ackSendInfo = ackService.getAckSendInfo(getBrokerGroup(), getSubject(), getConsumerGroup());
-                    pullParam = buildPullParam(pushConsumer.consumeParam(), getBrokerGroup(), ackSendInfo, pullBatchSize.get(), pullTimeout.get());
+                    AckSendInfo ackSendInfo = ackService.getAckSendInfo(brokerGroup, getSubject(), getConsumerGroup());
+                    pullParam = buildPullParam(pushConsumer.consumeParam(), brokerGroup, ackSendInfo, pullBatchSize.get(), pullTimeout.get());
                     pullFuture = pullService.pullAsync(pullParam);
                     state.set(PULL_DONE);
                     await(pullFuture);
@@ -144,18 +145,18 @@ class DefaultPullEntry extends AbstractPullEntry implements Runnable {
                     try {
                         PullResult pullResult = pullFuture.get();
                         List<PulledMessage> messages = handlePullResult(thisPullParam, pullResult, pushConsumer);
-                        getBrokerGroup().markSuccess();
+                        brokerGroup.markSuccess();
                         pullStrategy.record(messages.size() > 0);
                         pushConsumer.push(messages);
                     } catch (ExecutionException e) {
-                        markFailed(getBrokerGroup());
+                        markFailed(brokerGroup);
                         Throwable cause = e.getCause();
                         //超时异常暂时不打印日志了
                         if (!(cause instanceof TimeoutException)) {
                             LOGGER.error("pull message exception. {}", thisPullParam, e);
                         }
                     } catch (Exception e) {
-                        markFailed(getBrokerGroup());
+                        markFailed(brokerGroup);
                         LOGGER.error("pull message exception. {}", thisPullParam, e);
                     } finally {
                         state.set(PREPARE_PULL);
@@ -202,8 +203,7 @@ class DefaultPullEntry extends AbstractPullEntry implements Runnable {
         return null;
     }
 
-    private ListenableFuture resetDoPullParam() {
-        BrokerGroupInfo brokerGroup = getBrokerGroup();
+    private ListenableFuture validate(BrokerGroupInfo brokerGroup) {
         if (BrokerGroupInfo.isInvalid(brokerGroup)) {
             return delay("no available broker", PAUSETIME_OF_NOAVAILABLE_BROKER);
         }
