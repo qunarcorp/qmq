@@ -58,6 +58,8 @@ public class MetaInfoService implements MetaInfoClient.ResponseSubscriber, Runna
 
     private final ConcurrentHashMap<MetaInfoRequestParam, Integer> metaInfoRequests = new ConcurrentHashMap<>();
 
+    private final ConcurrentHashMap<MetaInfoRequestParam, Integer> onlineRequests = new ConcurrentHashMap<>();
+
     private final ReentrantLock updateLock = new ReentrantLock();
 
     private long lastUpdateTimestamp = -1;
@@ -86,7 +88,16 @@ public class MetaInfoService implements MetaInfoClient.ResponseSubscriber, Runna
     }
 
     public boolean tryAddRequest(MetaInfoRequestParam param) {
+        if (!hadOnline(param)) {
+            param.setRequestType(ClientRequestType.ONLINE);
+        } else {
+            param.setRequestType(ClientRequestType.HEARTBEAT);
+        }
         return metaInfoRequests.put(param, 1) == null;
+    }
+
+    public boolean hadOnline(MetaInfoRequestParam param) {
+        return onlineRequests.put(param, 1) != null;
     }
 
     @Override
@@ -113,11 +124,15 @@ public class MetaInfoService implements MetaInfoClient.ResponseSubscriber, Runna
         request.setClientId(this.clientId);
         request.setConsumerGroup(param.group);
         request.setAppCode(param.getAppCode());
+        request.setRequestType(param.getRequestType());
 
-        if (tryAddRequest(param)) {
-            request.setRequestType(ClientRequestType.ONLINE);
-        } else {
-            request.setRequestType(ClientRequestType.HEARTBEAT);
+        if (param.getRequestType() == null) {
+            if (!hadOnline(param)) {
+                request.setRequestType(ClientRequestType.ONLINE);
+            }
+            else {
+                request.setRequestType(ClientRequestType.HEARTBEAT);
+            }
         }
 
         LOGGER.debug("meta info request: {}", request);
@@ -239,7 +254,9 @@ public class MetaInfoService implements MetaInfoClient.ResponseSubscriber, Runna
     }
 
     public static final class MetaInfoRequestParam {
+
         private final ClientType clientType;
+        private ClientRequestType requestType;
         private final String subject;
         private final String group;
         private final String appCode;
@@ -265,6 +282,14 @@ public class MetaInfoService implements MetaInfoClient.ResponseSubscriber, Runna
 
         public String getAppCode() {
             return appCode;
+        }
+
+        public ClientRequestType getRequestType() {
+            return requestType;
+        }
+
+        public void setRequestType(ClientRequestType requestType) {
+            this.requestType = requestType;
         }
 
         @Override
