@@ -25,9 +25,11 @@ import qunar.tc.qmq.backup.service.BatchBackup;
 import qunar.tc.qmq.backup.service.SyncLogIterator;
 import qunar.tc.qmq.base.SyncRequest;
 import qunar.tc.qmq.configuration.DynamicConfig;
+import qunar.tc.qmq.configuration.DynamicConfigLoader;
 import qunar.tc.qmq.store.*;
 import qunar.tc.qmq.sync.AbstractSyncLogProcessor;
 import qunar.tc.qmq.sync.SyncType;
+import qunar.tc.qmq.utils.RetrySubjectUtils;
 
 import static qunar.tc.qmq.backup.config.DefaultBackupConfig.DEFAULT_FLUSH_INTERVAL;
 import static qunar.tc.qmq.backup.config.DefaultBackupConfig.SYNC_OFFSET_FLUSH_INTERVAL_CONFIG_KEY;
@@ -44,12 +46,14 @@ public class BackupActionLogSyncProcessor extends AbstractSyncLogProcessor imple
     private final CheckpointManager checkpointManager;
     private final SyncLogIterator<Action, ByteBuf> iterator;
     private final BatchBackup<ActionRecord> recordBackup;
+    private final DynamicConfig skipBackSubjects;
 
     public BackupActionLogSyncProcessor(CheckpointManager checkpointManager, DynamicConfig config, SyncLogIterator<Action, ByteBuf> iterator
             , BatchBackup<ActionRecord> recordBackup) {
         this.checkpointManager = checkpointManager;
         this.iterator = iterator;
         this.recordBackup = recordBackup;
+        this.skipBackSubjects = DynamicConfigLoader.load("skip_backup.properties", false);
         PeriodicFlushService.FlushProvider provider = new PeriodicFlushService.FlushProvider() {
             @Override
             public int getInterval() {
@@ -79,6 +83,10 @@ public class BackupActionLogSyncProcessor extends AbstractSyncLogProcessor imple
             Action action = record.getData();
             if (action.equals(BLANK_ACTION)) {
                 checkpointManager.addSyncActionLogOffset(body.readerIndex() - start);
+                continue;
+            }
+            String realSubject = RetrySubjectUtils.getRealSubject(action.subject());
+            if (skipBackSubjects.getBoolean(realSubject, false)) {
                 continue;
             }
             recordBackup.add(new ActionRecord(action), null);
