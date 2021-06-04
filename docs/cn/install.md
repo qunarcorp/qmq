@@ -454,6 +454,12 @@ store.type=hbase
 # 可选 web端口
 backup.server.http.port=8080
 ```
+
+*dead_backup.properties*
+```
+# 必填 数据存放目录
+store.root=/data/dead
+```
 ## 启动
 在启动backup server之前，请先将其在metaserver里注册，backup启动时候需要从metaserver获取元数据信息。
 
