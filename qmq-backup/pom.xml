@@ -80,6 +80,11 @@
             <groupId>${project.groupId}</groupId>
             <artifactId>qmq-sync</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.apache.hbase</groupId>
+            <artifactId>hbase-server</artifactId>
+            <version>2.2.3</version>
+        </dependency>
     </dependencies>
 
 </project>
