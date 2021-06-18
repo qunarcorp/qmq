@@ -1,5 +1,8 @@
 package qunar.tc.qmq.backup.test;
 
+import qunar.tc.qmq.backup.service.BackupKeyGenerator;
+import qunar.tc.qmq.backup.service.impl.DbDicService;
+import qunar.tc.qmq.backup.store.impl.DbDicDao;
 import qunar.tc.qmq.backup.store.impl.HFileIndexStore;
 import qunar.tc.qmq.store.MessageQueryIndex;
 
@@ -16,7 +19,8 @@ import java.util.TreeMap;
  */
 public class BulkloadTest {
     public static void main(String[] args) throws IOException {
-        HFileIndexStore hFileIndexStore=new HFileIndexStore();
+        BackupKeyGenerator keyGenerator=new BackupKeyGenerator(new DbDicService(new DbDicDao(false),"%06d"));
+        HFileIndexStore hFileIndexStore=new HFileIndexStore(keyGenerator);
         for(int i=0;i<100;i++){
             //生成messagequeryindex
             String messageId="messageid"+String.format("%08d",i);

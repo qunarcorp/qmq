@@ -191,7 +191,7 @@ public class ServerWrapper implements Disposable {
         backupManager.registerBatchBackup(indexBackup);
 
 
-        return new IndexEventBusListener(indexBackup, consumer);
+        return new IndexEventBusListener(indexBackup, consumer, keyGenerator);
     }
 
     private FixedExecOrderEventBus.Listener<MessageQueryIndex> getConstructDeadIndexListener(final BackupKeyGenerator keyGenerator, Consumer<MessageQueryIndex> consumer) {
