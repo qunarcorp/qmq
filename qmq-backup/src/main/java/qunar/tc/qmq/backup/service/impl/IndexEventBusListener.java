@@ -49,8 +49,10 @@ public class IndexEventBusListener extends AbstractEventBusListener {
             consumer.accept(index);
             return;
         }
+        //使用bulkload方式上传
+        hFileIndexStore.appendData(index);
         // indexBatchBackup
-        indexBatchBackup.add(index, consumer);
+        //indexBatchBackup.add(index, consumer);
     }
 
     @Override

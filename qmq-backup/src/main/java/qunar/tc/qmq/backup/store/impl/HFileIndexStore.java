@@ -4,7 +4,7 @@ import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.*;
 import org.apache.hadoop.hbase.tool.BulkLoadHFilesTool;
-import org.apache.hadoop.hbase.util.Bytes;
+import org.hbase.async.Bytes;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -23,7 +23,6 @@ import qunar.tc.qmq.store.MessageQueryIndex;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
 
 import java.io.IOException;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.Map;
 import java.util.TreeMap;
@@ -40,47 +39,42 @@ import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_ARRAY;
  * @Created by zhipeng.cai
  */
 public class HFileIndexStore {
+    private final BackupConfig config;
     private final DynamicConfig hbaseConfig;
+    private final DynamicConfig skipBackSubjects;
+    private final BackupKeyGenerator keyGenerator;
+    private final String brokerGroup;
+    private final byte[] brokerGroupBytes;
+    private final int brokerGroupLength;
     private final Configuration conf;
     private final Configuration tempConf;
+    private final String TABLE_NAME;
     private final byte[] FAMILY_NAME;
     private final byte[] QUALIFIERS_NAME;
     private final Path HFILE_PARENT_PARENT_DIR;
     private final Path HFILE_PATH;
     private final int BLOCK_SIZE;
     private HFile.Writer writer;
-    private final DynamicConfig skipBackSubjects;
-    private final BackupKeyGenerator keyGenerator;
-    private final BackupConfig config;
-    private final String brokerGroup;
-    private final byte[] brokerGroupBytes;
-    private final int brokerGroupLength;
-    private final String TABLE_NAME;
-    private Map<byte[],KeyValue> map = new TreeMap<>(new Bytes.ByteArrayComparator());
+    private Map<byte[],KeyValue> map = new TreeMap<>(new org.apache.hadoop.hbase.util.Bytes.ByteArrayComparator());
 
     public HFileIndexStore(BackupKeyGenerator keyGenerator) {
         //this.config = DynamicConfigLoader.load("backup.properties");
         this.config=new DefaultBackupConfig(DynamicConfigLoader.load("backup.properties",false));
         //this.brokerGroup=this.config.getBrokerGroup();
-        this.brokerGroup="brokergroup";
-        this.brokerGroupBytes = Bytes.toBytes(brokerGroup);
+        this.brokerGroup="brokergroup";//本机调试用
+        this.brokerGroupBytes = Bytes.UTF8(brokerGroup);
         this.brokerGroupLength = this.brokerGroupBytes.length;
-        //this.keyGenerator=new BackupKeyGenerator(new DbDicService(new DbDicDao(false),SIX_DIGIT_FORMAT_PATTERN));
         this.keyGenerator=keyGenerator;
         this.skipBackSubjects = DynamicConfigLoader.load("skip_backup.properties", false);
         this.hbaseConfig= DynamicConfigLoader.load(DEFAULT_HBASE_CONFIG_FILE, true);
         this.conf= HBaseConfiguration.create();
-        this.conf.set("hbase.zookeeper.quorum",hbaseConfig.getString("hbase.zookeeper.quorum","common11.w.hbase.dev.bj1.wormpex.com,common12.w.hbase.dev.bj1.wormpex.com,common13.w.hbase.dev.bj1.wormpex.com,common14.w.hbase.dev.bj1.wormpex.com,common15.w.hbase.dev.bj1.wormpex.com"));
-        this.conf.set("hbase.zookeeper.znode.parent",hbaseConfig.getString("hbase.zookeeper.znode.parent","/hbase-dev"));
-        //conf.set("hbase.zookeeper.quorum","common11.w.hbase.dev.bj1.wormpex.com,common12.w.hbase.dev.bj1.wormpex.com,common13.w.hbase.dev.bj1.wormpex.com,common14.w.hbase.dev.bj1.wormpex.com,common15.w.hbase.dev.bj1.wormpex.com");
-        //conf.set("hbase.zookeeper.znode.parent","/hbase-dev");
+        this.conf.set("hbase.zookeeper.quorum",hbaseConfig.getString("hbase.zookeeper.quorum","localhost"));
+        this.conf.set("hbase.zookeeper.znode.parent",hbaseConfig.getString("hbase.zookeeper.znode.parent","/hbase"));
         //这里先设置hdfs为本地的方便查看hfile文件
         //conf.set("fs.defaultFS","hdfs://10.1.24.53:9000");
         this.TABLE_NAME=this.config.getDynamicConfig().getString(HBASE_MESSAGE_INDEX_TABLE_CONFIG_KEY, DEFAULT_HBASE_MESSAGE_INDEX_TABLE);
-        this.FAMILY_NAME=B_FAMILY;
-        this.QUALIFIERS_NAME =B_MESSAGE_QUALIFIERS[0];//这里要改
-        //FAMILY_NAME= Bytes.UTF8("fm1");//列簇名
-        //COLOMU_NAME=Bytes.UTF8("col");//列名
+        this.FAMILY_NAME=B_FAMILY;//列簇名
+        this.QUALIFIERS_NAME =B_MESSAGE_QUALIFIERS[0];//列名 TODO 这里要改
         this.HFILE_PARENT_PARENT_DIR =new Path("/tmp/message/");
         this.HFILE_PATH =new Path("/tmp/message/"+new String(FAMILY_NAME)+"/hfile");
         this.BLOCK_SIZE=64000;
@@ -103,12 +97,12 @@ public class HFileIndexStore {
         }
         final byte[] key = keyGenerator.generateMessageKey(subjectKey, new Date(index.getCreateTime()), index.getMessageId(), brokerGroup, consumerGroup, index.getSequence());
         final String messageId = index.getMessageId();
-        final byte[] messageIdBytes = Bytes.toBytes(messageId);
+        final byte[] messageIdBytes = Bytes.UTF8(messageId);
 
         final byte[] value = new byte[20 + brokerGroupLength + messageIdBytes.length];
-        org.hbase.async.Bytes.setLong(value, index.getSequence(), 0);
-        org.hbase.async.Bytes.setLong(value, index.getCreateTime(), 8);
-        org.hbase.async.Bytes.setInt(value, brokerGroupLength, 16);
+        Bytes.setLong(value, index.getSequence(), 0);
+        Bytes.setLong(value, index.getCreateTime(), 8);
+        Bytes.setInt(value, brokerGroupLength, 16);
         System.arraycopy(brokerGroupBytes, 0, value, 20, brokerGroupLength);
         System.arraycopy(messageIdBytes, 0, value, 20 + brokerGroupLength, messageIdBytes.length);
 
@@ -154,7 +148,6 @@ public class HFileIndexStore {
             BulkLoadHFilesTool loader=new BulkLoadHFilesTool(conf);
             //bulk load开始时间
             long startTime = System.currentTimeMillis();
-            //loader.doBulkLoad(FAMILY_DIR, (HTable) htable);
             loader.doBulkLoad(HFILE_PARENT_PARENT_DIR,admin,htable,conn.getRegionLocator(TableName.valueOf(TABLE_NAME)));
             long endTime = System.currentTimeMillis();
             System.out.println("bulk load 结束........");
@@ -176,26 +169,4 @@ public class HFileIndexStore {
     private static void monitorBackupIndexQps(String subject) {
         Metrics.meter("backup.message.index.qps", SUBJECT_ARRAY, new String[]{subject}).mark();
     }
-
-    /*
-    //byte[]比较器
-    static class MyByteArrayComparator implements Comparator<byte[]> {
-        public int compare(byte[] o1, byte[] o2) {
-            int offset1 = 0;
-            int offset2 = 0;
-            int length1 = o1.length;
-            int length2 = o2.length;
-            int end1 = offset1 + length1;
-            int end2 = offset2 + length2;
-            for (int i = offset1, j = offset2; i < end1 && j < end2; i++, j++) {
-                int a = (o1[i] & 0xff);
-                int b = (o2[j] & 0xff);
-                if (a != b) {
-                    return a - b;
-                }
-            }
-            return length1 - length2;
-        }
-    }
-     */
 }
