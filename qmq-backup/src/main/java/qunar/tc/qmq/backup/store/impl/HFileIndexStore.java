@@ -13,6 +13,8 @@ import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.io.hfile.CacheConfig;
 import org.apache.hadoop.hbase.io.hfile.HFile;
 import org.apache.hadoop.hbase.io.hfile.HFileContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.backup.config.BackupConfig;
 import qunar.tc.qmq.backup.config.DefaultBackupConfig;
 import qunar.tc.qmq.backup.service.BackupKeyGenerator;
@@ -26,6 +28,7 @@ import java.io.IOException;
 import java.util.Date;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.function.Consumer;
 
 import static qunar.tc.qmq.backup.config.DefaultBackupConfig.*;
 import static qunar.tc.qmq.backup.store.impl.AbstractHBaseStore.B_FAMILY;
@@ -39,6 +42,7 @@ import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_ARRAY;
  * @Created by zhipeng.cai
  */
 public class HFileIndexStore {
+    private static final Logger LOGGER = LoggerFactory.getLogger(HFileIndexStore.class);
     private final BackupConfig config;
     private final DynamicConfig hbaseConfig;
     private final DynamicConfig skipBackSubjects;
@@ -54,6 +58,7 @@ public class HFileIndexStore {
     private final Path HFILE_PARENT_PARENT_DIR;
     private final Path HFILE_PATH;
     private final int BLOCK_SIZE;
+    private MessageQueryIndex lastIndex;
     private HFile.Writer writer;
     private Map<byte[],KeyValue> map = new TreeMap<>(new org.apache.hadoop.hbase.util.Bytes.ByteArrayComparator());
 
@@ -61,18 +66,21 @@ public class HFileIndexStore {
         //this.config = DynamicConfigLoader.load("backup.properties");
         this.config=new DefaultBackupConfig(DynamicConfigLoader.load("backup.properties",false));
         //this.brokerGroup=this.config.getBrokerGroup();
-        this.brokerGroup="brokergroup";//本机调试用
+        this.brokerGroup=this.config.getBrokerGroup()==null? "brokergroup":this.config.getBrokerGroup();//本机调试用
         this.brokerGroupBytes = Bytes.UTF8(brokerGroup);
         this.brokerGroupLength = this.brokerGroupBytes.length;
         this.keyGenerator=keyGenerator;
         this.skipBackSubjects = DynamicConfigLoader.load("skip_backup.properties", false);
-        this.hbaseConfig= DynamicConfigLoader.load(DEFAULT_HBASE_CONFIG_FILE, true);
+        this.hbaseConfig= DynamicConfigLoader.load(DEFAULT_HBASE_CONFIG_FILE, false);
         this.conf= HBaseConfiguration.create();
-        this.conf.set("hbase.zookeeper.quorum",hbaseConfig.getString("hbase.zookeeper.quorum","localhost"));
-        this.conf.set("hbase.zookeeper.znode.parent",hbaseConfig.getString("hbase.zookeeper.znode.parent","/hbase"));
+        //this.conf.set("hbase.zookeeper.quorum",hbaseConfig.getString("hbase.zookeeper.quorum","localhost"));
+        //this.conf.set("hbase.zookeeper.znode.parent",hbaseConfig.getString("hbase.zookeeper.znode.parent","/hbase"));
+        this.conf.set("hbase.zookeeper.quorum","common11.w.hbase.dev.bj1.wormpex.com,common12.w.hbase.dev.bj1.wormpex.com,common13.w.hbase.dev.bj1.wormpex.com,common14.w.hbase.dev.bj1.wormpex.com,common15.w.hbase.dev.bj1.wormpex.com");
+        this.conf.set("hbase.zookeeper.znode.parent","/hbase-dev");
         //这里先设置hdfs为本地的方便查看hfile文件
         //conf.set("fs.defaultFS","hdfs://10.1.24.53:9000");
-        this.TABLE_NAME=this.config.getDynamicConfig().getString(HBASE_MESSAGE_INDEX_TABLE_CONFIG_KEY, DEFAULT_HBASE_MESSAGE_INDEX_TABLE);
+        this.TABLE_NAME="qmq_backup2";
+        //this.TABLE_NAME=this.config.getDynamicConfig().getString(HBASE_MESSAGE_INDEX_TABLE_CONFIG_KEY, DEFAULT_HBASE_MESSAGE_INDEX_TABLE);
         this.FAMILY_NAME=B_FAMILY;//列簇名
         this.QUALIFIERS_NAME =B_MESSAGE_QUALIFIERS[0];//列名 TODO 这里要改
         this.HFILE_PARENT_PARENT_DIR =new Path("/tmp/message/");
@@ -82,7 +90,8 @@ public class HFileIndexStore {
         this.tempConf.setFloat(HConstants.HFILE_BLOCK_CACHE_SIZE_KEY, 1.0f);
     }
 
-    public void appendData(MessageQueryIndex index){
+    public void appendData(MessageQueryIndex index, Consumer<MessageQueryIndex> consumer){
+        lastIndex = index;
         String subject = index.getSubject();
         String realSubject = RetrySubjectUtils.getRealSubject(subject);
         if (skipBackup(realSubject)) {
@@ -114,6 +123,7 @@ public class HFileIndexStore {
             try {
                 writeToHfile();
                 map.clear();
+                if(consumer!=null) consumer.accept(lastIndex);
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -131,11 +141,12 @@ public class HFileIndexStore {
             e.printStackTrace();
         }
         for (Map.Entry<byte[],KeyValue> entry : map.entrySet()) {
-            System.out.println(entry.getValue());
+            //System.out.println(entry.getValue());
             writer.append(entry.getValue());
         }
         writer.close();
-        System.out.println("write hfile success......");
+        LOGGER.info("write hfile success......");
+        //System.out.println("write hfile success......");
 
         //用bulkload上传至hbase
 
@@ -150,9 +161,11 @@ public class HFileIndexStore {
             long startTime = System.currentTimeMillis();
             loader.doBulkLoad(HFILE_PARENT_PARENT_DIR,admin,htable,conn.getRegionLocator(TableName.valueOf(TABLE_NAME)));
             long endTime = System.currentTimeMillis();
-            System.out.println("bulk load 结束........");
+            //System.out.println("bulk load 结束........");
             long runTime=endTime-startTime;
-            System.out.println("bulk load 所需时间="+(runTime/60000)+"分"+(runTime/1000)+"秒");
+            LOGGER.info("bulk load 结束........");
+            LOGGER.info("bulk load 所需时间="+(runTime/60000)+"分"+(runTime/1000)+"秒");
+            //System.out.println("bulk load 所需时间="+(runTime/60000)+"分"+(runTime/1000)+"秒");
         } catch (Exception e) {
             e.printStackTrace();
         } finally {

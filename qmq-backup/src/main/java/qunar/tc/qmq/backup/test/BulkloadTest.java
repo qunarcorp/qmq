@@ -29,7 +29,7 @@ public class BulkloadTest {
             MessageQueryIndex index=new MessageQueryIndex("testsubject",messageId,createTime,sequence);
             //System.out.println(i+index.toString());
 
-            hFileIndexStore.appendData(index);
+            hFileIndexStore.appendData(index,null);
         }
     }
 }
