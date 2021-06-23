@@ -3,7 +3,7 @@ package qunar.tc.qmq.backup.store.impl;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.*;
-import org.apache.hadoop.hbase.tool.BulkLoadHFilesTool;
+import org.apache.hadoop.hbase.mapreduce.LoadIncrementalHFiles;
 import org.hbase.async.Bytes;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -73,18 +73,21 @@ public class HFileIndexStore {
         this.skipBackSubjects = DynamicConfigLoader.load("skip_backup.properties", false);
         this.hbaseConfig= DynamicConfigLoader.load(DEFAULT_HBASE_CONFIG_FILE, false);
         this.conf= HBaseConfiguration.create();
-        //this.conf.set("hbase.zookeeper.quorum",hbaseConfig.getString("hbase.zookeeper.quorum","localhost"));
-        //this.conf.set("hbase.zookeeper.znode.parent",hbaseConfig.getString("hbase.zookeeper.znode.parent","/hbase"));
-        this.conf.set("hbase.zookeeper.quorum","common11.w.hbase.dev.bj1.wormpex.com,common12.w.hbase.dev.bj1.wormpex.com,common13.w.hbase.dev.bj1.wormpex.com,common14.w.hbase.dev.bj1.wormpex.com,common15.w.hbase.dev.bj1.wormpex.com");
-        this.conf.set("hbase.zookeeper.znode.parent","/hbase-dev");
+        this.conf.set("hbase.zookeeper.quorum",hbaseConfig.getString("hbase.zookeeper.quorum","localhost"));
+        this.conf.set("zookeeper.znode.parent",hbaseConfig.getString("hbase.zookeeper.znode.parent","/hbase"));
+        //this.conf.set("hbase.zookeeper.quorum","common11.w.hbase.dev.bj1.wormpex.com,common12.w.hbase.dev.bj1.wormpex.com,common13.w.hbase.dev.bj1.wormpex.com,common14.w.hbase.dev.bj1.wormpex.com,common15.w.hbase.dev.bj1.wormpex.com");
+        //this.conf.set("hbase.zookeeper.znode.parent","/hbase-dev");
         //这里先设置hdfs为本地的方便查看hfile文件
-        //conf.set("fs.defaultFS","hdfs://10.1.24.53:9000");
+        conf.set("fs.defaultFS","hdfs://10.1.24.61:9000");
+        //conf.set("fs.defaultFS","file:///");
         this.TABLE_NAME="qmq_backup2";
         //this.TABLE_NAME=this.config.getDynamicConfig().getString(HBASE_MESSAGE_INDEX_TABLE_CONFIG_KEY, DEFAULT_HBASE_MESSAGE_INDEX_TABLE);
         this.FAMILY_NAME=B_FAMILY;//列簇名
         this.QUALIFIERS_NAME =B_MESSAGE_QUALIFIERS[0];//列名 TODO 这里要改
-        this.HFILE_PARENT_PARENT_DIR =new Path("/tmp/message/");
-        this.HFILE_PATH =new Path("/tmp/message/"+new String(FAMILY_NAME)+"/hfile");
+        //this.HFILE_PARENT_PARENT_DIR =new Path("file:///tmp/message2");
+        //this.HFILE_PATH =new Path("file:///tmp/message2/"+new String(FAMILY_NAME)+"/hfile");
+        this.HFILE_PARENT_PARENT_DIR =new Path("hdfs://10.1.24.61:9000/tmp/message2/");
+        this.HFILE_PATH =new Path("hdfs://10.1.24.61:9000/tmp/message2/"+new String(FAMILY_NAME)+"/hfile");
         this.BLOCK_SIZE=64000;
         this.tempConf=new Configuration(this.conf);
         this.tempConf.setFloat(HConstants.HFILE_BLOCK_CACHE_SIZE_KEY, 1.0f);
@@ -154,11 +157,12 @@ public class HFileIndexStore {
         Table htable= conn.getTable(TableName.valueOf(TABLE_NAME));
         Admin admin= conn.getAdmin();
         try {
-            //LoadIncrementalHFiles loader = new LoadIncrementalHFiles(conf);
+            LoadIncrementalHFiles loader = new LoadIncrementalHFiles(conf);
             //新版本里改用这个了
-            BulkLoadHFilesTool loader=new BulkLoadHFilesTool(conf);
+            //BulkLoadHFilesTool loader=new BulkLoadHFilesTool(conf);
             //bulk load开始时间
             long startTime = System.currentTimeMillis();
+            //loader.doBulkLoad(HFILE_PARENT_PARENT_DIR, (HTable) htable);
             loader.doBulkLoad(HFILE_PARENT_PARENT_DIR,admin,htable,conn.getRegionLocator(TableName.valueOf(TABLE_NAME)));
             long endTime = System.currentTimeMillis();
             //System.out.println("bulk load 结束........");
