@@ -1,4 +1,4 @@
-package qunar.tc.qmq.backup.test;
+package test;
 
 import qunar.tc.qmq.backup.service.BackupKeyGenerator;
 import qunar.tc.qmq.backup.service.impl.DbDicService;
@@ -27,13 +27,8 @@ public class BulkloadTest {
             long createTime=System.currentTimeMillis();
             long sequence=(long)i;
             MessageQueryIndex index=new MessageQueryIndex("testsubject",messageId,createTime,sequence);
-            //System.out.println(i+index.toString());
 
             hFileIndexStore.appendData(index,null);
         }
     }
 }
-
-/*
-When using the bulkloader (LoadIncrementalHFiles, doBulkLoad) you can only add items that are "lexically ordered", ie. you need to make sure that the items you add are sorted by the row-id.
- */
