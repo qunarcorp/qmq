@@ -19,6 +19,7 @@ package qunar.tc.qmq.backup.startup;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import io.netty.buffer.ByteBuf;
+import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.backup.base.ActionRecord;
@@ -59,6 +60,7 @@ public class ServerWrapper implements Disposable {
 
     private final BackupConfig config;
     private final BackupConfig deadConfig;
+    private final Configuration conf;
     private final DicService dicService;
     private final List<Disposable> resources;
     private final BatchBackupManager backupManager;
@@ -72,9 +74,10 @@ public class ServerWrapper implements Disposable {
     private MessageService messageService;
 
 
-    public ServerWrapper(DynamicConfig config, DynamicConfig deadConfig) {
+    public ServerWrapper(DynamicConfig config, DynamicConfig deadConfig, Configuration conf) {
         this.config = new DefaultBackupConfig(config);
         this.deadConfig = new DefaultBackupConfig(deadConfig);
+        this.conf = conf;
         this.resources = new ArrayList<>();
         this.backupManager = new BatchBackupManager();
         this.scheduleFlushManager = new ScheduleFlushManager();
@@ -191,7 +194,7 @@ public class ServerWrapper implements Disposable {
         backupManager.registerBatchBackup(indexBackup);
 
 
-        return new IndexEventBusListener(indexBackup, consumer, keyGenerator);
+        return new IndexEventBusListener(indexBackup, consumer, keyGenerator, conf);
     }
 
     private FixedExecOrderEventBus.Listener<MessageQueryIndex> getConstructDeadIndexListener(final BackupKeyGenerator keyGenerator, Consumer<MessageQueryIndex> consumer) {
