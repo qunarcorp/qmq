@@ -23,8 +23,8 @@ public class BulkloadTest {
     @Test
     public void bulkload() throws IOException {
         BackupKeyGenerator keyGenerator = new BackupKeyGenerator(new DbDicService(new DbDicDao(false), "%06d"));
-        Configuration conf = HBaseConfiguration.create();
-        HFileIndexStore hFileIndexStore = new HFileIndexStore(keyGenerator, conf);
+        //Configuration conf = HBaseConfiguration.create();
+        HFileIndexStore hFileIndexStore = new HFileIndexStore(keyGenerator);
         for (int i = 0; i < 100; i++) {
             //生成messagequeryindex
             String messageId = "messageid" + String.format("%08d", i);

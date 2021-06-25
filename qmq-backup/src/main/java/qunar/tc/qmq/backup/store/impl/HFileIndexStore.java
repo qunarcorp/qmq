@@ -3,6 +3,7 @@ package qunar.tc.qmq.backup.store.impl;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.TableName;
@@ -70,7 +71,7 @@ public class HFileIndexStore {
     private HFile.Writer writer;
     private Map<byte[], KeyValue> map = new TreeMap<>(new org.apache.hadoop.hbase.util.Bytes.ByteArrayComparator());
 
-    public HFileIndexStore(BackupKeyGenerator keyGenerator, Configuration conf) {
+    public HFileIndexStore(BackupKeyGenerator keyGenerator) {
         this.config = new DefaultBackupConfig(DynamicConfigLoader.load("backup.properties", false));
         this.brokerGroup = BrokerConfig.getBrokerName();
         this.brokerGroupBytes = Bytes.UTF8(brokerGroup);
@@ -78,7 +79,11 @@ public class HFileIndexStore {
         this.keyGenerator = keyGenerator;
         this.skipBackSubjects = DynamicConfigLoader.load("skip_backup.properties", false);
         this.hbaseConfig = DynamicConfigLoader.load(DEFAULT_HBASE_CONFIG_FILE, false);
-        this.conf = conf;
+        this.conf = HBaseConfiguration.create();
+        this.conf.addResource("core-site.xml");
+        this.conf.addResource("hdfs-site.xml");
+        this.conf.set("hbase.zookeeper.quorum", hbaseConfig.getString("hbase.zookeeper.quorum", "localhost"));
+        this.conf.set("zookeeper.znode.parent", hbaseConfig.getString("hbase.zookeeper.znode.parent", "/hbase"));
         this.TABLE_NAME = this.config.getDynamicConfig().getString(HBASE_MESSAGE_INDEX_TABLE_CONFIG_KEY, DEFAULT_HBASE_MESSAGE_INDEX_TABLE);
         this.FAMILY_NAME = B_FAMILY;
         this.QUALIFIERS_NAME = B_MESSAGE_QUALIFIERS[0];//列名 TODO 这里可能要改

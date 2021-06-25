@@ -16,7 +16,6 @@
 
 package qunar.tc.qmq.backup.service.impl;
 
-import org.apache.hadoop.conf.Configuration;
 import qunar.tc.qmq.backup.service.BackupKeyGenerator;
 import qunar.tc.qmq.backup.service.BatchBackup;
 import qunar.tc.qmq.backup.store.impl.HFileIndexStore;
@@ -37,10 +36,10 @@ public class IndexEventBusListener extends AbstractEventBusListener {
 
     private final HFileIndexStore hFileIndexStore;
 
-    public IndexEventBusListener(BatchBackup<MessageQueryIndex> indexBatchBackup, Consumer<MessageQueryIndex> consumer, BackupKeyGenerator keyGenerator, Configuration conf) {
+    public IndexEventBusListener(BatchBackup<MessageQueryIndex> indexBatchBackup, Consumer<MessageQueryIndex> consumer, BackupKeyGenerator keyGenerator) {
         this.indexBatchBackup = indexBatchBackup;
         this.consumer = consumer;
-        this.hFileIndexStore = new HFileIndexStore(keyGenerator, conf);
+        this.hFileIndexStore = new HFileIndexStore(keyGenerator);
     }
 
     @Override

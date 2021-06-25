@@ -60,7 +60,6 @@ public class ServerWrapper implements Disposable {
 
     private final BackupConfig config;
     private final BackupConfig deadConfig;
-    private final Configuration conf;
     private final DicService dicService;
     private final List<Disposable> resources;
     private final BatchBackupManager backupManager;
@@ -74,10 +73,9 @@ public class ServerWrapper implements Disposable {
     private MessageService messageService;
 
 
-    public ServerWrapper(DynamicConfig config, DynamicConfig deadConfig, Configuration conf) {
+    public ServerWrapper(DynamicConfig config, DynamicConfig deadConfig) {
         this.config = new DefaultBackupConfig(config);
         this.deadConfig = new DefaultBackupConfig(deadConfig);
-        this.conf = conf;
         this.resources = new ArrayList<>();
         this.backupManager = new BatchBackupManager();
         this.scheduleFlushManager = new ScheduleFlushManager();
@@ -194,7 +192,7 @@ public class ServerWrapper implements Disposable {
         backupManager.registerBatchBackup(indexBackup);
 
 
-        return new IndexEventBusListener(indexBackup, consumer, keyGenerator, conf);
+        return new IndexEventBusListener(indexBackup, consumer, keyGenerator);
     }
 
     private FixedExecOrderEventBus.Listener<MessageQueryIndex> getConstructDeadIndexListener(final BackupKeyGenerator keyGenerator, Consumer<MessageQueryIndex> consumer) {

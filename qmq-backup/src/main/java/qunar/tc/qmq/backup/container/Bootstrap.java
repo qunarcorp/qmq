@@ -16,8 +16,6 @@
 
 package qunar.tc.qmq.backup.container;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
@@ -36,8 +34,7 @@ public class Bootstrap {
     public static void main(String[] args) throws Exception {
         DynamicConfig config = DynamicConfigLoader.load("backup.properties");
         DynamicConfig deadConfig = DynamicConfigLoader.load("dead_backup.properties");
-        Configuration conf = HBaseConfiguration.create();
-        ServerWrapper wrapper = new ServerWrapper(config, deadConfig, conf);
+        ServerWrapper wrapper = new ServerWrapper(config, deadConfig);
         Runtime.getRuntime().addShutdownHook(new Thread(wrapper::destroy));
         wrapper.start();
 
