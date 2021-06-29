@@ -121,6 +121,7 @@ public class HFileIndexStore {
 
         long currentTime = System.currentTimeMillis();
         KeyValue kv = new KeyValue(key, FAMILY_NAME, QUALIFIERS_NAME, currentTime, value);
+        LOGGER.info("消息主题 subjectkey:"+subjectKey+"   messageid:"+messageId+"   key:"+new String(key));
         //先添加到treemap中
         map.put(key, kv);
         if (map.size() >= MESSAGE_SIZE_PER_HFILE) {
