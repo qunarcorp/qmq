@@ -121,7 +121,7 @@ public class HFileIndexStore {
 
         long currentTime = System.currentTimeMillis();
         KeyValue kv = new KeyValue(key, FAMILY_NAME, QUALIFIERS_NAME, currentTime, value);
-        LOGGER.info("消息主题 subjectkey:"+subjectKey+"   messageid:"+messageId+"   key:"+new String(key));
+        LOGGER.info("消息主题 subjectkey:" + subjectKey + "   messageid:" + messageId + "   key:" + new String(key));
         //先添加到treemap中
         map.put(key, kv);
         if (map.size() >= MESSAGE_SIZE_PER_HFILE) {
@@ -159,10 +159,9 @@ public class HFileIndexStore {
 
     private void bulkLoad() throws IOException {
         //用bulkload上传至hbase
-        Connection conn = ConnectionFactory.createConnection(conf);
-        Table htable = conn.getTable(TableName.valueOf(TABLE_NAME));
-        Admin admin = conn.getAdmin();
-        try {
+        try (Connection conn = ConnectionFactory.createConnection(conf);
+             Table htable = conn.getTable(TableName.valueOf(TABLE_NAME));
+             Admin admin = conn.getAdmin();) {
             LoadIncrementalHFiles loader = new LoadIncrementalHFiles(conf);
             //新版本(2.x.y)里改用这个了
             //BulkLoadHFilesTool loader=new BulkLoadHFilesTool(conf);
@@ -170,10 +169,6 @@ public class HFileIndexStore {
             LOGGER.info("Bulk Load to HBase successfully");
         } catch (Exception e) {
             LOGGER.error("Bulk Load to HBase fail", e);
-        } finally {
-            if (htable != null) {
-                htable.close();
-            }
         }
     }
 
