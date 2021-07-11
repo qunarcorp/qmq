@@ -53,6 +53,9 @@ public class DefaultStoreConfiguration implements StoreConfiguration {
     private static final int SCHEDULE_CLEAN_BEFORE_DISPATCH_TIMES_IN_HOUR = 24;
     private static final int DEFAULT_SEGMENT_SCALE_IN_MIN = 60;
 
+    public static final String BROKER_WEIGHT_TASK_TIMER_INTERVAL = "broker.weight.task.timer.interval";
+    public static final int DEFAULT_BROKER_WEIGHT_TASK_TIMER_INTERVAL = 3 * 1000;
+
     private volatile int segmentScale;
     private volatile long inAdvanceLoadMillis;
     private volatile long loadBlockingExitMillis;
