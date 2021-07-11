@@ -124,15 +124,15 @@ public class MetaInfoService implements MetaInfoClient.ResponseSubscriber, Runna
         request.setClientId(this.clientId);
         request.setConsumerGroup(param.group);
         request.setAppCode(param.getAppCode());
-        request.setRequestType(param.getRequestType());
 
         if (param.getRequestType() == null) {
             if (!hadOnline(param)) {
                 request.setRequestType(ClientRequestType.ONLINE);
-            }
-            else {
+            } else {
                 request.setRequestType(ClientRequestType.HEARTBEAT);
             }
+        } else {
+            request.setRequestType(param.getRequestType());
         }
 
         LOGGER.debug("meta info request: {}", request);
