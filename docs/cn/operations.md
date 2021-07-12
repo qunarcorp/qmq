@@ -48,10 +48,10 @@ tools.sh MarkReadonly --metaserver=<metaserver address> --token=<token> --broker
 4. 执行ReplaceBroker命令切换角色(该步骤一定要在停止应用之后执行)
 
 ```
-//将原来的master里机器名，ip等修改为原来的slave
+//将原来的master里机器名、ip等，修改为原来的slave
 tools.sh ReplaceBroker --metaserver=<metaserver address> --token=<token> --brokerGroup=<broker group name> --role=<0, 0是master> --hostname=<原slave的机器名> --ip=<原slave的ip> --servePort=<原slave的servePort> --syncPort=<原slave的syncPort>
 
-//将原来的slave里机器名，ip等修改为原来的slave
+//将原来的slave里机器名、ip等，修改为原来的master
 tools.sh ReplaceBroker --metaserver=<metaserver address> --token=<token> --brokerGroup=<broker group name> --role=<1, 1是slave> --hostname=<原master的机器名> --ip=<原master的ip> --servePort=<原master的servePort> --syncPort=<原master的syncPort>
 ```
 
