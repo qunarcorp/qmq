@@ -67,11 +67,13 @@ public class HFileIndexStore {
     private final Path HFILE_PARENT_PARENT_DIR;
     private final Path HFILE_PATH;
     private final int MESSAGE_SIZE_PER_HFILE;
+    private Connection conn;
+    private FileSystem fs;
     private MessageQueryIndex lastIndex;
     private HFile.Writer writer;
     private Map<byte[], KeyValue> map = new TreeMap<>(new org.apache.hadoop.hbase.util.Bytes.ByteArrayComparator());
 
-    public HFileIndexStore(BackupKeyGenerator keyGenerator) {
+    public HFileIndexStore(BackupKeyGenerator keyGenerator) throws IOException {
         this.config = new DefaultBackupConfig(DynamicConfigLoader.load("backup.properties", false));
         this.brokerGroup = BrokerConfig.getBrokerName();
         this.brokerGroupBytes = Bytes.UTF8(brokerGroup);
@@ -84,14 +86,17 @@ public class HFileIndexStore {
         this.conf.addResource("hdfs-site.xml");
         this.conf.set("hbase.zookeeper.quorum", hbaseConfig.getString("hbase.zookeeper.quorum", "localhost"));
         this.conf.set("zookeeper.znode.parent", hbaseConfig.getString("hbase.zookeeper.znode.parent", "/hbase"));
+        this.conf.set("hbase.bulkload.retries.retryOnIOException", "true");
         this.TABLE_NAME = this.config.getDynamicConfig().getString(HBASE_MESSAGE_INDEX_TABLE_CONFIG_KEY, DEFAULT_HBASE_MESSAGE_INDEX_TABLE);
         this.FAMILY_NAME = B_FAMILY;
         this.QUALIFIERS_NAME = B_MESSAGE_QUALIFIERS[0];//列名 TODO 这里可能要改
         this.HFILE_PARENT_PARENT_DIR = new Path("/tmp/trace");
-        this.HFILE_PATH = new Path("/tmp/trace/" + new String(FAMILY_NAME) + "/hfile");
+        this.HFILE_PATH = new Path("/tmp/trace/" + new String(FAMILY_NAME));
         this.tempConf = new Configuration(this.conf);
         this.tempConf.setFloat(HConstants.HFILE_BLOCK_CACHE_SIZE_KEY, 1.0f);
         this.MESSAGE_SIZE_PER_HFILE = this.config.getDynamicConfig().getInt(MESSAGE_SIZE_PER_HFILE_CONFIG_KEY, DEFAULT_MESSAGE_SIZE_PER_HFILE);
+        this.conn = ConnectionFactory.createConnection(this.conf);
+        this.fs = FileSystem.get(this.conf);
     }
 
     public void appendData(MessageQueryIndex index, Consumer<MessageQueryIndex> consumer) {
@@ -121,15 +126,16 @@ public class HFileIndexStore {
 
         long currentTime = System.currentTimeMillis();
         KeyValue kv = new KeyValue(key, FAMILY_NAME, QUALIFIERS_NAME, currentTime, value);
-        LOGGER.info("消息主题 subjectkey:" + subjectKey + "   messageid:" + messageId + "   key:" + new String(key));
+        //LOGGER.info("消息主题 subjectkey:" + subjectKey + "   messageid:" + messageId + "   key:" + new String(key));
         //先添加到treemap中
         map.put(key, kv);
         if (map.size() >= MESSAGE_SIZE_PER_HFILE) {
             //bulk load开始时间
             long startTime = System.currentTimeMillis();
             try {
-                writeToHfile();
-                bulkLoad();
+                Path HFilePath = new Path(HFILE_PATH, new String(key));
+                writeToHfile(HFilePath);
+                bulkLoad(HFilePath);
                 map.clear();
                 if (consumer != null) consumer.accept(lastIndex);
             } catch (IOException e) {
@@ -140,11 +146,11 @@ public class HFileIndexStore {
         }
     }
 
-    private void writeToHfile() throws IOException {
+    private void writeToHfile(Path path) throws IOException {
         HFileContext fileContext = new HFileContext();
         try {
             writer = HFile.getWriterFactory(conf, new CacheConfig(tempConf))
-                    .withPath(FileSystem.get(conf), HFILE_PATH)
+                    .withPath(FileSystem.get(conf), path)
                     .withFileContext(fileContext).create();
             for (Map.Entry<byte[], KeyValue> entry : map.entrySet()) {
                 writer.append(entry.getValue());
@@ -157,15 +163,15 @@ public class HFileIndexStore {
         }
     }
 
-    private void bulkLoad() throws IOException {
+    private void bulkLoad(Path pathToDelete) throws IOException {
         //用bulkload上传至hbase
-        try (Connection conn = ConnectionFactory.createConnection(conf);
-             Table htable = conn.getTable(TableName.valueOf(TABLE_NAME));
+        try (Table htable = conn.getTable(TableName.valueOf(TABLE_NAME));
              Admin admin = conn.getAdmin();) {
             LoadIncrementalHFiles loader = new LoadIncrementalHFiles(conf);
             //新版本(2.x.y)里改用这个了
             //BulkLoadHFilesTool loader=new BulkLoadHFilesTool(conf);
             loader.doBulkLoad(HFILE_PARENT_PARENT_DIR, admin, htable, conn.getRegionLocator(TableName.valueOf(TABLE_NAME)));
+            fs.delete(pathToDelete, true);
             LOGGER.info("Bulk Load to HBase successfully");
         } catch (Exception e) {
             LOGGER.error("Bulk Load to HBase fail", e);

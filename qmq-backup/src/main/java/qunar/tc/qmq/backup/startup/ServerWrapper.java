@@ -48,6 +48,7 @@ import qunar.tc.qmq.sync.SlaveSyncClient;
 import qunar.tc.qmq.sync.SyncType;
 import qunar.tc.qmq.utils.NetworkUtils;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
@@ -103,7 +104,7 @@ public class ServerWrapper implements Disposable {
         }
     }
 
-    private void register(final DynamicConfig config, final DynamicConfig deadConfig) {
+    private void register(final DynamicConfig config, final DynamicConfig deadConfig) throws IOException {
         BrokerRole role = BrokerConfig.getBrokerRole();
         if (role != BrokerRole.BACKUP) throw new RuntimeException("Only support backup");
 
@@ -186,7 +187,7 @@ public class ServerWrapper implements Disposable {
         return new BackupStorageConfig(config);
     }
 
-    private FixedExecOrderEventBus.Listener<MessageQueryIndex> getConstructIndexListener(final BackupKeyGenerator keyGenerator, Consumer<MessageQueryIndex> consumer) {
+    private FixedExecOrderEventBus.Listener<MessageQueryIndex> getConstructIndexListener(final BackupKeyGenerator keyGenerator, Consumer<MessageQueryIndex> consumer) throws IOException {
 
         final BatchBackup<MessageQueryIndex> indexBackup = new MessageIndexBatchBackup(config, indexStore, keyGenerator);
         backupManager.registerBatchBackup(indexBackup);

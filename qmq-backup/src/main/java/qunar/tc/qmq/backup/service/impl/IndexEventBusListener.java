@@ -22,6 +22,7 @@ import qunar.tc.qmq.backup.store.impl.HFileIndexStore;
 import qunar.tc.qmq.store.MessageQueryIndex;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
 
+import java.io.IOException;
 import java.util.function.Consumer;
 
 /**
@@ -36,7 +37,7 @@ public class IndexEventBusListener extends AbstractEventBusListener {
 
     private final HFileIndexStore hFileIndexStore;
 
-    public IndexEventBusListener(BatchBackup<MessageQueryIndex> indexBatchBackup, Consumer<MessageQueryIndex> consumer, BackupKeyGenerator keyGenerator) {
+    public IndexEventBusListener(BatchBackup<MessageQueryIndex> indexBatchBackup, Consumer<MessageQueryIndex> consumer, BackupKeyGenerator keyGenerator) throws IOException {
         this.indexBatchBackup = indexBatchBackup;
         this.consumer = consumer;
         this.hFileIndexStore = new HFileIndexStore(keyGenerator);
