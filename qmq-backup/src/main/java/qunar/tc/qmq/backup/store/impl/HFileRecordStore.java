@@ -78,7 +78,6 @@ public class HFileRecordStore {
     private Connection conn;
     private FileSystem fs;
     private byte[] lastKey;
-    private BackupMessage lastMessage;
     private HFile.Writer writer;
     private Map<byte[], KeyValue> map = new TreeMap<>(new org.apache.hadoop.hbase.util.Bytes.ByteArrayComparator());
 
@@ -103,7 +102,7 @@ public class HFileRecordStore {
         this.HFILE_PARENT_PARENT_DIR = new Path("/tmp/record");
         this.HFILE_PATH = new Path("/tmp/record/" + new String(FAMILY_NAME));
         this.tempConf = new Configuration(this.conf);
-        this.tempConf.setFloat(HConstants.HFILE_BLOCK_CACHE_SIZE_KEY, 1.0f);
+        this.tempConf.setFloat(HConstants.HFILE_BLOCK_CACHE_SIZE_KEY, 0.0f);
         this.MESSAGE_SIZE_PER_HFILE = this.config.getDynamicConfig().getInt(MESSAGE_SIZE_PER_HFILE_CONFIG_KEY, DEFAULT_MESSAGE_SIZE_PER_HFILE);
         this.conn = ConnectionFactory.createConnection(this.conf);
         this.fs = FileSystem.get(this.conf);
@@ -142,12 +141,10 @@ public class HFileRecordStore {
             //LOGGER.info("消息轨迹主题 subject:" + message.getSubject() + "   key:" + new String(key));
             map.put(key, kv);
             lastKey = key;
-            lastMessage = message;
         }
         if (map.size() >= MESSAGE_SIZE_PER_HFILE) {
             //bulk load开始时间
             long startTime = System.currentTimeMillis();
-            LOGGER.info("消息轨迹主题subject: " + lastMessage.getSubject() + "  messageId: " + lastMessage.getMessageId() + "   key:" + new String(lastKey));
             try {
                 Path HFilePath = new Path(HFILE_PATH, new String(lastKey));
                 writeToHfile(HFilePath);

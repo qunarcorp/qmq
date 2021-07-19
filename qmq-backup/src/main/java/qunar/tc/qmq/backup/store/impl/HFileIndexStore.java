@@ -93,7 +93,7 @@ public class HFileIndexStore {
         this.HFILE_PARENT_PARENT_DIR = new Path("/tmp/index");
         this.HFILE_PATH = new Path("/tmp/index/" + new String(FAMILY_NAME));
         this.tempConf = new Configuration(this.conf);
-        this.tempConf.setFloat(HConstants.HFILE_BLOCK_CACHE_SIZE_KEY, 1.0f);
+        this.tempConf.setFloat(HConstants.HFILE_BLOCK_CACHE_SIZE_KEY, 0.0f);
         this.MESSAGE_SIZE_PER_HFILE = this.config.getDynamicConfig().getInt(MESSAGE_SIZE_PER_HFILE_CONFIG_KEY, DEFAULT_MESSAGE_SIZE_PER_HFILE);
         this.conn = ConnectionFactory.createConnection(this.conf);
         this.fs = FileSystem.get(this.conf);
