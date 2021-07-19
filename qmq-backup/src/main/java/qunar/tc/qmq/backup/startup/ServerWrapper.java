@@ -157,7 +157,7 @@ public class ServerWrapper implements Disposable {
         backupManager.registerBatchBackup(recordBackup);
 
         final SyncLogIterator<Action, ByteBuf> actionIterator = new ActionSyncLogIterator();
-        BackupActionLogSyncProcessor actionLogSyncProcessor = new BackupActionLogSyncProcessor(checkpointManager, config, actionIterator, recordBackup);
+        BackupActionLogSyncProcessor actionLogSyncProcessor = new BackupActionLogSyncProcessor(checkpointManager, config, actionIterator, recordBackup, keyGenerator, rocksDBStore);
         masterSlaveSyncManager.registerProcessor(SyncType.action, actionLogSyncProcessor);
 
         scheduleFlushManager.register(actionLogSyncProcessor);

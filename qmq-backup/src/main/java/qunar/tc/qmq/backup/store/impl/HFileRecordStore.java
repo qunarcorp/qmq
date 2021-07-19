@@ -75,11 +75,14 @@ public class HFileRecordStore {
     private final Path HFILE_PARENT_PARENT_DIR;
     private final Path HFILE_PATH;
     private final int MESSAGE_SIZE_PER_HFILE;
-    private MessageQueryIndex lastIndex;//TODO
+    private Connection conn;
+    private FileSystem fs;
+    private byte[] lastKey;
+    private BackupMessage lastMessage;
     private HFile.Writer writer;
     private Map<byte[], KeyValue> map = new TreeMap<>(new org.apache.hadoop.hbase.util.Bytes.ByteArrayComparator());
 
-    public HFileRecordStore(BackupKeyGenerator keyGenerator, RocksDBStore rocksDBStore) {
+    public HFileRecordStore(BackupKeyGenerator keyGenerator, RocksDBStore rocksDBStore) throws IOException {
         this.config = new DefaultBackupConfig(DynamicConfigLoader.load("backup.properties", false));
         this.brokerGroup = BrokerConfig.getBrokerName();
         this.brokerGroupBytes = Bytes.UTF8(brokerGroup);
@@ -93,23 +96,23 @@ public class HFileRecordStore {
         this.conf.addResource("hdfs-site.xml");
         this.conf.set("hbase.zookeeper.quorum", hbaseConfig.getString("hbase.zookeeper.quorum", "localhost"));
         this.conf.set("zookeeper.znode.parent", hbaseConfig.getString("hbase.zookeeper.znode.parent", "/hbase"));
-        this.conf.set("hbase.bulkload.retries.retryOnIOException","true");
-        this.conf.setBoolean("mapreduce.map.speculative", false);
-        this.conf.setBoolean("mapreduce.reduce.speculative", false);
+        this.conf.set("hbase.bulkload.retries.retryOnIOException", "true");
         this.TABLE_NAME = this.config.getDynamicConfig().getString(HBASE_RECORD_TABLE_CONFIG_KEY, DEFAULT_HBASE_RECORD_TABLE);
         this.FAMILY_NAME = R_FAMILY;
         this.QUALIFIERS_NAME = B_RECORD_QUALIFIERS[0];//列名
         this.HFILE_PARENT_PARENT_DIR = new Path("/tmp/record");
-        this.HFILE_PATH = new Path("/tmp/record/" + new String(FAMILY_NAME) + "/hfile");
+        this.HFILE_PATH = new Path("/tmp/record/" + new String(FAMILY_NAME));
         this.tempConf = new Configuration(this.conf);
         this.tempConf.setFloat(HConstants.HFILE_BLOCK_CACHE_SIZE_KEY, 1.0f);
         this.MESSAGE_SIZE_PER_HFILE = this.config.getDynamicConfig().getInt(MESSAGE_SIZE_PER_HFILE_CONFIG_KEY, DEFAULT_MESSAGE_SIZE_PER_HFILE);
+        this.conn = ConnectionFactory.createConnection(this.conf);
+        this.fs = FileSystem.get(this.conf);
     }
 
     public void appendData(ActionRecord record, Consumer<MessageQueryIndex> consumer) {
         if (!config.getDynamicConfig().getBoolean(ENABLE_RECORD_CONFIG_KEY, true)) return;
         List<BackupMessage> messages = processRecord(record);
-        for(BackupMessage message:messages){
+        for (BackupMessage message : messages) {
             String subject = message.getSubject();
             monitorBackupActionQps(subject);
 
@@ -136,64 +139,67 @@ public class HFileRecordStore {
 
             long currentTime = System.currentTimeMillis();
             KeyValue kv = new KeyValue(key, FAMILY_NAME, QUALIFIERS_NAME, currentTime, value);
-            LOGGER.info("消息轨迹主题 subject:" + message.getSubject() + "   key:" + new String(key));
+            //LOGGER.info("消息轨迹主题 subject:" + message.getSubject() + "   key:" + new String(key));
             map.put(key, kv);
+            lastKey = key;
+            lastMessage = message;
         }
-
         if (map.size() >= MESSAGE_SIZE_PER_HFILE) {
             //bulk load开始时间
             long startTime = System.currentTimeMillis();
+            LOGGER.info("消息轨迹主题subject: " + lastMessage.getSubject() + "  messageId: " + lastMessage.getMessageId() + "   key:" + new String(lastKey));
             try {
-                writeToHfile();
-                bulkLoad();
+                Path HFilePath = new Path(HFILE_PATH, new String(lastKey));
+                writeToHfile(HFilePath);
+                bulkLoad(HFILE_PATH);
                 map.clear();
             } catch (IOException e) {
-                LOGGER.error("Record Bulk Load fail", e);
+                LOGGER.error("Record Info Bulk Load fail", e);
             } finally {
                 Metrics.timer("Record.Bulkload.Timer", TYPE_ARRAY, RECORD_TYPE).update(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
             }
         }
     }
 
-    private void writeToHfile() throws IOException {
+    private void writeToHfile(Path path) throws IOException {
         HFileContext fileContext = new HFileContext();
         try {
             writer = HFile.getWriterFactory(conf, new CacheConfig(tempConf))
-                    .withPath(FileSystem.get(conf), HFILE_PATH)
+                    .withPath(FileSystem.get(conf), path)
                     .withFileContext(fileContext).create();
             for (Map.Entry<byte[], KeyValue> entry : map.entrySet()) {
                 writer.append(entry.getValue());
             }
-            LOGGER.info("Record Write to HFile successfully");
+            LOGGER.info("Record Info Write to HFile successfully");
         } catch (IOException e) {
-            LOGGER.error("Record Write to HFile fail", e);
+            LOGGER.error("Record Info Write to HFile fail", e);
         } finally {
             writer.close();
         }
     }
 
-    private void bulkLoad() throws IOException {
+    private void bulkLoad(Path pathToDelete) throws IOException {
         //用bulkload上传至hbase
-        try (Connection conn = ConnectionFactory.createConnection(conf);
-             Table htable = conn.getTable(TableName.valueOf(TABLE_NAME));
+        try (Table htable = conn.getTable(TableName.valueOf(TABLE_NAME));
              Admin admin = conn.getAdmin();) {
             LoadIncrementalHFiles loader = new LoadIncrementalHFiles(conf);
             //新版本(2.x.y)里改用这个了
             //BulkLoadHFilesTool loader=new BulkLoadHFilesTool(conf);
             loader.doBulkLoad(HFILE_PARENT_PARENT_DIR, admin, htable, conn.getRegionLocator(TableName.valueOf(TABLE_NAME)));
-            LOGGER.info("Record Bulk Load to HBase successfully");
+            fs.delete(pathToDelete, true);
+            LOGGER.info("Record Info Bulk Load to HBase successfully");
         } catch (Exception e) {
-            LOGGER.error("Record Bulk Load to HBase fail", e);
+            LOGGER.error("Record Info Bulk Load to HBase fail", e);
         }
     }
 
     private List<BackupMessage> processRecord(ActionRecord record) {
         final List<BackupMessage> batch = Lists.newArrayList();
-            if (record.getAction() instanceof PullAction) {
-                onPullAction(record, batch);
-            } else if (record.getAction() instanceof RangeAckAction) {
-                onAckAction(record, batch);
-            }
+        if (record.getAction() instanceof PullAction) {
+            onPullAction(record, batch);
+        } else if (record.getAction() instanceof RangeAckAction) {
+            onAckAction(record, batch);
+        }
         return batch;
     }
 

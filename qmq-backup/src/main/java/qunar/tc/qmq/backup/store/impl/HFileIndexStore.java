@@ -90,8 +90,8 @@ public class HFileIndexStore {
         this.TABLE_NAME = this.config.getDynamicConfig().getString(HBASE_MESSAGE_INDEX_TABLE_CONFIG_KEY, DEFAULT_HBASE_MESSAGE_INDEX_TABLE);
         this.FAMILY_NAME = B_FAMILY;
         this.QUALIFIERS_NAME = B_MESSAGE_QUALIFIERS[0];//列名 TODO 这里可能要改
-        this.HFILE_PARENT_PARENT_DIR = new Path("/tmp/trace");
-        this.HFILE_PATH = new Path("/tmp/trace/" + new String(FAMILY_NAME));
+        this.HFILE_PARENT_PARENT_DIR = new Path("/tmp/index");
+        this.HFILE_PATH = new Path("/tmp/index/" + new String(FAMILY_NAME));
         this.tempConf = new Configuration(this.conf);
         this.tempConf.setFloat(HConstants.HFILE_BLOCK_CACHE_SIZE_KEY, 1.0f);
         this.MESSAGE_SIZE_PER_HFILE = this.config.getDynamicConfig().getInt(MESSAGE_SIZE_PER_HFILE_CONFIG_KEY, DEFAULT_MESSAGE_SIZE_PER_HFILE);
@@ -135,11 +135,11 @@ public class HFileIndexStore {
             try {
                 Path HFilePath = new Path(HFILE_PATH, new String(key));
                 writeToHfile(HFilePath);
-                bulkLoad(HFilePath);
+                bulkLoad(HFILE_PATH);
                 map.clear();
                 if (consumer != null) consumer.accept(lastIndex);
             } catch (IOException e) {
-                LOGGER.error("Bulk Load fail", e);
+                LOGGER.error("Message Index Bulk Load fail", e);
             } finally {
                 Metrics.timer("Index.Bulkload.Timer", TYPE_ARRAY, INDEX_TYPE).update(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
             }
@@ -155,9 +155,9 @@ public class HFileIndexStore {
             for (Map.Entry<byte[], KeyValue> entry : map.entrySet()) {
                 writer.append(entry.getValue());
             }
-            LOGGER.info("Write to HFile successfully");
+            LOGGER.info("Message Index Write to HFile successfully");
         } catch (IOException e) {
-            LOGGER.error("Write to HFile fail", e);
+            LOGGER.error("Message Index Write to HFile fail", e);
         } finally {
             writer.close();
         }
@@ -172,9 +172,9 @@ public class HFileIndexStore {
             //BulkLoadHFilesTool loader=new BulkLoadHFilesTool(conf);
             loader.doBulkLoad(HFILE_PARENT_PARENT_DIR, admin, htable, conn.getRegionLocator(TableName.valueOf(TABLE_NAME)));
             fs.delete(pathToDelete, true);
-            LOGGER.info("Bulk Load to HBase successfully");
+            LOGGER.info("Message Index Bulk Load to HBase successfully");
         } catch (Exception e) {
-            LOGGER.error("Bulk Load to HBase fail", e);
+            LOGGER.error("Message Index Bulk Load to HBase fail", e);
         }
     }
 
