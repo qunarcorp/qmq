@@ -16,9 +16,6 @@
 
 package qunar.tc.qmq.store;
 
-import static qunar.tc.qmq.store.AppendMessageStatus.END_OF_FILE;
-import static qunar.tc.qmq.store.AppendMessageStatus.SUCCESS;
-
 import java.io.File;
 import java.nio.ByteBuffer;
 import java.util.List;
@@ -31,9 +28,15 @@ import com.google.common.collect.Maps;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.util.ReferenceCountUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.metrics.Metrics;
 
+import static qunar.tc.qmq.store.AppendMessageStatus.*;
+
 public class IndexLog implements AutoCloseable, Visitable<MessageQueryIndex> {
+    private static final Logger LOGGER = LoggerFactory.getLogger(IndexLog.class);
+
     private static final int PER_SEGMENT_FILE_SIZE = 1024 * 1024 * 1024;
 
     private final LogManager logManager;
@@ -115,23 +118,24 @@ public class IndexLog implements AutoCloseable, Visitable<MessageQueryIndex> {
     private AppendMessageResult doAppendData(final LogSegment segment, final ByteBuffer data) {
         int currentPos = segment.getWrotePosition();
         final int freeSize = segment.getFileSize() - currentPos;
-        if (data.remaining() <= freeSize) {
-            if (!segment.appendData(data)) throw new RuntimeException("append index data failed.");
-            return new AppendMessageResult<>(SUCCESS, segment.getBaseOffset() + segment.getWrotePosition());
-        }
+        int remaining = data.remaining();
 
-        ByteBuf to = ByteBufAllocator.DEFAULT.ioBuffer(freeSize);
+        ByteBuf to = ByteBufAllocator.DEFAULT.ioBuffer(Math.min(remaining, freeSize));
         try {
-            partialCopy(data, to);
-            if (to.isWritable(Long.BYTES)) {
-                to.writeLong(-1);
+            AppendMessageStatus status = copy(data, to);
+            if (status == DATA_OVERFLOW) {
+                fillZero(to);
             }
-            fillZero(to);
             if (!segment.appendData(to.nioBuffer())) throw new RuntimeException("append index data failed.");
+
+            if (status == DATA_OVERFLOW) {
+                return new AppendMessageResult(END_OF_FILE, segment.getBaseOffset() + segment.getFileSize());
+            } else {
+                return new AppendMessageResult(SUCCESS, segment.getBaseOffset() + segment.getWrotePosition());
+            }
         } finally {
             ReferenceCountUtil.release(to);
         }
-        return new AppendMessageResult(END_OF_FILE, segment.getBaseOffset() + segment.getFileSize());
     }
 
     private void fillZero(ByteBuf buffer) {
@@ -140,44 +144,87 @@ public class IndexLog implements AutoCloseable, Visitable<MessageQueryIndex> {
         }
     }
 
-    private void partialCopy(ByteBuffer src, ByteBuf to) {
-        while (to.isWritable(Long.BYTES)) {
+    private AppendMessageStatus copy(ByteBuffer src, ByteBuf to) {
+        while (to.isWritable()) {
             src.mark();
             to.markWriterIndex();
-            if (!to.isWritable(Long.BYTES)) break;
-            to.writeLong(src.getLong());
+            if (!to.isWritable(Long.BYTES)) {
+                return DATA_OVERFLOW;
+            }
+            if (src.remaining() < Long.BYTES) {
+                return SUCCESS;
+            }
+            long sequence = src.getLong();
+            if (sequence <= 0) {
+                LOGGER.warn("sequence <= 0");
+            }
+            to.writeLong(sequence);
+
+            if (src.remaining() < Long.BYTES) {
+                src.reset();
+                to.resetWriterIndex();
+                return SUCCESS;
+            }
 
             if (!to.isWritable(Long.BYTES)) {
                 src.reset();
                 to.resetWriterIndex();
-                break;
+                return AppendMessageStatus.DATA_OVERFLOW;
             }
-            to.writeLong(src.getLong());
+            long createTime = src.getLong();
+            if (createTime <= 0) {
+                LOGGER.warn("createTime <= 0");
+            }
+            to.writeLong(createTime);
 
             // subject
-            if (!writeString(src, to)) break;
+            AppendMessageStatus status = writeString(src, to);
+            if (status == END_OF_FILE) {
+                return SUCCESS;
+            }
+            if (status != SUCCESS) {
+                return status;
+            }
 
             // msgId
-            if (!writeString(src, to)) break;
+            status = writeString(src, to);
+            if (status == END_OF_FILE) {
+                return SUCCESS;
+            }
+            if (status != SUCCESS) {
+                return status;
+            }
+            if (src.remaining() <= 0) {
+                return SUCCESS;
+            }
         }
+        return DATA_OVERFLOW;
     }
 
-    private boolean writeString(ByteBuffer src, ByteBuf to) {
+    private AppendMessageStatus writeString(ByteBuffer src, ByteBuf to) {
+        if (src.remaining() < Short.BYTES) {
+            to.resetWriterIndex();
+            return END_OF_FILE;
+        }
         short len = src.getShort();
+        if (len <= 0) {
+            to.resetWriterIndex();
+            return END_OF_FILE;
+        }
+        if (src.remaining() < len) {
+            to.resetWriterIndex();
+            return END_OF_FILE;
+        }
         if (!to.isWritable(Short.BYTES + len)) {
             src.reset();
             to.resetWriterIndex();
-            return false;
-        }
-        if (len == 0) {
-            to.writeShort(len);
-            return true;
+            return DATA_OVERFLOW;
         }
         byte[] subject = new byte[len];
         src.get(subject);
         to.writeShort(len);
         to.writeBytes(subject);
-        return true;
+        return SUCCESS;
     }
 
     public IndexLogVisitor newVisitor(final long start) {
