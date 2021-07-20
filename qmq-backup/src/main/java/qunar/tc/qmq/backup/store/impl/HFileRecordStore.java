@@ -66,7 +66,6 @@ public class HFileRecordStore {
     private final RocksDBStore rocksDBStore;
     private final String brokerGroup;
     private final byte[] brokerGroupBytes;
-    private final int brokerGroupLength;
     private final Configuration conf;
     private final Configuration tempConf;
     private final String TABLE_NAME;
@@ -85,7 +84,6 @@ public class HFileRecordStore {
         this.config = new DefaultBackupConfig(DynamicConfigLoader.load("backup.properties", false));
         this.brokerGroup = BrokerConfig.getBrokerName();
         this.brokerGroupBytes = Bytes.UTF8(brokerGroup);
-        this.brokerGroupLength = this.brokerGroupBytes.length;
         this.keyGenerator = keyGenerator;
         this.rocksDBStore = rocksDBStore;
         this.skipBackSubjects = DynamicConfigLoader.load("skip_backup.properties", false);
@@ -99,8 +97,8 @@ public class HFileRecordStore {
         this.TABLE_NAME = this.config.getDynamicConfig().getString(HBASE_RECORD_TABLE_CONFIG_KEY, DEFAULT_HBASE_RECORD_TABLE);
         this.FAMILY_NAME = R_FAMILY;
         this.QUALIFIERS_NAME = B_RECORD_QUALIFIERS[0];//列名
-        this.HFILE_PARENT_PARENT_DIR = new Path("/tmp/record");
-        this.HFILE_PATH = new Path("/tmp/record/" + new String(FAMILY_NAME));
+        this.HFILE_PARENT_PARENT_DIR = new Path("/tmp/trace/record");
+        this.HFILE_PATH = new Path("/tmp/trace/record/" + new String(FAMILY_NAME));
         this.tempConf = new Configuration(this.conf);
         this.tempConf.setFloat(HConstants.HFILE_BLOCK_CACHE_SIZE_KEY, 0.0f);
         this.MESSAGE_SIZE_PER_HFILE = this.config.getDynamicConfig().getInt(MESSAGE_SIZE_PER_HFILE_CONFIG_KEY, DEFAULT_MESSAGE_SIZE_PER_HFILE);

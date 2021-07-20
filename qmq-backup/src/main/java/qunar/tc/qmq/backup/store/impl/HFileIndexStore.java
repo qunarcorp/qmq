@@ -90,8 +90,8 @@ public class HFileIndexStore {
         this.TABLE_NAME = this.config.getDynamicConfig().getString(HBASE_MESSAGE_INDEX_TABLE_CONFIG_KEY, DEFAULT_HBASE_MESSAGE_INDEX_TABLE);
         this.FAMILY_NAME = B_FAMILY;
         this.QUALIFIERS_NAME = B_MESSAGE_QUALIFIERS[0];//列名 TODO 这里可能要改
-        this.HFILE_PARENT_PARENT_DIR = new Path("/tmp/index");
-        this.HFILE_PATH = new Path("/tmp/index/" + new String(FAMILY_NAME));
+        this.HFILE_PARENT_PARENT_DIR = new Path("/tmp/trace/index");
+        this.HFILE_PATH = new Path("/tmp/trace/index/" + new String(FAMILY_NAME));
         this.tempConf = new Configuration(this.conf);
         this.tempConf.setFloat(HConstants.HFILE_BLOCK_CACHE_SIZE_KEY, 0.0f);
         this.MESSAGE_SIZE_PER_HFILE = this.config.getDynamicConfig().getInt(MESSAGE_SIZE_PER_HFILE_CONFIG_KEY, DEFAULT_MESSAGE_SIZE_PER_HFILE);
