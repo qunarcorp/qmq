@@ -20,6 +20,7 @@ import qunar.tc.qmq.store.buffer.SegmentBuffer;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
 
 import java.nio.ByteBuffer;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author keli.wang
@@ -53,12 +54,19 @@ public class IndexLogVisitor extends AbstractLogVisitor<MessageQueryIndex> {
             return retNoMore();
         }
         long createTime = buffer.getLong();
+        //时间不可能为0
+        if (createTime <= 0) {
+            return retNoMore();
+        }
 
         // subject
         if (buffer.remaining() < Short.BYTES) {
             return retNoMore();
         }
         short subjectLen = buffer.getShort();
+        if (subjectLen <= 0) {
+            return retNoMore();
+        }
         if (buffer.remaining() < subjectLen) {
             return retNoMore();
         }
@@ -69,6 +77,9 @@ public class IndexLogVisitor extends AbstractLogVisitor<MessageQueryIndex> {
             return retNoMore();
         }
         short messageIdLen = buffer.getShort();
+        if (messageIdLen <= 0) {
+            return retNoMore();
+        }
         if (buffer.remaining() < messageIdLen) {
             return retNoMore();
         }
@@ -83,6 +94,11 @@ public class IndexLogVisitor extends AbstractLogVisitor<MessageQueryIndex> {
     private LogVisitorRecord<MessageQueryIndex> retNoMore() {
         setVisitedBufferSize(getBufferSize());
         return LogVisitorRecord.noMore();
+    }
+
+    public static void main(String[] args) {
+        long l = TimeUnit.NANOSECONDS.toMillis(7599106L);
+        System.out.println(l);
     }
 
 }
