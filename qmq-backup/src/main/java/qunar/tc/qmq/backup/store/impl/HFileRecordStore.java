@@ -37,6 +37,7 @@ import qunar.tc.qmq.store.action.RangeAckAction;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -97,8 +98,9 @@ public class HFileRecordStore {
         this.TABLE_NAME = this.config.getDynamicConfig().getString(HBASE_RECORD_TABLE_CONFIG_KEY, DEFAULT_HBASE_RECORD_TABLE);
         this.FAMILY_NAME = R_FAMILY;
         this.QUALIFIERS_NAME = B_RECORD_QUALIFIERS[0];//列名
-        this.HFILE_PARENT_PARENT_DIR = new Path("/tmp/trace/record");
-        this.HFILE_PATH = new Path("/tmp/trace/record/" + new String(FAMILY_NAME));
+        String hostName = InetAddress.getLocalHost().getHostName();
+        this.HFILE_PARENT_PARENT_DIR = new Path("/tmp/trace/record/" + hostName);
+        this.HFILE_PATH = new Path(this.HFILE_PARENT_PARENT_DIR, new String(FAMILY_NAME));
         this.tempConf = new Configuration(this.conf);
         this.tempConf.setFloat(HConstants.HFILE_BLOCK_CACHE_SIZE_KEY, 0.0f);
         this.MESSAGE_SIZE_PER_HFILE = this.config.getDynamicConfig().getInt(MESSAGE_SIZE_PER_HFILE_CONFIG_KEY, DEFAULT_MESSAGE_SIZE_PER_HFILE);
