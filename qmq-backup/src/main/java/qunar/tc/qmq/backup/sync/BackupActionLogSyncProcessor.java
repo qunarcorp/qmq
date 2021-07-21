@@ -21,8 +21,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.backup.base.ActionRecord;
 import qunar.tc.qmq.backup.base.ScheduleFlushable;
+import qunar.tc.qmq.backup.service.BackupKeyGenerator;
 import qunar.tc.qmq.backup.service.BatchBackup;
 import qunar.tc.qmq.backup.service.SyncLogIterator;
+import qunar.tc.qmq.backup.store.RocksDBStore;
+import qunar.tc.qmq.backup.store.impl.HFileRecordStore;
 import qunar.tc.qmq.base.SyncRequest;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.configuration.DynamicConfigLoader;
@@ -30,6 +33,8 @@ import qunar.tc.qmq.store.*;
 import qunar.tc.qmq.sync.AbstractSyncLogProcessor;
 import qunar.tc.qmq.sync.SyncType;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
+
+import java.io.IOException;
 
 import static qunar.tc.qmq.backup.config.DefaultBackupConfig.DEFAULT_FLUSH_INTERVAL;
 import static qunar.tc.qmq.backup.config.DefaultBackupConfig.SYNC_OFFSET_FLUSH_INTERVAL_CONFIG_KEY;
@@ -47,13 +52,15 @@ public class BackupActionLogSyncProcessor extends AbstractSyncLogProcessor imple
     private final SyncLogIterator<Action, ByteBuf> iterator;
     private final BatchBackup<ActionRecord> recordBackup;
     private final DynamicConfig skipBackSubjects;
+    private final HFileRecordStore hFileRecordStore;
 
     public BackupActionLogSyncProcessor(CheckpointManager checkpointManager, DynamicConfig config, SyncLogIterator<Action, ByteBuf> iterator
-            , BatchBackup<ActionRecord> recordBackup) {
+            , BatchBackup<ActionRecord> recordBackup, BackupKeyGenerator keyGenerator, RocksDBStore rocksDBStore) throws IOException {
         this.checkpointManager = checkpointManager;
         this.iterator = iterator;
         this.recordBackup = recordBackup;
         this.skipBackSubjects = DynamicConfigLoader.load("skip_backup.properties", false);
+        this.hFileRecordStore = new HFileRecordStore(keyGenerator, rocksDBStore);
         PeriodicFlushService.FlushProvider provider = new PeriodicFlushService.FlushProvider() {
             @Override
             public int getInterval() {
@@ -89,7 +96,9 @@ public class BackupActionLogSyncProcessor extends AbstractSyncLogProcessor imple
             if (skipBackSubjects.getBoolean(realSubject, false)) {
                 continue;
             }
-            recordBackup.add(new ActionRecord(action), null);
+            //recordBackup.add(new ActionRecord(action), null);
+            //改用bulk load方式上传
+            hFileRecordStore.appendData(new ActionRecord(action), null);
             checkpointManager.addSyncActionLogOffset(body.readerIndex() - start);
         }
     }

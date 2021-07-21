@@ -33,7 +33,7 @@ public class MessageQueryIndex implements Comparable<MessageQueryIndex> {
 
     private transient long currentOffset;
 
-    MessageQueryIndex(String subject, String messageId, long sequence, long createTime) {
+    public MessageQueryIndex(String subject, String messageId, long sequence, long createTime) {
         this.subject = subject;
         this.messageId = messageId;
         this.sequence = sequence;

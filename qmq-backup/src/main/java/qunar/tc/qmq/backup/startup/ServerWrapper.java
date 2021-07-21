@@ -19,6 +19,7 @@ package qunar.tc.qmq.backup.startup;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import io.netty.buffer.ByteBuf;
+import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.backup.base.ActionRecord;
@@ -47,6 +48,7 @@ import qunar.tc.qmq.sync.SlaveSyncClient;
 import qunar.tc.qmq.sync.SyncType;
 import qunar.tc.qmq.utils.NetworkUtils;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
@@ -102,7 +104,7 @@ public class ServerWrapper implements Disposable {
         }
     }
 
-    private void register(final DynamicConfig config, final DynamicConfig deadConfig) {
+    private void register(final DynamicConfig config, final DynamicConfig deadConfig) throws IOException {
         BrokerRole role = BrokerConfig.getBrokerRole();
         if (role != BrokerRole.BACKUP) throw new RuntimeException("Only support backup");
 
@@ -155,7 +157,7 @@ public class ServerWrapper implements Disposable {
         backupManager.registerBatchBackup(recordBackup);
 
         final SyncLogIterator<Action, ByteBuf> actionIterator = new ActionSyncLogIterator();
-        BackupActionLogSyncProcessor actionLogSyncProcessor = new BackupActionLogSyncProcessor(checkpointManager, config, actionIterator, recordBackup);
+        BackupActionLogSyncProcessor actionLogSyncProcessor = new BackupActionLogSyncProcessor(checkpointManager, config, actionIterator, recordBackup, keyGenerator, rocksDBStore);
         masterSlaveSyncManager.registerProcessor(SyncType.action, actionLogSyncProcessor);
 
         scheduleFlushManager.register(actionLogSyncProcessor);
@@ -185,13 +187,13 @@ public class ServerWrapper implements Disposable {
         return new BackupStorageConfig(config);
     }
 
-    private FixedExecOrderEventBus.Listener<MessageQueryIndex> getConstructIndexListener(final BackupKeyGenerator keyGenerator, Consumer<MessageQueryIndex> consumer) {
+    private FixedExecOrderEventBus.Listener<MessageQueryIndex> getConstructIndexListener(final BackupKeyGenerator keyGenerator, Consumer<MessageQueryIndex> consumer) throws IOException {
 
         final BatchBackup<MessageQueryIndex> indexBackup = new MessageIndexBatchBackup(config, indexStore, keyGenerator);
         backupManager.registerBatchBackup(indexBackup);
 
 
-        return new IndexEventBusListener(indexBackup, consumer);
+        return new IndexEventBusListener(indexBackup, consumer, keyGenerator);
     }
 
     private FixedExecOrderEventBus.Listener<MessageQueryIndex> getConstructDeadIndexListener(final BackupKeyGenerator keyGenerator, Consumer<MessageQueryIndex> consumer) {

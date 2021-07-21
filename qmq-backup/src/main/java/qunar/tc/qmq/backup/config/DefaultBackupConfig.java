@@ -33,6 +33,7 @@ public class DefaultBackupConfig implements BackupConfig {
     public static final String DEFAULT_DELAY_DB_DIC_TABLE = "qmq_delay_dic";
     public static final String DEFAULT_STORE_FACTORY_TYPE = "hbase";
     public static final int DEFAULT_ROCKS_DB_TTL = 7200;
+    public static final int DEFAULT_MESSAGE_SIZE_PER_HFILE = 10000;
 
     public static final String HBASE_MESSAGE_INDEX_TABLE_CONFIG_KEY = "hbase.message.table";
     public static final String HBASE_DELAY_MESSAGE_INDEX_TABLE_CONFIG_KEY = "hbase.delay.message.table";
@@ -51,6 +52,7 @@ public class DefaultBackupConfig implements BackupConfig {
     public static final String ROCKS_DB_PATH_CONFIG_KEY = "rocks.db.path";
     public static final String ROCKS_DB_TTL_CONFIG_KEY = "rocks.db.ttl";
     public static final String ACQUIRE_BACKUP_META_URL = "acquire.server.meta.url";
+    public static final String MESSAGE_SIZE_PER_HFILE_CONFIG_KEY = "message.backup.hfile.size";
 
     private volatile String brokerGroup;
 
