@@ -7,14 +7,12 @@ import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.client.Admin;
-import org.apache.hadoop.hbase.client.Connection;
-import org.apache.hadoop.hbase.client.ConnectionFactory;
-import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.client.*;
 import org.apache.hadoop.hbase.io.hfile.CacheConfig;
 import org.apache.hadoop.hbase.io.hfile.HFile;
 import org.apache.hadoop.hbase.io.hfile.HFileContext;
 import org.apache.hadoop.hbase.mapreduce.LoadIncrementalHFiles;
+import org.apache.hadoop.hbase.util.Pair;
 import org.hbase.async.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,9 +28,7 @@ import qunar.tc.qmq.utils.RetrySubjectUtils;
 
 import java.io.IOException;
 import java.net.InetAddress;
-import java.util.Date;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
@@ -72,7 +68,9 @@ public class HFileIndexStore {
     private FileSystem fs;
     private MessageQueryIndex lastIndex;
     private HFile.Writer writer;
-    private Map<byte[], KeyValue> map = new TreeMap<>(new org.apache.hadoop.hbase.util.Bytes.ByteArrayComparator());
+    private Pair<byte[][], byte[][]> startEndKeys;
+    private TreeMap<byte[], KeyValue>[] datas;
+    private int datasSize;
 
     public HFileIndexStore(BackupKeyGenerator keyGenerator) throws IOException {
         this.config = new DefaultBackupConfig(DynamicConfigLoader.load("backup.properties", false));
@@ -99,6 +97,8 @@ public class HFileIndexStore {
         this.MESSAGE_SIZE_PER_HFILE = this.config.getDynamicConfig().getInt(MESSAGE_SIZE_PER_HFILE_CONFIG_KEY, DEFAULT_MESSAGE_SIZE_PER_HFILE);
         this.conn = ConnectionFactory.createConnection(this.conf);
         this.fs = FileSystem.get(this.conf);
+        this.startEndKeys = this.conn.getRegionLocator(TableName.valueOf(TABLE_NAME)).getStartEndKeys();
+        this.datas = new TreeMap[this.startEndKeys.getFirst().length];
     }
 
     public void appendData(MessageQueryIndex index, Consumer<MessageQueryIndex> consumer) {
@@ -129,16 +129,31 @@ public class HFileIndexStore {
         long currentTime = System.currentTimeMillis();
         KeyValue kv = new KeyValue(key, FAMILY_NAME, QUALIFIERS_NAME, currentTime, value);
         //LOGGER.info("消息主题 subjectkey:" + subjectKey + "   messageid:" + messageId + "   key:" + new String(key));
-        //先添加到treemap中
-        map.put(key, kv);
-        if (map.size() >= MESSAGE_SIZE_PER_HFILE) {
+        datasSize++;
+        //找到该key对应region在startEndKeys中的下标
+        //如果该key不是边界值，Arrays.binarySearch会返回(-(insertion point) - 1，所以需要处理一下
+        int idx = Arrays.binarySearch(startEndKeys.getFirst(), key, org.apache.hadoop.hbase.util.Bytes.BYTES_COMPARATOR);
+        if (idx <= -2)
+            idx = -(idx + 1) - 1;
+        else if (idx == -1)
+            idx = 0;
+        if (datas[idx] == null)
+            datas[idx] = new TreeMap<>(new org.apache.hadoop.hbase.util.Bytes.ByteArrayComparator());
+        datas[idx].put(key, kv);
+        if (datasSize >= MESSAGE_SIZE_PER_HFILE) {
             //bulk load开始时间
             long startTime = System.currentTimeMillis();
+            datasSize = 0;
             try {
-                Path HFilePath = new Path(HFILE_PATH, new String(key));
-                writeToHfile(HFilePath);
+                for (TreeMap<byte[], KeyValue> map : datas) {
+                    if (map == null) continue;
+                    Path HFilePath = new Path(HFILE_PATH, "key" + new String(map.firstKey()));
+                    writeToHfile(HFilePath, map);
+                    map.clear();
+                }
+                startEndKeys = conn.getRegionLocator(TableName.valueOf(TABLE_NAME)).getStartEndKeys();
+                datas = new TreeMap[startEndKeys.getFirst().length];
                 bulkLoad(HFILE_PATH);
-                map.clear();
                 if (consumer != null) consumer.accept(lastIndex);
             } catch (IOException e) {
                 LOGGER.error("Message Index Bulk Load fail", e);
@@ -148,7 +163,7 @@ public class HFileIndexStore {
         }
     }
 
-    private void writeToHfile(Path path) throws IOException {
+    private void writeToHfile(Path path, TreeMap<byte[], KeyValue> map) throws IOException {
         HFileContext fileContext = new HFileContext();
         try {
             writer = HFile.getWriterFactory(conf, new CacheConfig(tempConf))
