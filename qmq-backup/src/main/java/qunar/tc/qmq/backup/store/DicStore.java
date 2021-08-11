@@ -20,9 +20,9 @@ package qunar.tc.qmq.backup.store;
  * @author yiqun.fan create on 17-10-31.
  */
 public interface DicStore {
-    String getName(int id);
+    String getName(int nameId);
 
-    int getId(String name);
+    int getNameId(String name);
 
-    int insertName(String name);
+    void insertName(int nameId, String name);
 }

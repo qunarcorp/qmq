@@ -20,20 +20,18 @@ import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import qunar.tc.qmq.backup.service.DicService;
 import qunar.tc.qmq.backup.store.DicStore;
 
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 /**
  * @author yiqun.fan create on 17-10-31.
  */
 public class DbDicService implements DicService {
-    private static final Logger LOG = LoggerFactory.getLogger(DbDicService.class);
     private static final int MAX_SIZE = 1000000;
 
     private final DicStore dicStore;
@@ -66,19 +64,20 @@ public class DbDicService implements DicService {
     }
 
     private String getOrCreateId(String name) {
-        int id;
-        try {
-            id = dicStore.getId(name);
-        } catch (EmptyResultDataAccessException e) {
+        for (int i = 0; i < 5; ++i) {
             try {
-                id = dicStore.insertName(name);
-            } catch (DuplicateKeyException e2) {
-                id = dicStore.getId(name);
-            } catch (Exception e3) {
-                LOG.error("insert name error: {}", name, e3);
-                throw new RuntimeException("insert name error: " + name, e3);
+                final int nameId = dicStore.getNameId(name);
+                return String.format(pattern, nameId);
+            } catch (EmptyResultDataAccessException e) {
+                final int newNameId = ThreadLocalRandom.current().nextInt(0, 999999);
+                try {
+                    dicStore.insertName(newNameId, name);
+                    return String.format(pattern, newNameId);
+                } catch (DuplicateKeyException ex) {
+                }
             }
         }
-        return String.format(pattern, id);
+        throw new RuntimeException("重试多次仍然无法产生有效name id");
     }
+
 }
