@@ -67,10 +67,11 @@ public class MessageIndexBatchBackup extends AbstractBatchBackup<MessageQueryInd
             MessageQueryIndex index = indices.get(i);
             String subject = index.getSubject();
             String realSubject = RetrySubjectUtils.getRealSubject(subject);
+            monitorBackupIndexQps(subject);
             if (skipBackup(realSubject)) {
+                if (tailIndex == null || tailIndex.compareTo(index) < 0) tailIndex = index;
                 continue;
             }
-            monitorBackupIndexQps(subject);
             try {
                 String subjectKey = realSubject;
                 String consumerGroup = null;

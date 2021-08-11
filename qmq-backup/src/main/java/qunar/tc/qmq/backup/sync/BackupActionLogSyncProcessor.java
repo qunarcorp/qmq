@@ -94,6 +94,7 @@ public class BackupActionLogSyncProcessor extends AbstractSyncLogProcessor imple
             }
             String realSubject = RetrySubjectUtils.getRealSubject(action.subject());
             if (skipBackSubjects.getBoolean(realSubject, false)) {
+                checkpointManager.addSyncActionLogOffset(body.readerIndex() - start);
                 continue;
             }
             recordBackup.add(new ActionRecord(action), null);
