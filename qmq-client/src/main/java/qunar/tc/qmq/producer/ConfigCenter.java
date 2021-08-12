@@ -80,6 +80,10 @@ public class ConfigCenter {
         return syncSend;
     }
 
+    public void setSyncSend(boolean syncSend) {
+        this.syncSend = syncSend;
+    }
+
     public int getMinExpiredTime() {
         return MIN_EXPIRED_TIME;
     }

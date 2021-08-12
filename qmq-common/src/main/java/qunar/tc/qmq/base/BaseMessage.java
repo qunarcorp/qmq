@@ -47,6 +47,8 @@ public class BaseMessage implements Message, Serializable {
     private boolean storeAtFailed;
     private boolean durable = true;
 
+    transient private Boolean syncSend;
+
     public enum keys {
         qmq_createTime,
         qmq_expireTime,
@@ -418,6 +420,16 @@ public class BaseMessage implements Message, Serializable {
     @Override
     public boolean isDurable() {
         return this.durable;
+    }
+
+    @Override
+    public Boolean isSyncSend() {
+        return syncSend;
+    }
+
+    @Override
+    public void setSyncSend(Boolean isSync) {
+        this.syncSend = isSync;
     }
 
 }

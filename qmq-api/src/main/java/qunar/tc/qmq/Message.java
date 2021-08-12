@@ -176,4 +176,8 @@ public interface Message {
     void setDurable(boolean durable);
 
     boolean isDurable();
+
+    Boolean isSyncSend();
+
+    void setSyncSend(Boolean isSync);
 }

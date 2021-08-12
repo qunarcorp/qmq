@@ -178,6 +178,10 @@ public class MessageProducerProvider implements MessageProducer {
         pm.setSendTryCount(configs.getSendTryCount());
         pm.setSendStateListener(listener);
         pm.setSyncSend(configs.isSyncSend());
+        //消息上设置的优先级更高
+        if (message.isSyncSend() != null) {
+            pm.setSyncSend(message.isSyncSend());
+        }
 
         String value = routerManager.registryOf(message);
         TraceUtil.setTag("registry", value, tracer);
@@ -235,6 +239,10 @@ public class MessageProducerProvider implements MessageProducer {
 
     public void setEnvProvider(EnvProvider envProvider) {
         this.envProvider = envProvider;
+    }
+
+    public void setSyncSend(boolean isSync) {
+        configs.setSyncSend(isSync);
     }
 
     /**
