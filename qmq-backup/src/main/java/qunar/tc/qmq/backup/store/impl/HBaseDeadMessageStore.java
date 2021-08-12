@@ -18,6 +18,7 @@ package qunar.tc.qmq.backup.store.impl;
 
 import java.util.Date;
 
+import com.google.common.base.Strings;
 import org.hbase.async.HBaseClient;
 import qunar.tc.qmq.backup.base.BackupQuery;
 import qunar.tc.qmq.backup.base.MessageQueryResult;
@@ -48,11 +49,12 @@ public class HBaseDeadMessageStore extends AbstractHBaseMessageStore implements 
         final String consumerGroup = query.getConsumerGroup();
 
         final String subjectId = dicService.name2Id(subject);
-        final String consumerGroupId = dicService.name2Id(consumerGroup);
-
+        final String consumerGroupId = Strings.isNullOrEmpty(consumerGroup) ? null : dicService.name2Id(consumerGroup);
         final String keyRegexp = BackupMessageKeyRegexpBuilder.buildDeadRegexp(subjectId, consumerGroupId);
-        final String startKey = BackupMessageKeyRangeBuilder.buildDeadStartKey(start, subjectId, consumerGroupId, msgCreateTimeEnd);
-        final String endKey = BackupMessageKeyRangeBuilder.buildDeadEndKey(subjectId, consumerGroupId, msgCreateTimeBegin);
+        final String consumerGroupIdInStartKey = Strings.isNullOrEmpty(consumerGroupId) ? "000000" : consumerGroupId;
+        final String startKey = BackupMessageKeyRangeBuilder.buildDeadStartKey(start, subjectId, consumerGroupIdInStartKey, msgCreateTimeEnd);
+        final String consumerGroupIdInEndKey = Strings.isNullOrEmpty(consumerGroupId) ? "999999" : consumerGroupId;
+        final String endKey = BackupMessageKeyRangeBuilder.buildDeadEndKey(subjectId, consumerGroupIdInEndKey, msgCreateTimeBegin);
 
         final MessageQueryResult messageQueryResult = new MessageQueryResult();
         getMessageFromHBase(subject, table, messageQueryResult, keyRegexp, startKey, endKey, len);

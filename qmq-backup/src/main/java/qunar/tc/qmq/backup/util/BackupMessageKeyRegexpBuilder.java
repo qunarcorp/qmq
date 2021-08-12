@@ -52,11 +52,13 @@ public class BackupMessageKeyRegexpBuilder {
         return "^" + subjectId +  consumerGroupId + "\\d{12}" + generateMD5Key(messageId);
     }
 
-
     public static String buildDeadRegexp(String subjectId, String consumerGroupId) {
-        if (Strings.isNullOrEmpty(subjectId) || Strings.isNullOrEmpty(consumerGroupId))
+        if (Strings.isNullOrEmpty(subjectId))
             throw new RuntimeException("Subject And ConsumerGroup Needed.");
-        return "^" + subjectId + consumerGroupId + "\\d{12}" + "\\w{32}";
+        if (Strings.isNullOrEmpty(consumerGroupId)) {
+            return "^" + subjectId + "\\d{6}\\d{12}\\w{32}";
+        }
+        return "^" + subjectId + consumerGroupId + "\\d{12}\\w{32}";
     }
 
     public static String buildDeadRecordRegexp(String subjectId, String messageId) {
