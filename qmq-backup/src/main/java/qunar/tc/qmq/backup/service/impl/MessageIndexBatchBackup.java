@@ -23,7 +23,6 @@ import qunar.tc.qmq.backup.config.BackupConfig;
 import qunar.tc.qmq.backup.service.BackupKeyGenerator;
 import qunar.tc.qmq.backup.store.KvStore;
 import qunar.tc.qmq.configuration.DynamicConfig;
-import qunar.tc.qmq.configuration.DynamicConfigLoader;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.store.MessageQueryIndex;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
@@ -47,7 +46,6 @@ public class MessageIndexBatchBackup extends AbstractBatchBackup<MessageQueryInd
     private final BackupKeyGenerator keyGenerator;
     private final String brokerGroup;
     private final DynamicConfig config;
-    private final DynamicConfig skipBackSubjects;
 
     public MessageIndexBatchBackup(BackupConfig config, KvStore indexStore, BackupKeyGenerator keyGenerator) {
         super("messageIndexBackup", config);
@@ -55,7 +53,6 @@ public class MessageIndexBatchBackup extends AbstractBatchBackup<MessageQueryInd
         this.keyGenerator = keyGenerator;
         this.brokerGroup = config.getBrokerGroup();
         this.config = config.getDynamicConfig();
-        this.skipBackSubjects = DynamicConfigLoader.load("skip_backup.properties", false);
     }
 
     private void saveIndex(List<MessageQueryIndex> indices, Consumer<MessageQueryIndex> fi) {
@@ -68,10 +65,6 @@ public class MessageIndexBatchBackup extends AbstractBatchBackup<MessageQueryInd
             String subject = index.getSubject();
             String realSubject = RetrySubjectUtils.getRealSubject(subject);
             monitorBackupIndexQps(subject);
-            if (skipBackup(realSubject)) {
-                if (tailIndex == null || tailIndex.compareTo(index) < 0) tailIndex = index;
-                continue;
-            }
             try {
                 String subjectKey = realSubject;
                 String consumerGroup = null;
@@ -102,10 +95,6 @@ public class MessageIndexBatchBackup extends AbstractBatchBackup<MessageQueryInd
         }
         indexStore.batchSave(keys, values);
         if (fi != null) fi.accept(tailIndex);
-    }
-
-    private boolean skipBackup(String subject) {
-        return skipBackSubjects.getBoolean(subject, false);
     }
 
     private void retry(MessageQueryIndex failMessage, Consumer<MessageQueryIndex> fi) {

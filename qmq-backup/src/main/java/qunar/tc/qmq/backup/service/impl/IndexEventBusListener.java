@@ -16,9 +16,9 @@
 
 package qunar.tc.qmq.backup.service.impl;
 
-import qunar.tc.qmq.backup.service.BackupKeyGenerator;
 import qunar.tc.qmq.backup.service.BatchBackup;
-import qunar.tc.qmq.backup.store.impl.HFileIndexStore;
+import qunar.tc.qmq.configuration.DynamicConfig;
+import qunar.tc.qmq.configuration.DynamicConfigLoader;
 import qunar.tc.qmq.store.MessageQueryIndex;
 import qunar.tc.qmq.utils.RetrySubjectUtils;
 
@@ -35,12 +35,12 @@ public class IndexEventBusListener extends AbstractEventBusListener {
 
     private final Consumer<MessageQueryIndex> consumer;
 
-    private final HFileIndexStore hFileIndexStore;
+    private final DynamicConfig skipBackSubjects;
 
-    public IndexEventBusListener(BatchBackup<MessageQueryIndex> indexBatchBackup, Consumer<MessageQueryIndex> consumer, BackupKeyGenerator keyGenerator) throws IOException {
+    public IndexEventBusListener(BatchBackup<MessageQueryIndex> indexBatchBackup, Consumer<MessageQueryIndex> consumer) throws IOException {
         this.indexBatchBackup = indexBatchBackup;
         this.consumer = consumer;
-        this.hFileIndexStore = new HFileIndexStore(keyGenerator);
+        this.skipBackSubjects = DynamicConfigLoader.load("skip_backup.properties", false);
     }
 
     @Override
@@ -50,10 +50,19 @@ public class IndexEventBusListener extends AbstractEventBusListener {
             consumer.accept(index);
             return;
         }
+        String realSubject = RetrySubjectUtils.getRealSubject(index.getSubject());
+        if (skipBackup(realSubject)) {
+            consumer.accept(index);
+            return;
+        }
         //使用bulkload方式上传
 //        hFileIndexStore.appendData(index, consumer);
         // indexBatchBackup
         indexBatchBackup.add(index, consumer);
+    }
+
+    private boolean skipBackup(String subject) {
+        return skipBackSubjects.getBoolean(subject, false);
     }
 
     @Override

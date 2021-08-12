@@ -19,7 +19,6 @@ package qunar.tc.qmq.backup.startup;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import io.netty.buffer.ByteBuf;
-import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.backup.base.ActionRecord;
@@ -193,7 +192,7 @@ public class ServerWrapper implements Disposable {
         backupManager.registerBatchBackup(indexBackup);
 
 
-        return new IndexEventBusListener(indexBackup, consumer, keyGenerator);
+        return new IndexEventBusListener(indexBackup, consumer);
     }
 
     private FixedExecOrderEventBus.Listener<MessageQueryIndex> getConstructDeadIndexListener(final BackupKeyGenerator keyGenerator, Consumer<MessageQueryIndex> consumer) {
