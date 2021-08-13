@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.backup.base.BackupMessageMeta;
 import qunar.tc.qmq.backup.base.BackupQuery;
 import qunar.tc.qmq.backup.base.MessageQueryResult;
+import qunar.tc.qmq.backup.service.DicService;
 import qunar.tc.qmq.backup.store.MessageStore;
 import qunar.tc.qmq.backup.util.KeyValueList;
 import qunar.tc.qmq.backup.util.KeyValueListImpl;
@@ -47,9 +48,11 @@ public abstract class AbstractHBaseMessageStore<T> extends HBaseStore implements
     private static final Logger LOG = LoggerFactory.getLogger(AbstractHBaseMessageStore.class);
 
     protected final MessageQueryResult<T> EMPTY_RESULT = new MessageQueryResult<T>();
+    private final DicService dicService;
 
-    AbstractHBaseMessageStore(byte[] table, byte[] family, byte[][] qualifiers, HBaseClient client) {
+    AbstractHBaseMessageStore(byte[] table, byte[] family, byte[][] qualifiers, HBaseClient client, DicService dicService) {
         super(table, family, qualifiers, client);
+        this.dicService = dicService;
     }
 
     void getMessageFromHBase(final String subject, final byte[] table, final MessageQueryResult messageQueryResult, final String keyRegexp, final String startKey, final String endKey
@@ -60,7 +63,7 @@ public abstract class AbstractHBaseMessageStore<T> extends HBaseStore implements
                 KeyValueList<KeyValue> kvl = new KeyValueListImpl(kvs);
                 messageQueryResult.setNext(new String(kvl.getKey(), CharsetUtil.UTF_8));
                 byte[] value = kvl.getValue(CONTENT);
-                BackupMessageMeta meta = getMessageMeta(value);
+                BackupMessageMeta meta = getMessageMeta(kvl.getKey(), value);
                 if (meta == null) {
                     Metrics.counter("message.content.missing").inc();
                     LOG.info("Message content missing");
@@ -99,9 +102,11 @@ public abstract class AbstractHBaseMessageStore<T> extends HBaseStore implements
             final long sequence = meta.getSequence();
             final String messageId = meta.getMessageId();
             final MessageQueryResult.MessageMeta message = new MessageQueryResult.MessageMeta(subject, messageId, sequence, meta.getCreateTime(), brokerGroup);
+            if (!Strings.isNullOrEmpty(meta.getConsumerGroupId())) {
+                message.setConsumerGroup(dicService.id2Name(meta.getConsumerGroupId()));
+            }
             messages.add(message);
         }
-
         return messages;
     }
 

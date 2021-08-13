@@ -84,7 +84,7 @@ public class HBaseValueDecoder {
         return attributes;
     }
 
-    public static BackupMessageMeta getMessageMeta(byte[] value) {
+    public static BackupMessageMeta getMessageMeta(byte[] key, byte[] value) {
         try {
             if (value != null && value.length > 0) {
                 long sequence = Bytes.getLong(value, 0);
@@ -100,6 +100,11 @@ public class HBaseValueDecoder {
                 System.arraycopy(value, 20 + brokerGroupLength, messageIdBytes, 0, messageIdLength);
                 BackupMessageMeta meta = new BackupMessageMeta(sequence, new String(brokerGroupBytes, CharsetUtil.UTF_8), new String(messageIdBytes, CharsetUtil.UTF_8));
                 meta.setCreateTime(createTime);
+                if (key != null && key.length > 12) {
+                    byte[] consumerGroupIdBytes = new byte[6];
+                    System.arraycopy(key, 6, consumerGroupIdBytes, 0, 6);
+                    meta.setConsumerGroupId(new String(consumerGroupIdBytes));
+                }
                 return meta;
             }
         } catch (Exception ignored) {

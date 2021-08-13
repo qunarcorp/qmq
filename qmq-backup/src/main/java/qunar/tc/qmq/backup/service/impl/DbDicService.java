@@ -63,6 +63,11 @@ public class DbDicService implements DicService {
         return name2IdCache.getUnchecked(name);
     }
 
+    @Override
+    public String id2Name(String id) {
+        return dicStore.getName(Integer.valueOf(id));
+    }
+
     private String getOrCreateId(String name) {
         for (int i = 0; i < 5; ++i) {
             try {

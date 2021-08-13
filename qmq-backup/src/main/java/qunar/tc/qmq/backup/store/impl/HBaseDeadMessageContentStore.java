@@ -50,7 +50,7 @@ public class HBaseDeadMessageContentStore extends AbstractHBaseMessageStore<Back
     private DicService dicService;
 
     HBaseDeadMessageContentStore(byte[] table, byte[] family, byte[][] qualifiers, HBaseClient client, DicService dicService) {
-        super(table, family, qualifiers, client);
+        super(table, family, qualifiers, client, dicService);
         this.dicService = dicService;
     }
 

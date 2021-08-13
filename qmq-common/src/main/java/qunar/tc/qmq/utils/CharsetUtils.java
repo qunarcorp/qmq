@@ -44,4 +44,9 @@ public class CharsetUtils {
             return "";
         }
     }
+
+    public static void main(String[] args) {
+        final byte[] x = toUTF8Bytes("999999");
+        System.out.println(x);
+    }
 }

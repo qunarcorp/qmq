@@ -35,7 +35,7 @@ public class HBaseDeadMessageStore extends AbstractHBaseMessageStore implements 
     private DicService dicService;
 
     HBaseDeadMessageStore(byte[] table, byte[] family, byte[][] qualifiers, HBaseClient client, DicService dicService) {
-        super(table, family, qualifiers, client);
+        super(table, family, qualifiers, client, dicService);
         this.dicService = dicService;
     }
 

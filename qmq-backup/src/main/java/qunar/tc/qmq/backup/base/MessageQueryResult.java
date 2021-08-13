@@ -51,22 +51,23 @@ public class MessageQueryResult<T> implements Serializable {
     }
 
     public static class MessageMeta {
-        private final String subejct;
+        private final String subject;
+        private String consumerGroup;
         private final String messageId;
         private final long sequence;
         private final long createTime;
         private final String brokerGroup;
 
         public MessageMeta(String subject, String messageId, long sequence, long createTime, String brokerGroup) {
-            this.subejct = subject;
+            this.subject = subject;
             this.messageId = messageId;
             this.sequence = sequence;
             this.createTime = createTime;
             this.brokerGroup = brokerGroup;
         }
 
-        public String getSubejct() {
-            return subejct;
+        public String getSubject() {
+            return subject;
         }
 
         public String getMessageId() {
@@ -83,6 +84,14 @@ public class MessageQueryResult<T> implements Serializable {
 
         public String getBrokerGroup() {
             return brokerGroup;
+        }
+
+        public String getConsumerGroup() {
+            return consumerGroup;
+        }
+
+        public void setConsumerGroup(String consumerGroup) {
+            this.consumerGroup = consumerGroup;
         }
     }
 

@@ -28,4 +28,6 @@ public interface DicService {
 
     String name2Id(String name);
 
+    String id2Name(String id);
+
 }
