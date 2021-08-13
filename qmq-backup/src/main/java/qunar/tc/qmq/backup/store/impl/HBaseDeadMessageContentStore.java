@@ -16,20 +16,13 @@
 
 package qunar.tc.qmq.backup.store.impl;
 
-import static qunar.tc.qmq.backup.util.HBaseValueDecoder.getMessage;
-import static qunar.tc.qmq.backup.util.HBaseValueDecoder.getMessageMeta;
-
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
-
+import com.google.common.base.Strings;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
 import org.jboss.netty.util.CharsetUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.backup.base.BackupMessage;
-import qunar.tc.qmq.backup.base.BackupMessageMeta;
 import qunar.tc.qmq.backup.base.BackupQuery;
 import qunar.tc.qmq.backup.base.MessageQueryResult;
 import qunar.tc.qmq.backup.service.DicService;
@@ -39,6 +32,12 @@ import qunar.tc.qmq.backup.util.BackupMessageKeyRegexpBuilder;
 import qunar.tc.qmq.backup.util.KeyValueList;
 import qunar.tc.qmq.backup.util.KeyValueListImpl;
 import qunar.tc.qmq.metrics.Metrics;
+
+import java.util.Collections;
+import java.util.Date;
+import java.util.List;
+
+import static qunar.tc.qmq.backup.util.HBaseValueDecoder.getMessage;
 
 /**
  * @author xufeng.deng dennisdxf@gmail.com
@@ -58,18 +57,22 @@ public class HBaseDeadMessageContentStore extends AbstractHBaseMessageStore<Back
     @Override
     protected MessageQueryResult findMessagesInternal(BackupQuery query) {
         final String subject = query.getSubject();
-        final Date msgCreateTimeBegin = query.getMsgCreateTimeBegin();
-        final Date msgCreateTimeEnd = query.getMsgCreateTimeEnd();
-        final int len = query.getLen();
-        final String start = (String) query.getStart();
         final String consumerGroup = query.getConsumerGroup();
 
+        final Date msgCreateTimeBegin = query.getMsgCreateTimeBegin();
+        final Date msgCreateTimeEnd = query.getMsgCreateTimeEnd();
+
+        final int len = query.getLen();
+        final String start = query.getStart();
+
         final String subjectId = dicService.name2Id(subject);
-        final String consumerGroupId = dicService.name2Id(consumerGroup);
+        String consumerGroupId = Strings.isNullOrEmpty(consumerGroup) ? null : dicService.name2Id(consumerGroup);
         final String messageId = query.getMessageId();
 
-        final String keyRegexp = BackupMessageKeyRegexpBuilder.buildDeadContentRegexp(subjectId, consumerGroupId,  messageId);
+        final String keyRegexp = BackupMessageKeyRegexpBuilder.buildDeadContentRegexp(subjectId, consumerGroupId, messageId);
+        consumerGroupId = Strings.isNullOrEmpty(consumerGroupId) ? "000000" : consumerGroupId;
         final String startKey = BackupMessageKeyRangeBuilder.buildDeadContentStartKey(start, subjectId, consumerGroupId, messageId, msgCreateTimeEnd);
+        consumerGroupId = Strings.isNullOrEmpty(consumerGroupId) ? "999999" : consumerGroupId;
         final String endKey = BackupMessageKeyRangeBuilder.buildDeadContentEndKey(subjectId, consumerGroupId, messageId, msgCreateTimeBegin);
 
         final MessageQueryResult<BackupMessage> messageQueryResult = new MessageQueryResult();
@@ -88,8 +91,7 @@ public class HBaseDeadMessageContentStore extends AbstractHBaseMessageStore<Back
                 BackupMessage message = null;
                 try {
                     message = getMessage(value);
-                }
-                catch (Exception e) {
+                } catch (Exception e) {
                     LOG.warn("decode msg error!", e);
                 }
                 if (message == null) {
