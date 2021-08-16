@@ -22,6 +22,7 @@ import org.hbase.async.*;
 import org.jboss.netty.util.CharsetUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.backup.base.BackupMessageMeta;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -56,6 +57,34 @@ public class HBaseStore extends AbstractHBaseStore {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    protected BackupMessageMeta getMessageMeta(byte[] key, byte[] value) {
+        try {
+            if (value != null && value.length > 0) {
+                long sequence = Bytes.getLong(value, 0);
+                long createTime = Bytes.getLong(value, 8);
+                int brokerGroupLength = Bytes.getInt(value, 16);
+                if (brokerGroupLength > 200) {
+                    return null;
+                }
+                byte[] brokerGroupBytes = new byte[brokerGroupLength];
+                System.arraycopy(value, 20, brokerGroupBytes, 0, brokerGroupLength);
+                int messageIdLength = value.length - 20 - brokerGroupLength;
+                byte[] messageIdBytes = new byte[messageIdLength];
+                System.arraycopy(value, 20 + brokerGroupLength, messageIdBytes, 0, messageIdLength);
+                BackupMessageMeta meta = new BackupMessageMeta(sequence, new String(brokerGroupBytes, CharsetUtil.UTF_8), new String(messageIdBytes, CharsetUtil.UTF_8));
+                meta.setCreateTime(createTime);
+                if (key != null && key.length > 12) {
+                    byte[] consumerGroupIdBytes = new byte[6];
+                    System.arraycopy(key, 6, consumerGroupIdBytes, 0, 6);
+                    meta.setConsumerGroupId(new String(consumerGroupIdBytes));
+                }
+                return meta;
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
     }
 
     @Override

@@ -44,7 +44,6 @@ import java.util.List;
 
 import static qunar.tc.qmq.backup.service.BackupKeyGenerator.*;
 import static qunar.tc.qmq.backup.util.DateTimeUtils.localDateTime2Date;
-import static qunar.tc.qmq.backup.util.HBaseValueDecoder.getMessageMeta;
 import static qunar.tc.qmq.backup.util.HBaseValueDecoder.getRecord;
 import static qunar.tc.qmq.backup.util.KeyTools.generateDecimalFormatKey19;
 
@@ -188,6 +187,31 @@ public class HBaseRecordStore extends HBaseStore implements RecordStore {
             LOG.error("Failed to scan messages meta.", e);
             return Lists.newArrayList();
         }
+    }
+
+    @Override
+    protected BackupMessageMeta getMessageMeta(byte[] key, byte[] value) {
+        if (value == null || value.length <= 0) {
+            return null;
+        }
+        try {
+            long sequence = org.hbase.async.Bytes.getLong(value, 0);
+            long createTime = org.hbase.async.Bytes.getLong(value, 8);
+            int brokerGroupLength = org.hbase.async.Bytes.getInt(value, 16);
+            if (brokerGroupLength > 200) {
+                return null;
+            }
+            byte[] brokerGroupBytes = new byte[brokerGroupLength];
+            System.arraycopy(value, 20, brokerGroupBytes, 0, brokerGroupLength);
+            int messageIdLength = value.length - 20 - brokerGroupLength;
+            byte[] messageIdBytes = new byte[messageIdLength];
+            System.arraycopy(value, 20 + brokerGroupLength, messageIdBytes, 0, messageIdLength);
+            BackupMessageMeta meta = new BackupMessageMeta(sequence, new String(brokerGroupBytes, CharsetUtil.UTF_8), new String(messageIdBytes, CharsetUtil.UTF_8));
+            meta.setCreateTime(createTime);
+            return meta;
+        } catch (Exception ignored) {
+        }
+        return null;
     }
 
     private RecordQueryResult retResult(List<RecordQueryResult.Record> records) {
