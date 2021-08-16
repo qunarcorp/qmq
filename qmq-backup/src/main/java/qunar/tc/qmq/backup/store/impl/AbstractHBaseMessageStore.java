@@ -18,6 +18,7 @@ package qunar.tc.qmq.backup.store.impl;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import org.hbase.async.Bytes;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
 import org.jboss.netty.util.CharsetUtil;
@@ -38,7 +39,6 @@ import java.util.List;
 
 import static qunar.tc.qmq.backup.util.DateTimeUtils.date2LocalDateTime;
 import static qunar.tc.qmq.backup.util.DateTimeUtils.localDateTime2Date;
-import static qunar.tc.qmq.backup.util.HBaseValueDecoder.getMessageMeta;
 
 /**
  * @author xufeng.deng dennisdxf@gmail.com
@@ -83,6 +83,34 @@ public abstract class AbstractHBaseMessageStore<T> extends HBaseStore implements
         messageQueryResult.setList(messages);
     }
 
+    protected BackupMessageMeta getMessageMeta(byte[] key, byte[] value) {
+        try {
+            if (value != null && value.length > 0) {
+                long sequence = Bytes.getLong(value, 0);
+                long createTime = Bytes.getLong(value, 8);
+                int brokerGroupLength = Bytes.getInt(value, 16);
+                if (brokerGroupLength > 200) {
+                    return null;
+                }
+                byte[] brokerGroupBytes = new byte[brokerGroupLength];
+                System.arraycopy(value, 20, brokerGroupBytes, 0, brokerGroupLength);
+                int messageIdLength = value.length - 20 - brokerGroupLength;
+                byte[] messageIdBytes = new byte[messageIdLength];
+                System.arraycopy(value, 20 + brokerGroupLength, messageIdBytes, 0, messageIdLength);
+                BackupMessageMeta meta = new BackupMessageMeta(sequence, new String(brokerGroupBytes, CharsetUtil.UTF_8), new String(messageIdBytes, CharsetUtil.UTF_8));
+                meta.setCreateTime(createTime);
+                if (key != null && key.length > 12) {
+                    byte[] consumerGroupIdBytes = new byte[6];
+                    System.arraycopy(key, 6, consumerGroupIdBytes, 0, 6);
+                    meta.setConsumerGroupId(new String(consumerGroupIdBytes));
+                }
+                return meta;
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
     protected <T> void slim(final List<T> messageRowKeys, final MessageQueryResult messageQueryResult, final int maxResults) {
         int size = messageRowKeys.size();
         if (maxResults > 0) {
@@ -103,7 +131,11 @@ public abstract class AbstractHBaseMessageStore<T> extends HBaseStore implements
             final String messageId = meta.getMessageId();
             final MessageQueryResult.MessageMeta message = new MessageQueryResult.MessageMeta(subject, messageId, sequence, meta.getCreateTime(), brokerGroup);
             if (!Strings.isNullOrEmpty(meta.getConsumerGroupId())) {
-                message.setConsumerGroup(dicService.id2Name(meta.getConsumerGroupId()));
+                try {
+                    message.setConsumerGroup(dicService.id2Name(meta.getConsumerGroupId()));
+                } catch (Exception e) {
+                    LOG.error("not found name for: " + meta.getConsumerGroupId());
+                }
             }
             messages.add(message);
         }

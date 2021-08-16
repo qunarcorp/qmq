@@ -16,12 +16,9 @@
 
 package qunar.tc.qmq.backup.util;
 
-import io.netty.buffer.ByteBuf;
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
-import org.jboss.netty.util.CharsetUtil;
 import qunar.tc.qmq.backup.base.BackupMessage;
-import qunar.tc.qmq.backup.base.BackupMessageMeta;
 import qunar.tc.qmq.backup.base.RecordQueryResult;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.protocol.QMQSerializer;
@@ -82,34 +79,6 @@ public class HBaseValueDecoder {
         attributes = QMQSerializer.deserializeMap(bodyBs);
         attributes.put(BaseMessage.keys.qmq_createTime.name(), createTime);
         return attributes;
-    }
-
-    public static BackupMessageMeta getMessageMeta(byte[] key, byte[] value) {
-        try {
-            if (value != null && value.length > 0) {
-                long sequence = Bytes.getLong(value, 0);
-                long createTime = Bytes.getLong(value, 8);
-                int brokerGroupLength = Bytes.getInt(value, 16);
-                if (brokerGroupLength > 200) {
-                    return null;
-                }
-                byte[] brokerGroupBytes = new byte[brokerGroupLength];
-                System.arraycopy(value, 20, brokerGroupBytes, 0, brokerGroupLength);
-                int messageIdLength = value.length - 20 - brokerGroupLength;
-                byte[] messageIdBytes = new byte[messageIdLength];
-                System.arraycopy(value, 20 + brokerGroupLength, messageIdBytes, 0, messageIdLength);
-                BackupMessageMeta meta = new BackupMessageMeta(sequence, new String(brokerGroupBytes, CharsetUtil.UTF_8), new String(messageIdBytes, CharsetUtil.UTF_8));
-                meta.setCreateTime(createTime);
-                if (key != null && key.length > 12) {
-                    byte[] consumerGroupIdBytes = new byte[6];
-                    System.arraycopy(key, 6, consumerGroupIdBytes, 0, 6);
-                    meta.setConsumerGroupId(new String(consumerGroupIdBytes));
-                }
-                return meta;
-            }
-        } catch (Exception ignored) {
-        }
-        return null;
     }
 
     public static RecordQueryResult.Record getRecord(List<KeyValue> kvs, byte type) {

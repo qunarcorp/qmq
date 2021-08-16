@@ -16,7 +16,10 @@
 
 package qunar.tc.qmq.backup.store.impl;
 
+import org.hbase.async.Bytes;
 import org.hbase.async.HBaseClient;
+import org.jboss.netty.util.CharsetUtil;
+import qunar.tc.qmq.backup.base.BackupMessageMeta;
 import qunar.tc.qmq.backup.base.BackupQuery;
 import qunar.tc.qmq.backup.base.MessageQueryResult;
 import qunar.tc.qmq.backup.service.DicService;
@@ -66,6 +69,31 @@ public class HBaseIndexStore extends AbstractHBaseMessageStore<MessageQueryResul
         getMessageFromHBase(subject, table, messageQueryResult, keyRegexp, startKey, endKey, len);
 
         return messageQueryResult;
+    }
+
+    @Override
+    protected BackupMessageMeta getMessageMeta(byte[] key, byte[] value) {
+        if (value == null || value.length <= 0) {
+            return null;
+        }
+        try {
+            long sequence = Bytes.getLong(value, 0);
+            long createTime = Bytes.getLong(value, 8);
+            int brokerGroupLength = Bytes.getInt(value, 16);
+            if (brokerGroupLength > 200) {
+                return null;
+            }
+            byte[] brokerGroupBytes = new byte[brokerGroupLength];
+            System.arraycopy(value, 20, brokerGroupBytes, 0, brokerGroupLength);
+            int messageIdLength = value.length - 20 - brokerGroupLength;
+            byte[] messageIdBytes = new byte[messageIdLength];
+            System.arraycopy(value, 20 + brokerGroupLength, messageIdBytes, 0, messageIdLength);
+            BackupMessageMeta meta = new BackupMessageMeta(sequence, new String(brokerGroupBytes, CharsetUtil.UTF_8), new String(messageIdBytes, CharsetUtil.UTF_8));
+            meta.setCreateTime(createTime);
+            return meta;
+        } catch (Exception ignored) {
+        }
+        return null;
     }
 
 }
