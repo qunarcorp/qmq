@@ -16,14 +16,16 @@
 
 package qunar.tc.qmq.meta.store.impl;
 
+import static qunar.tc.qmq.meta.store.impl.Serializer.serialize;
+
+import java.sql.Timestamp;
+import java.util.Collections;
+import java.util.Date;
+import java.util.List;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.dao.EmptyResultDataAccessException;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
-
-import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
 import qunar.tc.qmq.meta.BrokerGroup;
 import qunar.tc.qmq.meta.BrokerGroupKind;
 import qunar.tc.qmq.meta.BrokerState;
@@ -32,12 +34,9 @@ import qunar.tc.qmq.meta.model.SubjectRoute;
 import qunar.tc.qmq.meta.store.Store;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
 
-import java.sql.Timestamp;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
-
-import static qunar.tc.qmq.meta.store.impl.Serializer.serialize;
+import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 
 /**
  * @author yunfeng.yang
@@ -55,6 +54,7 @@ public class DatabaseStore implements Store {
     private static final String SELECT_BROKER_GROUP_SQL = "SELECT group_name, kind, master_address, broker_state, tag, update_time FROM broker_group WHERE group_name = ?";
     private static final String UPDATE_BROKER_GROUP_SQL = "UPDATE broker_group SET broker_state = ? WHERE group_name = ?";
     private static final String UPDATE_BROKER_GROUP_TAG_SQL = "UPDATE broker_group SET tag = ? WHERE group_name = ?";
+    private static final String UPDATE_BROKER_GROUP_LDC_SQL = "UPDATE broker_group SET ldc = ? WHERE group_name = ?";
     private static final String INSERT_OR_UPDATE_BROKER_GROUP_SQL = "INSERT INTO broker_group(group_name,kind,master_address,broker_state,create_time) VALUES(?,?,?,?,?) ON DUPLICATE KEY UPDATE master_address=?,broker_state=?";
 
     private static final String INSERT_CLIENT_META_INFO_SQL = "INSERT IGNORE INTO client_meta_info(subject_info,client_type,consumer_group,client_id,app_code,create_time) VALUES(?, ?, ?, ?, ?, ?)";
@@ -70,6 +70,7 @@ public class DatabaseStore implements Store {
         brokerGroup.setBrokerState(BrokerState.codeOf(rs.getInt("broker_state")));
         brokerGroup.setUpdateTime(rs.getTimestamp("update_time").getTime());
         brokerGroup.setTag(rs.getString("tag"));
+        brokerGroup.setLdc(rs.getString("ldc"));
         brokerGroup.setKind(BrokerGroupKind.fromCode(rs.getInt("kind")));
 
         return brokerGroup;
@@ -135,6 +136,11 @@ public class DatabaseStore implements Store {
     @Override
     public void updateBrokerGroupTag(String groupName, String tag) {
         jdbcTemplate.update(UPDATE_BROKER_GROUP_TAG_SQL, tag, groupName);
+    }
+
+    @Override
+    public void updateBrokerGroupLdc(String groupName, String ldc) {
+        jdbcTemplate.update(UPDATE_BROKER_GROUP_LDC_SQL, ldc, groupName);
     }
 
     @Override

@@ -16,14 +16,14 @@
 
 package qunar.tc.qmq.meta.store;
 
+import java.util.List;
+
 import qunar.tc.qmq.meta.BrokerGroup;
 import qunar.tc.qmq.meta.BrokerGroupKind;
 import qunar.tc.qmq.meta.BrokerState;
 import qunar.tc.qmq.meta.model.SubjectInfo;
 import qunar.tc.qmq.meta.model.SubjectRoute;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
-
-import java.util.List;
 
 /**
  * @author yunfeng.yang
@@ -42,6 +42,8 @@ public interface Store {
     void updateBrokerGroup(String groupName, BrokerState brokerState);
 
     void updateBrokerGroupTag(String groupName, String tag);
+
+    void updateBrokerGroupLdc(String groupName, String ldc);
 
     void insertSubject(String subject, String tag);
 

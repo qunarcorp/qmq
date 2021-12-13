@@ -16,10 +16,10 @@
 
 package qunar.tc.qmq.utils;
 
-import com.google.common.base.Strings;
-
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.Charset;
+
+import com.google.common.base.Strings;
 
 /**
  * @author yiqun.fan create on 17-7-6.
@@ -43,6 +43,34 @@ public class CharsetUtils {
         } catch (UnsupportedEncodingException e) {
             return "";
         }
+    }
+
+    public static boolean hasText(CharSequence str) {
+        if (!hasLength(str)) {
+            return false;
+        } else {
+            int strLen = str.length();
+
+            for(int i = 0; i < strLen; ++i) {
+                if (!Character.isWhitespace(str.charAt(i))) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+    }
+
+    public static boolean hasText(String str) {
+        return hasText((CharSequence)str);
+    }
+
+    public static boolean hasLength(CharSequence str) {
+        return str != null && str.length() > 0;
+    }
+
+    public static boolean hasLength(String str) {
+        return hasLength((CharSequence)str);
     }
 
     public static void main(String[] args) {

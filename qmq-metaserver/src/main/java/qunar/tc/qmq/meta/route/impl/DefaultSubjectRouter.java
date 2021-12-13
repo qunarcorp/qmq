@@ -16,6 +16,13 @@
 
 package qunar.tc.qmq.meta.route.impl;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.configuration.DynamicConfig;
@@ -30,8 +37,8 @@ import qunar.tc.qmq.meta.monitor.QMon;
 import qunar.tc.qmq.meta.route.SubjectRouter;
 import qunar.tc.qmq.meta.store.Store;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
+import qunar.tc.qmq.utils.CharsetUtils;
 
-import java.util.*;
 
 /**
  * @author keli.wang
@@ -61,11 +68,32 @@ public class DefaultSubjectRouter implements SubjectRouter {
     public List<BrokerGroup> route(final String subject, final MetaInfoRequest request) {
         try {
             QMon.clientSubjectRouteCountInc(subject);
-            return doRoute(subject);
+            return ldcFilter(doRoute(subject), request);
         } catch (Throwable e) {
             LOG.error("find subject route error", e);
             return Collections.emptyList();
         }
+    }
+
+    /**
+     * 根据请求分配
+     * @param brokerGroups
+     * @param request
+     * @return
+     */
+    private List<BrokerGroup> ldcFilter(List<BrokerGroup> brokerGroups, final MetaInfoRequest request) {
+        if (brokerGroups == null || brokerGroups.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        if (!CharsetUtils.hasText(request.getClientLdc())) {
+            return brokerGroups;
+        }
+
+        if (brokerGroups.stream().anyMatch(s -> s.getLdc().equalsIgnoreCase(request.getClientLdc()))) {
+            return brokerGroups.stream().filter(s -> s.getLdc().equalsIgnoreCase(request.getClientLdc())).collect(Collectors.toList());
+        }
+        return brokerGroups;
     }
 
     private List<BrokerGroup> doRoute(String subject) {

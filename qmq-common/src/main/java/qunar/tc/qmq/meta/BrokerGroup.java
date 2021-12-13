@@ -31,6 +31,7 @@ public class BrokerGroup {
     private BrokerState brokerState;
     private String tag;
     private BrokerGroupKind kind;
+    private String ldc;
 
     public String getGroupName() {
         return groupName;
@@ -88,6 +89,14 @@ public class BrokerGroup {
         this.kind = kind;
     }
 
+    public String getLdc() {
+        return ldc;
+    }
+
+    public void setLdc(String ldc) {
+        this.ldc = ldc;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -111,6 +120,7 @@ public class BrokerGroup {
                 ", updateTime=" + updateTime +
                 ", brokerState=" + brokerState +
                 ", tag='" + tag + '\'' +
+                ", ldc='" + ldc + '\'' +
                 '}';
     }
 }
