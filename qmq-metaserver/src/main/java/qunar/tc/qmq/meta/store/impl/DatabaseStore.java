@@ -22,6 +22,7 @@ import java.sql.Timestamp;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.slf4j.Logger;
@@ -33,6 +34,7 @@ import qunar.tc.qmq.meta.model.SubjectInfo;
 import qunar.tc.qmq.meta.model.SubjectRoute;
 import qunar.tc.qmq.meta.store.Store;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
+import qunar.tc.qmq.utils.CharsetUtils;
 
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -50,11 +52,11 @@ public class DatabaseStore implements Store {
     private static final String FIND_SUBJECT_ROUTE_SQL = "SELECT subject_info, version, broker_group_json, update_time FROM subject_route";
     private static final String SELECT_SUBJECT_ROUTE_SQL = "SELECT subject_info, version, broker_group_json, update_time FROM subject_route WHERE subject_info = ?";
 
-    private static final String FIND_BROKER_GROUP_SQL = "SELECT group_name, kind, master_address, broker_state, tag, ldc,update_time FROM broker_group";
-    private static final String SELECT_BROKER_GROUP_SQL = "SELECT group_name, kind, master_address, broker_state, tag,ldc, update_time FROM broker_group WHERE group_name = ?";
+    private static final String FIND_BROKER_GROUP_SQL = "SELECT group_name, kind, master_address, broker_state, tag, ext,update_time FROM broker_group";
+    private static final String SELECT_BROKER_GROUP_SQL = "SELECT group_name, kind, master_address, broker_state, tag,ext, update_time FROM broker_group WHERE group_name = ?";
     private static final String UPDATE_BROKER_GROUP_SQL = "UPDATE broker_group SET broker_state = ? WHERE group_name = ?";
     private static final String UPDATE_BROKER_GROUP_TAG_SQL = "UPDATE broker_group SET tag = ? WHERE group_name = ?";
-    private static final String UPDATE_BROKER_GROUP_LDC_SQL = "UPDATE broker_group SET ldc = ? WHERE group_name = ?";
+    private static final String UPDATE_BROKER_GROUP_EXT_SQL = "UPDATE broker_group SET ext = ? WHERE group_name = ?";
     private static final String INSERT_OR_UPDATE_BROKER_GROUP_SQL = "INSERT INTO broker_group(group_name,kind,master_address,broker_state,create_time) VALUES(?,?,?,?,?) ON DUPLICATE KEY UPDATE master_address=?,broker_state=?";
 
     private static final String INSERT_CLIENT_META_INFO_SQL = "INSERT IGNORE INTO client_meta_info(subject_info,client_type,consumer_group,client_id,app_code,create_time) VALUES(?, ?, ?, ?, ?, ?)";
@@ -70,7 +72,12 @@ public class DatabaseStore implements Store {
         brokerGroup.setBrokerState(BrokerState.codeOf(rs.getInt("broker_state")));
         brokerGroup.setUpdateTime(rs.getTimestamp("update_time").getTime());
         brokerGroup.setTag(rs.getString("tag"));
-        brokerGroup.setLdc(rs.getString("ldc"));
+        final String extJSON = rs.getString("ext");
+        if (CharsetUtils.hasText(extJSON)) {
+            final Map<String, String> map = Serializer.deSerialize(extJSON, new TypeReference<Map<String, String>>() {
+            });
+            brokerGroup.setExt(map);
+        }
         brokerGroup.setKind(BrokerGroupKind.fromCode(rs.getInt("kind")));
 
         return brokerGroup;
@@ -139,8 +146,9 @@ public class DatabaseStore implements Store {
     }
 
     @Override
-    public void updateBrokerGroupLdc(String groupName, String ldc) {
-        jdbcTemplate.update(UPDATE_BROKER_GROUP_LDC_SQL, ldc, groupName);
+    public void updateBrokerGroupExt(String groupName, Map<String,String> ext) {
+        final String extJson = serialize(ext);
+        jdbcTemplate.update(UPDATE_BROKER_GROUP_EXT_SQL, extJson, groupName);
     }
 
     @Override

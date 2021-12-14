@@ -16,15 +16,16 @@
 
 package qunar.tc.qmq.producer.sender;
 
+import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.Message;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.broker.impl.BrokerServiceImpl;
+import qunar.tc.qmq.common.ClientInfo;
 import qunar.tc.qmq.metainfoclient.MetaInfoService;
 import qunar.tc.qmq.tracing.TraceUtil;
-
-import java.util.Map;
 
 /**
  * @author zhenyu.nie created on 2017 2017/7/3 14:21
@@ -39,6 +40,7 @@ public class NettyRouterManager extends AbstractRouterManager {
 
     private String metaServer;
     private String appCode;
+    private ClientInfo clientInfo;
 
     public NettyRouterManager() {
         this.metaInfoService = new MetaInfoService();
@@ -48,6 +50,7 @@ public class NettyRouterManager extends AbstractRouterManager {
     @Override
     public void doInit(String clientId) {
         this.brokerService.setAppCode(appCode);
+        this.brokerService.setClientInfo(clientInfo);
 
         this.metaInfoService.setMetaServer(metaServer);
         this.metaInfoService.setClientId(clientId);
@@ -86,5 +89,9 @@ public class NettyRouterManager extends AbstractRouterManager {
 
     public void setAppCode(String appCode) {
         this.appCode = appCode;
+    }
+
+    public void setClientInfo(ClientInfo clientInfo) {
+        this.clientInfo = clientInfo;
     }
 }

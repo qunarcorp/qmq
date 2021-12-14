@@ -17,6 +17,7 @@
 package qunar.tc.qmq.meta.store;
 
 import java.util.List;
+import java.util.Map;
 
 import qunar.tc.qmq.meta.BrokerGroup;
 import qunar.tc.qmq.meta.BrokerGroupKind;
@@ -43,7 +44,7 @@ public interface Store {
 
     void updateBrokerGroupTag(String groupName, String tag);
 
-    void updateBrokerGroupLdc(String groupName, String ldc);
+    void updateBrokerGroupExt(String groupName, Map<String,String> ext);
 
     void insertSubject(String subject, String tag);
 

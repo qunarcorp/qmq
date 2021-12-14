@@ -15,9 +15,14 @@
  */
 package qunar.tc.qmq.producer;
 
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
+
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
 import io.opentracing.Scope;
 import io.opentracing.Tracer;
 import io.opentracing.util.GlobalTracer;
@@ -28,6 +33,7 @@ import qunar.tc.qmq.TransactionProvider;
 import qunar.tc.qmq.base.BaseMessage;
 import qunar.tc.qmq.common.ClientIdProvider;
 import qunar.tc.qmq.common.ClientIdProviderFactory;
+import qunar.tc.qmq.common.ClientInfo;
 import qunar.tc.qmq.common.EnvProvider;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.metrics.MetricsConstants;
@@ -37,13 +43,6 @@ import qunar.tc.qmq.producer.idgenerator.TimestampAndHostIdGenerator;
 import qunar.tc.qmq.producer.sender.NettyRouterManager;
 import qunar.tc.qmq.producer.tx.MessageTracker;
 import qunar.tc.qmq.tracing.TraceUtil;
-
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
-
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * @author miao.yang susing@gmail.com
@@ -64,6 +63,7 @@ public class MessageProducerProvider implements MessageProducer {
     private final Tracer tracer;
 
     private String appCode;
+    private ClientInfo clientInfo;
     private String metaServer;
 
     private MessageTracker messageTracker;
@@ -85,6 +85,7 @@ public class MessageProducerProvider implements MessageProducer {
 
         this.routerManager.setMetaServer(this.metaServer);
         this.routerManager.setAppCode(appCode);
+        this.routerManager.setClientInfo(clientInfo);
 
         if (STARTED.compareAndSet(false, true)) {
             routerManager.init(clientIdProvider.get());
@@ -252,6 +253,15 @@ public class MessageProducerProvider implements MessageProducer {
      */
     public void setAppCode(String appCode) {
         this.appCode = appCode;
+    }
+
+    /**
+     *
+     *  客户端信息用户补充appCode 不足
+     * @param clientInfo
+     */
+    public void setClientInfo(ClientInfo clientInfo) {
+        this.clientInfo = clientInfo;
     }
 
     /**

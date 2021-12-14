@@ -16,17 +16,6 @@
 
 package qunar.tc.qmq.broker.impl;
 
-import com.google.common.eventbus.Subscribe;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.broker.BrokerClusterInfo;
-import qunar.tc.qmq.broker.BrokerGroupInfo;
-import qunar.tc.qmq.broker.BrokerService;
-import qunar.tc.qmq.common.ClientType;
-import qunar.tc.qmq.common.MapKeyBuilder;
-import qunar.tc.qmq.metainfoclient.MetaInfo;
-import qunar.tc.qmq.metainfoclient.MetaInfoService;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -34,6 +23,18 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+
+import com.google.common.eventbus.Subscribe;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.broker.BrokerClusterInfo;
+import qunar.tc.qmq.broker.BrokerGroupInfo;
+import qunar.tc.qmq.broker.BrokerService;
+import qunar.tc.qmq.common.ClientInfo;
+import qunar.tc.qmq.common.ClientType;
+import qunar.tc.qmq.common.MapKeyBuilder;
+import qunar.tc.qmq.metainfoclient.MetaInfo;
+import qunar.tc.qmq.metainfoclient.MetaInfoService;
 
 /**
  * @author yiqun.fan create on 17-8-18.
@@ -45,6 +46,11 @@ public class BrokerServiceImpl implements BrokerService {
 
     private final MetaInfoService metaInfoService;
     private String appCode;
+
+    /**
+     * 客户端信息
+     */
+    private ClientInfo clientInfo;
 
     public BrokerServiceImpl(MetaInfoService metaInfoService) {
         this.metaInfoService = metaInfoService;
@@ -140,7 +146,7 @@ public class BrokerServiceImpl implements BrokerService {
         // 这个key上加group不兼容MetaInfoResponse
         String key = MapKeyBuilder.buildMetaInfoKey(clientType, subject);
         ClusterFuture future = clusterMap.get(key);
-        MetaInfoService.MetaInfoRequestParam requestParam = MetaInfoService.buildRequestParam(clientType, subject, group, appCode);
+        MetaInfoService.MetaInfoRequestParam requestParam = MetaInfoService.buildRequestParam(clientType, subject, group, appCode, clientInfo);
         if (future == null) {
             future = request(requestParam, false);
         } else {
@@ -156,12 +162,17 @@ public class BrokerServiceImpl implements BrokerService {
 
     @Override
     public void refresh(ClientType clientType, String subject, String group) {
-        request(MetaInfoService.buildRequestParam(clientType, subject, group, appCode), true);
+        request(MetaInfoService.buildRequestParam(clientType, subject, group, appCode, clientInfo), true);
     }
 
     @Override
     public void setAppCode(String appCode) {
         this.appCode = appCode;
+    }
+
+    @Override
+    public void setClientInfo(ClientInfo clientInfo) {
+        this.clientInfo = clientInfo;
     }
 
     private ClusterFuture request(MetaInfoService.MetaInfoRequestParam requestParam, boolean refresh) {

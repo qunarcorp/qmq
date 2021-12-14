@@ -17,6 +17,7 @@
 package qunar.tc.qmq.meta;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -31,7 +32,7 @@ public class BrokerGroup {
     private BrokerState brokerState;
     private String tag;
     private BrokerGroupKind kind;
-    private String ldc;
+    private Map<String,String> ext;
 
     public String getGroupName() {
         return groupName;
@@ -89,12 +90,12 @@ public class BrokerGroup {
         this.kind = kind;
     }
 
-    public String getLdc() {
-        return ldc;
+    public Map<String, String> getExt() {
+        return ext;
     }
 
-    public void setLdc(String ldc) {
-        this.ldc = ldc;
+    public void setExt(Map<String, String> ext) {
+        this.ext = ext;
     }
 
     @Override
@@ -120,7 +121,6 @@ public class BrokerGroup {
                 ", updateTime=" + updateTime +
                 ", brokerState=" + brokerState +
                 ", tag='" + tag + '\'' +
-                ", ldc='" + ldc + '\'' +
                 '}';
     }
 }

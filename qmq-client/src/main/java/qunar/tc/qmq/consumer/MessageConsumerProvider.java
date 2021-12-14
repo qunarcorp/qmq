@@ -15,21 +15,27 @@
  */
 package qunar.tc.qmq.consumer;
 
+import java.util.concurrent.Executor;
+
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
+
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import qunar.tc.qmq.*;
+import qunar.tc.qmq.ListenerHolder;
+import qunar.tc.qmq.MessageConsumer;
+import qunar.tc.qmq.MessageListener;
+import qunar.tc.qmq.PullConsumer;
+import qunar.tc.qmq.SubscribeParam;
 import qunar.tc.qmq.common.ClientIdProvider;
 import qunar.tc.qmq.common.ClientIdProviderFactory;
+import qunar.tc.qmq.common.ClientInfo;
 import qunar.tc.qmq.common.EnvProvider;
 import qunar.tc.qmq.config.NettyClientConfigManager;
 import qunar.tc.qmq.consumer.handler.MessageDistributor;
 import qunar.tc.qmq.consumer.pull.PullConsumerFactory;
 import qunar.tc.qmq.consumer.pull.PullRegister;
 import qunar.tc.qmq.netty.client.NettyClient;
-
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
-import java.util.concurrent.Executor;
 
 /**
  * @author miao.yang susing@gmail.com
@@ -47,6 +53,7 @@ public class MessageConsumerProvider implements MessageConsumer {
 
     private final PullRegister pullRegister;
     private String appCode;
+    private ClientInfo clientInfo;
     private String metaServer;
     private int destroyWaitInSeconds;
 
@@ -79,6 +86,7 @@ public class MessageConsumerProvider implements MessageConsumer {
             this.pullRegister.setEnvProvider(envProvider);
             this.pullRegister.setClientId(clientId);
             this.pullRegister.setAppCode(appCode);
+            this.pullRegister.setClientInfo(clientInfo);
             this.pullRegister.init();
 
             distributor = new MessageDistributor(pullRegister);
@@ -157,6 +165,15 @@ public class MessageConsumerProvider implements MessageConsumer {
      */
     public void setAppCode(String appCode) {
         this.appCode = appCode;
+    }
+
+    /**
+     *
+     * 客户端信息。用户客户端上报等。
+     * @param clientInfo
+     */
+    public void setClientInfo(ClientInfo clientInfo) {
+        this.clientInfo = clientInfo;
     }
 
     /**
