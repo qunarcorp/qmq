@@ -50,8 +50,8 @@ public class DatabaseStore implements Store {
     private static final String FIND_SUBJECT_ROUTE_SQL = "SELECT subject_info, version, broker_group_json, update_time FROM subject_route";
     private static final String SELECT_SUBJECT_ROUTE_SQL = "SELECT subject_info, version, broker_group_json, update_time FROM subject_route WHERE subject_info = ?";
 
-    private static final String FIND_BROKER_GROUP_SQL = "SELECT group_name, kind, master_address, broker_state, tag, update_time FROM broker_group";
-    private static final String SELECT_BROKER_GROUP_SQL = "SELECT group_name, kind, master_address, broker_state, tag, update_time FROM broker_group WHERE group_name = ?";
+    private static final String FIND_BROKER_GROUP_SQL = "SELECT group_name, kind, master_address, broker_state, tag, ldc,update_time FROM broker_group";
+    private static final String SELECT_BROKER_GROUP_SQL = "SELECT group_name, kind, master_address, broker_state, tag,ldc, update_time FROM broker_group WHERE group_name = ?";
     private static final String UPDATE_BROKER_GROUP_SQL = "UPDATE broker_group SET broker_state = ? WHERE group_name = ?";
     private static final String UPDATE_BROKER_GROUP_TAG_SQL = "UPDATE broker_group SET tag = ? WHERE group_name = ?";
     private static final String UPDATE_BROKER_GROUP_LDC_SQL = "UPDATE broker_group SET ldc = ? WHERE group_name = ?";

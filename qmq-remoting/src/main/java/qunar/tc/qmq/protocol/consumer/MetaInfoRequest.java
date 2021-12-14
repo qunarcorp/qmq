@@ -101,7 +101,7 @@ public class MetaInfoRequest {
         return Strings.nullToEmpty(attrs.get(CLIENT_LDC));
     }
 
-    private void getClientLdc(String ldc) {
+    public void setClientLdc(String ldc) {
         setStringValue(CLIENT_LDC, ldc);
     }
 
