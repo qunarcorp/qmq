@@ -16,20 +16,18 @@ public interface SubjectRouteExtend {
 	/**
 	 * Match list.
 	 *
-	 * @param realSubject the real subject
 	 * @param request the request
 	 * @return the list
 	 */
-	boolean match(final String realSubject, final MetaInfoRequest request);
+	boolean match( final MetaInfoRequest request);
 
 	/**
 	 * Route extend list.
 	 *
 	 * @param brokerGroups the broker groups
-	 * @param realSubject the real subject
 	 * @param request the request
 	 * @return the list
 	 */
-	List<BrokerGroup> routeExtend(List<BrokerGroup> brokerGroups,final String realSubject, final MetaInfoRequest request);
+	List<BrokerGroup> routeExtend(List<BrokerGroup> brokerGroups, final MetaInfoRequest request);
 
 }

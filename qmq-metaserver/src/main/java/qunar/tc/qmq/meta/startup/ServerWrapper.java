@@ -16,6 +16,11 @@
 
 package qunar.tc.qmq.meta.startup;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.servlet.ServletContext;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.common.Disposable;
@@ -24,7 +29,21 @@ import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
 import qunar.tc.qmq.meta.cache.BrokerMetaManager;
 import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 import qunar.tc.qmq.meta.cache.CachedOfflineStateManager;
-import qunar.tc.qmq.meta.management.*;
+import qunar.tc.qmq.meta.management.AddBrokerAction;
+import qunar.tc.qmq.meta.management.AddNewSubjectAction;
+import qunar.tc.qmq.meta.management.AddSubjectBrokerGroupAction;
+import qunar.tc.qmq.meta.management.ExtendSubjectRouteAction;
+import qunar.tc.qmq.meta.management.ListBrokerGroupsAction;
+import qunar.tc.qmq.meta.management.ListBrokersAction;
+import qunar.tc.qmq.meta.management.ListSubjectRoutesAction;
+import qunar.tc.qmq.meta.management.MarkReadonlyBrokerGroupAction;
+import qunar.tc.qmq.meta.management.MetaManagementActionSupplier;
+import qunar.tc.qmq.meta.management.RegisterClientDbAction;
+import qunar.tc.qmq.meta.management.RemoveSubjectBrokerGroupAction;
+import qunar.tc.qmq.meta.management.ReplaceBrokerAction;
+import qunar.tc.qmq.meta.management.ResetOffsetAction;
+import qunar.tc.qmq.meta.management.TokenVerificationAction;
+import qunar.tc.qmq.meta.management.UnMarkReadonlyBrokerGroupAction;
 import qunar.tc.qmq.meta.processor.BrokerAcquireMetaProcessor;
 import qunar.tc.qmq.meta.processor.BrokerRegisterProcessor;
 import qunar.tc.qmq.meta.processor.ClientRegisterProcessor;
@@ -32,8 +51,12 @@ import qunar.tc.qmq.meta.route.ReadonlyBrokerGroupManager;
 import qunar.tc.qmq.meta.route.SubjectRouter;
 import qunar.tc.qmq.meta.route.impl.DefaultSubjectRouter;
 import qunar.tc.qmq.meta.route.impl.DelayRouter;
+import qunar.tc.qmq.meta.route.impl.SubjectRouterWrapper;
 import qunar.tc.qmq.meta.service.ReadonlyBrokerGroupSettingService;
-import qunar.tc.qmq.meta.store.*;
+import qunar.tc.qmq.meta.store.BrokerStore;
+import qunar.tc.qmq.meta.store.ClientDbConfigurationStore;
+import qunar.tc.qmq.meta.store.ReadonlyBrokerGroupSettingStore;
+import qunar.tc.qmq.meta.store.Store;
 import qunar.tc.qmq.meta.store.impl.BrokerStoreImpl;
 import qunar.tc.qmq.meta.store.impl.ClientDbConfigurationStoreImpl;
 import qunar.tc.qmq.meta.store.impl.DatabaseStore;
@@ -41,10 +64,6 @@ import qunar.tc.qmq.meta.store.impl.ReadonlyBrokerGroupSettingStoreImpl;
 import qunar.tc.qmq.netty.DefaultConnectionEventHandler;
 import qunar.tc.qmq.netty.NettyServer;
 import qunar.tc.qmq.protocol.CommandCode;
-
-import javax.servlet.ServletContext;
-import java.util.ArrayList;
-import java.util.List;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -115,7 +134,8 @@ public class ServerWrapper implements Disposable {
     }
 
     private SubjectRouter createSubjectRouter(CachedMetaInfoManager cachedMetaInfoManager, Store store) {
-        return new DelayRouter(cachedMetaInfoManager, new DefaultSubjectRouter(config, cachedMetaInfoManager, store));
+        DelayRouter delayRouter =  new DelayRouter(cachedMetaInfoManager, new DefaultSubjectRouter(config, cachedMetaInfoManager, store));
+        return new SubjectRouterWrapper(delayRouter);
     }
 
 

@@ -24,7 +24,7 @@ public class SubjectRouteExtendFactory {
 		}
 	}
 
-	public static List<BrokerGroup> routeExtend(List<BrokerGroup> brokerGroups,final String realSubject, final MetaInfoRequest request){
+	public static List<BrokerGroup> routeExtend(List<BrokerGroup> brokerGroups,final MetaInfoRequest request){
 		if (brokerGroups == null || brokerGroups.isEmpty()) {
 			return Collections.emptyList();
 		}
@@ -33,8 +33,8 @@ public class SubjectRouteExtendFactory {
 		}
 		List<BrokerGroup> broker = brokerGroups;
 		for (SubjectRouteExtend subjectRouteExtend : subjectRouteExtends) {
-			if(subjectRouteExtend.match(realSubject,request)){
-				broker = subjectRouteExtend.routeExtend(broker,realSubject,request);
+			if(subjectRouteExtend.match(request)){
+				broker = subjectRouteExtend.routeExtend(broker,request);
 			}
 		}
 		return broker;

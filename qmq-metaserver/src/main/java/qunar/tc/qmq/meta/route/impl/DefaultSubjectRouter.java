@@ -33,7 +33,6 @@ import qunar.tc.qmq.meta.loadbalance.RandomLoadBalance;
 import qunar.tc.qmq.meta.model.SubjectInfo;
 import qunar.tc.qmq.meta.model.SubjectRoute;
 import qunar.tc.qmq.meta.monitor.QMon;
-import qunar.tc.qmq.meta.route.SubjectRouteExtendFactory;
 import qunar.tc.qmq.meta.route.SubjectRouter;
 import qunar.tc.qmq.meta.store.Store;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
@@ -67,22 +66,14 @@ public class DefaultSubjectRouter implements SubjectRouter {
     public List<BrokerGroup> route(final String subject, final MetaInfoRequest request) {
         try {
             QMon.clientSubjectRouteCountInc(subject);
-            return routeExtend(doRoute(subject),subject, request);
+            return doRoute(subject);
         } catch (Throwable e) {
             LOG.error("find subject route error", e);
             return Collections.emptyList();
         }
     }
 
-    /**
-     * 根据请求分配
-     * @param brokerGroups
-     * @param request
-     * @return
-     */
-    private List<BrokerGroup> routeExtend(List<BrokerGroup> brokerGroups, final String subject, final MetaInfoRequest request) {
-        return SubjectRouteExtendFactory.routeExtend(brokerGroups, subject, request);
-    }
+
 
     private List<BrokerGroup> doRoute(String subject) {
         SubjectInfo subjectInfo = getOrCreateSubjectInfo(subject);
