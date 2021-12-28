@@ -17,11 +17,14 @@
 package qunar.tc.qmq.meta.cache;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
+import com.google.common.collect.Sets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.concurrent.NamedThreadFactory;
@@ -46,6 +49,8 @@ public class AliveClientManager {
     private final Map<String, Map<ClientMetaInfo, Long>> allClients;
 
     private final Map<String, Map<ClientMetaInfo, Long>> allSubject;
+
+    private final Set<String> ldcSubject = Sets.newConcurrentHashSet();
 
     private AliveClientManager() {
         allClients = new ConcurrentHashMap<>();
@@ -78,6 +83,7 @@ public class AliveClientManager {
         meta.setClientTypeCode(request.getClientTypeCode());
         meta.setAppCode(request.getAppCode());
         meta.setClientId(request.getClientId());
+        meta.setRoom(request.getClientLdc());
         return meta;
     }
 
@@ -90,11 +96,20 @@ public class AliveClientManager {
         public void run() {
             try {
                 removeExpiredClients();
+                loadLdcSubject();
             } catch (Exception e) {
                 LOG.error("clean dead client info failed.", e);
             }
         }
 
+        private void loadLdcSubject() {
+            for (Map.Entry<String, Map<ClientMetaInfo, Long>> entry : allSubject.entrySet()) {
+                Set<String> room = entry.getValue().keySet().stream().map(s -> s.getRoom()).collect(Collectors.toSet());
+                if (room != null && room.size() > 1) {
+                    ldcSubject.add(entry.getKey());
+                }
+            }
+        }
         private void removeExpiredClients() {
             final long now = System.currentTimeMillis();
             for (Map<ClientMetaInfo, Long> map : allClients.values()) {
