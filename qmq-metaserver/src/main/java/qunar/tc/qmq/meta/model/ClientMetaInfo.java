@@ -16,17 +16,30 @@
 
 package qunar.tc.qmq.meta.model;
 
+import java.sql.Date;
+
 /**
  * @author yunfeng.yang
  * @since 2017/9/25
  */
 public class ClientMetaInfo {
+    private int id;
     private String subject;
     private int clientTypeCode;
     private String appCode;
     private String room;
     private String clientId;
     private String consumerGroup;
+    private Date createTime;
+    private Date updateTime;
+
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
+    }
 
     public String getSubject() {
         return subject;
@@ -74,6 +87,22 @@ public class ClientMetaInfo {
 
     public void setConsumerGroup(String consumerGroup) {
         this.consumerGroup = consumerGroup;
+    }
+
+    public Date getCreateTime() {
+        return createTime;
+    }
+
+    public void setCreateTime(Date createTime) {
+        this.createTime = createTime;
+    }
+
+    public Date getUpdateTime() {
+        return updateTime;
+    }
+
+    public void setUpdateTime(Date updateTime) {
+        this.updateTime = updateTime;
     }
 
     @Override

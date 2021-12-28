@@ -22,6 +22,7 @@ import java.util.Map;
 import qunar.tc.qmq.meta.BrokerGroup;
 import qunar.tc.qmq.meta.BrokerGroupKind;
 import qunar.tc.qmq.meta.BrokerState;
+import qunar.tc.qmq.meta.model.ClientMetaInfo;
 import qunar.tc.qmq.meta.model.SubjectInfo;
 import qunar.tc.qmq.meta.model.SubjectRoute;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
@@ -59,4 +60,12 @@ public interface Store {
     BrokerGroup getBrokerGroup(String groupName);
 
     void insertClientMetaInfo(MetaInfoRequest metaInfoRequest);
+
+    List<ClientMetaInfo> queryClientIds(List<String> clientIds);
+
+    List<ClientMetaInfo> queryConsumerByIdAndSubject(String clientId,List<String> subjects);
+
+    int updateTimeByIds(List<Integer> ids);
+
+    void batchUpdateMetaInfo(String clientId ,String subjects);
 }

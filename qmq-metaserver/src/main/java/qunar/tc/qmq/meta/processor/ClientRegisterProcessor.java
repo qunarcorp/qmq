@@ -16,10 +16,13 @@
 
 package qunar.tc.qmq.meta.processor;
 
+import java.util.concurrent.CompletableFuture;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import qunar.tc.qmq.meta.cache.AliveClientManager;
 import qunar.tc.qmq.meta.cache.CachedOfflineStateManager;
+import qunar.tc.qmq.meta.cache.MetaHeartBeatManager;
 import qunar.tc.qmq.meta.monitor.QMon;
 import qunar.tc.qmq.meta.route.ReadonlyBrokerGroupManager;
 import qunar.tc.qmq.meta.route.SubjectRouter;
@@ -31,8 +34,6 @@ import qunar.tc.qmq.protocol.RemotingHeader;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
 
-import java.util.concurrent.CompletableFuture;
-
 /**
  * @author yunfeng.yang
  * @since 2017/8/30
@@ -41,11 +42,14 @@ public class ClientRegisterProcessor implements NettyRequestProcessor {
 
     private final ClientRegisterWorker clientRegisterWorker;
     private final AliveClientManager aliveClientManager;
+    private final MetaHeartBeatManager metaHeartBeatManager;
 
     public ClientRegisterProcessor(final SubjectRouter subjectRouter,
                                    final CachedOfflineStateManager offlineStateManager,
+                                   final MetaHeartBeatManager metaHeartBeatManager,
                                    final Store store,
                                    ReadonlyBrokerGroupManager readonlyBrokerGroupManager) {
+        this.metaHeartBeatManager =metaHeartBeatManager;
         this.clientRegisterWorker = new ClientRegisterWorker(subjectRouter, offlineStateManager, store, readonlyBrokerGroupManager);
         this.aliveClientManager = AliveClientManager.getInstance();
     }
@@ -59,6 +63,7 @@ public class ClientRegisterProcessor implements NettyRequestProcessor {
 
         aliveClientManager.renew(request);
         clientRegisterWorker.register(new ClientRegisterMessage(request, ctx, header));
+        metaHeartBeatManager.addHeartBeat(request);
         return null;
     }
 

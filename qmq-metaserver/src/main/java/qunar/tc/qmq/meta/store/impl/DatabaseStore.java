@@ -25,11 +25,13 @@ import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.base.Joiner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.meta.BrokerGroup;
 import qunar.tc.qmq.meta.BrokerGroupKind;
 import qunar.tc.qmq.meta.BrokerState;
+import qunar.tc.qmq.meta.model.ClientMetaInfo;
 import qunar.tc.qmq.meta.model.SubjectInfo;
 import qunar.tc.qmq.meta.model.SubjectRoute;
 import qunar.tc.qmq.meta.store.Store;
@@ -61,9 +63,15 @@ public class DatabaseStore implements Store {
 
     private static final String INSERT_CLIENT_META_INFO_SQL = "INSERT IGNORE INTO client_meta_info(subject_info,client_type,consumer_group,client_id,app_code,create_time) VALUES(?, ?, ?, ?, ?, ?)";
 
+    private static final String INSERT_OR_UPDATE_CLIENT_META_INFO_SQL = "UPDATE client_meta_info SET update_time = ? WHERE client_id =? and subject_info in (?)";
+
+    private static final String SELECT_CLIENT_META_INFO_SQL = "SELECT id ,subject_info,client_type,consumer_group,client_id,app_code,room,create_time,update_time from   client_meta_info where client_id=?";
+
     private static final String INSERT_SUBJECT_INFO_SQL = "INSERT INTO subject_info(name,tag,create_time) VALUES(?,?,?)";
     private static final String ALL_SUBJECT_INFO_SQL = "SELECT name, tag, update_time FROM subject_info";
     private static final String QUERY_SUBJECT_INFO_SQL = "SELECT name, tag, update_time FROM subject_info WHERE name=?";
+
+    public static final Joiner JOINER_COMMA = Joiner.on(",");
 
     private static final RowMapper<BrokerGroup> BROKER_GROUP_ROW_MAPPER = (rs, rowNum) -> {
         final BrokerGroup brokerGroup = new BrokerGroup();
@@ -82,6 +90,7 @@ public class DatabaseStore implements Store {
 
         return brokerGroup;
     };
+
     private static final RowMapper<SubjectRoute> SUBJECT_ROUTE_ROW_MAPPER = (rs, rowNum) -> {
         final String subject = rs.getString("subject_info");
         final String groupInfoJson = rs.getString("broker_group_json");
@@ -205,5 +214,42 @@ public class DatabaseStore implements Store {
         final Timestamp now = new Timestamp(System.currentTimeMillis());
         jdbcTemplate.update(INSERT_CLIENT_META_INFO_SQL, request.getSubject(), request.getClientTypeCode(),
                 request.getConsumerGroup(), request.getClientId(), request.getAppCode(), now);
+    }
+
+    private static final RowMapper<ClientMetaInfo> CLIENT_META_INFO_ROW_MAPPER= (rs, rowNum) -> {
+        final ClientMetaInfo clientMetaInfo = new ClientMetaInfo();
+        clientMetaInfo.setId(rs.getInt("id"));
+        clientMetaInfo.setSubject(rs.getString("subject_info"));
+        clientMetaInfo.setClientTypeCode(rs.getInt("client_type"));
+        clientMetaInfo.setConsumerGroup(rs.getString("consumer_group"));
+        clientMetaInfo.setClientId((rs.getString("client_id")));
+        clientMetaInfo.setAppCode(rs.getString("app_code"));
+        clientMetaInfo.setRoom(rs.getString("room"));
+        clientMetaInfo.setCreateTime(rs.getDate("create_time"));
+        clientMetaInfo.setUpdateTime(rs.getDate("update_time"));
+        return clientMetaInfo;
+    };
+
+
+
+    @Override
+    public List<ClientMetaInfo> queryClientIds(List<String> clientIds) {
+        return jdbcTemplate.query("SELECT id ,subject_info,client_type,consumer_group,client_id,app_code,room,create_time,update_time from   client_meta_info where client_id in (?)", CLIENT_META_INFO_ROW_MAPPER, JOINER_COMMA.join(clientIds));
+    }
+
+    @Override
+    public List<ClientMetaInfo> queryConsumerByIdAndSubject(String clientId, List<String> subjects) {
+        return jdbcTemplate.query("SELECT id ,subject_info,client_type,consumer_group,client_id,app_code,room,create_time,update_time  from   client_meta_info where client_id = ? and subject_info in (?)", CLIENT_META_INFO_ROW_MAPPER, clientId, JOINER_COMMA.join(subjects));
+    }
+
+    @Override
+    public int updateTimeByIds(List<Integer> ids) {
+        return jdbcTemplate.update("UPDATE client_meta_info SET update_time = ? WHERE  id in (?)", JOINER_COMMA.join(ids));
+    }
+
+    @Override
+    public void batchUpdateMetaInfo(String clientId ,String subjects) {
+        final Timestamp now = new Timestamp(System.currentTimeMillis());
+        jdbcTemplate.update(INSERT_OR_UPDATE_CLIENT_META_INFO_SQL, now, clientId, subjects);
     }
 }

@@ -29,7 +29,6 @@ import qunar.tc.qmq.meta.BrokerGroup;
 import qunar.tc.qmq.meta.BrokerState;
 import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 import qunar.tc.qmq.meta.loadbalance.LoadBalance;
-import qunar.tc.qmq.meta.loadbalance.RandomLoadBalance;
 import qunar.tc.qmq.meta.model.SubjectInfo;
 import qunar.tc.qmq.meta.model.SubjectRoute;
 import qunar.tc.qmq.meta.monitor.QMon;
@@ -54,10 +53,11 @@ public class DefaultSubjectRouter implements SubjectRouter {
     private final LoadBalance<String> loadBalance;
     private int minGroupNum = DEFAULT_MIN_NUM;
 
-    public DefaultSubjectRouter(final DynamicConfig config, final CachedMetaInfoManager cachedMetaInfoManager, final Store store) {
+    public DefaultSubjectRouter(final DynamicConfig config, final CachedMetaInfoManager cachedMetaInfoManager, final Store store,
+            final LoadBalance<String> loadBalance) {
         this.cachedMetaInfoManager = cachedMetaInfoManager;
         this.store = store;
-        this.loadBalance = new RandomLoadBalance<>();
+        this.loadBalance = loadBalance;
 
         config.addListener(conf -> minGroupNum = conf.getInt("min.group.num", DEFAULT_MIN_NUM));
     }

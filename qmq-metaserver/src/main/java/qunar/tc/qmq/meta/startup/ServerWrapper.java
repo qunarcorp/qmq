@@ -29,6 +29,10 @@ import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
 import qunar.tc.qmq.meta.cache.BrokerMetaManager;
 import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 import qunar.tc.qmq.meta.cache.CachedOfflineStateManager;
+import qunar.tc.qmq.meta.cache.MetaHeartBeatManager;
+import qunar.tc.qmq.meta.loadbalance.LoadBalance;
+import qunar.tc.qmq.meta.loadbalance.LoadBalanceFactory;
+import qunar.tc.qmq.meta.loadbalance.RandomLoadBalance;
 import qunar.tc.qmq.meta.management.AddBrokerAction;
 import qunar.tc.qmq.meta.management.AddNewSubjectAction;
 import qunar.tc.qmq.meta.management.AddSubjectBrokerGroupAction;
@@ -97,10 +101,10 @@ public class ServerWrapper implements Disposable {
 
         final ReadonlyBrokerGroupSettingStore readonlyBrokerGroupSettingStore = new ReadonlyBrokerGroupSettingStoreImpl(jdbcTemplate);
         final CachedMetaInfoManager cachedMetaInfoManager = new CachedMetaInfoManager(config, store, readonlyBrokerGroupSettingStore);
-
+        final MetaHeartBeatManager metaHeartBeatManager = new MetaHeartBeatManager(store);
         final SubjectRouter subjectRouter = createSubjectRouter(cachedMetaInfoManager, store);
         final ReadonlyBrokerGroupManager readonlyBrokerGroupManager = new ReadonlyBrokerGroupManager(cachedMetaInfoManager);
-        final ClientRegisterProcessor clientRegisterProcessor = new ClientRegisterProcessor(subjectRouter, CachedOfflineStateManager.SUPPLIER.get(), store, readonlyBrokerGroupManager);
+        final ClientRegisterProcessor clientRegisterProcessor = new ClientRegisterProcessor(subjectRouter, CachedOfflineStateManager.SUPPLIER.get(), metaHeartBeatManager, store, readonlyBrokerGroupManager);
         final BrokerRegisterProcessor brokerRegisterProcessor = new BrokerRegisterProcessor(config, cachedMetaInfoManager, store);
         final BrokerAcquireMetaProcessor brokerAcquireMetaProcessor = new BrokerAcquireMetaProcessor(new BrokerStoreImpl(jdbcTemplate));
         final ReadonlyBrokerGroupSettingService readonlyBrokerGroupSettingService = new ReadonlyBrokerGroupSettingService(readonlyBrokerGroupSettingStore);
@@ -134,7 +138,8 @@ public class ServerWrapper implements Disposable {
     }
 
     private SubjectRouter createSubjectRouter(CachedMetaInfoManager cachedMetaInfoManager, Store store) {
-        DelayRouter delayRouter =  new DelayRouter(cachedMetaInfoManager, new DefaultSubjectRouter(config, cachedMetaInfoManager, store));
+        LoadBalance loadBalance = LoadBalanceFactory.getByName(config.getString("meta.server.load.balance", RandomLoadBalance.DEFAULT_LOAD_BALANCE));
+        DelayRouter delayRouter = new DelayRouter(cachedMetaInfoManager, new DefaultSubjectRouter(config, cachedMetaInfoManager, store,loadBalance),loadBalance);
         return new SubjectRouterWrapper(delayRouter);
     }
 

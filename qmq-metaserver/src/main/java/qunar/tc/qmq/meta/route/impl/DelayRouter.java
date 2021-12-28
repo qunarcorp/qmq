@@ -16,16 +16,17 @@
 
 package qunar.tc.qmq.meta.route.impl;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.meta.BrokerGroup;
 import qunar.tc.qmq.meta.BrokerState;
-import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
+import qunar.tc.qmq.meta.loadbalance.LoadBalance;
 import qunar.tc.qmq.meta.route.SubjectRouter;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
-
-import java.util.*;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.stream.Collectors;
 
 /**
  * @author yiqun.fan create on 17-12-6.
@@ -34,25 +35,30 @@ public class DelayRouter implements SubjectRouter {
     private static final int DEFAULT_MIN_NUM = 2;
     private final CachedMetaInfoManager cachedMetaInfoManager;
     private final SubjectRouter internal;
+    private final LoadBalance loadBalance;
 
-    public DelayRouter(CachedMetaInfoManager cachedMetaInfoManager, SubjectRouter internal) {
+    public DelayRouter(CachedMetaInfoManager cachedMetaInfoManager, SubjectRouter internal, LoadBalance loadBalance) {
         this.cachedMetaInfoManager = cachedMetaInfoManager;
         this.internal = internal;
+        this.loadBalance=loadBalance;
     }
 
     @Override
     public List<BrokerGroup> route(String realSubject, MetaInfoRequest request) {
         if (request.getClientTypeCode() == ClientType.DELAY_PRODUCER.getCode()) {
-            return doRoute();
+            return doRoute(realSubject);
         } else {
             return internal.route(realSubject, request);
         }
     }
 
-    private List<BrokerGroup> doRoute() {
+    private List<BrokerGroup> doRoute(String subject) {
         final List<BrokerGroup> delayGroups = cachedMetaInfoManager.getDelayNewGroups();
         final List<BrokerGroup> filterDelayGroups = filterNrwBrokers(delayGroups);
-        return select(filterDelayGroups);
+        if (filterDelayGroups == null || filterDelayGroups.size() == 0) {
+            return Collections.EMPTY_LIST;
+        }
+        return loadBalance.select(subject, filterDelayGroups, DEFAULT_MIN_NUM);
     }
 
     private List<BrokerGroup> filterNrwBrokers(final List<BrokerGroup> groups) {
@@ -64,21 +70,4 @@ public class DelayRouter implements SubjectRouter {
                 .collect(Collectors.toList());
     }
 
-    private List<BrokerGroup> select(final List<BrokerGroup> groups) {
-        if (groups == null || groups.size() == 0) {
-            return Collections.EMPTY_LIST;
-        }
-        if (groups.size() <= DEFAULT_MIN_NUM) {
-            return groups;
-        }
-
-        final ThreadLocalRandom random = ThreadLocalRandom.current();
-        final Set<BrokerGroup> resultSet = new HashSet<>(DEFAULT_MIN_NUM);
-        while (resultSet.size() <= DEFAULT_MIN_NUM) {
-            final int randomIndex = random.nextInt(groups.size());
-            resultSet.add(groups.get(randomIndex));
-        }
-
-        return new ArrayList<>(resultSet);
-    }
 }

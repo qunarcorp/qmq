@@ -27,6 +27,9 @@ import java.util.concurrent.ThreadLocalRandom;
  * @since 2017/8/30
  */
 public class RandomLoadBalance<T> extends AbstractLoadBalance<T> {
+
+    public final static String DEFAULT_LOAD_BALANCE = "random";
+
     @Override
     List<T> doSelect(String subject, List<T> brokerGroups, int minNum) {
         final ThreadLocalRandom random = ThreadLocalRandom.current();
@@ -37,5 +40,10 @@ public class RandomLoadBalance<T> extends AbstractLoadBalance<T> {
         }
 
         return new ArrayList<>(resultSet);
+    }
+
+    @Override
+    public String name() {
+        return DEFAULT_LOAD_BALANCE;
     }
 }

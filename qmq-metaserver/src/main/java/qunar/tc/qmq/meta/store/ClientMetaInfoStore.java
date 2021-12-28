@@ -16,9 +16,9 @@
 
 package qunar.tc.qmq.meta.store;
 
-import qunar.tc.qmq.meta.model.ClientMetaInfo;
-
 import java.util.List;
+
+import qunar.tc.qmq.meta.model.ClientMetaInfo;
 
 /**
  * @author keli.wang
@@ -26,4 +26,8 @@ import java.util.List;
  */
 public interface ClientMetaInfoStore {
     List<ClientMetaInfo> queryConsumer(final String subject);
+
+    List<ClientMetaInfo> queryClientIds(final List<String> clientIds);
+
+     int updateTimeByIds(List<String> ids);
 }
