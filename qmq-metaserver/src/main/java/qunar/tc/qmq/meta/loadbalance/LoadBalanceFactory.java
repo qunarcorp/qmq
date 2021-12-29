@@ -14,7 +14,7 @@ public class LoadBalanceFactory {
 
 	private static Map<String,LoadBalance> loadBalances = Maps.newHashMap();
 
-	private static RandomLoadBalance defaultLoadBalance = new RandomLoadBalance<>();
+	private static RandomLoadBalance defaultLoadBalance = new RandomLoadBalance();
 
 	static {
 		ServiceLoader<LoadBalance> services = ServiceLoader.load(LoadBalance.class);

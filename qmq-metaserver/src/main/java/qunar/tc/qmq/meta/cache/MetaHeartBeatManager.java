@@ -41,7 +41,6 @@ public class MetaHeartBeatManager{
 	public MetaHeartBeatManager(Store store) {
 		this.store = store;
 		start();
-
 	}
 
 	/**

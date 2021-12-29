@@ -37,7 +37,7 @@ public class DelayRouter implements SubjectRouter {
     private final SubjectRouter internal;
     private final LoadBalance loadBalance;
 
-    public DelayRouter(CachedMetaInfoManager cachedMetaInfoManager, SubjectRouter internal, LoadBalance loadBalance) {
+    public DelayRouter(CachedMetaInfoManager cachedMetaInfoManager, SubjectRouter internal, LoadBalance<BrokerGroup> loadBalance) {
         this.cachedMetaInfoManager = cachedMetaInfoManager;
         this.internal = internal;
         this.loadBalance=loadBalance;

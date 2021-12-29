@@ -61,7 +61,7 @@ public class DatabaseStore implements Store {
     private static final String UPDATE_BROKER_GROUP_EXT_SQL = "UPDATE broker_group SET ext = ? WHERE group_name = ?";
     private static final String INSERT_OR_UPDATE_BROKER_GROUP_SQL = "INSERT INTO broker_group(group_name,kind,master_address,broker_state,create_time) VALUES(?,?,?,?,?) ON DUPLICATE KEY UPDATE master_address=?,broker_state=?";
 
-    private static final String INSERT_CLIENT_META_INFO_SQL = "INSERT IGNORE INTO client_meta_info(subject_info,client_type,consumer_group,client_id,app_code,create_time) VALUES(?, ?, ?, ?, ?, ?)";
+    private static final String INSERT_CLIENT_META_INFO_SQL = "INSERT IGNORE INTO client_meta_info(subject_info,client_type,consumer_group,client_id,app_code,room,create_time) VALUES(?, ?, ?, ?, ?, ?,?)";
 
     private static final String INSERT_OR_UPDATE_CLIENT_META_INFO_SQL = "UPDATE client_meta_info SET update_time = ? WHERE client_id =? and subject_info in (?)";
 
@@ -213,7 +213,7 @@ public class DatabaseStore implements Store {
     public void insertClientMetaInfo(MetaInfoRequest request) {
         final Timestamp now = new Timestamp(System.currentTimeMillis());
         jdbcTemplate.update(INSERT_CLIENT_META_INFO_SQL, request.getSubject(), request.getClientTypeCode(),
-                request.getConsumerGroup(), request.getClientId(), request.getAppCode(), now);
+                request.getConsumerGroup(), request.getClientId(), request.getAppCode(), request.getClientLdc(), now);
     }
 
     private static final RowMapper<ClientMetaInfo> CLIENT_META_INFO_ROW_MAPPER= (rs, rowNum) -> {

@@ -16,10 +16,10 @@
 
 package qunar.tc.qmq.common;
 
-import com.google.common.collect.ImmutableMap;
-
 import java.util.HashMap;
 import java.util.Map;
+
+import com.google.common.collect.ImmutableMap;
 
 /**
  * @author yiqun.fan create on 17-8-22.
@@ -61,5 +61,9 @@ public enum ClientType {
 
     public boolean isConsumer() {
         return code == CONSUMER.code;
+    }
+
+    public static boolean isConsumer(int code) {
+        return CONSUMER.code ==code;
     }
 }
