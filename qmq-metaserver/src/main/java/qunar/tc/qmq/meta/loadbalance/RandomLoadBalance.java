@@ -31,7 +31,7 @@ public class RandomLoadBalance<T> extends AbstractLoadBalance<T> {
     public final static String DEFAULT_LOAD_BALANCE = "random";
 
     @Override
-    List<T> doSelect(String subject, List<T> brokerGroups, int minNum) {
+    public List<T> doSelect(String subject, List<T> brokerGroups, int minNum) {
         final ThreadLocalRandom random = ThreadLocalRandom.current();
         final Set<T> resultSet = new HashSet<>(minNum);
         while (resultSet.size() < minNum) {

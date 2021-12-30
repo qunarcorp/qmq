@@ -26,7 +26,9 @@ import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.common.Disposable;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
+import qunar.tc.qmq.meta.cache.AliveClientManager;
 import qunar.tc.qmq.meta.cache.BrokerMetaManager;
+import qunar.tc.qmq.meta.cache.CacheManager;
 import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 import qunar.tc.qmq.meta.cache.CachedOfflineStateManager;
 import qunar.tc.qmq.meta.cache.MetaHeartBeatManager;
@@ -57,6 +59,9 @@ import qunar.tc.qmq.meta.route.impl.DefaultSubjectRouter;
 import qunar.tc.qmq.meta.route.impl.DelayRouter;
 import qunar.tc.qmq.meta.route.impl.SubjectRouterWrapper;
 import qunar.tc.qmq.meta.service.ReadonlyBrokerGroupSettingService;
+import qunar.tc.qmq.meta.spi.cache.ClientCacheManager;
+import qunar.tc.qmq.meta.spi.cache.ClientServiceContext;
+import qunar.tc.qmq.meta.spi.cache.impl.DefaultClientAliveService;
 import qunar.tc.qmq.meta.store.BrokerStore;
 import qunar.tc.qmq.meta.store.ClientDbConfigurationStore;
 import qunar.tc.qmq.meta.store.ReadonlyBrokerGroupSettingStore;
@@ -84,6 +89,8 @@ public class ServerWrapper implements Disposable {
     private final List<Disposable> resources;
     private final DynamicConfig config;
 
+    private ClientServiceContext clientServiceContext = new ClientServiceContext();
+
     public ServerWrapper(DynamicConfig config) {
         this.resources = new ArrayList<>();
         this.config = config;
@@ -98,13 +105,13 @@ public class ServerWrapper implements Disposable {
         final BrokerStore brokerStore = new BrokerStoreImpl(jdbcTemplate);
         final BrokerMetaManager brokerMetaManager = BrokerMetaManager.getInstance();
         brokerMetaManager.init(brokerStore);
-
         final ReadonlyBrokerGroupSettingStore readonlyBrokerGroupSettingStore = new ReadonlyBrokerGroupSettingStoreImpl(jdbcTemplate);
         final CachedMetaInfoManager cachedMetaInfoManager = new CachedMetaInfoManager(config, store, readonlyBrokerGroupSettingStore);
-        final MetaHeartBeatManager metaHeartBeatManager = new MetaHeartBeatManager(store);
         final SubjectRouter subjectRouter = createSubjectRouter(cachedMetaInfoManager, store);
         final ReadonlyBrokerGroupManager readonlyBrokerGroupManager = new ReadonlyBrokerGroupManager(cachedMetaInfoManager);
-        final ClientRegisterProcessor clientRegisterProcessor = new ClientRegisterProcessor(subjectRouter, CachedOfflineStateManager.SUPPLIER.get(), metaHeartBeatManager, store, readonlyBrokerGroupManager);
+        CacheManager cacheManager = CacheManager.of(new MetaHeartBeatManager(store), AliveClientManager.getInstance(),cachedMetaInfoManager,
+                CachedOfflineStateManager.SUPPLIER.get(),readonlyBrokerGroupManager);
+        final ClientRegisterProcessor clientRegisterProcessor = new ClientRegisterProcessor(subjectRouter, cacheManager, store);
         final BrokerRegisterProcessor brokerRegisterProcessor = new BrokerRegisterProcessor(config, cachedMetaInfoManager, store);
         final BrokerAcquireMetaProcessor brokerAcquireMetaProcessor = new BrokerAcquireMetaProcessor(new BrokerStoreImpl(jdbcTemplate));
         final ReadonlyBrokerGroupSettingService readonlyBrokerGroupSettingService = new ReadonlyBrokerGroupSettingService(readonlyBrokerGroupSettingStore);
@@ -135,6 +142,13 @@ public class ServerWrapper implements Disposable {
         resources.add(cachedMetaInfoManager);
         resources.add(brokerMetaManager);
         resources.add(metaNettyServer);
+        addService(cacheManager);
+    }
+
+    private void addService(CacheManager cacheManager) {
+        DefaultClientAliveService clientAlive = new DefaultClientAliveService(cacheManager);
+        clientServiceContext.addService(clientAlive.name(), clientAlive);
+        ClientCacheManager.registry(clientServiceContext);
     }
 
     private SubjectRouter createSubjectRouter(CachedMetaInfoManager cachedMetaInfoManager, Store store) {
