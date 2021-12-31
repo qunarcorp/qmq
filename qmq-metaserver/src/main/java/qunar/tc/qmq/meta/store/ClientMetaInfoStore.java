@@ -26,8 +26,4 @@ import qunar.tc.qmq.meta.model.ClientMetaInfo;
  */
 public interface ClientMetaInfoStore {
     List<ClientMetaInfo> queryConsumer(final String subject);
-
-    List<ClientMetaInfo> queryClientIds(final List<String> clientIds);
-
-     int updateTimeByIds(List<String> ids);
 }

@@ -3,15 +3,12 @@ package qunar.tc.qmq.meta.cache;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 
 import com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.common.ClientType;
-import qunar.tc.qmq.concurrent.NamedThreadFactory;
 import qunar.tc.qmq.meta.model.ClientMetaInfo;
 import qunar.tc.qmq.meta.store.Store;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
@@ -20,15 +17,14 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
 /**
+ * The type Meta heart beat manager.
  * @description：
- * @author     ：zhixin.zhang
- * @date       ：Created in 下午8:24 2021/12/24
+ * @author  ：zhixin.zhang
+ * @date  ：Created in 下午8:24 2021/12/24
  */
 public class MetaHeartBeatManager{
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(MetaHeartBeatManager.class);
-
-	private static final ScheduledExecutorService EXECUTOR = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("meta-heart-beat"));
 
 	private final Store store;
 
@@ -60,14 +56,21 @@ public class MetaHeartBeatManager{
 		}
 	}
 
+	public List<ClientMetaInfo> clientsByAppAndSub(MetaInfoRequest request) {
+		return store.queryConsumerByAppAndSubject(request.getAppCode(), request.getSubject());
+	}
+
+	public List<ClientMetaInfo> clientsBySubject(MetaInfoRequest request) {
+		return store.queryConsumerBySubject(request.getSubject());
+	}
 
 	private void batchUpdateHeartBeat(List<MetaInfoRequest> list) {
 		if (!CollectionUtils.isEmpty(list)) {
-			Map<String, List<MetaInfoRequest>> clientMap = list.stream().filter(s -> StringUtils.hasText(s.getClientId()))
+			Map<String, List<MetaInfoRequest>> clientIdMap = list.stream().filter(s -> StringUtils.hasText(s.getClientId()))
 					.filter(s -> s.getClientTypeCode() == ClientType.CONSUMER.getCode())
 					.collect(Collectors.groupingBy(MetaInfoRequest::getClientId));
-			if (clientMap != null && clientMap.size() > 0) {
-				for (Map.Entry<String, List<MetaInfoRequest>> entry : clientMap.entrySet()) {
+			if (clientIdMap != null && clientIdMap.size() > 0) {
+				for (Map.Entry<String, List<MetaInfoRequest>> entry : clientIdMap.entrySet()) {
 					List<String> subjects = entry.getValue().stream().filter(s -> StringUtils.hasText(s.getSubject()))
 							.map(MetaInfoRequest::getSubject).collect(Collectors.toList());
 					List<ClientMetaInfo> clientMetaInfos = store.queryConsumerByIdAndSubject(entry.getKey(), subjects);

@@ -6,6 +6,7 @@ import java.util.ServiceLoader;
 
 import com.google.common.collect.Lists;
 import qunar.tc.qmq.meta.BrokerGroup;
+import qunar.tc.qmq.meta.spi.cache.ClientServiceContext;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
 
 /**
@@ -24,6 +25,12 @@ public class SubjectRouteExtendFactory {
 		}
 	}
 
+	public static void registry(ClientServiceContext context) {
+		for (SubjectRouteExtend subjectRouteExtend : subjectRouteExtends) {
+			subjectRouteExtend.registry(context);
+		}
+	}
+
 	public static List<BrokerGroup> routeExtend(List<BrokerGroup> brokerGroups,final MetaInfoRequest request){
 		if (brokerGroups == null || brokerGroups.isEmpty()) {
 			return Collections.emptyList();
@@ -34,7 +41,7 @@ public class SubjectRouteExtendFactory {
 		List<BrokerGroup> broker = brokerGroups;
 		for (SubjectRouteExtend subjectRouteExtend : subjectRouteExtends) {
 			if(subjectRouteExtend.match(request)){
-				broker = subjectRouteExtend.routeExtend(broker,request);
+				broker = subjectRouteExtend.routeExtend(broker, request);
 			}
 		}
 		return broker;

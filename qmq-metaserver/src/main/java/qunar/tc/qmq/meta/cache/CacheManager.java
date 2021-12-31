@@ -3,7 +3,7 @@ package qunar.tc.qmq.meta.cache;
 import qunar.tc.qmq.meta.route.ReadonlyBrokerGroupManager;
 
 /**
- * @description： 搞了一大堆manager先搞一起。
+ * @description： manager先搞一起。
  * @author     ：zhixin.zhang
  * @date       ：Created in 下午9:24 2021/12/30
  */
@@ -18,8 +18,6 @@ public class CacheManager {
 	private final CachedOfflineStateManager offlineStateManager;
 
 	private final ReadonlyBrokerGroupManager readonlyBrokerGroupManager;
-
-
 
 
 	public CacheManager(MetaHeartBeatManager metaHeartBeatManager, AliveClientManager aliveClientManager, CachedMetaInfoManager cachedMetaInfoManager, CachedOfflineStateManager offlineStateManager, ReadonlyBrokerGroupManager readonlyBrokerGroupManager) {

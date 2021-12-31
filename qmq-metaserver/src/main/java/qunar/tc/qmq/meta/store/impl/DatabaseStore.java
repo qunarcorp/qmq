@@ -65,7 +65,13 @@ public class DatabaseStore implements Store {
 
     private static final String INSERT_OR_UPDATE_CLIENT_META_INFO_SQL = "UPDATE client_meta_info SET update_time = ? WHERE client_id =? and subject_info in (?)";
 
-    private static final String SELECT_CLIENT_META_INFO_SQL = "SELECT id ,subject_info,client_type,consumer_group,client_id,app_code,room,create_time,update_time from   client_meta_info where client_id=?";
+    private static final String SELECT_CLIENT_META_INFO_BY_CLIENT_IDS_SQL = "SELECT id ,subject_info,client_type,consumer_group,client_id,app_code,room,create_time,update_time from   client_meta_info where client_id in (?)";
+
+    private static final String SELECT_CLIENT_META_INFO_BY_SUBJECTS_SQL ="SELECT id ,subject_info,client_type,consumer_group,client_id,app_code,room,create_time,update_time  from   client_meta_info where client_id = ? and subject_info in (?)";
+
+    private static final String SELECT_CLIENT_META_INFO_BY_APP_SQL = "SELECT id ,subject_info,client_type,consumer_group,client_id,app_code,room,create_time,update_time  from   client_meta_info where app_code = ? and subject_info =?";
+
+    private static final String SELECT_CLIENT_META_INFO_BY_SUBJECT_SQL = "SELECT id ,subject_info,client_type,consumer_group,client_id,app_code,room,create_time,update_time  from   client_meta_info where subject_info =?";
 
     private static final String INSERT_SUBJECT_INFO_SQL = "INSERT INTO subject_info(name,tag,create_time) VALUES(?,?,?)";
     private static final String ALL_SUBJECT_INFO_SQL = "SELECT name, tag, update_time FROM subject_info";
@@ -234,12 +240,22 @@ public class DatabaseStore implements Store {
 
     @Override
     public List<ClientMetaInfo> queryClientIds(List<String> clientIds) {
-        return jdbcTemplate.query("SELECT id ,subject_info,client_type,consumer_group,client_id,app_code,room,create_time,update_time from   client_meta_info where client_id in (?)", CLIENT_META_INFO_ROW_MAPPER, JOINER_COMMA.join(clientIds));
+        return jdbcTemplate.query(SELECT_CLIENT_META_INFO_BY_CLIENT_IDS_SQL, CLIENT_META_INFO_ROW_MAPPER, JOINER_COMMA.join(clientIds));
     }
 
     @Override
     public List<ClientMetaInfo> queryConsumerByIdAndSubject(String clientId, List<String> subjects) {
-        return jdbcTemplate.query("SELECT id ,subject_info,client_type,consumer_group,client_id,app_code,room,create_time,update_time  from   client_meta_info where client_id = ? and subject_info in (?)", CLIENT_META_INFO_ROW_MAPPER, clientId, JOINER_COMMA.join(subjects));
+        return jdbcTemplate.query(SELECT_CLIENT_META_INFO_BY_SUBJECTS_SQL, CLIENT_META_INFO_ROW_MAPPER, clientId, JOINER_COMMA.join(subjects));
+    }
+
+    @Override
+    public List<ClientMetaInfo> queryConsumerByAppAndSubject(String appCode, String subject) {
+        return jdbcTemplate.query(SELECT_CLIENT_META_INFO_BY_APP_SQL, CLIENT_META_INFO_ROW_MAPPER, appCode, subject);
+    }
+
+    @Override
+    public List<ClientMetaInfo> queryConsumerBySubject(String subject) {
+        return jdbcTemplate.query(SELECT_CLIENT_META_INFO_BY_SUBJECT_SQL, CLIENT_META_INFO_ROW_MAPPER, subject);
     }
 
     @Override

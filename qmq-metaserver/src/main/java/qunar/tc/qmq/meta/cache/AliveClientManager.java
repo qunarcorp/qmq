@@ -53,12 +53,12 @@ public class AliveClientManager {
     /**
      * k:subject value:<appCode,v>
      */
-    private final Map<String, Map<String, List<ClientMetaInfo>>> ldcSubject;
+    private final Map<String, Map<String, List<ClientMetaInfo>>> roomSubject;
 
     public AliveClientManager() {
         allClients = new ConcurrentHashMap<>();
         allSubject = new ConcurrentHashMap<>();
-        ldcSubject = new ConcurrentHashMap<>();
+        roomSubject = new ConcurrentHashMap<>();
         startCleaner();
     }
 
@@ -95,18 +95,23 @@ public class AliveClientManager {
         EXECUTOR.scheduleAtFixedRate(new CleanTask(), CLEAN_PERIOD_HOUR, CLEAN_PERIOD_HOUR, TimeUnit.HOURS);
     }
 
+
+    public Map<String, Map<String, List<ClientMetaInfo>>> getRoomSubject() {
+        return roomSubject;
+    }
+
     private class CleanTask implements Runnable {
         @Override
         public void run() {
             try {
                 removeExpiredClients();
-                loadLdcSubject();
+                loadRoomSubject();
             } catch (Exception e) {
                 LOG.error("clean dead client info failed.", e);
             }
         }
 
-        private void loadLdcSubject() {
+        private void loadRoomSubject() {
             for (Map.Entry<String, Map<ClientMetaInfo, Long>> entry : allSubject.entrySet()) {
                 Map<String, List<ClientMetaInfo>> appMap = entry.getValue().keySet().stream()
                         .filter(s -> ClientType.isConsumer(s.getClientTypeCode()))
@@ -115,8 +120,8 @@ public class AliveClientManager {
                     for (Map.Entry<String, List<ClientMetaInfo>> subjectEntry : appEntry.getValue().stream().collect(Collectors.groupingBy(ClientMetaInfo::getSubject)).entrySet()) {
                         int roomSize = subjectEntry.getValue().stream().map(ClientMetaInfo::getRoom).collect(Collectors.toSet()).size();
                         if (roomSize > 1) {
-                            Map<String,List<ClientMetaInfo>> appCodeList = ldcSubject.computeIfAbsent(subjectEntry.getKey(), s -> Maps.newConcurrentMap());
-                            appCodeList.put(appEntry.getKey(),subjectEntry.getValue());
+                            Map<String,List<ClientMetaInfo>> appSubjectMap = roomSubject.computeIfAbsent(subjectEntry.getKey(), s -> Maps.newConcurrentMap());
+                            appSubjectMap.put(appEntry.getKey(),subjectEntry.getValue());
                         }
                     }
                 }

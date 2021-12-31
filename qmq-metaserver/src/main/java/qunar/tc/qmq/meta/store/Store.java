@@ -65,6 +65,10 @@ public interface Store {
 
     List<ClientMetaInfo> queryConsumerByIdAndSubject(String clientId,List<String> subjects);
 
+    List<ClientMetaInfo> queryConsumerByAppAndSubject(String appCode,String subject);
+
+    List<ClientMetaInfo> queryConsumerBySubject(String subject);
+
     int updateTimeByIds(List<Integer> ids);
 
     void batchUpdateMetaInfo(String clientId ,String subjects);

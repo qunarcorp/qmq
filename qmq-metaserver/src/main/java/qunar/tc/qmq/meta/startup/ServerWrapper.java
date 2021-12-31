@@ -54,14 +54,14 @@ import qunar.tc.qmq.meta.processor.BrokerAcquireMetaProcessor;
 import qunar.tc.qmq.meta.processor.BrokerRegisterProcessor;
 import qunar.tc.qmq.meta.processor.ClientRegisterProcessor;
 import qunar.tc.qmq.meta.route.ReadonlyBrokerGroupManager;
+import qunar.tc.qmq.meta.route.SubjectRouteExtendFactory;
 import qunar.tc.qmq.meta.route.SubjectRouter;
 import qunar.tc.qmq.meta.route.impl.DefaultSubjectRouter;
 import qunar.tc.qmq.meta.route.impl.DelayRouter;
 import qunar.tc.qmq.meta.route.impl.SubjectRouterWrapper;
 import qunar.tc.qmq.meta.service.ReadonlyBrokerGroupSettingService;
-import qunar.tc.qmq.meta.spi.cache.ClientCacheManager;
 import qunar.tc.qmq.meta.spi.cache.ClientServiceContext;
-import qunar.tc.qmq.meta.spi.cache.impl.DefaultClientAliveService;
+import qunar.tc.qmq.meta.spi.cache.impl.DefaultClientAliveServiceImpl;
 import qunar.tc.qmq.meta.store.BrokerStore;
 import qunar.tc.qmq.meta.store.ClientDbConfigurationStore;
 import qunar.tc.qmq.meta.store.ReadonlyBrokerGroupSettingStore;
@@ -142,18 +142,18 @@ public class ServerWrapper implements Disposable {
         resources.add(cachedMetaInfoManager);
         resources.add(brokerMetaManager);
         resources.add(metaNettyServer);
-        addService(cacheManager);
+        registryService(cacheManager);
     }
 
-    private void addService(CacheManager cacheManager) {
-        DefaultClientAliveService clientAlive = new DefaultClientAliveService(cacheManager);
+    private void registryService(CacheManager cacheManager) {
+        DefaultClientAliveServiceImpl clientAlive = new DefaultClientAliveServiceImpl(cacheManager);
         clientServiceContext.addService(clientAlive.name(), clientAlive);
-        ClientCacheManager.registry(clientServiceContext);
     }
 
     private SubjectRouter createSubjectRouter(CachedMetaInfoManager cachedMetaInfoManager, Store store) {
         LoadBalance loadBalance = LoadBalanceFactory.getByName(config.getString("meta.server.load.balance", RandomLoadBalance.DEFAULT_LOAD_BALANCE));
-        DelayRouter delayRouter = new DelayRouter(cachedMetaInfoManager, new DefaultSubjectRouter(config, cachedMetaInfoManager, store,loadBalance),loadBalance);
+        DelayRouter delayRouter = new DelayRouter(cachedMetaInfoManager, new DefaultSubjectRouter(config, cachedMetaInfoManager, store, loadBalance), loadBalance);
+        SubjectRouteExtendFactory.registry(clientServiceContext);
         return new SubjectRouterWrapper(delayRouter);
     }
 

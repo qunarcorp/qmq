@@ -25,6 +25,7 @@ public class SubjectRouterWrapper implements SubjectRouter {
 	public List<BrokerGroup> route(String realSubject, MetaInfoRequest request) {
 		return routeExtend(subjectRouter.route(realSubject, request), request);
 	}
+
 	/**
 	 * 根据请求分配
 	 * @param brokerGroups

@@ -37,7 +37,7 @@ public class ClientServiceContext implements QmqServiceContext {
 		Object obj = serviceMap.get(name);
 		if(obj ==null){
 			throw new NoSuchServiceException(name,
-					"Defined beans are [" + StringUtils.collectionToCommaDelimitedString(this.serviceMap.keySet()) + "]");
+					"Defined Service are [" + StringUtils.collectionToCommaDelimitedString(this.serviceMap.keySet()) + "]");
 		}
 		return obj;
 	}

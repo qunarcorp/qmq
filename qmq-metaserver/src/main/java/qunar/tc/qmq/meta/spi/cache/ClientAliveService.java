@@ -20,9 +20,19 @@ public interface ClientAliveService extends QmqService {
 	 * Clients by app and sub list.
 	 *
 	 * @param request the request
+	 * @param timeOut the time out
 	 * @return the list
 	 */
-	List<ClientMetaInfo> clientsByAppAndSub(MetaInfoRequest request);
+	List<ClientMetaInfo> aliveClientsByAppAndSub(MetaInfoRequest request,long timeOut);
+
+	/**
+	 * Clients by sub list.
+	 *
+	 * @param request the request
+	 * @param timeOut the time out
+	 * @return the list
+	 */
+	List<ClientMetaInfo> aliveClientsBySub(MetaInfoRequest request,long timeOut);
 
 	/**
 	 * Name string.
