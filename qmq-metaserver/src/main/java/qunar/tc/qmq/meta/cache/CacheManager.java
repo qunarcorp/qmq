@@ -9,8 +9,6 @@ import qunar.tc.qmq.meta.route.ReadonlyBrokerGroupManager;
  */
 public class CacheManager {
 
-	private final MetaHeartBeatManager metaHeartBeatManager;
-
 	private  final AliveClientManager aliveClientManager;
 
 	private final CachedMetaInfoManager cachedMetaInfoManager;
@@ -20,22 +18,16 @@ public class CacheManager {
 	private final ReadonlyBrokerGroupManager readonlyBrokerGroupManager;
 
 
-	public CacheManager(MetaHeartBeatManager metaHeartBeatManager, AliveClientManager aliveClientManager, CachedMetaInfoManager cachedMetaInfoManager, CachedOfflineStateManager offlineStateManager, ReadonlyBrokerGroupManager readonlyBrokerGroupManager) {
-		this.metaHeartBeatManager = metaHeartBeatManager;
+	public CacheManager(AliveClientManager aliveClientManager, CachedMetaInfoManager cachedMetaInfoManager, CachedOfflineStateManager offlineStateManager, ReadonlyBrokerGroupManager readonlyBrokerGroupManager) {
 		this.aliveClientManager = aliveClientManager;
 		this.cachedMetaInfoManager = cachedMetaInfoManager;
 		this.offlineStateManager = offlineStateManager;
 		this.readonlyBrokerGroupManager = readonlyBrokerGroupManager;
 	}
 
-	public static CacheManager of(MetaHeartBeatManager metaHeartBeatManager, AliveClientManager aliveClientManager, CachedMetaInfoManager cachedMetaInfoManager,CachedOfflineStateManager offlineStateManager, ReadonlyBrokerGroupManager readonlyBrokerGroupManager) {
-		return new CacheManager(metaHeartBeatManager,aliveClientManager,cachedMetaInfoManager,offlineStateManager,readonlyBrokerGroupManager);
+	public static CacheManager of(AliveClientManager aliveClientManager, CachedMetaInfoManager cachedMetaInfoManager,CachedOfflineStateManager offlineStateManager, ReadonlyBrokerGroupManager readonlyBrokerGroupManager) {
+		return new CacheManager(aliveClientManager,cachedMetaInfoManager,offlineStateManager,readonlyBrokerGroupManager);
 	}
-
-	public MetaHeartBeatManager getMetaHeartBeatManager() {
-		return metaHeartBeatManager;
-	}
-
 
 	public AliveClientManager getAliveClientManager() {
 		return aliveClientManager;

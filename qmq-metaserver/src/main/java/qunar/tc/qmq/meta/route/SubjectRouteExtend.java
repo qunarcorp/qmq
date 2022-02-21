@@ -3,7 +3,6 @@ package qunar.tc.qmq.meta.route;
 import java.util.List;
 
 import qunar.tc.qmq.meta.BrokerGroup;
-import qunar.tc.qmq.meta.spi.cache.QmqServiceRegistry;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
 
 /**
@@ -12,7 +11,7 @@ import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
  * @author  ：zhixin.zhang
  * @date  ：Created in 下午4:06 2021/12/13
  */
-public interface SubjectRouteExtend extends QmqServiceRegistry {
+public interface SubjectRouteExtend {
 
 	/**
 	 * Match list.

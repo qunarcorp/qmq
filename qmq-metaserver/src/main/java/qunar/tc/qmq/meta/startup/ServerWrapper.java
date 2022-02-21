@@ -29,9 +29,9 @@ import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
 import qunar.tc.qmq.meta.cache.AliveClientManager;
 import qunar.tc.qmq.meta.cache.BrokerMetaManager;
 import qunar.tc.qmq.meta.cache.CacheManager;
+import qunar.tc.qmq.meta.cache.CacheManagerFactory;
 import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 import qunar.tc.qmq.meta.cache.CachedOfflineStateManager;
-import qunar.tc.qmq.meta.cache.MetaHeartBeatManager;
 import qunar.tc.qmq.meta.loadbalance.LoadBalance;
 import qunar.tc.qmq.meta.loadbalance.LoadBalanceFactory;
 import qunar.tc.qmq.meta.loadbalance.RandomLoadBalance;
@@ -54,14 +54,11 @@ import qunar.tc.qmq.meta.processor.BrokerAcquireMetaProcessor;
 import qunar.tc.qmq.meta.processor.BrokerRegisterProcessor;
 import qunar.tc.qmq.meta.processor.ClientRegisterProcessor;
 import qunar.tc.qmq.meta.route.ReadonlyBrokerGroupManager;
-import qunar.tc.qmq.meta.route.SubjectRouteExtendFactory;
 import qunar.tc.qmq.meta.route.SubjectRouter;
 import qunar.tc.qmq.meta.route.impl.DefaultSubjectRouter;
 import qunar.tc.qmq.meta.route.impl.DelayRouter;
 import qunar.tc.qmq.meta.route.impl.SubjectRouterWrapper;
 import qunar.tc.qmq.meta.service.ReadonlyBrokerGroupSettingService;
-import qunar.tc.qmq.meta.spi.cache.ClientServiceContext;
-import qunar.tc.qmq.meta.spi.cache.impl.DefaultClientAliveServiceImpl;
 import qunar.tc.qmq.meta.store.BrokerStore;
 import qunar.tc.qmq.meta.store.ClientDbConfigurationStore;
 import qunar.tc.qmq.meta.store.ReadonlyBrokerGroupSettingStore;
@@ -89,8 +86,6 @@ public class ServerWrapper implements Disposable {
     private final List<Disposable> resources;
     private final DynamicConfig config;
 
-    private ClientServiceContext clientServiceContext = new ClientServiceContext();
-
     public ServerWrapper(DynamicConfig config) {
         this.resources = new ArrayList<>();
         this.config = config;
@@ -103,14 +98,16 @@ public class ServerWrapper implements Disposable {
         JdbcTemplate jdbcTemplate = JdbcTemplateHolder.getOrCreate();
         final Store store = new DatabaseStore(jdbcTemplate);
         final BrokerStore brokerStore = new BrokerStoreImpl(jdbcTemplate);
+        CacheManagerFactory.setStore(store);
         final BrokerMetaManager brokerMetaManager = BrokerMetaManager.getInstance();
         brokerMetaManager.init(brokerStore);
         final ReadonlyBrokerGroupSettingStore readonlyBrokerGroupSettingStore = new ReadonlyBrokerGroupSettingStoreImpl(jdbcTemplate);
         final CachedMetaInfoManager cachedMetaInfoManager = new CachedMetaInfoManager(config, store, readonlyBrokerGroupSettingStore);
-        final SubjectRouter subjectRouter = createSubjectRouter(cachedMetaInfoManager, store);
         final ReadonlyBrokerGroupManager readonlyBrokerGroupManager = new ReadonlyBrokerGroupManager(cachedMetaInfoManager);
-        CacheManager cacheManager = CacheManager.of(new MetaHeartBeatManager(store), AliveClientManager.getInstance(),cachedMetaInfoManager,
+        CacheManager cacheManager = CacheManager.of(AliveClientManager.getInstance(),cachedMetaInfoManager,
                 CachedOfflineStateManager.SUPPLIER.get(),readonlyBrokerGroupManager);
+        final SubjectRouter subjectRouter = createSubjectRouter(cachedMetaInfoManager, store);
+
         final ClientRegisterProcessor clientRegisterProcessor = new ClientRegisterProcessor(subjectRouter, cacheManager, store);
         final BrokerRegisterProcessor brokerRegisterProcessor = new BrokerRegisterProcessor(config, cachedMetaInfoManager, store);
         final BrokerAcquireMetaProcessor brokerAcquireMetaProcessor = new BrokerAcquireMetaProcessor(new BrokerStoreImpl(jdbcTemplate));
@@ -142,18 +139,13 @@ public class ServerWrapper implements Disposable {
         resources.add(cachedMetaInfoManager);
         resources.add(brokerMetaManager);
         resources.add(metaNettyServer);
-        registryService(cacheManager);
-    }
 
-    private void registryService(CacheManager cacheManager) {
-        DefaultClientAliveServiceImpl clientAlive = new DefaultClientAliveServiceImpl(cacheManager);
-        clientServiceContext.addService(clientAlive.name(), clientAlive);
     }
 
     private SubjectRouter createSubjectRouter(CachedMetaInfoManager cachedMetaInfoManager, Store store) {
         LoadBalance loadBalance = LoadBalanceFactory.getByName(config.getString("meta.server.load.balance", RandomLoadBalance.DEFAULT_LOAD_BALANCE));
+        LOG.info("loadBalance type[{}]", loadBalance.name());
         DelayRouter delayRouter = new DelayRouter(cachedMetaInfoManager, new DefaultSubjectRouter(config, cachedMetaInfoManager, store, loadBalance), loadBalance);
-        SubjectRouteExtendFactory.registry(clientServiceContext);
         return new SubjectRouterWrapper(delayRouter);
     }
 

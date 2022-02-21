@@ -16,7 +16,8 @@
 
 package qunar.tc.qmq.meta.model;
 
-import java.sql.Date;
+
+import java.util.Date;
 
 /**
  * @author yunfeng.yang

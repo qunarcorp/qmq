@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Joiner;
@@ -41,6 +42,8 @@ import qunar.tc.qmq.utils.CharsetUtils;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 /**
  * @author yunfeng.yang
@@ -67,7 +70,7 @@ public class DatabaseStore implements Store {
 
     private static final String SELECT_CLIENT_META_INFO_BY_CLIENT_IDS_SQL = "SELECT id ,subject_info,client_type,consumer_group,client_id,app_code,room,create_time,update_time from   client_meta_info where client_id in (?)";
 
-    private static final String SELECT_CLIENT_META_INFO_BY_SUBJECTS_SQL ="SELECT id ,subject_info,client_type,consumer_group,client_id,app_code,room,create_time,update_time  from   client_meta_info where client_id = ? and subject_info in (?)";
+    private static final String SELECT_CLIENT_META_INFO_BY_SUBJECTS_SQL ="SELECT id ,subject_info,client_type,consumer_group,client_id,app_code,room,create_time,update_time  from  client_meta_info where client_id =:clientId and subject_info in (:subjectInfo)";
 
     private static final String SELECT_CLIENT_META_INFO_BY_APP_SQL = "SELECT id ,subject_info,client_type,consumer_group,client_id,app_code,room,create_time,update_time  from   client_meta_info where app_code = ? and subject_info =?";
 
@@ -76,6 +79,8 @@ public class DatabaseStore implements Store {
     private static final String INSERT_SUBJECT_INFO_SQL = "INSERT INTO subject_info(name,tag,create_time) VALUES(?,?,?)";
     private static final String ALL_SUBJECT_INFO_SQL = "SELECT name, tag, update_time FROM subject_info";
     private static final String QUERY_SUBJECT_INFO_SQL = "SELECT name, tag, update_time FROM subject_info WHERE name=?";
+    private static final String UPDATE_CLIENT_META_INFO_SQL = "UPDATE client_meta_info SET update_time = NOW() WHERE  id in (%s)";
+
 
     public static final Joiner JOINER_COMMA = Joiner.on(",");
 
@@ -121,9 +126,11 @@ public class DatabaseStore implements Store {
     };
 
     private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate nPjdbcTemplate;
 
     public DatabaseStore(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
+        this.nPjdbcTemplate = new NamedParameterJdbcTemplate(jdbcTemplate.getDataSource());
     }
 
     @Override
@@ -231,8 +238,8 @@ public class DatabaseStore implements Store {
         clientMetaInfo.setClientId((rs.getString("client_id")));
         clientMetaInfo.setAppCode(rs.getString("app_code"));
         clientMetaInfo.setRoom(rs.getString("room"));
-        clientMetaInfo.setCreateTime(rs.getDate("create_time"));
-        clientMetaInfo.setUpdateTime(rs.getDate("update_time"));
+        clientMetaInfo.setCreateTime(rs.getTimestamp("create_time"));
+        clientMetaInfo.setUpdateTime(rs.getTimestamp("update_time"));
         return clientMetaInfo;
     };
 
@@ -244,8 +251,11 @@ public class DatabaseStore implements Store {
     }
 
     @Override
-    public List<ClientMetaInfo> queryConsumerByIdAndSubject(String clientId, List<String> subjects) {
-        return jdbcTemplate.query(SELECT_CLIENT_META_INFO_BY_SUBJECTS_SQL, CLIENT_META_INFO_ROW_MAPPER, clientId, JOINER_COMMA.join(subjects));
+    public List<ClientMetaInfo> queryConsumerByIdAndSubject(String clientId, Set<String> subjects) {
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        params.addValue("clientId",clientId);
+        params.addValue("subjectInfo",subjects);
+        return nPjdbcTemplate.query(SELECT_CLIENT_META_INFO_BY_SUBJECTS_SQL, params, CLIENT_META_INFO_ROW_MAPPER);
     }
 
     @Override
@@ -260,7 +270,8 @@ public class DatabaseStore implements Store {
 
     @Override
     public int updateTimeByIds(List<Integer> ids) {
-        return jdbcTemplate.update("UPDATE client_meta_info SET update_time = ? WHERE  id in (?)", JOINER_COMMA.join(ids));
+        String inSql = String.join(",", Collections.nCopies(ids.size(),"?"));
+        return jdbcTemplate.update(String.format(UPDATE_CLIENT_META_INFO_SQL, inSql), ids.toArray());
     }
 
     @Override

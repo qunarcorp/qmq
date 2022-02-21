@@ -22,7 +22,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import qunar.tc.qmq.meta.cache.AliveClientManager;
 import qunar.tc.qmq.meta.cache.CacheManager;
-import qunar.tc.qmq.meta.cache.MetaHeartBeatManager;
+import qunar.tc.qmq.meta.cache.CacheManagerFactory;
 import qunar.tc.qmq.meta.monitor.QMon;
 import qunar.tc.qmq.meta.route.SubjectRouter;
 import qunar.tc.qmq.meta.store.Store;
@@ -41,12 +41,10 @@ public class ClientRegisterProcessor implements NettyRequestProcessor {
 
     private final ClientRegisterWorker clientRegisterWorker;
     private final AliveClientManager aliveClientManager;
-    private final MetaHeartBeatManager metaHeartBeatManager;
 
     public ClientRegisterProcessor(final SubjectRouter subjectRouter,
                                    final CacheManager cacheManager,
                                    final Store store) {
-        this.metaHeartBeatManager =cacheManager.getMetaHeartBeatManager();
         this.clientRegisterWorker = new ClientRegisterWorker(subjectRouter, cacheManager.getOfflineStateManager(), store, cacheManager.getReadonlyBrokerGroupManager());
         this.aliveClientManager = cacheManager.getAliveClientManager();
     }
@@ -60,7 +58,7 @@ public class ClientRegisterProcessor implements NettyRequestProcessor {
 
         aliveClientManager.renew(request);
         clientRegisterWorker.register(new ClientRegisterMessage(request, ctx, header));
-        metaHeartBeatManager.addHeartBeat(request);
+        CacheManagerFactory.addRequest(request);
         return null;
     }
 

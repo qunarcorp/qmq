@@ -18,6 +18,7 @@ package qunar.tc.qmq.meta.store;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import qunar.tc.qmq.meta.BrokerGroup;
 import qunar.tc.qmq.meta.BrokerGroupKind;
@@ -63,7 +64,7 @@ public interface Store {
 
     List<ClientMetaInfo> queryClientIds(List<String> clientIds);
 
-    List<ClientMetaInfo> queryConsumerByIdAndSubject(String clientId,List<String> subjects);
+    List<ClientMetaInfo> queryConsumerByIdAndSubject(String clientId, Set<String> subjects);
 
     List<ClientMetaInfo> queryConsumerByAppAndSubject(String appCode,String subject);
 
