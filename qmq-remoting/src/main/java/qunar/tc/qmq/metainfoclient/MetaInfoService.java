@@ -16,25 +16,7 @@
 
 package qunar.tc.qmq.metainfoclient;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
-import com.google.common.eventbus.EventBus;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import qunar.tc.qmq.base.ClientRequestType;
-import qunar.tc.qmq.base.OnOfflineState;
-import qunar.tc.qmq.broker.BrokerClusterInfo;
-import qunar.tc.qmq.broker.BrokerGroupInfo;
-import qunar.tc.qmq.common.ClientType;
-import qunar.tc.qmq.concurrent.NamedThreadFactory;
-import qunar.tc.qmq.meta.BrokerCluster;
-import qunar.tc.qmq.meta.BrokerGroup;
-import qunar.tc.qmq.meta.BrokerState;
-import qunar.tc.qmq.meta.MetaServerLocator;
-import qunar.tc.qmq.metrics.Metrics;
-import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
-import qunar.tc.qmq.protocol.consumer.MetaInfoResponse;
-import qunar.tc.qmq.utils.RetrySubjectUtils;
+import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_GROUP_ARRAY;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -44,7 +26,27 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static qunar.tc.qmq.metrics.MetricsConstants.SUBJECT_GROUP_ARRAY;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
+import com.google.common.eventbus.EventBus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qunar.tc.qmq.base.ClientRequestType;
+import qunar.tc.qmq.base.OnOfflineState;
+import qunar.tc.qmq.broker.BrokerClusterInfo;
+import qunar.tc.qmq.broker.BrokerGroupInfo;
+import qunar.tc.qmq.common.ClientInfo;
+import qunar.tc.qmq.common.ClientType;
+import qunar.tc.qmq.concurrent.NamedThreadFactory;
+import qunar.tc.qmq.meta.BrokerCluster;
+import qunar.tc.qmq.meta.BrokerGroup;
+import qunar.tc.qmq.meta.BrokerState;
+import qunar.tc.qmq.meta.MetaServerLocator;
+import qunar.tc.qmq.metrics.Metrics;
+import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
+import qunar.tc.qmq.protocol.consumer.MetaInfoResponse;
+import qunar.tc.qmq.utils.CharsetUtils;
+import qunar.tc.qmq.utils.RetrySubjectUtils;
 
 /**
  * @author yiqun.fan create on 17-8-31.
@@ -124,7 +126,9 @@ public class MetaInfoService implements MetaInfoClient.ResponseSubscriber, Runna
         request.setClientId(this.clientId);
         request.setConsumerGroup(param.group);
         request.setAppCode(param.getAppCode());
-
+        if (param.clientInfo != null && CharsetUtils.hasText(param.getClientInfo().getLdc())) {
+            request.setClientLdc(param.getClientInfo().getLdc());
+        }
         if (param.getRequestType() == null) {
             if (!hadOnline(param)) {
                 request.setRequestType(ClientRequestType.ONLINE);
@@ -227,8 +231,8 @@ public class MetaInfoService implements MetaInfoClient.ResponseSubscriber, Runna
         return ClientType.of(response.getClientTypeCode());
     }
 
-    public static MetaInfoRequestParam buildRequestParam(ClientType clientType, String subject, String group, String appCode) {
-        return new MetaInfoRequestParam(clientType, subject, group, appCode);
+    public static MetaInfoRequestParam buildRequestParam(ClientType clientType, String subject, String group, String appCode, ClientInfo clientInfo) {
+        return new MetaInfoRequestParam(clientType, subject, group, appCode, clientInfo);
     }
 
     public void setConsumerStateChangedListener(ConsumerStateChangedListener listener) {
@@ -260,12 +264,14 @@ public class MetaInfoService implements MetaInfoClient.ResponseSubscriber, Runna
         private final String subject;
         private final String group;
         private final String appCode;
+        private final ClientInfo clientInfo;
 
-        MetaInfoRequestParam(ClientType clientType, String subject, String group, String appCode) {
+        MetaInfoRequestParam(ClientType clientType, String subject, String group, String appCode,ClientInfo clientInfo) {
             this.clientType = clientType;
             this.subject = Strings.nullToEmpty(subject);
             this.group = Strings.nullToEmpty(group);
             this.appCode = appCode;
+            this.clientInfo = clientInfo;
         }
 
         public ClientType getClientType() {
@@ -290,6 +296,10 @@ public class MetaInfoService implements MetaInfoClient.ResponseSubscriber, Runna
 
         public void setRequestType(ClientRequestType requestType) {
             this.requestType = requestType;
+        }
+
+        public ClientInfo getClientInfo() {
+            return clientInfo;
         }
 
         @Override

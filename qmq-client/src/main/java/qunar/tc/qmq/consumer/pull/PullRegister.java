@@ -20,19 +20,19 @@ import static qunar.tc.qmq.common.StatusSource.CODE;
 import static qunar.tc.qmq.common.StatusSource.HEALTHCHECKER;
 import static qunar.tc.qmq.common.StatusSource.OPS;
 
-import com.google.common.base.Strings;
-
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReentrantLock;
 
+import com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.PullConsumer;
 import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.broker.impl.BrokerServiceImpl;
+import qunar.tc.qmq.common.ClientInfo;
 import qunar.tc.qmq.common.EnvProvider;
 import qunar.tc.qmq.common.MapKeyBuilder;
 import qunar.tc.qmq.common.StatusSource;
@@ -70,6 +70,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
     private String clientId;
     private String metaServer;
     private String appCode;
+    private ClientInfo clientInfo;
     private int destroyWaitInSeconds;
 
     private EnvProvider envProvider;
@@ -91,6 +92,7 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
         this.metaInfoService.setConsumerStateChangedListener(this);
 
         this.brokerService.setAppCode(appCode);
+        this.brokerService.setClientInfo(clientInfo);
     }
 
     @Override
@@ -277,6 +279,10 @@ public class PullRegister implements ConsumerRegister, ConsumerStateChangedListe
 
     public void setAppCode(String appCode) {
         this.appCode = appCode;
+    }
+
+    public void setClientInfo(ClientInfo clientInfo) {
+        this.clientInfo = clientInfo;
     }
 
     @Override

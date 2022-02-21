@@ -16,12 +16,14 @@
 
 package qunar.tc.qmq.meta.processor;
 
+import java.util.concurrent.CompletableFuture;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import qunar.tc.qmq.meta.cache.AliveClientManager;
-import qunar.tc.qmq.meta.cache.CachedOfflineStateManager;
+import qunar.tc.qmq.meta.cache.CacheManager;
+import qunar.tc.qmq.meta.cache.CacheManagerFactory;
 import qunar.tc.qmq.meta.monitor.QMon;
-import qunar.tc.qmq.meta.route.ReadonlyBrokerGroupManager;
 import qunar.tc.qmq.meta.route.SubjectRouter;
 import qunar.tc.qmq.meta.store.Store;
 import qunar.tc.qmq.netty.NettyRequestProcessor;
@@ -30,8 +32,6 @@ import qunar.tc.qmq.protocol.RemotingCommand;
 import qunar.tc.qmq.protocol.RemotingHeader;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
 import qunar.tc.qmq.utils.PayloadHolderUtils;
-
-import java.util.concurrent.CompletableFuture;
 
 /**
  * @author yunfeng.yang
@@ -43,11 +43,10 @@ public class ClientRegisterProcessor implements NettyRequestProcessor {
     private final AliveClientManager aliveClientManager;
 
     public ClientRegisterProcessor(final SubjectRouter subjectRouter,
-                                   final CachedOfflineStateManager offlineStateManager,
-                                   final Store store,
-                                   ReadonlyBrokerGroupManager readonlyBrokerGroupManager) {
-        this.clientRegisterWorker = new ClientRegisterWorker(subjectRouter, offlineStateManager, store, readonlyBrokerGroupManager);
-        this.aliveClientManager = AliveClientManager.getInstance();
+                                   final CacheManager cacheManager,
+                                   final Store store) {
+        this.clientRegisterWorker = new ClientRegisterWorker(subjectRouter, cacheManager.getOfflineStateManager(), store, cacheManager.getReadonlyBrokerGroupManager());
+        this.aliveClientManager = cacheManager.getAliveClientManager();
     }
 
     @Override
@@ -59,6 +58,7 @@ public class ClientRegisterProcessor implements NettyRequestProcessor {
 
         aliveClientManager.renew(request);
         clientRegisterWorker.register(new ClientRegisterMessage(request, ctx, header));
+        CacheManagerFactory.addRequest(request);
         return null;
     }
 

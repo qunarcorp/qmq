@@ -19,9 +19,29 @@ package qunar.tc.qmq.meta.loadbalance;
 import java.util.List;
 
 /**
+ * The interface Load balance.
+ *
+ * @param <T>  the type parameter
  * @author yunfeng.yang
- * @since 2017/8/30
+ * @since 2017 /8/30
  */
 public interface LoadBalance<T> {
+
+    /**
+     * Select list.
+     *
+     * @param subject the subject
+     * @param brokerGroups the broker groups
+     * @param minNum the min num
+     * @return the list
+     */
     List<T> select(String subject, List<T> brokerGroups, int minNum);
+
+    /**
+     * Name string.
+     *
+     * @return the string
+     */
+    String name();
+
 }

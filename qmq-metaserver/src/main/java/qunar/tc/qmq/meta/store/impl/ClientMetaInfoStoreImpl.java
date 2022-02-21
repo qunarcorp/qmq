@@ -16,13 +16,14 @@
 
 package qunar.tc.qmq.meta.store.impl;
 
-import org.springframework.jdbc.core.JdbcTemplate;
+import java.util.List;
+
 import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
 import qunar.tc.qmq.meta.model.ClientMetaInfo;
 import qunar.tc.qmq.meta.store.ClientMetaInfoStore;
 
-import java.util.List;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
  * @author keli.wang
@@ -33,8 +34,9 @@ public class ClientMetaInfoStoreImpl implements ClientMetaInfoStore {
 
     @Override
     public List<ClientMetaInfo> queryConsumer(String subject) {
-        return jdbcTemplate.query("SELECT subject_info,client_type,consumer_group,client_id,app_code,room FROM client_meta_info WHERE subject_info=? AND client_type=?", (rs, rowNum) -> {
+        return jdbcTemplate.query("SELECT id,subject_info,client_type,consumer_group,client_id,app_code,room FROM client_meta_info WHERE subject_info=? AND client_type=?", (rs, rowNum) -> {
             final ClientMetaInfo meta = new ClientMetaInfo();
+            meta.setId(rs.getInt("id"));
             meta.setSubject(rs.getString("subject_info"));
             meta.setClientTypeCode(rs.getInt("client_type"));
             meta.setConsumerGroup(rs.getString("consumer_group"));

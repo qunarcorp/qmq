@@ -16,6 +16,13 @@
 
 package qunar.tc.qmq.meta.route.impl;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.configuration.DynamicConfig;
@@ -23,7 +30,6 @@ import qunar.tc.qmq.meta.BrokerGroup;
 import qunar.tc.qmq.meta.BrokerState;
 import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 import qunar.tc.qmq.meta.loadbalance.LoadBalance;
-import qunar.tc.qmq.meta.loadbalance.RandomLoadBalance;
 import qunar.tc.qmq.meta.model.SubjectInfo;
 import qunar.tc.qmq.meta.model.SubjectRoute;
 import qunar.tc.qmq.meta.monitor.QMon;
@@ -31,7 +37,6 @@ import qunar.tc.qmq.meta.route.SubjectRouter;
 import qunar.tc.qmq.meta.store.Store;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
 
-import java.util.*;
 
 /**
  * @author keli.wang
@@ -46,13 +51,14 @@ public class DefaultSubjectRouter implements SubjectRouter {
 
     private final CachedMetaInfoManager cachedMetaInfoManager;
     private final Store store;
-    private final LoadBalance<String> loadBalance;
+    private final LoadBalance<BrokerGroup> loadBalance;
     private int minGroupNum = DEFAULT_MIN_NUM;
 
-    public DefaultSubjectRouter(final DynamicConfig config, final CachedMetaInfoManager cachedMetaInfoManager, final Store store) {
+    public DefaultSubjectRouter(final DynamicConfig config, final CachedMetaInfoManager cachedMetaInfoManager, final Store store,
+            final LoadBalance<BrokerGroup> loadBalance) {
         this.cachedMetaInfoManager = cachedMetaInfoManager;
         this.store = store;
-        this.loadBalance = new RandomLoadBalance<>();
+        this.loadBalance = loadBalance;
 
         config.addListener(conf -> minGroupNum = conf.getInt("min.group.num", DEFAULT_MIN_NUM));
     }
@@ -67,6 +73,8 @@ public class DefaultSubjectRouter implements SubjectRouter {
             return Collections.emptyList();
         }
     }
+
+
 
     private List<BrokerGroup> doRoute(String subject) {
         SubjectInfo subjectInfo = getOrCreateSubjectInfo(subject);
@@ -98,7 +106,9 @@ public class DefaultSubjectRouter implements SubjectRouter {
     private List<String> assignNewBrokers(SubjectInfo subjectInfo) {
         String subject = subjectInfo.getName();
         final List<String> brokerGroupNames = findAvailableBrokerGroupNames(subjectInfo.getTag());
-        final List<String> loadBalanceSelect = loadBalance.select(subject, brokerGroupNames, minGroupNum);
+        List<BrokerGroup> brokerGroups = cachedMetaInfoManager.getBrokerGroups(brokerGroupNames);
+        final List<BrokerGroup> loadBalances = loadBalance.select(subject, brokerGroups, minGroupNum);
+        List<String> loadBalanceSelect = loadBalances.stream().map(BrokerGroup::getGroupName).collect(Collectors.toList());
         final int affected = store.insertSubjectRoute(subject, MIN_SUBJECT_ROUTE_VERSION, loadBalanceSelect);
         if (affected == 1) {
             return loadBalanceSelect;
@@ -123,16 +133,22 @@ public class DefaultSubjectRouter implements SubjectRouter {
         while (tries++ < MAX_UPDATE_RETRY_TIMES) {
             final SubjectRoute subjectRoute = loadSubjectRoute(subject);
             List<String> assignedBrokers = subjectRoute.getBrokerGroups();
-            if (assignedBrokers == null) assignedBrokers = new ArrayList<>();
+            if (assignedBrokers == null) {
+                assignedBrokers = new ArrayList<>();
+            }
 
-            if (assignedBrokers.size() >= minGroupNum) return assignedBrokers;
+            if (assignedBrokers.size() >= minGroupNum) {
+                return assignedBrokers;
+            }
 
             final List<String> brokerGroupNames = findAvailableBrokerGroupNames(subjectInfo.getTag());
             final List<String> idleBrokers = removeAssignedBrokers(brokerGroupNames, assignedBrokers);
-            if (idleBrokers.isEmpty()) return assignedBrokers;
-
-            final List<String> newAssigned = loadBalance.select(subject, idleBrokers, minGroupNum - assignedBrokers.size());
-            final List<String> merge = merge(assignedBrokers, newAssigned);
+            if (idleBrokers.isEmpty()) {
+                return assignedBrokers;
+            }
+            List<BrokerGroup> idleBrokerGroups = cachedMetaInfoManager.getBrokerGroups(idleBrokers);
+            final List<BrokerGroup> newAssigned = loadBalance.select(subject, idleBrokerGroups, minGroupNum - assignedBrokers.size());
+            final List<String> merge = merge(assignedBrokers, newAssigned.stream().map(BrokerGroup::getGroupName).collect(Collectors.toList()));
             final int affected = store.updateSubjectRoute(subject, subjectRoute.getVersion(), merge);
             if (affected == 1) {
                 return merge;
@@ -144,8 +160,9 @@ public class DefaultSubjectRouter implements SubjectRouter {
     private List<String> removeAssignedBrokers(List<String> brokerGroupNames, List<String> assignedBrokers) {
         List<String> result = new ArrayList<>();
         for (String name : brokerGroupNames) {
-            if (assignedBrokers.contains(name)) continue;
-
+            if (assignedBrokers.contains(name)) {
+                continue;
+            }
             result.add(name);
         }
         return result;
@@ -175,7 +192,9 @@ public class DefaultSubjectRouter implements SubjectRouter {
         List<String> result = new ArrayList<>();
         for (String name : brokerGroupNames) {
             BrokerGroup brokerGroup = cachedMetaInfoManager.getBrokerGroup(name);
-            if (brokerGroup == null || brokerGroup.getBrokerState() == BrokerState.NRW) continue;
+            if (brokerGroup == null || brokerGroup.getBrokerState() == BrokerState.NRW) {
+                continue;
+            }
             result.add(name);
         }
         return result;

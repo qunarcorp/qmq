@@ -16,9 +16,9 @@
 
 package qunar.tc.qmq.meta.store;
 
-import qunar.tc.qmq.meta.model.ClientMetaInfo;
-
 import java.util.List;
+
+import qunar.tc.qmq.meta.model.ClientMetaInfo;
 
 /**
  * @author keli.wang

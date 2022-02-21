@@ -16,14 +16,17 @@
 
 package qunar.tc.qmq.meta.store;
 
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import qunar.tc.qmq.meta.BrokerGroup;
 import qunar.tc.qmq.meta.BrokerGroupKind;
 import qunar.tc.qmq.meta.BrokerState;
+import qunar.tc.qmq.meta.model.ClientMetaInfo;
 import qunar.tc.qmq.meta.model.SubjectInfo;
 import qunar.tc.qmq.meta.model.SubjectRoute;
 import qunar.tc.qmq.protocol.consumer.MetaInfoRequest;
-
-import java.util.List;
 
 /**
  * @author yunfeng.yang
@@ -43,6 +46,8 @@ public interface Store {
 
     void updateBrokerGroupTag(String groupName, String tag);
 
+    void updateBrokerGroupExt(String groupName, Map<String,String> ext);
+
     void insertSubject(String subject, String tag);
 
     List<BrokerGroup> getAllBrokerGroups();
@@ -56,4 +61,16 @@ public interface Store {
     BrokerGroup getBrokerGroup(String groupName);
 
     void insertClientMetaInfo(MetaInfoRequest metaInfoRequest);
+
+    List<ClientMetaInfo> queryClientIds(List<String> clientIds);
+
+    List<ClientMetaInfo> queryConsumerByIdAndSubject(String clientId, Set<String> subjects);
+
+    List<ClientMetaInfo> queryConsumerByAppAndSubject(String appCode,String subject);
+
+    List<ClientMetaInfo> queryConsumerBySubject(String subject);
+
+    int updateTimeByIds(List<Integer> ids);
+
+    void batchUpdateMetaInfo(String clientId ,String subjects);
 }

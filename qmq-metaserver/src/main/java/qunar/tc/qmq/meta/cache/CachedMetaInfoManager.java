@@ -16,6 +16,16 @@
 
 package qunar.tc.qmq.meta.cache;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+
 import com.google.common.base.Strings;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
@@ -33,11 +43,6 @@ import qunar.tc.qmq.meta.model.SubjectInfo;
 import qunar.tc.qmq.meta.model.SubjectRoute;
 import qunar.tc.qmq.meta.store.ReadonlyBrokerGroupSettingStore;
 import qunar.tc.qmq.meta.store.Store;
-
-import java.util.*;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 /**
  * @author yunfeng.yang
@@ -120,6 +125,9 @@ public class CachedMetaInfoManager implements Disposable {
 
     public BrokerGroup getBrokerGroup(String groupName) {
         return cachedBrokerGroups.get(groupName);
+    }
+    public List<BrokerGroup> getBrokerGroups(List<String> groupNames) {
+        return groupNames.stream().map(s->cachedBrokerGroups.get(s)).collect(Collectors.toList());
     }
 
     public List<BrokerGroup> getDelayNewGroups() {
