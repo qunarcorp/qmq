@@ -16,15 +16,40 @@
 
 package qunar.tc.qmq.meta.startup;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.servlet.ServletContext;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.common.Disposable;
 import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.jdbc.JdbcTemplateHolder;
+import qunar.tc.qmq.meta.cache.AliveClientManager;
 import qunar.tc.qmq.meta.cache.BrokerMetaManager;
+import qunar.tc.qmq.meta.cache.CacheManager;
+import qunar.tc.qmq.meta.cache.CacheManagerFactory;
 import qunar.tc.qmq.meta.cache.CachedMetaInfoManager;
 import qunar.tc.qmq.meta.cache.CachedOfflineStateManager;
-import qunar.tc.qmq.meta.management.*;
+import qunar.tc.qmq.meta.loadbalance.LoadBalance;
+import qunar.tc.qmq.meta.loadbalance.LoadBalanceFactory;
+import qunar.tc.qmq.meta.loadbalance.RandomLoadBalance;
+import qunar.tc.qmq.meta.management.AddBrokerAction;
+import qunar.tc.qmq.meta.management.AddNewSubjectAction;
+import qunar.tc.qmq.meta.management.AddSubjectBrokerGroupAction;
+import qunar.tc.qmq.meta.management.ExtendSubjectRouteAction;
+import qunar.tc.qmq.meta.management.ListBrokerGroupsAction;
+import qunar.tc.qmq.meta.management.ListBrokersAction;
+import qunar.tc.qmq.meta.management.ListSubjectRoutesAction;
+import qunar.tc.qmq.meta.management.MarkReadonlyBrokerGroupAction;
+import qunar.tc.qmq.meta.management.MetaManagementActionSupplier;
+import qunar.tc.qmq.meta.management.RegisterClientDbAction;
+import qunar.tc.qmq.meta.management.RemoveSubjectBrokerGroupAction;
+import qunar.tc.qmq.meta.management.ReplaceBrokerAction;
+import qunar.tc.qmq.meta.management.ResetOffsetAction;
+import qunar.tc.qmq.meta.management.TokenVerificationAction;
+import qunar.tc.qmq.meta.management.UnMarkReadonlyBrokerGroupAction;
 import qunar.tc.qmq.meta.processor.BrokerAcquireMetaProcessor;
 import qunar.tc.qmq.meta.processor.BrokerRegisterProcessor;
 import qunar.tc.qmq.meta.processor.ClientRegisterProcessor;
@@ -32,8 +57,12 @@ import qunar.tc.qmq.meta.route.ReadonlyBrokerGroupManager;
 import qunar.tc.qmq.meta.route.SubjectRouter;
 import qunar.tc.qmq.meta.route.impl.DefaultSubjectRouter;
 import qunar.tc.qmq.meta.route.impl.DelayRouter;
+import qunar.tc.qmq.meta.route.impl.SubjectRouterWrapper;
 import qunar.tc.qmq.meta.service.ReadonlyBrokerGroupSettingService;
-import qunar.tc.qmq.meta.store.*;
+import qunar.tc.qmq.meta.store.BrokerStore;
+import qunar.tc.qmq.meta.store.ClientDbConfigurationStore;
+import qunar.tc.qmq.meta.store.ReadonlyBrokerGroupSettingStore;
+import qunar.tc.qmq.meta.store.Store;
 import qunar.tc.qmq.meta.store.impl.BrokerStoreImpl;
 import qunar.tc.qmq.meta.store.impl.ClientDbConfigurationStoreImpl;
 import qunar.tc.qmq.meta.store.impl.DatabaseStore;
@@ -41,10 +70,6 @@ import qunar.tc.qmq.meta.store.impl.ReadonlyBrokerGroupSettingStoreImpl;
 import qunar.tc.qmq.netty.DefaultConnectionEventHandler;
 import qunar.tc.qmq.netty.NettyServer;
 import qunar.tc.qmq.protocol.CommandCode;
-
-import javax.servlet.ServletContext;
-import java.util.ArrayList;
-import java.util.List;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -73,15 +98,17 @@ public class ServerWrapper implements Disposable {
         JdbcTemplate jdbcTemplate = JdbcTemplateHolder.getOrCreate();
         final Store store = new DatabaseStore(jdbcTemplate);
         final BrokerStore brokerStore = new BrokerStoreImpl(jdbcTemplate);
+        CacheManagerFactory.setStore(store);
         final BrokerMetaManager brokerMetaManager = BrokerMetaManager.getInstance();
         brokerMetaManager.init(brokerStore);
-
         final ReadonlyBrokerGroupSettingStore readonlyBrokerGroupSettingStore = new ReadonlyBrokerGroupSettingStoreImpl(jdbcTemplate);
         final CachedMetaInfoManager cachedMetaInfoManager = new CachedMetaInfoManager(config, store, readonlyBrokerGroupSettingStore);
-
-        final SubjectRouter subjectRouter = createSubjectRouter(cachedMetaInfoManager, store);
         final ReadonlyBrokerGroupManager readonlyBrokerGroupManager = new ReadonlyBrokerGroupManager(cachedMetaInfoManager);
-        final ClientRegisterProcessor clientRegisterProcessor = new ClientRegisterProcessor(subjectRouter, CachedOfflineStateManager.SUPPLIER.get(), store, readonlyBrokerGroupManager);
+        CacheManager cacheManager = CacheManager.of(AliveClientManager.getInstance(),cachedMetaInfoManager,
+                CachedOfflineStateManager.SUPPLIER.get(),readonlyBrokerGroupManager);
+        final SubjectRouter subjectRouter = createSubjectRouter(cachedMetaInfoManager, store);
+
+        final ClientRegisterProcessor clientRegisterProcessor = new ClientRegisterProcessor(subjectRouter, cacheManager, store);
         final BrokerRegisterProcessor brokerRegisterProcessor = new BrokerRegisterProcessor(config, cachedMetaInfoManager, store);
         final BrokerAcquireMetaProcessor brokerAcquireMetaProcessor = new BrokerAcquireMetaProcessor(new BrokerStoreImpl(jdbcTemplate));
         final ReadonlyBrokerGroupSettingService readonlyBrokerGroupSettingService = new ReadonlyBrokerGroupSettingService(readonlyBrokerGroupSettingStore);
@@ -112,10 +139,14 @@ public class ServerWrapper implements Disposable {
         resources.add(cachedMetaInfoManager);
         resources.add(brokerMetaManager);
         resources.add(metaNettyServer);
+
     }
 
     private SubjectRouter createSubjectRouter(CachedMetaInfoManager cachedMetaInfoManager, Store store) {
-        return new DelayRouter(cachedMetaInfoManager, new DefaultSubjectRouter(config, cachedMetaInfoManager, store));
+        LoadBalance loadBalance = LoadBalanceFactory.getByName(config.getString("meta.server.load.balance", RandomLoadBalance.DEFAULT_LOAD_BALANCE));
+        LOG.info("loadBalance type[{}]", loadBalance.name());
+        DelayRouter delayRouter = new DelayRouter(cachedMetaInfoManager, new DefaultSubjectRouter(config, cachedMetaInfoManager, store, loadBalance), loadBalance);
+        return new SubjectRouterWrapper(delayRouter);
     }
 
 

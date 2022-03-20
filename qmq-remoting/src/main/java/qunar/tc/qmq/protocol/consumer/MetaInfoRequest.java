@@ -16,12 +16,12 @@
 
 package qunar.tc.qmq.protocol.consumer;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import com.google.common.base.Strings;
 import qunar.tc.qmq.base.ClientRequestType;
 import qunar.tc.qmq.common.ClientType;
-
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * @author yiqun.fan create on 17-8-31.
@@ -33,6 +33,7 @@ public class MetaInfoRequest {
     private static final String CLIENT_ID = "clientId";
     private static final String CONSUMER_GROUP = "consumerGroup";
     private static final String REQUEST_TYPE = "requestType";
+    private static final String CLIENT_LDC = "clientLDC";
 
     private final Map<String, String> attrs;
 
@@ -94,6 +95,14 @@ public class MetaInfoRequest {
 
     public void setRequestType(ClientRequestType requestType) {
         setIntValue(REQUEST_TYPE, requestType.getCode());
+    }
+
+    public String getClientLdc() {
+        return Strings.nullToEmpty(attrs.get(CLIENT_LDC));
+    }
+
+    public void setClientLdc(String ldc) {
+        setStringValue(CLIENT_LDC, ldc);
     }
 
     private void setIntValue(String attrName, int value) {

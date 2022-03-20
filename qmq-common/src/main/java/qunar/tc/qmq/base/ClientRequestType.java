@@ -17,11 +17,19 @@
 package qunar.tc.qmq.base;
 
 /**
+ * The enum Client request type.
  * @author yunfeng.yang
- * @since 2017/10/16
+ * @since 2017 /10/16
  */
 public enum  ClientRequestType {
-    ONLINE(1), HEARTBEAT(2);
+    /**
+     *Online client request type.
+     */
+    ONLINE(1),
+    /**
+     *Heartbeat client request type.
+     */
+    HEARTBEAT(2);
 
     private int code;
 
@@ -29,8 +37,33 @@ public enum  ClientRequestType {
         this.code = code;
     }
 
+    /**
+     * Gets code.
+     *
+     * @return the code
+     */
     public int getCode() {
         return code;
+    }
+
+    /**
+     * Is online boolean.
+     *
+     * @param code the code
+     * @return the boolean
+     */
+    public static boolean isOnline(int code){
+        return HEARTBEAT.code == code;
+    }
+
+    /**
+     * Is heart beat boolean.
+     *
+     * @param code the code
+     * @return the boolean
+     */
+    public static boolean isHeartBeat(int code){
+        return HEARTBEAT.code == code;
     }
 }
 

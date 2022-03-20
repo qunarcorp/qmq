@@ -17,6 +17,7 @@
 package qunar.tc.qmq.meta;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -31,6 +32,7 @@ public class BrokerGroup {
     private BrokerState brokerState;
     private String tag;
     private BrokerGroupKind kind;
+    private Map<String,String> ext;
 
     public String getGroupName() {
         return groupName;
@@ -86,6 +88,14 @@ public class BrokerGroup {
 
     public void setKind(final BrokerGroupKind kind) {
         this.kind = kind;
+    }
+
+    public Map<String, String> getExt() {
+        return ext;
+    }
+
+    public void setExt(Map<String, String> ext) {
+        this.ext = ext;
     }
 
     @Override

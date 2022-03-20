@@ -1,11 +1,12 @@
 package qunar.tc.qmq.producer;
 
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.Message;
 import qunar.tc.qmq.MessageSendStateListener;
+import qunar.tc.qmq.common.ClientInfo;
 
 public class ProducerTest {
 
@@ -14,6 +15,7 @@ public class ProducerTest {
     public static void main(String[] args) throws Exception {
         final MessageProducerProvider provider = new MessageProducerProvider();
         provider.setAppCode("producer_test");
+        provider.setClientInfo(ClientInfo.of("consumer_test","ldc1"));
         provider.setMetaServer("http://127.0.0.1:8080/meta/address");
         provider.init();
 

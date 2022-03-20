@@ -16,6 +16,7 @@
 
 package qunar.tc.qmq.broker;
 
+import qunar.tc.qmq.common.ClientInfo;
 import qunar.tc.qmq.common.ClientType;
 
 /**
@@ -32,4 +33,6 @@ public interface BrokerService {
     void refresh(ClientType clientType, String subject, String group);
 
     void setAppCode(String appCode);
+
+    void setClientInfo(ClientInfo clientInfo);
 }

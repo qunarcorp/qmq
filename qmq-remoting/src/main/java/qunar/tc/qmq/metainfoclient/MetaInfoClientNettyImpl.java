@@ -154,7 +154,7 @@ class MetaInfoClientNettyImpl extends AbstractNettyClient implements MetaInfoCli
     public void registerResponseSubscriber(ResponseSubscriber subscriber) {
         clientHandler.registerResponseSubscriber(subscriber);
     }
-
+    @Override
     public void setMetaServerLocator(MetaServerLocator locator) {
         this.locator = locator;
     }

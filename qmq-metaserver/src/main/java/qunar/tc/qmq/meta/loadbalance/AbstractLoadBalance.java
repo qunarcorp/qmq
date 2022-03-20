@@ -33,5 +33,5 @@ public abstract class AbstractLoadBalance<T> implements LoadBalance<T> {
         return doSelect(subject, brokerGroups, minNum);
     }
 
-    abstract List<T> doSelect(String subject, List<T> brokerGroups, int minNum);
+    public abstract List<T> doSelect(String subject, List<T> brokerGroups, int minNum);
 }
