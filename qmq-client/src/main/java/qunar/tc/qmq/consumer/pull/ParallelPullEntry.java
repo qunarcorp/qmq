@@ -1,12 +1,6 @@
 package qunar.tc.qmq.consumer.pull;
 
 import com.google.common.collect.Maps;
-
-import java.util.Map;
-import java.util.concurrent.Executor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-
 import com.google.common.util.concurrent.AbstractFuture;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
@@ -18,6 +12,13 @@ import qunar.tc.qmq.broker.BrokerService;
 import qunar.tc.qmq.common.ClientType;
 import qunar.tc.qmq.common.StatusSource;
 import qunar.tc.qmq.common.SwitchWaiter;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static qunar.tc.qmq.consumer.pull.DefaultPullEntry.DELAY_SCHEDULER;
 
@@ -140,8 +141,11 @@ public class ParallelPullEntry implements PullEntry, Runnable {
         String oldThreadName = thread.getName();
         thread.setName("qmq-pull-entry-" + getSubject() + "-" + getConsumerGroup());
         try {
-            BrokerClusterInfo brokerCluster = brokerService.getClusterBySubject(ClientType.CONSUMER, getSubject(), getConsumerGroup());
-            for (BrokerGroupInfo brokerGroup : brokerCluster.getGroups()) {
+            final BrokerClusterInfo brokerCluster = brokerService.getClusterBySubject(ClientType.CONSUMER, getSubject(), getConsumerGroup());
+            final List<BrokerGroupInfo> currentBrokers = brokerCluster.getGroups();
+            if (currentBrokers == null || currentBrokers.isEmpty()) return;
+
+            for (BrokerGroupInfo brokerGroup : currentBrokers) {
                 String brokerGroupName = brokerGroup.getGroupName();
                 pullEntryMap.computeIfAbsent(brokerGroupName,
                         bgn -> {
@@ -152,6 +156,14 @@ public class ParallelPullEntry implements PullEntry, Runnable {
                             pullEntry.startPull();
                             return pullEntry;
                         });
+            }
+            final Map<String, PullEntry> temp = new HashMap<>(pullEntryMap);
+            for (Map.Entry<String, PullEntry> entry : temp.entrySet()) {
+                final BrokerGroupInfo group = brokerCluster.getGroupByName(entry.getKey());
+                if (group == null) {
+                    entry.getValue().destroy();
+                    pullEntryMap.remove(entry.getKey());
+                }
             }
         } finally {
             thread.setName(oldThreadName);
