@@ -109,11 +109,11 @@ class DefaultPullEntry extends AbstractPullEntry implements Runnable {
     public void run() {
         Thread thread = Thread.currentThread();
         String oldThreadName = thread.getName();
-        brokerGroup = getBrokerGroup();
-        thread.setName("qmq-pull-entry-" + getSubject() + "-" + getConsumerGroup() + "-" + brokerGroup);
+        thread.setName("qmq-pull-entry-" + getSubject() + "-" + getConsumerGroup() + "-" + getBrokerGroup());
         try {
             switch (state.get()) {
                 case PREPARE_PULL:
+                    brokerGroup = getBrokerGroup();
                     if (!isRunning.get()) {
                         return;
                     }
@@ -146,7 +146,7 @@ class DefaultPullEntry extends AbstractPullEntry implements Runnable {
                     try {
                         PullResult pullResult = pullFuture.get();
                         List<PulledMessage> messages = handlePullResult(thisPullParam, pullResult, pushConsumer);
-                        brokerGroup.markSuccess();
+                        markSuccess(brokerGroup);
                         pullStrategy.record(messages.size() > 0);
                         pushConsumer.push(messages);
                     } catch (ExecutionException e) {

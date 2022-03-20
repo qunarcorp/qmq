@@ -92,7 +92,13 @@ abstract class AbstractPullEntry implements PullEntry {
         return Collections.emptyList();
     }
 
+    protected void markSuccess(BrokerGroupInfo group) {
+        if (group == null) return;
+        group.markSuccess();
+    }
+
     protected void markFailed(BrokerGroupInfo group) {
+        if (group == null) return;
         pullFailCounter.inc();
         group.markFailed();
         loadBalance.timeout(group);
@@ -157,7 +163,7 @@ abstract class AbstractPullEntry implements PullEntry {
     private static void monitorMessageCount(final PullParam pullParam, final PullResult pullResult) {
         try {
             Metrics.counter("qmq_pull_message_count", new String[]{"subject", "group", "broker"},
-                    new String[]{pullParam.getSubject(), pullParam.getGroup(), pullParam.getBrokerGroup().getGroupName()})
+                            new String[]{pullParam.getSubject(), pullParam.getGroup(), pullParam.getBrokerGroup().getGroupName()})
                     .inc(pullResult.getMessages().size());
         } catch (Exception e) {
             LOGGER.error("AbstractPullEntry monitor exception", e);
