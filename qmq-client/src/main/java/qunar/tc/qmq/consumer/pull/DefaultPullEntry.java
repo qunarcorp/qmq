@@ -67,6 +67,7 @@ class DefaultPullEntry extends AbstractPullEntry implements Runnable {
     private final PullStrategy pullStrategy;
     private final String brokerGroupName;
 
+    private BrokerGroupInfo brokerGroup;
     private volatile SettableFuture<Boolean> onlineFuture;
 
     private final Executor executor;
@@ -108,9 +109,9 @@ class DefaultPullEntry extends AbstractPullEntry implements Runnable {
     public void run() {
         Thread thread = Thread.currentThread();
         String oldThreadName = thread.getName();
-        thread.setName("qmq-pull-entry-" + getSubject() + "-" + getConsumerGroup() + "-" + getBrokerGroup());
+        brokerGroup = getBrokerGroup();
+        thread.setName("qmq-pull-entry-" + getSubject() + "-" + getConsumerGroup() + "-" + brokerGroup);
         try {
-            final BrokerGroupInfo brokerGroup = getBrokerGroup();
             switch (state.get()) {
                 case PREPARE_PULL:
                     if (!isRunning.get()) {
@@ -125,7 +126,7 @@ class DefaultPullEntry extends AbstractPullEntry implements Runnable {
                         return;
                     }
 
-                    if (await(validate(brokerGroup))) {
+                    if (await(validate())) {
                         return;
                     }
 
@@ -203,7 +204,7 @@ class DefaultPullEntry extends AbstractPullEntry implements Runnable {
         return null;
     }
 
-    private ListenableFuture validate(BrokerGroupInfo brokerGroup) {
+    private ListenableFuture validate() {
         if (BrokerGroupInfo.isInvalid(brokerGroup)) {
             return delay("no available broker", PAUSETIME_OF_NOAVAILABLE_BROKER);
         }
