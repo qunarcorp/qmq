@@ -26,6 +26,8 @@ import qunar.tc.qmq.common.Disposable;
 import qunar.tc.qmq.delay.DelayLogFacade;
 import qunar.tc.qmq.delay.ScheduleIndex;
 import qunar.tc.qmq.delay.monitor.QMon;
+import qunar.tc.qmq.delay.sender.loadbalance.BrokerGroupStats;
+import qunar.tc.qmq.delay.sender.loadbalance.LoadBalancer;
 import qunar.tc.qmq.delay.store.model.ScheduleSetRecord;
 import qunar.tc.qmq.metrics.Metrics;
 import qunar.tc.qmq.netty.exception.ClientSendException;
@@ -62,23 +64,26 @@ public class SenderGroup implements Disposable {
         this.executorService = new ThreadPoolExecutor(1, sendThreads, 1L, TimeUnit.MINUTES,
                 new LinkedBlockingQueue<>(), new ThreadFactoryBuilder()
                 .setNameFormat("delay-sender-" + groupInfo.getGroupName() + "-%d").build());
+
+        Metrics.gauge("sendGroupQueueSize", new String[]{"brokerGroup"}, new String[]{groupInfo.getGroupName()}, () -> (double) executorService.getQueue().size());
     }
 
-    public void send(final List<ScheduleIndex> records, final Sender sender, final ResultHandler handler) {
-        executorService.execute(() -> doSend(records, sender, handler));
+    public void send(final List<ScheduleIndex> records, final Sender sender, final ResultHandler handler, final LoadBalancer balancer) {
+        final BrokerGroupStats stats = balancer.getBrokerGroupStats(groupInfo.get());
+        stats.incrementToSendCount(records.size());
+        executorService.execute(() -> doSend(records, sender, handler, balancer));
     }
 
-    private void doSend(final List<ScheduleIndex> batch, final Sender sender, final ResultHandler handler) {
+    private void doSend(final List<ScheduleIndex> batch, final Sender sender, final ResultHandler handler, final LoadBalancer balancer) {
         BrokerGroupInfo groupInfo = this.groupInfo.get();
-        String groupName = groupInfo.getGroupName();
         List<List<ScheduleIndex>> partitions = Lists.partition(batch, MAX_SEND_BATCH_SIZE);
 
         for (List<ScheduleIndex> partition : partitions) {
-            send(sender, handler, groupInfo, groupName, partition);
+            send(sender, handler, groupInfo, partition, balancer);
         }
     }
 
-    private void send(Sender sender, ResultHandler handler, BrokerGroupInfo groupInfo, String groupName, List<ScheduleIndex> list) {
+    private void send(final Sender sender, final ResultHandler handler, final BrokerGroupInfo groupInfo, final List<ScheduleIndex> list, final LoadBalancer balancer) {
         try {
             long start = System.currentTimeMillis();
             List<ScheduleSetRecord> records = store.recoverLogRecord(list);
@@ -86,9 +91,10 @@ public class SenderGroup implements Disposable {
 
             Datagram response = sendMessages(records, sender);
             release(records);
-            monitor(list, groupName);
+            monitor(list, groupInfo.getGroupName());
             if (response == null) {
-                handler.fail(list);
+                groupInfo.markFailed();
+                fail(list, groupInfo.getGroupName(), handler);
             } else {
                 final int responseCode = response.getHeader().getCode();
                 final Map<String, SendResult> resultMap = getSendResult(response);
@@ -98,9 +104,7 @@ public class SenderGroup implements Disposable {
                         groupInfo.markFailed();
                     }
 
-                    monitorSendFail(list, groupInfo.getGroupName());
-
-                    handler.fail(list);
+                    fail(list, groupInfo.getGroupName(), handler);
                     return;
                 }
 
@@ -121,9 +125,17 @@ public class SenderGroup implements Disposable {
                 handler.success(records, failedMessageIds);
             }
         } catch (Throwable e) {
-            LOGGER.error("sender group send batch failed,broker:{},batch size:{}", groupName, list.size(), e);
-            handler.fail(list);
+            LOGGER.error("sender group send batch failed,broker:{},batch size:{}", groupInfo.getGroupName(), list.size(), e);
+            fail(list, groupInfo.getGroupName(), handler);
+        } finally {
+            BrokerGroupStats stats = balancer.getBrokerGroupStats(groupInfo);
+            stats.decrementToSendCount(list.size());
         }
+    }
+
+    private void fail(final List<ScheduleIndex> list, final String groupName, final ResultHandler handler) {
+        monitorSendFail(list, groupName);
+        handler.fail(list);
     }
 
     private void release(List<ScheduleSetRecord> records) {
