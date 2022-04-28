@@ -37,6 +37,7 @@ import qunar.tc.qmq.protocol.producer.SendResult;
 
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -59,9 +60,22 @@ public class SenderGroup implements Disposable {
     SenderGroup(final BrokerGroupInfo groupInfo, int sendThreads, DelayLogFacade store) {
         this.groupInfo = new AtomicReference<>(groupInfo);
         this.store = store;
+        final LinkedBlockingQueue<Runnable> workQueue = new LinkedBlockingQueue<>(1);
         this.executorService = new ThreadPoolExecutor(1, sendThreads, 1L, TimeUnit.MINUTES,
-                new LinkedBlockingQueue<>(), new ThreadFactoryBuilder()
-                .setNameFormat("delay-sender-" + groupInfo.getGroupName() + "-%d").build());
+                workQueue, new ThreadFactoryBuilder()
+                .setNameFormat("delay-sender-" + groupInfo.getGroupName() + "-%d").build(), new RejectedExecutionHandler() {
+            @Override
+            public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
+                boolean success = false;
+                while (!success) {
+                    try {
+                        success = workQueue.add(r);
+                    } catch (Throwable ignore) {
+
+                    }
+                }
+            }
+        });
     }
 
     public void send(final List<ScheduleIndex> records, final Sender sender, final ResultHandler handler) {
