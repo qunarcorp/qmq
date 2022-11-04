@@ -1,1 +1,1 @@
-alter table broker_group add column `ext1` text COMMENT '扩展信息';
+alter table broker_group add column `ext` text COMMENT '扩展信息';
