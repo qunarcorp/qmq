@@ -24,7 +24,7 @@ import java.util.Date;
  * @since 2017/9/25
  */
 public class ClientMetaInfo {
-    private int id;
+    private long id;
     private String subject;
     private int clientTypeCode;
     private String appCode;
@@ -34,11 +34,11 @@ public class ClientMetaInfo {
     private Date createTime;
     private Date updateTime;
 
-    public int getId() {
+    public long getId() {
         return id;
     }
 
-    public void setId(int id) {
+    public void setId(long id) {
         this.id = id;
     }
 
