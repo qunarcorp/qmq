@@ -46,7 +46,7 @@ jobs:
           MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
       # Nexus自动部署
       - name: Release on nexus
-        uses: monkeyWie/maven-nexus-release@v1
+        uses: monkeyWie/maven-nexus-release@v1.0.0
         with:
           # Nexus用户名
           maven-repo-server-username: yuyijq
