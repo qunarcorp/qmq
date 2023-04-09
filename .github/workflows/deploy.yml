@@ -1,0 +1,54 @@
+name: deploy
+
+on:
+  # 支持手动触发构建
+  workflow_dispatch:
+  release:
+    # 创建release的时候触发
+    types: [published]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 拉取源码
+      - uses: actions/checkout@v2
+      # 安装JDK环境
+      - name: Set up JDK 1.8
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+      # 设置Maven中央仓库配置
+      - name: Set up Apache Maven Central
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+          server-id: releases
+          # Nexus用户名环境变量
+          server-username: yuyijq
+          # Nexus密码环境变量
+          server-password: MAVEN_CENTRAL_TOKEN
+          # gpg短密码环境变量
+          gpg-passphrase: MAVEN_GPG_PASSPHRASE
+          # gpg私钥
+          gpg-private-key: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
+      # 推送jar包至maven中央仓库
+      - name: Publish to Apache Maven Central
+        # 执行maven deploy命令
+        run: mvn clean deploy -Prelease
+        # 环境变量设置
+        env:
+          # Nexus用户名,如果觉得不想暴露也可以配置到secrets中
+          MAVEN_USERNAME: yuyijq
+          # Nexus密码
+          MAVEN_CENTRAL_TOKEN: ${{ secrets.MAVEN_CENTRAL_TOKEN }}
+          # gpg短密码
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
+      # Nexus自动部署
+      - name: Release on nexus
+        uses: monkeyWie/maven-nexus-release@v1
+        with:
+          # Nexus用户名
+          maven-repo-server-username: yuyijq
+          # Nexus密码
+          maven-repo-server-password: ${{ secrets.MAVEN_CENTRAL_TOKEN }}
