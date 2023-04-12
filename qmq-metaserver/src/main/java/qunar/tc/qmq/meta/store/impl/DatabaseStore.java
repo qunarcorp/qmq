@@ -269,7 +269,7 @@ public class DatabaseStore implements Store {
     }
 
     @Override
-    public int updateTimeByIds(List<Integer> ids) {
+    public int updateTimeByIds(List<Long> ids) {
         String inSql = String.join(",", Collections.nCopies(ids.size(),"?"));
         return jdbcTemplate.update(String.format(UPDATE_CLIENT_META_INFO_SQL, inSql), ids.toArray());
     }
