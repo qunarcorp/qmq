@@ -70,7 +70,7 @@ public interface Store {
 
     List<ClientMetaInfo> queryConsumerBySubject(String subject);
 
-    int updateTimeByIds(List<Integer> ids);
+    int updateTimeByIds(List<Long> ids);
 
     void batchUpdateMetaInfo(String clientId ,String subjects);
 }
