@@ -14,13 +14,13 @@ jobs:
         uses: actions/setup-java@v3
         with:
           distribution oracle
-          java-version: 1.8
+          java-version: 8
 
       - name: Set up Apache Maven Central
         uses: actions/setup-java@v3
         with: # running setup-java again overwrites the settings.xml
           distribution oracle
-          java-version: 1.8
+          java-version: 8
           server-id: releases # Value of the distributionManagement/repository/id field of the pom.xml
           server-username: MAVEN_USERNAME # env variable for username in deploy
           server-password: MAVEN_CENTRAL_TOKEN # env variable for token in deploy
