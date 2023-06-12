@@ -17,7 +17,10 @@ package qunar.tc.qmq.delay.wheel;
 
 import io.netty.util.internal.PlatformDependent;
 import io.netty.util.internal.StringUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qunar.tc.qmq.delay.ScheduleIndex;
+import qunar.tc.qmq.delay.monitor.QMon;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -30,6 +33,9 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 @SuppressWarnings("all")
 public class HashedWheelTimer {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(HashedWheelTimer.class);
+
     private static final AtomicIntegerFieldUpdater<HashedWheelTimer> WORKER_STATE_UPDATER;
 
     static {
@@ -168,6 +174,9 @@ public class HashedWheelTimer {
         return worker.unprocessedTimeouts();
     }
 
+    /**
+     * java.lang.IllegalStateException: Queue full---队列满了会抛这个异常
+     */
     public void newTimeout(ScheduleIndex index, long delay, TimeUnit unit) {
         long deadline = System.nanoTime() + unit.toNanos(delay) - startTime;
         HashedWheelTimeout timeout = new HashedWheelTimeout(this, index, deadline);
@@ -340,7 +349,13 @@ public class HashedWheelTimer {
                 return;
             }
 
-            timer.expire(entity);
+            try {
+                timer.expire(entity);
+            } catch (Throwable throwable) {
+                LOGGER.error("timer expire op error, entityInfo:subject={},offset={},scheduleTime={}",
+                        entity.getSubject(), entity.getOffset(), entity.getScheduleTime(), throwable);
+                QMon.hashedWheelTimerExpireError();
+            }
         }
 
         @Override

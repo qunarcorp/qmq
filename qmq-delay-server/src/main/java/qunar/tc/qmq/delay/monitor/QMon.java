@@ -127,4 +127,28 @@ public class QMon {
     public static void processTime(String subject, long time) {
         Metrics.timer("processTime", SUBJECT_ARRAY, new String[]{subject}).update(time, TimeUnit.MILLISECONDS);
     }
+
+    public static void sendBatchExecutorAddFailed(String subject) {
+        countInc("sendBatchExecutorAddFailed", subject);
+    }
+
+    public static void hashedWheelTimerExpireError() {
+        Metrics.counter("hashed_wheel_timer_expire_error", EMPTY, EMPTY).inc();
+    }
+
+    public static void sendBatchExecutorAddFailedRetryFailed(String subject) {
+        countInc("sendBatchExecutorAddFailedRetryFailed", subject);
+    }
+
+    public static void addWheelFailed(String subject) {
+        countInc("addWheelFailed", subject);
+    }
+
+    public static void sendProcessorFailed() {
+        Metrics.counter("sendProcessorFailed", EMPTY, EMPTY).inc();
+    }
+
+    public static void sendProcessorPartlyFailed() {
+        Metrics.counter("sendProcessorPartlyFailed", EMPTY, EMPTY).inc();
+    }
 }

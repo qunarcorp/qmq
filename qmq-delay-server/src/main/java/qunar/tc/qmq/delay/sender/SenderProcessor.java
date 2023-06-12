@@ -27,11 +27,13 @@ import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.delay.DelayLogFacade;
 import qunar.tc.qmq.delay.ScheduleIndex;
 import qunar.tc.qmq.delay.meta.BrokerRoleManager;
+import qunar.tc.qmq.delay.monitor.QMon;
 import qunar.tc.qmq.delay.store.model.DispatchLogRecord;
 import qunar.tc.qmq.delay.store.model.ScheduleSetRecord;
 
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -90,6 +92,7 @@ public class SenderProcessor implements DelayProcessor, Processor<ScheduleIndex>
         } catch (InterruptedException e) {
             return;
         }
+        //这里卡住重试
         if (!add) {
             reject(index);
         }
@@ -106,7 +109,27 @@ public class SenderProcessor implements DelayProcessor, Processor<ScheduleIndex>
     }
 
     private void reject(ScheduleIndex index) {
-        send(index);
+        QMon.sendBatchExecutorAddFailed(index.getSubject());
+        boolean result = false;
+        int retryTimes = config.getInt("delay.send.batch.executor.retry.times", 50);
+        long sleepBaseMillis = config.getLong("delay.send.batch.executor.sleep.min.millis", 1000L);
+        for (int i = 0; i < retryTimes; i++) {
+            try {
+                final ThreadLocalRandom random = ThreadLocalRandom.current();
+                long sleepMillis = sleepBaseMillis + random.nextInt(1000);
+                Thread.sleep(sleepMillis);
+                send(index);
+                result = true;
+                break;
+            } catch (InterruptedException e) {
+                LOGGER.error("send processor reject InterruptedException", e);
+            } catch (Throwable throwable) {
+                LOGGER.error("send processor reject error, subject={}, scheduleTime={}, offset={}", index.getSubject(), index.getScheduleTime(), index.getOffset(), throwable);
+            }
+        }
+        if (!result) {
+            QMon.sendBatchExecutorAddFailedRetryFailed(index.getSubject());
+        }
     }
 
     private void success(ScheduleSetRecord record) {
@@ -117,6 +140,7 @@ public class SenderProcessor implements DelayProcessor, Processor<ScheduleIndex>
         final Set<String> refreshSubject = Sets.newHashSet();
         for (ScheduleSetRecord record : records) {
             if (messageIds.contains(record.getMessageId())) {
+                QMon.sendProcessorPartlyFailed();
                 ScheduleIndex index = new ScheduleIndex(record.getSubject(), record.getScheduleTime(), record.getStartWroteOffset(), record.getRecordSize(), record.getSequence());
                 refresh(index, refreshSubject);
                 send(index);
@@ -153,6 +177,7 @@ public class SenderProcessor implements DelayProcessor, Processor<ScheduleIndex>
 
     @Override
     public void fail(List<ScheduleIndex> indexList) {
+        QMon.sendProcessorFailed();
         retry(indexList);
     }
 
