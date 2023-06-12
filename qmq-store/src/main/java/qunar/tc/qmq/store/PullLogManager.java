@@ -17,6 +17,7 @@
 package qunar.tc.qmq.store;
 
 import com.google.common.collect.HashBasedTable;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Table;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -129,7 +130,11 @@ public class PullLogManager implements AutoCloseable {
     public void flush() {
         final long start = System.currentTimeMillis();
         try {
-            for (final PullLog log : logs.values()) {
+            /**
+             * 报java.util.ConcurrentModificationException，需要copy
+             */
+            Collection<PullLog> pullLogs = ImmutableList.copyOf(logs.values());
+            for (final PullLog log : pullLogs) {
                 log.flush();
             }
         } finally {
@@ -171,7 +176,8 @@ public class PullLogManager implements AutoCloseable {
 
     @Override
     public void close() {
-        for (final PullLog log : logs.values()) {
+        Collection<PullLog> pullLogs = ImmutableList.copyOf(logs.values());
+        for (final PullLog log : pullLogs) {
             log.close();
         }
     }

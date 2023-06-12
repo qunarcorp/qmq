@@ -119,6 +119,11 @@ public class WheelTickManager implements Switchable, HashedWheelTimer.Processor 
         loadedCursor.shiftCursor(baseOffset);
     }
 
+    /**
+     * 看看哪些已经dispatch过了，recover的时候就忽略
+     * @param currentDispatchLog
+     * @return
+     */
     private LongHashSet loadDispatchLog(final DispatchLogSegment currentDispatchLog) {
         LogVisitor<Long> visitor = currentDispatchLog.newVisitor(0);
         final LongHashSet recordSet = new LongHashSet(currentDispatchLog.entries());
@@ -138,6 +143,9 @@ public class WheelTickManager implements Switchable, HashedWheelTimer.Processor 
         return started.get();
     }
 
+    /**
+     * 周期性的兜底---每隔30分钟执行一次，
+     */
     private void load() {
         long next = System.currentTimeMillis() + config.getLoadInAdvanceTimesInMillis();
         long prepareLoadBaseOffset = resolveSegment(next, segmentScale);
@@ -266,9 +274,10 @@ public class WheelTickManager implements Switchable, HashedWheelTimer.Processor 
         try {
             scheduleTime = index.getScheduleTime();
             timer.newTimeout(index, scheduleTime - now, TimeUnit.MILLISECONDS);
-        } catch (Throwable e) {
-            LOGGER.error("wheel refresh error, scheduleTime:{}, delay:{}", scheduleTime, scheduleTime - now);
-            throw Throwables.propagate(e);
+        } catch (Throwable throwable) {
+            LOGGER.error("wheel refresh error, scheduleTime:{}, delay:{}", scheduleTime, scheduleTime - now, throwable);
+            QMon.addWheelFailed(index.getSubject());
+            throw Throwables.propagate(throwable);
         }
     }
 
@@ -284,7 +293,22 @@ public class WheelTickManager implements Switchable, HashedWheelTimer.Processor 
     }
 
     public void addWHeel(ScheduleIndex index) {
-        refresh(index);
+        boolean result = false;
+        do {
+            try {
+                //Wheel里面的队列满了，需要等待重试，这里卡住
+                refresh(index);
+                result = true;
+            } catch (Throwable throwable) {
+                LOGGER.error("add wheel temp error, {}, {}, {}", index.getSubject(), index.getScheduleTime(), index.getOffset(), throwable);
+                try {
+                    long sleepMillis = config.getConfig().getLong("add.wheel.exception.sleep.millis", 500L);
+                    Thread.sleep(sleepMillis);
+                } catch (InterruptedException e) {
+                    LOGGER.error("add wheel temp sleep error", e);
+                }
+            }
+        } while (!result);
     }
 
     public boolean canAdd(long scheduleTime, long offset) {
