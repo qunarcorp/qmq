@@ -69,7 +69,8 @@ public class SenderGroup implements Disposable {
                 boolean success = false;
                 while (!success) {
                     try {
-                        success = workQueue.add(r);
+                        success = workQueue.offer(r);
+                        //success = workQueue.add(r); 这里会频繁抛异常，微秒级别性能会有问题。
                     } catch (Throwable ignore) {
 
                     }
@@ -184,18 +185,18 @@ public class SenderGroup implements Disposable {
 
     private Datagram sendMessages(final List<ScheduleSetRecord> records, final Sender sender) {
         long start = System.currentTimeMillis();
-
         try {
             return sender.send(records, this);
         } catch (ClientSendException e) {
             ClientSendException.SendErrorCode errorCode = e.getSendErrorCode();
-            monitorSendError(records, groupInfo.get(), errorCode.ordinal());
+            LOGGER.error("SenderGroup sendMessages error, client send exception, broker group={}, errorCode={}", groupInfo.get(), errorCode, e);
+            monitorSendError(records, groupInfo.get(), errorCode.ordinal(), e);
         } catch (Exception e) {
-            monitorSendError(records, groupInfo.get(), -1);
+            LOGGER.error("SenderGroup sendMessages error, broker group={}", groupInfo.get(), e);
+            monitorSendError(records, groupInfo.get(), -1, e);
         } finally {
             QMon.sendMsgTime(groupInfo.get().getGroupName(), System.currentTimeMillis() - start);
         }
-
         return null;
     }
 
@@ -210,13 +211,15 @@ public class SenderGroup implements Disposable {
         QMon.nettySendMessageFailCount(subject, groupName);
     }
 
-    private void monitorSendError(List<ScheduleSetRecord> records, BrokerGroupInfo group, int errorCode) {
-        records.parallelStream().forEach(record -> monitorSendError(record.getSubject(), group, errorCode));
+    private void monitorSendError(List<ScheduleSetRecord> records, BrokerGroupInfo group, int errorCode, Throwable throwable) {
+        for (ScheduleSetRecord record : records) {
+            monitorSendError(record.getSubject(), group, errorCode, throwable);
+        }
     }
 
-    private void monitorSendError(String subject, BrokerGroupInfo group, int errorCode) {
+    private void monitorSendError(String subject, BrokerGroupInfo group, int errorCode, Throwable throwable) {
         if (LOG_LIMITER.tryAcquire()) {
-            LOGGER.error("netty delay sender send error,subject:{},group:{},code:{}", subject, group, errorCode);
+            LOGGER.error("netty delay sender send error,subject:{},group:{},code:{}", subject, group, errorCode, throwable);
         }
         QMon.nettySendMessageFailCount(subject, group.getGroupName());
     }
