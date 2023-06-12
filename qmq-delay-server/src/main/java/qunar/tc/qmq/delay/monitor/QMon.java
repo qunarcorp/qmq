@@ -136,10 +136,6 @@ public class QMon {
         Metrics.counter("hashed_wheel_timer_expire_error", EMPTY, EMPTY).inc();
     }
 
-    public static void sendBatchExecutorAddFailedRetryFailed(String subject) {
-        countInc("sendBatchExecutorAddFailedRetryFailed", subject);
-    }
-
     public static void addWheelFailed(String subject) {
         countInc("addWheelFailed", subject);
     }

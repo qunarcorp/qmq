@@ -80,22 +80,26 @@ public class SenderProcessor implements DelayProcessor, Processor<ScheduleIndex>
         if (!BrokerRoleManager.isDelayMaster()) {
             return;
         }
-
         boolean add;
-        try {
-            long waitTime = Math.abs(sendWaitTime);
-            if (waitTime > 0) {
-                add = batchExecutor.addItem(index, waitTime, TimeUnit.MILLISECONDS);
-            } else {
-                add = batchExecutor.addItem(index);
+        do {
+            try {
+                long waitTime = Math.abs(sendWaitTime);
+                if (waitTime > 0) {
+                    add = batchExecutor.addItem(index, waitTime, TimeUnit.MILLISECONDS);
+                } else {
+                    add = batchExecutor.addItem(index);
+                }
+                if (!add) {
+                    QMon.sendBatchExecutorAddFailed(index.getSubject());
+                    long sleepBaseMillis = config.getLong("delay.send.batch.executor.sleep.min.millis", 500L);
+                    final ThreadLocalRandom random = ThreadLocalRandom.current();
+                    long sleepMillis = sleepBaseMillis + random.nextInt(500);
+                    Thread.sleep(sleepMillis);
+                }
+            } catch (InterruptedException e) {
+                return;
             }
-        } catch (InterruptedException e) {
-            return;
-        }
-        //这里卡住重试
-        if (!add) {
-            reject(index);
-        }
+        } while (!add);
     }
 
     @Override
@@ -105,30 +109,6 @@ public class SenderProcessor implements DelayProcessor, Processor<ScheduleIndex>
         } catch (Exception e) {
             LOGGER.error("send message failed,messageSize:{} will retry", indexList.size(), e);
             retry(indexList);
-        }
-    }
-
-    private void reject(ScheduleIndex index) {
-        QMon.sendBatchExecutorAddFailed(index.getSubject());
-        boolean result = false;
-        int retryTimes = config.getInt("delay.send.batch.executor.retry.times", 50);
-        long sleepBaseMillis = config.getLong("delay.send.batch.executor.sleep.min.millis", 1000L);
-        for (int i = 0; i < retryTimes; i++) {
-            try {
-                final ThreadLocalRandom random = ThreadLocalRandom.current();
-                long sleepMillis = sleepBaseMillis + random.nextInt(1000);
-                Thread.sleep(sleepMillis);
-                send(index);
-                result = true;
-                break;
-            } catch (InterruptedException e) {
-                LOGGER.error("send processor reject InterruptedException", e);
-            } catch (Throwable throwable) {
-                LOGGER.error("send processor reject error, subject={}, scheduleTime={}, offset={}", index.getSubject(), index.getScheduleTime(), index.getOffset(), throwable);
-            }
-        }
-        if (!result) {
-            QMon.sendBatchExecutorAddFailedRetryFailed(index.getSubject());
         }
     }
 
