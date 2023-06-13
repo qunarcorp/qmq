@@ -147,4 +147,8 @@ public class QMon {
     public static void sendProcessorPartlyFailed() {
         Metrics.counter("sendProcessorPartlyFailed", EMPTY, EMPTY).inc();
     }
+
+    public static void appendScheduleLogTime(String subject, long time) {
+        Metrics.timer("appendScheduleLogTime", SUBJECT_ARRAY, new String[]{subject}).update(time, TimeUnit.MILLISECONDS);
+    }
 }

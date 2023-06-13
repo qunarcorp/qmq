@@ -23,6 +23,7 @@ import qunar.tc.qmq.common.Disposable;
 import qunar.tc.qmq.delay.ScheduleIndex;
 import qunar.tc.qmq.delay.base.LongHashSet;
 import qunar.tc.qmq.delay.config.StoreConfiguration;
+import qunar.tc.qmq.delay.monitor.QMon;
 import qunar.tc.qmq.delay.store.DefaultDelaySegmentValidator;
 import qunar.tc.qmq.delay.store.ScheduleLogValidatorSupport;
 import qunar.tc.qmq.delay.store.appender.ScheduleSetAppender;
@@ -71,25 +72,30 @@ public class ScheduleLog implements Log<ScheduleIndex, LogRecord>, Disposable {
 
     @Override
     public AppendLogResult<ScheduleIndex> append(LogRecord record) {
-        if (!open.get()) {
-            return new AppendLogResult<>(MessageProducerCode.STORE_ERROR, "schedule log closed");
-        }
-        AppendLogResult<RecordResult<ScheduleSetSequence>> result = scheduleSet.append(record);
-        int code = result.getCode();
-        if (MessageProducerCode.SUCCESS != code) {
-            LOGGER.error("appendMessageLog schedule set error,log:{} {},code:{}", record.getSubject(), record.getMessageId(), code);
-            return new AppendLogResult<>(MessageProducerCode.STORE_ERROR, "appendScheduleSetError");
-        }
+        long start = System.currentTimeMillis();
+        try {
+            if (!open.get()) {
+                return new AppendLogResult<>(MessageProducerCode.STORE_ERROR, "schedule log closed");
+            }
+            AppendLogResult<RecordResult<ScheduleSetSequence>> result = scheduleSet.append(record);
+            int code = result.getCode();
+            if (MessageProducerCode.SUCCESS != code) {
+                LOGGER.error("appendMessageLog schedule set error,log:{} {},code:{}", record.getSubject(), record.getMessageId(), code);
+                return new AppendLogResult<>(MessageProducerCode.STORE_ERROR, "appendScheduleSetError");
+            }
 
-        RecordResult<ScheduleSetSequence> recordResult = result.getAdditional();
-        ScheduleIndex index = new ScheduleIndex(
-                record.getSubject(),
-                record.getScheduleTime(),
-                recordResult.getResult().getWroteOffset(),
-                recordResult.getResult().getWroteBytes(),
-                recordResult.getResult().getAdditional().getSequence());
+            RecordResult<ScheduleSetSequence> recordResult = result.getAdditional();
+            ScheduleIndex index = new ScheduleIndex(
+                    record.getSubject(),
+                    record.getScheduleTime(),
+                    recordResult.getResult().getWroteOffset(),
+                    recordResult.getResult().getWroteBytes(),
+                    recordResult.getResult().getAdditional().getSequence());
 
-        return new AppendLogResult<>(MessageProducerCode.SUCCESS, "", index);
+            return new AppendLogResult<>(MessageProducerCode.SUCCESS, "", index);
+        } finally {
+            QMon.appendScheduleLogTime(record.getSubject(), System.currentTimeMillis() - start);
+        }
     }
 
     @Override
