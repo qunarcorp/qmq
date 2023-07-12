@@ -36,7 +36,7 @@ public class ClientMetaInfoStoreImpl implements ClientMetaInfoStore {
     public List<ClientMetaInfo> queryConsumer(String subject) {
         return jdbcTemplate.query("SELECT id,subject_info,client_type,consumer_group,client_id,app_code,room FROM client_meta_info WHERE subject_info=? AND client_type=?", (rs, rowNum) -> {
             final ClientMetaInfo meta = new ClientMetaInfo();
-            meta.setId(rs.getInt("id"));
+            meta.setId(rs.getLong("id"));
             meta.setSubject(rs.getString("subject_info"));
             meta.setClientTypeCode(rs.getInt("client_type"));
             meta.setConsumerGroup(rs.getString("consumer_group"));
