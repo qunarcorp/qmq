@@ -16,6 +16,7 @@
 
 package qunar.tc.qmq.delay.sender;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -75,6 +76,13 @@ public class SenderProcessor implements DelayProcessor, Processor<ScheduleIndex>
         this.batchExecutor.init();
     }
 
+    private void sendSync(ScheduleIndex index) {
+        if (!BrokerRoleManager.isDelayMaster()) {
+            return;
+        }
+        syncProcess(Lists.newArrayList(index));
+    }
+
     @Override
     public void send(ScheduleIndex index) {
         if (!BrokerRoleManager.isDelayMaster()) {
@@ -112,6 +120,15 @@ public class SenderProcessor implements DelayProcessor, Processor<ScheduleIndex>
         }
     }
 
+    private void syncProcess(List<ScheduleIndex> indexList) {
+        try {
+            senderExecutor.syncExecute(indexList, this, brokerService);
+        } catch (Exception e) {
+            LOGGER.error("send message failed,messageSize:{} will retry", indexList.size(), e);
+            retry(indexList);
+        }
+    }
+
     private void success(ScheduleSetRecord record) {
         facade.appendDispatchLog(new DispatchLogRecord(record.getSubject(), record.getMessageId(), record.getScheduleTime(), record.getSequence()));
     }
@@ -138,7 +155,7 @@ public class SenderProcessor implements DelayProcessor, Processor<ScheduleIndex>
         final Set<String> refreshSubject = Sets.newHashSet();
         for (ScheduleIndex index : indexList) {
             refresh(index, refreshSubject);
-            send(index);
+            sendSync(index);
         }
     }
 

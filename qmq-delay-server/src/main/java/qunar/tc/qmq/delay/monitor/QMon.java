@@ -151,4 +151,16 @@ public class QMon {
     public static void appendScheduleLogTime(String subject, long time) {
         Metrics.timer("appendScheduleLogTime", SUBJECT_ARRAY, new String[]{subject}).update(time, TimeUnit.MILLISECONDS);
     }
+
+    public static void retryNettySend() {
+        Metrics.counter("retryNettySend", EMPTY, EMPTY).inc();
+    }
+
+    public static void retryNettySendError() {
+        Metrics.counter("retryNettySendError", EMPTY, EMPTY).inc();
+    }
+
+    public static void syncSend(String subject) {
+        Metrics.counter("sync_send_count", SUBJECT_ARRAY, new String[] {subject}).inc();
+    }
 }

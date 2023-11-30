@@ -73,7 +73,6 @@ public class Receiver {
         for (RawMessageExtend message : messages) {
             final MessageHeader header = message.getHeader();
             monitorMessageReceived(header.getCreateTime(), header.getSubject());
-
             final ReceivedDelayMessage receivedDelayMessage = new ReceivedDelayMessage(message, cmd.getReceiveTime());
             futures.add(receivedDelayMessage.getPromise());
             invoker.invoke(receivedDelayMessage);
