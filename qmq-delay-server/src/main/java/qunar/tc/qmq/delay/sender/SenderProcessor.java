@@ -16,6 +16,7 @@
 
 package qunar.tc.qmq.delay.sender;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,11 +28,13 @@ import qunar.tc.qmq.configuration.DynamicConfig;
 import qunar.tc.qmq.delay.DelayLogFacade;
 import qunar.tc.qmq.delay.ScheduleIndex;
 import qunar.tc.qmq.delay.meta.BrokerRoleManager;
+import qunar.tc.qmq.delay.monitor.QMon;
 import qunar.tc.qmq.delay.store.model.DispatchLogRecord;
 import qunar.tc.qmq.delay.store.model.ScheduleSetRecord;
 
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -73,26 +76,38 @@ public class SenderProcessor implements DelayProcessor, Processor<ScheduleIndex>
         this.batchExecutor.init();
     }
 
+    private void sendSync(ScheduleIndex index) {
+        if (!BrokerRoleManager.isDelayMaster()) {
+            return;
+        }
+        syncProcess(Lists.newArrayList(index));
+    }
+
     @Override
     public void send(ScheduleIndex index) {
         if (!BrokerRoleManager.isDelayMaster()) {
             return;
         }
-
         boolean add;
-        try {
-            long waitTime = Math.abs(sendWaitTime);
-            if (waitTime > 0) {
-                add = batchExecutor.addItem(index, waitTime, TimeUnit.MILLISECONDS);
-            } else {
-                add = batchExecutor.addItem(index);
+        do {
+            try {
+                long waitTime = Math.abs(sendWaitTime);
+                if (waitTime > 0) {
+                    add = batchExecutor.addItem(index, waitTime, TimeUnit.MILLISECONDS);
+                } else {
+                    add = batchExecutor.addItem(index);
+                }
+                if (!add) {
+                    QMon.sendBatchExecutorAddFailed(index.getSubject());
+                    long sleepBaseMillis = config.getLong("delay.send.batch.executor.sleep.min.millis", 500L);
+                    final ThreadLocalRandom random = ThreadLocalRandom.current();
+                    long sleepMillis = sleepBaseMillis + random.nextInt(500);
+                    Thread.sleep(sleepMillis);
+                }
+            } catch (InterruptedException e) {
+                return;
             }
-        } catch (InterruptedException e) {
-            return;
-        }
-        if (!add) {
-            reject(index);
-        }
+        } while (!add);
     }
 
     @Override
@@ -105,8 +120,13 @@ public class SenderProcessor implements DelayProcessor, Processor<ScheduleIndex>
         }
     }
 
-    private void reject(ScheduleIndex index) {
-        send(index);
+    private void syncProcess(List<ScheduleIndex> indexList) {
+        try {
+            senderExecutor.syncExecute(indexList, this, brokerService);
+        } catch (Exception e) {
+            LOGGER.error("send message failed,messageSize:{} will retry", indexList.size(), e);
+            retry(indexList);
+        }
     }
 
     private void success(ScheduleSetRecord record) {
@@ -117,6 +137,7 @@ public class SenderProcessor implements DelayProcessor, Processor<ScheduleIndex>
         final Set<String> refreshSubject = Sets.newHashSet();
         for (ScheduleSetRecord record : records) {
             if (messageIds.contains(record.getMessageId())) {
+                QMon.sendProcessorPartlyFailed();
                 ScheduleIndex index = new ScheduleIndex(record.getSubject(), record.getScheduleTime(), record.getStartWroteOffset(), record.getRecordSize(), record.getSequence());
                 refresh(index, refreshSubject);
                 send(index);
@@ -134,7 +155,7 @@ public class SenderProcessor implements DelayProcessor, Processor<ScheduleIndex>
         final Set<String> refreshSubject = Sets.newHashSet();
         for (ScheduleIndex index : indexList) {
             refresh(index, refreshSubject);
-            send(index);
+            sendSync(index);
         }
     }
 
@@ -153,6 +174,7 @@ public class SenderProcessor implements DelayProcessor, Processor<ScheduleIndex>
 
     @Override
     public void fail(List<ScheduleIndex> indexList) {
+        QMon.sendProcessorFailed();
         retry(indexList);
     }
 

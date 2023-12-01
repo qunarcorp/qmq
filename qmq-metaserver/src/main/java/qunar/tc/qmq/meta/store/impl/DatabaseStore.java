@@ -231,7 +231,7 @@ public class DatabaseStore implements Store {
 
     private static final RowMapper<ClientMetaInfo> CLIENT_META_INFO_ROW_MAPPER= (rs, rowNum) -> {
         final ClientMetaInfo clientMetaInfo = new ClientMetaInfo();
-        clientMetaInfo.setId(rs.getInt("id"));
+        clientMetaInfo.setId(rs.getLong("id"));
         clientMetaInfo.setSubject(rs.getString("subject_info"));
         clientMetaInfo.setClientTypeCode(rs.getInt("client_type"));
         clientMetaInfo.setConsumerGroup(rs.getString("consumer_group"));

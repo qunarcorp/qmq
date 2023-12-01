@@ -76,19 +76,19 @@ public class ServerWrapper implements Disposable {
     private DynamicConfig config;
     private DefaultStoreConfiguration storeConfig;
 
-	public void start(boolean autoOnline) {
-		init();
-		register();
-		startServer();
-		sync();
-		if (autoOnline)
-			online();
-	}
+    public void start(boolean autoOnline) {
+        init();
+        register();
+        startServer();
+        sync();
+        if (autoOnline)
+            online();
+    }
 
-	public void online() {
-		BrokerConfig.markAsWritable();
-		brokerRegisterService.healthSwitch(true);
-	}
+    public void online() {
+        BrokerConfig.markAsWritable();
+        brokerRegisterService.healthSwitch(true);
+    }
 
     private void init() {
         this.config = DynamicConfigLoader.load("delay.properties");
@@ -122,7 +122,6 @@ public class ServerWrapper implements Disposable {
             wheelTickManager.addWHeel(index);
             return true;
         }
-
         return false;
     }
 

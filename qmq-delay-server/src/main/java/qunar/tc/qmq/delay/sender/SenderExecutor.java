@@ -46,12 +46,14 @@ class SenderExecutor implements Disposable {
     private final Sender sender;
     private final DelayLogFacade store;
     private final int sendThreads;
+    private DynamicConfig sendConfig;
 
     SenderExecutor(final Sender sender, DelayLogFacade store, DynamicConfig sendConfig) {
         this.sender = sender;
         this.store = store;
         this.brokerLoadBalance = PollBrokerLoadBalance.getInstance();
         this.sendThreads = sendConfig.getInt("delay.send.threads", DEFAULT_SEND_THREAD);
+        this.sendConfig = sendConfig;
     }
 
     void execute(final List<ScheduleIndex> indexList, final SenderGroup.ResultHandler handler, final BrokerService brokerService) {
@@ -59,6 +61,17 @@ class SenderExecutor implements Disposable {
         for (Map.Entry<SenderGroup, List<ScheduleIndex>> entry : groups.entrySet()) {
             doExecute(entry.getKey(), entry.getValue(), handler);
         }
+    }
+
+    public void syncExecute(final List<ScheduleIndex> indexList, final SenderGroup.ResultHandler handler, final BrokerService brokerService) {
+        Map<SenderGroup, List<ScheduleIndex>> groups = groupByBroker(indexList, brokerService);
+        for (Map.Entry<SenderGroup, List<ScheduleIndex>> entry : groups.entrySet()) {
+            doSyncExecute(entry.getKey(), entry.getValue(), handler);
+        }
+    }
+
+    private void doSyncExecute(final SenderGroup group, final List<ScheduleIndex> list, final SenderGroup.ResultHandler handler) {
+        group.sendSync(list, sender, handler);
     }
 
     private void doExecute(final SenderGroup group, final List<ScheduleIndex> list, final SenderGroup.ResultHandler handler) {
@@ -88,7 +101,7 @@ class SenderExecutor implements Disposable {
         String groupName = groupInfo.getGroupName();
         SenderGroup senderGroup = groupSenders.get(groupName);
         if (null == senderGroup) {
-            senderGroup = new SenderGroup(groupInfo, sendThreads, store);
+            senderGroup = new SenderGroup(groupInfo, sendThreads, store, sendConfig);
             SenderGroup currentSenderGroup = groupSenders.putIfAbsent(groupName, senderGroup);
             senderGroup = null != currentSenderGroup ? currentSenderGroup : senderGroup;
         } else {

@@ -104,8 +104,8 @@ public class SlaveSynchronizer implements Disposable {
 
         @Override
         public void run() {
-            final long start = System.currentTimeMillis();
             while (running) {
+                final long start = System.currentTimeMillis();
                 try {
                     sync();
                 } catch (Throwable e) {
