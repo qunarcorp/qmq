@@ -97,9 +97,9 @@ public class BackupActionLogSyncProcessor extends AbstractSyncLogProcessor imple
                 checkpointManager.addSyncActionLogOffset(body.readerIndex() - start);
                 continue;
             }
-            recordBackup.add(new ActionRecord(action), null);
+//            recordBackup.add(new ActionRecord(action), null);
             //改用bulk load方式上传
-//            hFileRecordStore.appendData(new ActionRecord(action), null);
+            hFileRecordStore.appendData(new ActionRecord(action), null);
             checkpointManager.addSyncActionLogOffset(body.readerIndex() - start);
         }
     }
