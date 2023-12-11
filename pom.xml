@@ -88,7 +88,7 @@
         <jackson.version>2.9.9</jackson.version>
         <jetty.version>9.4.17.v20190418</jetty.version>
         <slf4j.version>1.7.25</slf4j.version>
-        <logback.version>1.2.3</logback.version>
+        <logback.version>1.2.9</logback.version>
         <async.hbaseclient.version>1.8.2</async.hbaseclient.version>
         <powermock.version>1.7.4</powermock.version>
         <powermock-api-mockito2.version>2.0.0</powermock-api-mockito2.version>
