@@ -31,8 +31,9 @@
             <artifactId>qmq-server-common</artifactId>
         </dependency>
         <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>qmq-client</artifactId>
+            <groupId>com.qunar.qmq</groupId>
+            <artifactId>qmq</artifactId>
+            <version>LATEST</version>
         </dependency>
         <dependency>
             <groupId>commons-lang</groupId>
